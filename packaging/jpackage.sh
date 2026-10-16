@@ -20,9 +20,12 @@ command -v jpackage >/dev/null 2>&1 || { echo "jpackage not found; use a JDK 21 
 
 OS="$(uname -s)"
 EXTRA=()
+APP_VERSION="0.1.0"
 case "$OS" in
   Darwin)
     TYPE="${PKG_TYPE:-dmg}"
+    # macOS rejects an app version whose first number is 0 (the bundle version must start at 1 or higher).
+    APP_VERSION="1.0.0"
     EXTRA+=(--mac-package-identifier dev.wowforever.browser)
     ;;
   Linux)
@@ -46,7 +49,7 @@ jpackage \
   --main-jar "$JAR_NAME" \
   --main-class dev.wowforever.app.Main \
   --name "WoW Forever Browser" \
-  --app-version 0.1.0 \
+  --app-version "$APP_VERSION" \
   --dest "$DEST" \
   --java-options "-Djava.awt.headless=false" \
   --vendor "wow-forever-browser contributors" \

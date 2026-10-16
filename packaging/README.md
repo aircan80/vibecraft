@@ -43,7 +43,11 @@ The scripts can be started from any working directory.
 Everything lands in `packaging/dist/` (git-ignored):
 
 - Windows: `WoW Forever Browser-0.1.0.msi`, or `WoW Forever Browser/WoW Forever Browser.exe` for `app-image`
-- macOS: `WoW Forever Browser-0.1.0.dmg`
+- macOS: `WoW Forever Browser-1.0.0.dmg`
 - Linux: `wow-forever-browser_0.1.0-1_amd64.deb`
 
 Installers are built per OS; jpackage cannot cross-compile.
+
+The macOS package is versioned `1.0.0` rather than `0.1.0`: jpackage on macOS rejects an `--app-version`
+whose first number is 0, because the bundle version must start at 1 or higher. Windows and Linux packages
+keep the project version `0.1.0`.
