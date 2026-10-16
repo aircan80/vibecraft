@@ -4,6 +4,7 @@ import static dev.wowforever.app.model.EntityKind.INSTANCE;
 import static dev.wowforever.app.model.EntityKind.ITEM;
 import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.OBJECT;
+import static dev.wowforever.app.model.EntityKind.QUEST;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -16,6 +17,9 @@ import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.ObjectSummary;
 import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.detail.ItemDetailPanel;
+import dev.wowforever.app.ui.detail.NpcDetailPanel;
+import dev.wowforever.app.ui.detail.ZoneDetailPanel;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -133,8 +137,7 @@ class AppControllerTest {
       ids.add(((NpcSummary) model.rowAt(r)).id());
     }
     assertThat(ids).contains(11520L);
-    assertThat(view.detail).isInstanceOfSatisfying(JLabel.class,
-        l -> assertThat(l.getText()).isEqualTo("Zone detail arrives in Task 16"));
+    assertThat(view.detail).isInstanceOf(ZoneDetailPanel.class);
   }
 
   @Test
@@ -146,11 +149,61 @@ class AppControllerTest {
   }
 
   @Test
-  void entityShowsPlaceholderDetail() {
+  void entityTargetRendersDetailPanel() {
     AppController c = new AppController(repos, frameStub(), Runnable::run);
     c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    assertThat(view.detail).isInstanceOf(ItemDetailPanel.class);
+    assertThat(view.titleSuffix).isEqualTo("Subterranean Cape");
+  }
+
+  @Test
+  void clickThroughFromItemToNpcAndBack() {
+    AppController c = new AppController(repos, frameStub(), Runnable::run);
+    c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    var droppedBy = ((ItemDetailPanel) view.detail).droppedBy();
+    int row = -1;
+    for (int r = 0; r < droppedBy.rowCount(); r++) {
+      if (droppedBy.model().rowAt(droppedBy.table().convertRowIndexToModel(r)).ref().id() == 11520) {
+        row = r;
+      }
+    }
+    assertThat(row).isNotNegative();
+    droppedBy.activateRow(row);
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(NPC, 11520)));
+    assertThat(view.detail).isInstanceOf(NpcDetailPanel.class);
+    assertThat(view.titleSuffix).isEqualTo("Taragaman the Hungerer");
+    c.back();
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    assertThat(view.detail).isInstanceOf(ItemDetailPanel.class);
+  }
+
+  @Test
+  void missingEntityShowsNotFound() {
+    AppController c = new AppController(repos, frameStub(), Runnable::run);
+    c.open(new ViewTarget.Entity(new EntityRef(QUEST, -5)));
     assertThat(view.detail).isInstanceOfSatisfying(JLabel.class,
-        l -> assertThat(l.getText()).isEqualTo("Item detail arrives in Task 16"));
+        l -> assertThat(l.getText()).isEqualTo("Not found: Quest #-5"));
+  }
+
+  @Test
+  void linkedZoneShowsDetailAndLeavesResults() {
+    AppController c = new AppController(repos, frameStub(), Runnable::run);
+    c.open(new ViewTarget.Search("hogger", Optional.of(NPC)));
+    c.open(new ViewTarget.Entity(new EntityRef(ZONE, 40)));
+    assertThat(view.detail).isInstanceOf(ZoneDetailPanel.class);
+    assertThat(view.results().title()).isEqualTo("Search: hogger (1)");
+    assertThat(view.titleSuffix).isEqualTo("Westfall");
+  }
+
+  @Test
+  void staleDetailIsDropped() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, frameStub(), queued::add);
+    c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    c.open(new ViewTarget.Entity(new EntityRef(NPC, 639)));
+    queued.get(1).run();
+    queued.get(0).run(); // the item finishes last and must not replace the NPC
+    assertThat(view.detail).isInstanceOf(NpcDetailPanel.class);
   }
 
   @Test

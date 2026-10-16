@@ -1,34 +1,46 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceSummary;
+import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.ObjectSummary;
+import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.SearchHit;
+import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.model.ZoneSummary;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
 
-/** Column lists for the results table, one per row type. The first column of each is the linked name. */
+/** Column lists for the results and detail tables, one per row type. The first column of each is a link. */
 public final class Columns {
   private Columns() {}
 
   /**
    * One table column: its title, value class (drives sorting and alignment), cell value and, for link
-   * columns, the entity a cell points at. {@code link} is null for plain columns.
+   * columns, the entity a cell points at. {@code link} is null for plain columns; {@code order} sorts the cell
+   * values and is null for the sorter's default order of {@code type}.
    */
   public record Column<T>(String title, Class<?> type, Function<T, Object> value,
-      Function<T, Optional<EntityRef>> link) {
+      Function<T, Optional<EntityRef>> link, Comparator<?> order) {
     public Column {
       Objects.requireNonNull(title, "title");
       Objects.requireNonNull(type, "type");
       Objects.requireNonNull(value, "value");
+    }
+
+    /** A column sorted in the default order of {@code type}. */
+    public Column(String title, Class<?> type, Function<T, Object> value, Function<T, Optional<EntityRef>> link) {
+      this(title, type, value, link, null);
     }
 
     /** Whether the cells of this column link to an entity. */
@@ -69,6 +81,16 @@ public final class Columns {
       return low().equals(high()) ? String.valueOf(low()) : low() + "–" + high();
     }
   }
+
+  /** Shown for a missing percentage or coordinate. */
+  public static final String NONE = "—";
+
+  /**
+   * Orders formatted numbers ({@code "5.00 %"}, {@code "45.3"}) by their leading number; text without one
+   * (such as {@link #NONE}) sorts last.
+   */
+  public static final Comparator<String> NUMERIC_TEXT = Comparator.comparing(Columns::leadingNumber,
+      Comparator.nullsLast(Comparator.naturalOrder()));
 
   public static List<Column<ItemSummary>> items() {
     return List.of(
@@ -122,6 +144,92 @@ public final class Columns {
         plain("Details", String.class, SearchHit::subtitle));
   }
 
+  /** The NPCs that drop an item: source, level, zone, drop chance and data origin. */
+  public static List<Column<DropSource>> dropSources() {
+    return List.of(
+        link("Source", DropSource::displayName, d -> Optional.of(d.ref())),
+        plain("Level", Levels.class, d -> new Levels(d.levelMin(), d.levelMax())),
+        link("Zone", DropSource::zoneName, d -> zoneRef(d.zoneId())),
+        numeric("Drop %", d -> percentText(d.dropPct())),
+        plain("Origin", String.class, DropSource::origin));
+  }
+
+  /** Objects, containers, vendors and quests linked to an item. */
+  public static List<Column<ItemSource>> itemSources() {
+    return List.of(
+        link("Name", ItemSource::displayName, s -> Optional.of(s.ref())),
+        plain("Kind", String.class, s -> sourceKindText(s.kind())));
+  }
+
+  /** Items an NPC drops or sells, an object contains or a quest rewards. */
+  public static List<Column<LootRow>> lootRows() {
+    return List.of(
+        link("Item", LootRow::displayName, l -> Optional.of(l.item())),
+        plain("Item level", Integer.class, LootRow::itemLevel),
+        numeric("Drop %", l -> percentText(l.dropPct())),
+        plain("Origin", String.class, LootRow::origin),
+        plain("Slot", Integer.class, LootRow::slot));
+  }
+
+  /** The loot of an AtlasLoot boss, in loot-table slot order. */
+  public static List<Column<LootRow>> bossLoot() {
+    return List.of(
+        link("Item", LootRow::displayName, l -> Optional.of(l.item())),
+        plain("Item level", Integer.class, LootRow::itemLevel),
+        plain("Slot", Integer.class, LootRow::slot),
+        numeric("Drop %", l -> percentText(l.dropPct())),
+        plain("Origin", String.class, LootRow::origin));
+  }
+
+  /** The NPCs, objects and items that start or end a quest. */
+  public static List<Column<QuestGiver>> questGivers() {
+    return List.of(
+        link("Name", QuestGiver::displayName, g -> Optional.of(g.ref())),
+        plain("Type", String.class, g -> g.ref().kind().label()),
+        plain("Role", String.class, g -> roleText(g.role())));
+  }
+
+  /** Spawn points: the zone and the map coordinates. */
+  public static List<Column<Spawn>> spawns() {
+    return List.of(
+        link("Zone", s -> s.zoneName() != null ? s.zoneName() : EntityKind.ZONE.unknownName(s.zoneId()),
+            s -> zoneRef(s.zoneId())),
+        numeric("X", s -> String.format(Locale.ROOT, "%.1f", s.x())),
+        numeric("Y", s -> String.format(Locale.ROOT, "%.1f", s.y())));
+  }
+
+  /** A drop chance as {@code "56.07 %"}, or {@link #NONE} when unknown. */
+  public static String percentText(Double pct) {
+    return pct == null ? NONE : String.format(Locale.ROOT, "%.2f %%", pct);
+  }
+
+  /** {@link ItemSource} kind for display. */
+  public static String sourceKindText(String kind) {
+    if (kind == null) {
+      return null;
+    }
+    return switch (kind) {
+      case ItemSource.OBJECT -> "Object";
+      case ItemSource.CONTAINER -> "Container item";
+      case ItemSource.VENDOR -> "Vendor";
+      case ItemSource.REWARD -> "Quest reward";
+      case ItemSource.RELATED -> "Related quest";
+      default -> kind;
+    };
+  }
+
+  /** {@link QuestGiver} role for display: start → Starts, end → Ends. */
+  public static String roleText(String role) {
+    if (role == null) {
+      return null;
+    }
+    return switch (role) {
+      case "start" -> "Starts";
+      case "end" -> "Ends";
+      default -> role;
+    };
+  }
+
   /** NPC rank text: 0 Normal, 1 Elite, 2 Rare Elite, 3 Boss, 4 Rare; null when unknown. */
   public static String rankText(Integer rank) {
     if (rank == null) {
@@ -154,6 +262,23 @@ public final class Columns {
 
   private static Optional<EntityRef> zoneRef(Long zoneId) {
     return Optional.ofNullable(zoneId).map(id -> new EntityRef(EntityKind.ZONE, id));
+  }
+
+  private static Double leadingNumber(String text) {
+    if (text == null) {
+      return null;
+    }
+    int end = text.indexOf(' ');
+    try {
+      return Double.parseDouble(end < 0 ? text : text.substring(0, end));
+    } catch (NumberFormatException e) {
+      return null;
+    }
+  }
+
+  /** A column of formatted numbers, sorted by {@link #NUMERIC_TEXT}. */
+  private static <T> Column<T> numeric(String title, Function<T, Object> value) {
+    return new Column<>(title, String.class, value, null, NUMERIC_TEXT);
   }
 
   private static <T> Column<T> plain(String title, Class<?> type, Function<T, Object> value) {

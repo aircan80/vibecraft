@@ -36,6 +36,13 @@ class ResultsPanelTest {
   }
 
   @Test
+  void cappedTitleShowsFirstNOnce() {
+    ResultsPanel p = new ResultsPanel(t -> {});
+    p.show("Weapon", twoItems(), true);
+    assertThat(p.title()).isEqualTo("Weapon (first 2)");
+  }
+
+  @Test
   void activateRowOpensNameLinkThroughTheSorter() {
     List<ViewTarget> opened = new ArrayList<>();
     ResultsPanel p = new ResultsPanel(opened::add);

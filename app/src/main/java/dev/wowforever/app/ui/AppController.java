@@ -8,6 +8,7 @@ import dev.wowforever.app.model.ZoneSummary;
 import dev.wowforever.app.nav.NavigationHistory;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.detail.DetailPanels;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -43,12 +44,21 @@ public final class AppController implements Navigator {
   private volatile List<ItemClassNode> classTree; // cached on the worker
   private volatile List<ZoneSummary> zones; // cached on the worker
 
-  /** One table to show: its title, columns and rows. */
-  private record Table<T>(String title, List<Columns.Column<T>> columns, List<T> rows) {
+  /** One table to show: its title, columns and rows; {@code page} is the row limit of the query, 0 for none. */
+  private record Table<T>(String title, List<Columns.Column<T>> columns, List<T> rows, int page) {
+    Table(String title, List<Columns.Column<T>> columns, List<T> rows) {
+      this(title, columns, rows, 0);
+    }
+
     ResultsTableModel<T> model() {
       ResultsTableModel<T> m = new ResultsTableModel<>(columns);
       m.setRows(rows);
       return m;
+    }
+
+    /** Whether the rows fill the page, so the list probably goes on. */
+    boolean capped() {
+      return page > 0 && rows.size() >= page;
     }
   }
 
@@ -126,8 +136,8 @@ public final class AppController implements Navigator {
     view.status().setMessage("Loading…");
     Async.run(worker, work, table -> {
       if (generation == resultsGeneration) {
-        view.results().show(table.title(), table.model());
-        view.setTitleSuffix(table.title());
+        view.results().show(table.title(), table.model(), table.capped());
+        view.setTitleSuffix(cappedTitle(table.title(), table.rows().size(), table.page()));
         int n = table.rows().size();
         view.status().setMessage(n == 1 ? "1 result" : String.format(Locale.ROOT, "%,d results", n));
       }
@@ -138,29 +148,27 @@ public final class AppController implements Navigator {
     });
   }
 
+  /**
+   * Shows the detail page of {@code ref}: the repository call runs on the worker ({@link DetailPanels#load}), the
+   * panel is built on the EDT ({@link DetailPanels#render}).
+   */
   private void showEntity(EntityRef ref) {
     int generation = ++detailGeneration;
     view.setTitleSuffix(ref.kind().label() + " #" + ref.id());
-    Async.run(worker, () -> loadDetail(ref), detail -> {
+    Async.run(worker, () -> DetailPanels.load(ref, repos), detail -> {
       if (generation == detailGeneration) {
-        view.setDetail(renderDetail(detail));
+        if (detail.isPresent()) {
+          view.setDetail(DetailPanels.render(detail.get(), repos, this));
+          view.setTitleSuffix(DetailPanels.name(detail.get()));
+        } else {
+          view.setDetail(DetailPanels.notFound(ref));
+        }
       }
     }, e -> {
       if (generation == detailGeneration) {
         fail(e);
       }
     });
-  }
-
-  /** Loads what the detail view of {@code ref} shows; runs on the worker (Task 16 fills this in). */
-  private Object loadDetail(EntityRef ref) {
-    return ref;
-  }
-
-  /** Builds the detail view from what {@link #loadDetail} returned; runs on the EDT. */
-  private JComponent renderDetail(Object detail) {
-    EntityRef ref = (EntityRef) detail;
-    return placeholder(ref.kind().label() + " detail arrives in Task 16");
   }
 
   private void showHome() {
@@ -179,19 +187,23 @@ public final class AppController implements Navigator {
 
   private Table<?> search(ViewTarget.Search s) {
     var hits = repos.search().search(s.text(), s.kind(), SEARCH_LIMIT);
-    String title = "Search: " + s.text() + (hits.size() >= SEARCH_LIMIT ? " (first " + SEARCH_LIMIT + ")" : "");
-    return new Table<>(title, Columns.searchHits(), hits);
+    return new Table<>("Search: " + s.text(), Columns.searchHits(), hits, SEARCH_LIMIT);
   }
 
   private Table<?> itemClass(ViewTarget.ItemClass c) {
     Integer subclass = c.subclassId() == ItemClassNode.CLASS_NODE ? null : c.subclassId();
     var items = repos.items().list(c.classId(), subclass, ITEM_PAGE, 0);
-    return new Table<>(itemClassTitle(itemClassName(c.classId(), c.subclassId()), items.size()), Columns.items(), items);
+    return new Table<>(itemClassName(c.classId(), c.subclassId()), Columns.items(), items, ITEM_PAGE);
   }
 
   /** {@code name}, marked {@code (first 500)} when {@code rows} fills the page. */
   static String itemClassTitle(String name, int rows) {
-    return rows >= ITEM_PAGE ? name + " (first " + ITEM_PAGE + ")" : name;
+    return cappedTitle(name, rows, ITEM_PAGE);
+  }
+
+  /** {@code name}, marked {@code (first <page>)} when {@code rows} fills a page; unchanged when {@code page} is 0. */
+  static String cappedTitle(String name, int rows, int page) {
+    return page > 0 && rows >= page ? name + " (first " + page + ")" : name;
   }
 
   private String itemClassName(int classId, int subclassId) {
