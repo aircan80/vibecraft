@@ -2,6 +2,9 @@ package dev.wowforever.app.ui;
 
 import java.awt.Color;
 import java.awt.Component;
+import java.awt.Font;
+import java.awt.font.TextAttribute;
+import java.util.Map;
 import javax.swing.JTable;
 import javax.swing.UIManager;
 import javax.swing.table.DefaultTableCellRenderer;
@@ -18,6 +21,9 @@ public final class LinkRenderer extends DefaultTableCellRenderer {
   public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
       int row, int column) {
     super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+    setFont(TableLinks.isHoveredLink(table, row, column)
+        ? table.getFont().deriveFont(Map.of(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON))
+        : table.getFont());
     if (!isSelected) {
       setForeground(linksSomewhere(table, row, column) ? linkColor() : table.getForeground());
     }

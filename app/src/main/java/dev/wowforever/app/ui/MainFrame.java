@@ -1,5 +1,6 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.ui.widgets.Icons;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.Rail;
 import java.awt.BorderLayout;
@@ -43,8 +44,8 @@ public final class MainFrame extends JFrame implements MainView {
   static final String TOGGLE_LIST = "toggleList";
   private static final String SHOWN_DIVIDER_SIZE = "wowforever.shownDividerSize";
 
-  private final JButton back = new JButton("←");
-  private final JButton forward = new JButton("→");
+  private final JButton back = historyButton("arrow-left", "Back", "Back (Alt+Left, mouse button 4)");
+  private final JButton forward = historyButton("arrow-right", "Forward", "Forward (Alt+Right, mouse button 5)");
   private final SearchBar searchBar;
   private final Rail rail = new Rail();
   private final MasterList list = new MasterList();
@@ -66,8 +67,6 @@ public final class MainFrame extends JFrame implements MainView {
       }
     });
     searchBar.setEnabled(false);
-    back.setToolTipText("Back (Alt+Left)");
-    forward.setToolTipText("Forward (Alt+Right)");
     back.addActionListener(e -> back());
     forward.addActionListener(e -> forward());
     setHistoryState(false, false);
@@ -142,6 +141,7 @@ public final class MainFrame extends JFrame implements MainView {
   /** Wires in the controller once the database is open, and enables searching. */
   public void attach(AppController controller) {
     this.controller = controller;
+    MouseNavigation.install(controller, content);
     searchBar.setEnabled(true);
   }
 
@@ -161,6 +161,15 @@ public final class MainFrame extends JFrame implements MainView {
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
+  }
+
+  /** A toolbar button showing icon {@code icon}, named {@code name} for accessibility, with {@code tooltip}. */
+  static JButton historyButton(String icon, String name, String tooltip) {
+    JButton b = new JButton(Icons.icon(icon, 18));
+    b.getAccessibleContext().setAccessibleName(name);
+    b.setToolTipText(tooltip);
+    b.setFocusable(false);
+    return b;
   }
 
   private JMenuBar menuBar() {

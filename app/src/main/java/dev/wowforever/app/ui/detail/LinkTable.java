@@ -14,7 +14,10 @@ import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 
-/** A sortable table of linked rows; double-click or Enter opens the row's first link. */
+/**
+ * A sortable table of linked rows; a click on a link cell opens it, Enter or a double-click elsewhere opens the
+ * row's first link.
+ */
 public final class LinkTable<T> extends JPanel {
   private final Navigator nav;
   private final ResultsTableModel<T> model;
@@ -25,7 +28,7 @@ public final class LinkTable<T> extends JPanel {
     this.nav = Objects.requireNonNull(nav, "nav");
     this.model = new ResultsTableModel<>(cols);
     TableLinks.setModel(table, model);
-    TableLinks.bindActivation(table, this::activateRow);
+    TableLinks.bindActivation(table, this::activateRow, ref -> nav.open(new ViewTarget.Entity(ref)));
     add(new JScrollPane(table), BorderLayout.CENTER);
   }
 

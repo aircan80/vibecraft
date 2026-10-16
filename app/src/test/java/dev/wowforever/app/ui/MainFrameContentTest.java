@@ -87,4 +87,19 @@ class MainFrameContentTest {
     assertThat(split.getDividerSize()).isEqualTo(dividerSize);
     assertThat(split.getDividerLocation()).isEqualTo(333);
   }
+
+  @Test
+  void historyButtonsHaveIconsNamesAndTooltips() {
+    javax.swing.JButton back = MainFrame.historyButton("arrow-left", "Back", "Back (Alt+Left, mouse button 4)");
+    javax.swing.JButton forward =
+        MainFrame.historyButton("arrow-right", "Forward", "Forward (Alt+Right, mouse button 5)");
+    assertThat(back.getIcon()).isNotNull();
+    assertThat(back.getIcon().getIconWidth()).isPositive();
+    assertThat(forward.getIcon()).isNotNull();
+    assertThat(back.getAccessibleContext().getAccessibleName()).isEqualTo("Back");
+    assertThat(forward.getAccessibleContext().getAccessibleName()).isEqualTo("Forward");
+    assertThat(back.getToolTipText()).contains("mouse button 4");
+    assertThat(forward.getToolTipText()).contains("mouse button 5");
+    assertThat(back.getText()).isNullOrEmpty();
+  }
 }
