@@ -84,6 +84,8 @@ public final class Columns {
 
   /** Shown for a missing percentage or coordinate. */
   public static final String NONE = "—";
+  /** The title of the drop-rate columns (a {@link Double} percentage, null when unknown). */
+  public static final String RATE = "Rate";
 
   /**
    * Orders formatted numbers ({@code "5.00 %"}, {@code "45.3"}) by their leading number; text without one
@@ -194,14 +196,17 @@ public final class Columns {
         plain("Slot", Integer.class, LootRow::slot));
   }
 
-  /** The loot of an AtlasLoot boss, in loot-table slot order. */
-  public static List<Column<LootRow>> bossLoot() {
+  /**
+   * Items on the entity pages (an NPC's drops and wares, an object's contents, a quest's rewards, a boss's loot):
+   * the item, its level, the rate (a {@link Double}, null when unknown), the data origin and the loot slot.
+   */
+  public static List<Column<LootRow>> lootRated() {
     return List.of(
         link("Item", LootRow::displayName, l -> Optional.of(l.item())),
         plain("Item level", Integer.class, LootRow::itemLevel),
-        plain("Slot", Integer.class, LootRow::slot),
-        numeric("Drop %", l -> percentText(l.dropPct())),
-        plain("Origin", String.class, LootRow::origin));
+        plain(RATE, Double.class, LootRow::dropPct),
+        plain("Origin", String.class, LootRow::origin),
+        plain("Slot", Integer.class, LootRow::slot));
   }
 
   /** The NPCs, objects and items that start or end a quest. */
@@ -212,13 +217,22 @@ public final class Columns {
         plain("Role", String.class, g -> roleText(g.role())));
   }
 
-  /** Spawn points: the zone and the map coordinates. */
+  /** Spawn points: the zone and the map coordinates ({@link #coordinatesText}). */
   public static List<Column<Spawn>> spawns() {
     return List.of(
         link("Zone", s -> s.zoneName() != null ? s.zoneName() : EntityKind.ZONE.unknownName(s.zoneId()),
             s -> zoneRef(s.zoneId())),
-        numeric("X", s -> String.format(Locale.ROOT, "%.1f", s.x())),
-        numeric("Y", s -> String.format(Locale.ROOT, "%.1f", s.y())));
+        plain("Coordinates", String.class, Columns::coordinatesText));
+  }
+
+  /** Whether a spawn point has map coordinates (instance spawns are imported at -1, -1). */
+  public static boolean hasCoordinates(Spawn s) {
+    return s.x() >= 0 && s.y() >= 0;
+  }
+
+  /** {@code "42.3, 67.4"}, or {@link #NONE} without {@linkplain #hasCoordinates coordinates}. */
+  public static String coordinatesText(Spawn s) {
+    return hasCoordinates(s) ? String.format(Locale.ROOT, "%.1f, %.1f", s.x(), s.y()) : NONE;
   }
 
   /** A drop chance as {@code "56.07 %"}, or {@link #NONE} when unknown. */

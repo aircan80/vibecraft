@@ -19,6 +19,9 @@ public final class NpcRepository {
              n.npc_flags, n.friendly_to
       FROM npc n LEFT JOIN zone nz ON nz.id = n.zone_id""";
 
+  /** The item columns a {@link LootRow} reads ({@link #itemJoin} must be joined): name, item level and class. */
+  static final String ITEM_COLUMNS = "i.name, i.item_level, i.class_id, ic.name AS class_name, i.subclass_id";
+
   private final Database db;
 
   public NpcRepository(Database db) {
@@ -36,17 +39,16 @@ public final class NpcRepository {
         return head;
       }
       NpcDetail h = head.get();
-      List<LootRow> drops = Sql.list(c, """
-          SELECT d.item_id, i.name, i.item_level, d.drop_pct, d.origin
-          FROM item_npc_drop d LEFT JOIN item i ON i.id = d.item_id
+      List<LootRow> drops = Sql.list(c, "SELECT d.item_id, " + ITEM_COLUMNS + ", d.drop_pct, d.origin"
+          + " FROM item_npc_drop d " + itemJoin("d") + """
+
           WHERE d.npc_id = ?
           ORDER BY d.drop_pct IS NULL, d.drop_pct DESC, i.name IS NULL, i.name COLLATE NOCASE, d.item_id""",
-          rs -> new LootRow(new EntityRef(EntityKind.ITEM, rs.getLong("item_id")), rs.getString("name"),
-              Sql.integer(rs, "item_level"), Sql.doubleValue(rs, "drop_pct"), rs.getString("origin"), null),
+          rs -> loot(rs, Sql.doubleValue(rs, "drop_pct"), rs.getString("origin"), null),
           id);
-      List<LootRow> sells = Sql.list(c, """
-          SELECT v.item_id, i.name, i.item_level
-          FROM item_vendor v LEFT JOIN item i ON i.id = v.item_id
+      List<LootRow> sells = Sql.list(c, "SELECT v.item_id, " + ITEM_COLUMNS
+          + " FROM item_vendor v " + itemJoin("v") + """
+
           WHERE v.npc_id = ?
           ORDER BY i.name IS NULL, i.name COLLATE NOCASE, v.item_id""",
           NpcRepository::plainLoot, id);
@@ -67,10 +69,21 @@ public final class NpcRepository {
         NpcRepository::summary, zoneId, limit);
   }
 
-  /** An item row without drop chance, origin or slot ({@code item_id}, {@code name}, {@code item_level}). */
+  /** Joins {@code item i} and {@code item_class ic} on the {@code item_id} of the table aliased {@code alias}. */
+  static String itemJoin(String alias) {
+    return "LEFT JOIN item i ON i.id = " + alias + ".item_id LEFT JOIN item_class ic ON ic.id = i.class_id";
+  }
+
+  /** An item row without drop chance, origin or slot ({@code item_id} and the {@link #ITEM_COLUMNS}). */
   static LootRow plainLoot(ResultSet rs) throws SQLException {
+    return loot(rs, null, null, null);
+  }
+
+  /** An item row of {@code item_id} and the {@link #ITEM_COLUMNS}, with the given drop chance, origin and slot. */
+  static LootRow loot(ResultSet rs, Double dropPct, String origin, Integer slot) throws SQLException {
     return new LootRow(new EntityRef(EntityKind.ITEM, rs.getLong("item_id")), rs.getString("name"),
-        Sql.integer(rs, "item_level"), null, null, null);
+        Sql.integer(rs, "item_level"), dropPct, origin, slot, Sql.integer(rs, "class_id"),
+        rs.getString("class_name"), Sql.integer(rs, "subclass_id"));
   }
 
   /** The spawn points of an NPC or object from {@code table} (npc_spawn or object_spawn), in import order. */

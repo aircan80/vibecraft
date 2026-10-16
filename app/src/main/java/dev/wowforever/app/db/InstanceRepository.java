@@ -1,8 +1,6 @@
 package dev.wowforever.app.db;
 
 import dev.wowforever.app.model.BossSummary;
-import dev.wowforever.app.model.EntityKind;
-import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
@@ -19,6 +17,10 @@ public final class InstanceRepository {
   static final String SUMMARY_SELECT = """
       SELECT i.id, i.name, i.content_type, i.level_min, i.level_max, i.zone_id, z.name AS zone_name, i.key
       FROM instance i LEFT JOIN zone z ON z.id = i.zone_id""";
+
+  /** The boss loot columns with the item's; append WHERE and ORDER BY. */
+  private static final String BOSS_LOOT = "SELECT bl.item_id, " + NpcRepository.ITEM_COLUMNS
+      + ", bl.drop_pct, bl.slot FROM boss_loot bl " + NpcRepository.itemJoin("bl");
 
   private final Database db;
 
@@ -52,16 +54,38 @@ public final class InstanceRepository {
     });
   }
 
-  /** The loot table of a boss in slot order. */
+  /** The loot table of a boss in slot order, every difficulty. */
   public List<LootRow> bossLoot(long bossId) {
-    return db.read(c -> Sql.list(c, """
-        SELECT bl.item_id, i.name, i.item_level, bl.drop_pct, bl.slot
-        FROM boss_loot bl LEFT JOIN item i ON i.id = bl.item_id
+    return db.read(c -> Sql.list(c, BOSS_LOOT + """
+
         WHERE bl.boss_id = ?
         ORDER BY bl.slot IS NULL, bl.slot, bl.difficulty, bl.item_id""",
-        rs -> new LootRow(new EntityRef(EntityKind.ITEM, rs.getLong("item_id")), rs.getString("name"),
-            Sql.integer(rs, "item_level"), Sql.doubleValue(rs, "drop_pct"), BOSS_LOOT_ORIGIN, Sql.integer(rs, "slot")),
-        bossId));
+        InstanceRepository::bossLootRow, bossId));
+  }
+
+  /** The loot table of a boss in one {@code difficulty} (a {@link #difficulties} value), in slot order. */
+  public List<LootRow> bossLoot(long bossId, String difficulty) {
+    return db.read(c -> Sql.list(c, BOSS_LOOT + """
+
+        WHERE bl.boss_id = ? AND bl.difficulty = ?
+        ORDER BY bl.slot IS NULL, bl.slot, bl.item_id""",
+        InstanceRepository::bossLootRow, bossId, difficulty));
+  }
+
+  /**
+   * The distinct {@code boss_loot.difficulty} values (such as NORMAL) over the instance's bosses: NORMAL first,
+   * then the others by name; empty when the instance has no boss loot.
+   */
+  public List<String> difficulties(long instanceId) {
+    return db.read(c -> Sql.list(c, """
+        SELECT DISTINCT bl.difficulty FROM boss_loot bl JOIN boss b ON b.id = bl.boss_id
+        WHERE b.instance_id = ?
+        ORDER BY bl.difficulty <> 'NORMAL', bl.difficulty""",
+        rs -> rs.getString("difficulty"), instanceId));
+  }
+
+  private static LootRow bossLootRow(ResultSet rs) throws SQLException {
+    return NpcRepository.loot(rs, Sql.doubleValue(rs, "drop_pct"), BOSS_LOOT_ORIGIN, Sql.integer(rs, "slot"));
   }
 
   static InstanceSummary summary(ResultSet rs) throws SQLException {

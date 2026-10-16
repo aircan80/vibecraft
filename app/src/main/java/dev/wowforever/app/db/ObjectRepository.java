@@ -28,9 +28,9 @@ public final class ObjectRepository {
         return Optional.empty();
       }
       return Optional.of(new ObjectDetail(summary.get(),
-          Sql.list(c, """
-              SELECT d.item_id, i.name, i.item_level
-              FROM item_object_drop d LEFT JOIN item i ON i.id = d.item_id
+          Sql.list(c, "SELECT d.item_id, " + NpcRepository.ITEM_COLUMNS
+              + " FROM item_object_drop d " + NpcRepository.itemJoin("d") + """
+
               WHERE d.object_id = ?
               ORDER BY i.name IS NULL, i.name COLLATE NOCASE, d.item_id""",
               NpcRepository::plainLoot, id),

@@ -13,8 +13,12 @@ import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
-import dev.wowforever.app.model.QuestDetail;
+import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
+import dev.wowforever.app.ui.pages.NpcPage;
+import dev.wowforever.app.ui.pages.ObjectPage;
+import dev.wowforever.app.ui.pages.QuestPage;
+import dev.wowforever.app.ui.pages.ZonePage;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import org.junit.jupiter.api.Test;
@@ -32,11 +36,11 @@ class DetailPanelsTest {
   @Test
   void rendersAPanelForEveryNavigableKind() {
     assertThat(render(ITEM, 14149)).isInstanceOf(ItemPage.class);
-    assertThat(render(NPC, 639)).isInstanceOf(NpcDetailPanel.class);
-    assertThat(render(OBJECT, 386759)).isInstanceOf(ObjectDetailPanel.class);
-    assertThat(render(QUEST, 2)).isInstanceOf(QuestDetailPanel.class);
-    assertThat(render(ZONE, 40)).isInstanceOf(ZoneDetailPanel.class);
-    assertThat(render(INSTANCE, 1)).isInstanceOf(InstanceDetailPanel.class);
+    assertThat(render(NPC, 639)).isInstanceOf(NpcPage.class);
+    assertThat(render(OBJECT, 386759)).isInstanceOf(ObjectPage.class);
+    assertThat(render(QUEST, 2)).isInstanceOf(QuestPage.class);
+    assertThat(render(ZONE, 40)).isInstanceOf(ZonePage.class);
+    assertThat(render(INSTANCE, 1)).isInstanceOf(InstancePage.class);
   }
 
   @Test
@@ -57,31 +61,5 @@ class DetailPanelsTest {
   void buildFallsBackToNotFound() {
     JComponent c = DetailPanels.build(new EntityRef(NPC, -7), repos, t -> {});
     assertThat(c).isInstanceOfSatisfying(JLabel.class, l -> assertThat(l.getText()).isEqualTo("Not found: NPC #-7"));
-  }
-
-  @Test
-  void questPanelSplitsGiversAndShowsObjectives() {
-    QuestDetail d = repos.quests().detail(2).get();
-    var p = new QuestDetailPanel(d, t -> {});
-    long starts = d.givers().stream().filter(g -> g.role().equals("start")).count();
-    long ends = d.givers().stream().filter(g -> g.role().equals("end")).count();
-    assertThat(p.tabs().getTitleAt(0)).isEqualTo("Given by (" + starts + ")");
-    assertThat(p.tabs().getTitleAt(1)).isEqualTo("Turned in to (" + ends + ")");
-    assertThat(p.tabs().getTitleAt(2)).isEqualTo("Rewards (" + d.rewards().size() + ")");
-    assertThat(p.tabs().getTitleAt(3)).isEqualTo("Related items (" + d.relatedItems().size() + ")");
-    assertThat(p.header().subtitle()).startsWith("Quest #2");
-    assertThat(p.objectives().isEditable()).isFalse();
-    assertThat(p.objectives().getLineWrap()).isTrue();
-  }
-
-  @Test
-  void objectPanelTabs() {
-    var d = repos.objects().detail(386759).get();
-    var p = new ObjectDetailPanel(d, t -> {});
-    assertThat(p.tabs().getTitleAt(0)).isEqualTo("Contains (" + d.contains().size() + ")");
-    assertThat(p.tabs().getTitleAt(1)).isEqualTo("Starts quests (" + d.starts().size() + ")");
-    assertThat(p.tabs().getTitleAt(2)).isEqualTo("Ends quests (" + d.ends().size() + ")");
-    assertThat(p.tabs().getTitleAt(3)).isEqualTo("Spawns (" + d.spawns().size() + ")");
-    assertThat(p.header().subtitle()).startsWith("Object #386759");
   }
 }

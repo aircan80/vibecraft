@@ -13,9 +13,9 @@ import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.nav.ViewTarget;
-import dev.wowforever.app.ui.detail.NpcDetailPanel;
-import dev.wowforever.app.ui.detail.ZoneDetailPanel;
 import dev.wowforever.app.ui.pages.ItemPage;
+import dev.wowforever.app.ui.pages.NpcPage;
+import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.ui.widgets.ListEntry;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
@@ -198,7 +198,7 @@ class AppControllerTest {
     String zone = repos.zones().detail(2437).get().summary().name();
     assertThat(list().heading()).startsWith("NPCs in " + zone + " (");
     assertThat(refs()).contains(new EntityRef(NPC, 11520));
-    assertThat(view.detail).isInstanceOf(ZoneDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(ZonePage.class);
   }
 
   @Test
@@ -233,7 +233,7 @@ class AppControllerTest {
     int row = refs().indexOf(new EntityRef(ZONE, 12));
     assertThat(row).isNotNegative();
     previewRow(row);
-    assertThat(view.detail).isInstanceOf(ZoneDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(ZonePage.class);
     list().commitSelected();
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(ZONE, 12)));
     assertThat(list().heading()).startsWith("NPCs in Elwynn Forest (");
@@ -393,7 +393,7 @@ class AppControllerTest {
     // the first row is the highest known rate; the fixture item has one source, Taragaman
     ((ItemPage) view.detail).droppedBy().activateRow(0);
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(NPC, 11520)));
-    assertThat(view.detail).isInstanceOf(NpcDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
     assertThat(view.titleSuffix).isEqualTo("Taragaman the Hungerer");
     c.back();
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
@@ -414,7 +414,7 @@ class AppControllerTest {
     c.open(new ViewTarget.Search("hogger", Optional.of(NPC)));
     previewRow(0);
     c.open(new ViewTarget.Entity(new EntityRef(ZONE, 40)));
-    assertThat(view.detail).isInstanceOf(ZoneDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(ZonePage.class);
     assertThat(list().heading()).isEqualTo("Search: hogger (1)");
     assertThat(list().entries()).hasSize(1);
     assertThat(view.titleSuffix).isEqualTo("Westfall");
@@ -428,7 +428,7 @@ class AppControllerTest {
     c.open(new ViewTarget.Entity(new EntityRef(NPC, 639)));
     queued.get(1).run();
     queued.get(0).run(); // the item finishes last and must not replace the NPC
-    assertThat(view.detail).isInstanceOf(NpcDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
   }
 
   @Test
@@ -441,7 +441,7 @@ class AppControllerTest {
     c.preview(new EntityRef(NPC, 448));
     queued.get(1).run();
     queued.get(0).run(); // the first preview finishes last and must not replace the second
-    assertThat(view.detail).isInstanceOf(NpcDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
     assertThat(view.titleSuffix).isEqualTo("Hogger");
   }
 

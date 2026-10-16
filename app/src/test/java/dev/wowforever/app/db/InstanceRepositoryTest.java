@@ -18,6 +18,26 @@ class InstanceRepositoryTest {
   }
 
   @Test
+  void difficultiesAreTheDistinctOnesOfTheInstanceBosses() {
+    assertThat(repos.instances().difficulties(1)).containsExactly("NORMAL");
+    assertThat(repos.instances().difficulties(3)).containsExactly("NORMAL");
+    assertThat(repos.instances().difficulties(-1)).isEmpty();
+  }
+
+  @Test
+  void bossLootOfOneDifficultyAndItsItemClass() {
+    long taragaman = repos.instances().detail(1).get().bosses().get(0).id();
+    assertThat(repos.instances().bossLoot(taragaman, "NORMAL"))
+        .containsExactlyElementsOf(repos.instances().bossLoot(taragaman));
+    assertThat(repos.instances().bossLoot(taragaman, "HEROIC")).isEmpty();
+    assertThat(repos.instances().bossLoot(taragaman)).filteredOn(l -> l.item().id() == 14149).singleElement()
+        .satisfies(l -> {
+          assertThat(l.className()).isEqualTo("Armor");
+          assertThat(l.subclassId()).isEqualTo(1);
+        });
+  }
+
+  @Test
   void instanceSummaryNamesItsZone() {
     var rfc = repos.instances().detail(1).get().summary();
     assertThat(rfc.zoneId()).isEqualTo(2437L);

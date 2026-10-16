@@ -18,6 +18,23 @@ class NpcRepositoryTest {
   }
 
   @Test
+  void lootRowsCarryTheItemClass() {
+    NpcDetail d = repos.npcs().detail(639).get();
+    assertThat(d.drops()).filteredOn(l -> l.item().id() == 5191).singleElement().satisfies(l -> {
+      assertThat(l.classId()).isEqualTo(2);
+      assertThat(l.className()).isEqualTo("Weapon");
+      assertThat(l.subclassId()).isEqualTo(7);
+    });
+    assertThat(d.drops()).filteredOn(l -> l.item().id() == 2874).singleElement()
+        .satisfies(l -> assertThat(l.className()).isEqualTo("Quest"));
+    assertThat(d.drops()).filteredOn(l -> l.item().id() == 5193).singleElement().satisfies(l -> {
+      assertThat(l.classId()).isNull();
+      assertThat(l.className()).isNull();
+      assertThat(l.subclassId()).isNull();
+    });
+  }
+
+  @Test
   void byZoneListsSpawnZoneNpcs() {
     assertThat(repos.npcs().byZone(2437)).extracting(n -> n.id()).contains(11520L);
   }

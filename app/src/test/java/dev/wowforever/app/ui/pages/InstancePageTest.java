@@ -1,0 +1,150 @@
+package dev.wowforever.app.ui.pages;
+
+import static dev.wowforever.app.model.EntityKind.ITEM;
+import static dev.wowforever.app.model.EntityKind.NPC;
+import static dev.wowforever.app.model.EntityKind.ZONE;
+import static dev.wowforever.app.ui.pages.Tables.column;
+import static dev.wowforever.app.ui.pages.Tables.columnNames;
+import static org.assertj.core.api.Assertions.assertThat;
+
+import dev.wowforever.app.db.FixtureDb;
+import dev.wowforever.app.db.Repositories;
+import dev.wowforever.app.model.BossSummary;
+import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.InstanceDetail;
+import dev.wowforever.app.model.InstanceSummary;
+import dev.wowforever.app.nav.ViewTarget;
+import java.awt.Component;
+import java.util.ArrayList;
+import java.util.List;
+import javax.swing.JLabel;
+import javax.swing.JList;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+
+@ExtendWith(FixtureDb.class)
+class InstancePageTest {
+  private final Repositories repos = FixtureDb.repositories();
+
+  private InstancePage deadmines(List<ViewTarget> opened) {
+    return new InstancePage(repos.instances().detail(2).get(), repos, opened::add);
+  }
+
+  /** What row {@code index} of {@code list} reads, through its renderer. */
+  private static String rendered(JList<BossSummary> list, int index) {
+    Component c = list.getCellRenderer().getListCellRendererComponent(list, list.getModel().getElementAt(index),
+        index, false, false);
+    return ((JLabel) c).getText();
+  }
+
+  private static List<String> rendered(JList<BossSummary> list) {
+    List<String> rows = new ArrayList<>();
+    for (int i = 0; i < list.getModel().getSize(); i++) {
+      rows.add(rendered(list, i));
+    }
+    return rows;
+  }
+
+  @Test
+  void encountersAreNumberedWithLevelAndKind() {
+    var p = deadmines(new ArrayList<>());
+    assertThat(rendered(p.encounters())).containsExactly(
+        "1. Rhahk'Zor  Lv 19  Boss",
+        "2. Miner Johnson  Lv 19  Rare",
+        "3. Sneed  Lv 20  Boss",
+        "4. Sneed's Shredder  Lv 20  Boss",
+        "5. Gilnid  Lv 20  Boss",
+        "6. Mr. Smite  Lv 20  Boss",
+        "7. Captain Greenskin  Lv 20  Boss",
+        "8. Edwin VanCleef  Lv 21  Boss",
+        "9. Cookie  Lv 20  Elite");
+  }
+
+  @Test
+  void aSkullLevelAndAnUnknownLevelReadAsSuch() {
+    var mc = new InstancePage(repos.instances().detail(3).get(), repos, t -> {});
+    assertThat(rendered(mc.encounters(), 0)).isEqualTo("1. Lucifron  Lv ??  Boss");
+    var unknown = new InstancePage(new InstanceDetail(new InstanceSummary(9, "X", "DUNGEON", null, null, null, null),
+        List.of(new BossSummary(1, "Nameless", null, null, null, false))), repos, t -> {});
+    assertThat(rendered(unknown.encounters(), 0)).isEqualTo("1. Nameless  Boss");
+  }
+
+  @Test
+  void extraListsSitUnderOtherLootLists() {
+    var p = deadmines(new ArrayList<>());
+    assertThat(p.extraListsHeading().getText()).isEqualTo("Other loot lists");
+    assertThat(p.extraListsHeading().isVisible()).isTrue();
+    assertThat(rendered(p.extraLists())).containsExactly("Defias Gunpowder", "Trash Mobs");
+    var rfc = new InstancePage(repos.instances().detail(1).get(), repos, t -> {});
+    assertThat(rfc.extraListsHeading().isVisible()).isFalse();
+    assertThat(rfc.extraLists().isVisible()).isFalse();
+  }
+
+  @Test
+  void theFirstEncounterIsSelectedAndItsLootGroupedBySlotType() {
+    var rfc = new InstancePage(repos.instances().detail(1).get(), repos, t -> {});
+    assertThat(rfc.encounters().getSelectedIndex()).isZero();
+    // in AtlasLoot slot order within each group: the cape is slot 1, the cuffs slot 2
+    assertThat(column(rfc.lootTable().table(), 0)).containsExactly("Weapons (1)", "Cursed Felblade", "Armour (2)",
+        "Subterranean Cape", "Crystalline Cuffs");
+    assertThat(rfc.lootTable().model().refAt(1, 0)).contains(new EntityRef(ITEM, 14145));
+    assertThat(rfc.lootTable().model().refAt(3, 0)).contains(new EntityRef(ITEM, 14149));
+    assertThat(rfc.lootTable().model().refAt(4, 0)).contains(new EntityRef(ITEM, 14148));
+    assertThat(rfc.lootSection().heading().getText()).isEqualTo("Loot (3)");
+  }
+
+  @Test
+  void selectingAnEncounterShowsItsLootAndLinksItsNpc() {
+    List<ViewTarget> opened = new ArrayList<>();
+    var p = deadmines(opened);
+    p.selectBoss(7);
+    assertThat(column(p.lootTable().table(), 0)).containsExactly("Weapons (1)", "Cruel Barb", "Other (4)",
+        "Unknown item #5193", "Unknown item #5202", "Unknown item #10399", "An Unsent Letter");
+    // AtlasLoot is the origin of every row: the column is hidden
+    assertThat(columnNames(p.lootTable().table())).doesNotContain("Origin");
+    assertThat(p.bossHeader().title()).isEqualTo("Edwin VanCleef");
+    p.bossHeader().links().get(0).doClick();
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 639)));
+  }
+
+  @Test
+  void selectingAnExtraListClearsTheEncounterAndBack() {
+    var p = deadmines(new ArrayList<>());
+    p.selectBoss(10);
+    assertThat(p.encounters().isSelectionEmpty()).isTrue();
+    assertThat(p.extraLists().getSelectedIndex()).isEqualTo(1);
+    assertThat(p.bossHeader().title()).isEqualTo("Trash Mobs");
+    assertThat(p.lootSection().heading().getText()).isEqualTo("Loot (1)");
+    p.selectBoss(0);
+    assertThat(p.extraLists().isSelectionEmpty()).isTrue();
+    assertThat(p.bossHeader().title()).isEqualTo("Rhahk'Zor");
+  }
+
+  @Test
+  void difficultyControlIsAbsentWithOneDifficulty() {
+    var p = deadmines(new ArrayList<>());
+    assertThat(repos.instances().difficulties(2)).hasSize(1);
+    assertThat(p.difficultyControl()).isNull();
+  }
+
+  @Test
+  void headerReadsTypeLevelsAndLinksTheZoneTwice() {
+    List<ViewTarget> opened = new ArrayList<>();
+    var p = deadmines(opened);
+    assertThat(p.header().title()).isEqualTo("The Deadmines");
+    assertThat(p.header().subtitle()).isEqualTo("Dungeon · Level 10–17 · The Deadmines · NPCs in The Deadmines");
+    p.header().links().forEach(b -> b.doClick());
+    EntityRef zone = new EntityRef(ZONE, 1581);
+    assertThat(opened).containsExactly(new ViewTarget.Entity(zone), new ViewTarget.Entity(zone));
+  }
+
+  @Test
+  void anInstanceWithoutZoneOrBossesStillRenders() {
+    var p = new InstancePage(new InstanceDetail(new InstanceSummary(9, "X", "RAID40", 60, 63, null, null),
+        List.of()), repos, t -> {});
+    assertThat(p.header().subtitle()).isEqualTo("Raid (40) · Level 60–63");
+    assertThat(p.header().links()).isEmpty();
+    assertThat(p.encounters().getModel().getSize()).isZero();
+    assertThat(p.lootTable()).isNull();
+  }
+}

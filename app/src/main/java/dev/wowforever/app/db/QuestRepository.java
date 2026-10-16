@@ -45,9 +45,9 @@ public final class QuestRepository {
           ORDER BY g.role <> 'start', g.kind, giver_name IS NULL, giver_name COLLATE NOCASE, g.entity_id""",
           QuestRepository::giver, id).stream().filter(Objects::nonNull).toList();
       return Optional.of(new QuestDetail(head.get().summary(), head.get().objectivesText(), givers,
-          Sql.list(c, """
-              SELECT r.item_id, i.name, i.item_level
-              FROM quest_reward_item r LEFT JOIN item i ON i.id = r.item_id
+          Sql.list(c, "SELECT r.item_id, " + NpcRepository.ITEM_COLUMNS
+              + " FROM quest_reward_item r " + NpcRepository.itemJoin("r") + """
+
               WHERE r.quest_id = ?
               ORDER BY i.name IS NULL, i.name COLLATE NOCASE, r.item_id""",
               NpcRepository::plainLoot, id),

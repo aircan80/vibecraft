@@ -9,7 +9,13 @@ import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
+import dev.wowforever.app.ui.pages.ClipboardPort;
+import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
+import dev.wowforever.app.ui.pages.NpcPage;
+import dev.wowforever.app.ui.pages.ObjectPage;
+import dev.wowforever.app.ui.pages.QuestPage;
+import dev.wowforever.app.ui.pages.ZonePage;
 import java.util.Optional;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
@@ -45,11 +51,11 @@ public final class DetailPanels {
   public static JComponent render(Object detail, Repositories repos, Navigator nav) {
     return switch (detail) {
       case ItemDetail d -> new ItemPage(d, nav);
-      case NpcDetail d -> new NpcDetailPanel(d, nav);
-      case ObjectDetail d -> new ObjectDetailPanel(d, nav);
-      case QuestDetail d -> new QuestDetailPanel(d, nav);
-      case ZoneDetail d -> new ZoneDetailPanel(d, nav);
-      case InstanceDetail d -> new InstanceDetailPanel(d, repos, nav);
+      case NpcDetail d -> new NpcPage(d, nav, ClipboardPort.system());
+      case ObjectDetail d -> new ObjectPage(d, nav, ClipboardPort.system());
+      case QuestDetail d -> new QuestPage(d, nav);
+      case ZoneDetail d -> new ZonePage(d, nav);
+      case InstanceDetail d -> new InstancePage(d, repos, nav);
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
   }
