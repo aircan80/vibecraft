@@ -85,9 +85,23 @@ public final class Evaluator {
       return truthy(l) == b.op().equals("and") ? eval(b.right()) : l;
     }
     LuaValue r = eval(b.right());
+    switch (b.op()) {
+      case "==" -> {
+        return new LuaBoolean(LuaValues.deepEquals(l, r));
+      }
+      case "~=" -> {
+        return new LuaBoolean(!LuaValues.deepEquals(l, r));
+      }
+      default -> { }
+    }
+    // Unresolved operands were already reported where they arose; pass them on (left first).
+    if (l instanceof LuaUnresolved) {
+      return l;
+    }
+    if (r instanceof LuaUnresolved) {
+      return r;
+    }
     return switch (b.op()) {
-      case "==" -> new LuaBoolean(LuaValues.deepEquals(l, r));
-      case "~=" -> new LuaBoolean(!LuaValues.deepEquals(l, r));
       case "<", "<=", ">", ">=" -> compare(b.op(), l, r, b.line());
       case ".." -> concat(l, r, b.line());
       default -> arithmetic(b.op(), l, r, b.line());

@@ -144,4 +144,32 @@ class EvaluatorTest {
     assertThat(eval("t.missing.x", s, CallHandler.NONE, p)).isInstanceOf(LuaUnresolved.class);
     assertThat(p.size()).isEqualTo(1);
   }
+
+  @Test
+  void unresolvedOperandsAreReportedOnce() {
+    for (String src : new String[] {"UNKNOWN + 1", "1 + UNKNOWN", "'x' .. UNKNOWN", "UNKNOWN < 3"}) {
+      ProblemCollector p = new ProblemCollector();
+      assertThat(eval(src, new Scope(), CallHandler.NONE, p)).as(src).isInstanceOf(LuaUnresolved.class);
+      assertThat(p.size()).as(src).isEqualTo(1);
+      assertThat(p.problems().get(0).message()).as(src).isEqualTo("unknown name UNKNOWN");
+    }
+  }
+
+  @Test
+  void orShortCircuitsWithoutEvaluatingRight() {
+    ProblemCollector p = new ProblemCollector();
+    assertThat(eval("true or UNKNOWN", new Scope(), CallHandler.NONE, p)).isEqualTo(new LuaBoolean(true));
+    assertThat(p.size()).isZero();
+  }
+
+  @Test
+  void methodCallOnFieldChainRendersDottedCallee() {
+    assertThat(
+            eval(
+                "AtlasLoot.ItemDB:Add('x')",
+                new Scope(),
+                (n, a, l) -> Optional.of(new LuaString(n)),
+                new ProblemCollector()))
+        .isEqualTo(new LuaString("AtlasLoot.ItemDB:Add"));
+  }
 }
