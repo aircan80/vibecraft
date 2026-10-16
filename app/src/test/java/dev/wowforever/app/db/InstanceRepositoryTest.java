@@ -25,6 +25,12 @@ class InstanceRepositoryTest {
   }
 
   @Test
+  void detailCarriesTheDifficulties() {
+    assertThat(repos.instances().detail(1).get().difficulties()).containsExactly("NORMAL");
+    assertThat(repos.instances().detail(2).get().difficulties()).containsExactly("NORMAL");
+  }
+
+  @Test
   void bossLootOfOneDifficultyAndItsItemClass() {
     long taragaman = repos.instances().detail(1).get().bosses().get(0).id();
     assertThat(repos.instances().bossLoot(taragaman, "NORMAL"))

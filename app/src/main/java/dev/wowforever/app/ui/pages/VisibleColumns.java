@@ -4,16 +4,20 @@ import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.Columns.Column;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  * Leaves out the columns of a page table that would say nothing: a column empty for every row (null, blank or
- * {@link Columns#NONE}), an Origin column with the same origin on every row, and a Zone column naming the page's
- * own zone on every row. A table without rows keeps every column; a table whose every column would go keeps its
+ * {@link Columns#NONE}), an Origin or Role column with the same value on every row, and a Zone column naming the
+ * page's own zone on every row. A table without rows keeps every column; a table whose every column would go keeps its
  * first (an instance spawn in the page's zone, without coordinates, still names the zone).
  */
 final class VisibleColumns {
   static final String ORIGIN = "Origin";
+  static final String ROLE = "Role";
   static final String ZONE = "Zone";
+  /** The columns hidden when every row has the same value. */
+  private static final Set<String> HIDDEN_WHEN_UNIFORM = Set.of(ORIGIN, ROLE);
 
   private VisibleColumns() {}
 
@@ -31,7 +35,7 @@ final class VisibleColumns {
     if (values.stream().allMatch(VisibleColumns::empty)) {
       return true;
     }
-    if (c.title().equals(ORIGIN)) {
+    if (HIDDEN_WHEN_UNIFORM.contains(c.title())) {
       return values.stream().distinct().count() == 1;
     }
     if (c.title().equals(ZONE) && pageZone != null) {

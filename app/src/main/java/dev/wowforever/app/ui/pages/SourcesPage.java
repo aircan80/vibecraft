@@ -1,7 +1,12 @@
 package dev.wowforever.app.ui.pages;
 
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
+import dev.wowforever.app.ui.Labels;
+import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.BorderLayout;
@@ -48,6 +53,33 @@ abstract class SourcesPage extends JPanel {
     table.setRows(rows);
     addSection(new SourceSection(title, count, table));
     return table;
+  }
+
+  /**
+   * Adds a section of items ({@link LootTables#plain}) and returns its table; adds nothing and returns null when
+   * there are none.
+   */
+  LinkTable<LootRow> addLootSection(String title, List<LootRow> loot) {
+    if (loot.isEmpty()) {
+      return null;
+    }
+    LinkTable<LootRow> table = LootTables.plain(loot, nav);
+    addSection(new SourceSection(title, loot.size(), table));
+    return table;
+  }
+
+  /**
+   * A page header titled {@code title} over {@code facts} and the entity's zone: a link when the zone id is known,
+   * its name as text when only the name is, nothing otherwise.
+   */
+  HeaderPanel zoneHeader(String title, String facts, Long zoneId, String zoneName) {
+    HeaderPanel header = new HeaderPanel(title, Labels.join(facts, zoneId == null ? zoneName : null));
+    header.setAlignmentX(LEFT_ALIGNMENT);
+    if (zoneId != null) {
+      EntityRef zone = new EntityRef(EntityKind.ZONE, zoneId);
+      header.addLink(zone.displayName(zoneName), zone, nav);
+    }
+    return header;
   }
 
   /** Adds {@code section} below the others. */

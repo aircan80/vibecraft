@@ -7,7 +7,6 @@ import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
-import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.Dimension;
 import java.util.List;
 import javax.swing.BorderFactory;
@@ -47,11 +46,9 @@ public final class QuestPage extends SourcesPage {
     content.add(objectives);
     List<QuestGiver> starts = byRole(d.givers(), "start");
     List<QuestGiver> ends = byRole(d.givers(), "end");
-    addSection("Given by", starts.size(), Columns.questGivers(), starts);
-    addSection("Turned in to", ends.size(), Columns.questGivers(), ends);
-    if (!d.rewards().isEmpty()) {
-      addSection(new SourceSection("Rewards", d.rewards().size(), LootTables.plain(d.rewards(), nav)));
-    }
+    addSection("Given by", starts.size(), VisibleColumns.of(Columns.questGivers(), starts, null), starts);
+    addSection("Turned in to", ends.size(), VisibleColumns.of(Columns.questGivers(), ends, null), ends);
+    addLootSection("Rewards", d.rewards());
     addSection("Related items", d.relatedItems().size(), Columns.itemSources(), d.relatedItems());
     bindJumpKeys();
   }

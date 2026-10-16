@@ -1,7 +1,5 @@
 package dev.wowforever.app.ui.pages;
 
-import dev.wowforever.app.model.EntityKind;
-import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.NpcSummary;
@@ -28,7 +26,8 @@ public final class NpcPage extends SourcesPage {
   public NpcPage(NpcDetail d, Navigator nav, ClipboardPort clipboard) {
     super(nav);
     NpcSummary s = d.summary();
-    header = header(s, nav);
+    header = zoneHeader(title(s), Labels.join("NPC #" + s.id(), Labels.levels(s.minLevel(), s.maxLevel())),
+        s.zoneId(), s.zoneName());
     rankChip = new RankChip(s.rank());
     header.addBadge(rankChip);
     content.add(header);
@@ -39,9 +38,7 @@ public final class NpcPage extends SourcesPage {
           LootTables.BY_RATE, nav);
       addSection(new SourceSection("Drops", d.drops().size(), drops));
     }
-    if (!d.sells().isEmpty()) {
-      addSection(new SourceSection("Sells", d.sells().size(), LootTables.plain(d.sells(), nav)));
-    }
+    addLootSection("Sells", d.sells());
     addSection("Starts quests", d.starts().size(), VisibleColumns.of(Columns.quests(), d.starts(), s.zoneName()),
         d.starts());
     addSection("Ends quests", d.ends().size(), VisibleColumns.of(Columns.quests(), d.ends(), s.zoneName()),
@@ -55,19 +52,10 @@ public final class NpcPage extends SourcesPage {
     bindJumpKeys();
   }
 
-  /** {@code "Name <Title>"} over {@code "NPC #id · Level 21"} and a link to the NPC's zone. */
-  private static HeaderPanel header(NpcSummary s, Navigator nav) {
-    String title = s.subName() == null || s.subName().isBlank()
+  /** {@code "Name <Title>"}, or the name alone. */
+  private static String title(NpcSummary s) {
+    return s.subName() == null || s.subName().isBlank()
         ? s.displayName() : s.displayName() + " <" + s.subName() + ">";
-    boolean zoneLink = s.zoneId() != null;
-    HeaderPanel header = new HeaderPanel(title, Labels.join("NPC #" + s.id(), Labels.levels(s.minLevel(),
-        s.maxLevel()), zoneLink ? null : s.zoneName()));
-    header.setAlignmentX(LEFT_ALIGNMENT);
-    if (zoneLink) {
-      EntityRef zone = new EntityRef(EntityKind.ZONE, s.zoneId());
-      header.addLink(zone.displayName(s.zoneName()), zone, nav);
-    }
-    return header;
   }
 
   public HeaderPanel header() {

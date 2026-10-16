@@ -4,6 +4,7 @@ import dev.wowforever.app.model.BossSummary;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -35,7 +36,10 @@ public final class InstanceRepository {
         InstanceRepository::summary));
   }
 
-  /** The instance with its bosses (main list in AtlasLoot order, then extra lists), or empty. */
+  /**
+   * The instance with its bosses (main list in AtlasLoot order, then extra lists) and its boss loot's
+   * {@linkplain #difficulties difficulties}, or empty.
+   */
   public Optional<InstanceDetail> detail(long id) {
     return db.read(c -> {
       Optional<InstanceSummary> instance = Sql.one(c,
@@ -50,7 +54,7 @@ public final class InstanceRepository {
           rs -> new BossSummary(rs.getLong("id"), rs.getString("name"), Sql.longValue(rs, "npc_id"),
               Sql.integer(rs, "level"), rs.getString("special_type"), rs.getInt("is_extra_list") != 0),
           id);
-      return Optional.of(new InstanceDetail(instance.get(), bosses));
+      return Optional.of(new InstanceDetail(instance.get(), bosses, difficulties(c, id)));
     });
   }
 
@@ -77,11 +81,15 @@ public final class InstanceRepository {
    * then the others by name; empty when the instance has no boss loot.
    */
   public List<String> difficulties(long instanceId) {
-    return db.read(c -> Sql.list(c, """
+    return db.read(c -> difficulties(c, instanceId));
+  }
+
+  private static List<String> difficulties(Connection c, long instanceId) throws SQLException {
+    return Sql.list(c, """
         SELECT DISTINCT bl.difficulty FROM boss_loot bl JOIN boss b ON b.id = bl.boss_id
         WHERE b.instance_id = ?
         ORDER BY bl.difficulty <> 'NORMAL', bl.difficulty""",
-        rs -> rs.getString("difficulty"), instanceId));
+        rs -> rs.getString("difficulty"), instanceId);
   }
 
   private static LootRow bossLootRow(ResultSet rs) throws SQLException {

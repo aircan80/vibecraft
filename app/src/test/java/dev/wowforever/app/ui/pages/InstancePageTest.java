@@ -13,12 +13,14 @@ import dev.wowforever.app.model.BossSummary;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
+import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.nav.ViewTarget;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JToggleButton;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -123,8 +125,36 @@ class InstancePageTest {
   @Test
   void difficultyControlIsAbsentWithOneDifficulty() {
     var p = deadmines(new ArrayList<>());
-    assertThat(repos.instances().difficulties(2)).hasSize(1);
+    assertThat(repos.instances().detail(2).get().difficulties()).hasSize(1);
     assertThat(p.difficultyControl()).isNull();
+  }
+
+  @Test
+  void twoDifficultiesShowASwitchThatReloadsTheLoot() {
+    BossSummary boss = new BossSummary(7, "Onyxia", 10184L, 63, null, false);
+    var d = new InstanceDetail(new InstanceSummary(9, "Onyxia's Lair", "RAID40", 60, 60, null, null), List.of(boss),
+        List.of("NORMAL", "HEROIC"));
+    List<String> lookups = new ArrayList<>();
+    BossLoot loot = (bossId, difficulty) -> {
+      lookups.add(bossId + " " + difficulty);
+      return List.of(new LootRow(new EntityRef(ITEM, difficulty.equals("NORMAL") ? 1 : 2), difficulty + " item", 60,
+          null, "atlasloot", 1, 2, "Weapon", 7));
+    };
+    var p = new InstancePage(d, loot, t -> {});
+    assertThat(p.difficultyControl()).isNotNull();
+    List<JToggleButton> toggles = new ArrayList<>();
+    for (Component c : p.difficultyControl().getComponents()) {
+      toggles.add((JToggleButton) c);
+    }
+    assertThat(toggles).extracting(JToggleButton::getText).containsExactly("Normal", "Heroic");
+    assertThat(toggles.get(0).isSelected()).isTrue();
+    assertThat(lookups).containsExactly("7 NORMAL");
+    assertThat(column(p.lootTable().table(), 0)).containsExactly("Weapons (1)", "NORMAL item");
+    toggles.get(1).doClick();
+    assertThat(lookups).containsExactly("7 NORMAL", "7 HEROIC");
+    assertThat(column(p.lootTable().table(), 0)).containsExactly("Weapons (1)", "HEROIC item");
+    assertThat(toggles.get(1).isSelected()).isTrue();
+    assertThat(p.difficultyControl().getParent()).as("the switch stays on the page").isNotNull();
   }
 
   @Test

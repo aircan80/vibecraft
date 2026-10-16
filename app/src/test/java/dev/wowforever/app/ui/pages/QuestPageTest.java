@@ -35,6 +35,9 @@ class QuestPageTest {
     assertThat(p.objectives().getLineWrap()).isTrue();
     assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Given by", "Turned in to");
     assertThat(p.section("Given by").table().model().refAt(0, 0)).contains(new EntityRef(ITEM, 16305));
+    // each table holds one role: the Role column says nothing
+    assertThat(columnNames(p.section("Given by").table().table())).containsExactly("Name", "Type");
+    assertThat(columnNames(p.section("Turned in to").table().table())).containsExactly("Name", "Type");
     p.section("Turned in to").table().activateRow(0);
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 12696)));
   }

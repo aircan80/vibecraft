@@ -44,7 +44,7 @@ public final class InstancePage extends JPanel {
   /** AtlasLoot's level for a boss shown with a skull. */
   private static final int SKULL_LEVEL = 999;
 
-  private final Repositories repos;
+  private final BossLoot bossLoot;
   private final Navigator nav;
   private final HeaderPanel header;
   private final List<BossSummary> mainBosses;
@@ -61,9 +61,15 @@ public final class InstancePage extends JPanel {
   private SourceSection lootSection;
   private LinkTable<GroupedRows.Row<LootRow>> lootTable;
 
+  /** The page over the repository's boss loot. */
   public InstancePage(InstanceDetail d, Repositories repos, Navigator nav) {
+    this(d, repos.instances()::bossLoot, nav);
+  }
+
+  /** The page reading each boss's loot from {@code bossLoot}. */
+  public InstancePage(InstanceDetail d, BossLoot bossLoot, Navigator nav) {
     super(new BorderLayout());
-    this.repos = repos;
+    this.bossLoot = bossLoot;
     this.nav = nav;
     InstanceSummary s = d.summary();
     header = header(s, nav);
@@ -75,7 +81,7 @@ public final class InstancePage extends JPanel {
     extraLists.setVisible(!extraBosses.isEmpty());
     linkSelections(encounters, extraLists);
     linkSelections(extraLists, encounters);
-    difficulties = d.bosses().isEmpty() ? List.of() : repos.instances().difficulties(s.id());
+    difficulties = d.difficulties();
     difficulty = difficulties.isEmpty() ? null : difficulties.get(0);
     difficultyControl = difficulties.size() > 1 ? difficultySwitch() : null;
     JScrollPane right = new JScrollPane(lootPane);
@@ -205,16 +211,14 @@ public final class InstancePage extends JPanel {
   }
 
   /**
-   * Shows the loot of {@code boss} in the selected difficulty, under a header linking the boss's NPC page.
-   * Runs on the EDT and loads the loot synchronously: the one documented exception to loading off the EDT (with
-   * the instance's difficulties, read once on construction). A boss loot query is a single indexed lookup
-   * returning a few dozen rows, and the page would otherwise need its own async plumbing and stale-load guard
-   * for a load users never notice.
+   * Shows the loot of {@code boss} in the selected difficulty (none when the instance has no difficulty), under a
+   * header linking the boss's NPC page. Runs on the EDT and loads the loot synchronously: the one documented
+   * exception to loading off the EDT. A boss loot query is a single indexed lookup returning a few dozen rows, and
+   * the page would otherwise need its own async plumbing and stale-load guard for a load users never notice.
    */
   private void showLoot(BossSummary boss) {
     shown = boss;
-    List<LootRow> loot = difficulties.size() > 1
-        ? repos.instances().bossLoot(boss.id(), difficulty) : repos.instances().bossLoot(boss.id());
+    List<LootRow> loot = difficulty == null ? List.of() : bossLoot.lookup(boss.id(), difficulty);
     String level = levelText(boss.level());
     bossHeader = new HeaderPanel(boss.displayName(), Labels.join(level == null ? null : "Level " + level));
     bossHeader.setAlignmentX(LEFT_ALIGNMENT);
