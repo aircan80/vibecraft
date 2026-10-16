@@ -1,42 +1,61 @@
 package dev.wowforever.app.ui;
 
-import com.formdev.flatlaf.FlatDarkLaf;
-import com.formdev.flatlaf.FlatLightLaf;
+import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.theme.Tokens;
+import dev.wowforever.app.ui.theme.WowForeverDarkLaf;
+import dev.wowforever.app.ui.theme.WowForeverLightLaf;
 import java.awt.Component;
 import java.util.prefs.Preferences;
 import javax.swing.SwingUtilities;
 
-/** FlatLaf light or dark theme, remembered in the user's preferences (key {@code theme}: light or dark). */
+/** Dark or light theme (dark by default), remembered in the user's preferences (key {@code theme}). */
 public final class ThemeManager {
+  /** The two theme modes. */
+  public enum Mode {
+    DARK,
+    LIGHT
+  }
+
   static final String KEY = "theme";
   static final String LIGHT = "light";
   static final String DARK = "dark";
 
   private ThemeManager() {}
 
-  /** Installs the saved theme (light when none is saved); call before creating any component. */
+  /** Installs the saved theme (dark when none is saved); call before creating any component. */
   public static void applySaved() {
-    install(isDark());
+    install(current());
+  }
+
+  /** The saved mode; dark when nothing is saved. */
+  public static Mode current() {
+    return LIGHT.equals(prefs().get(KEY, DARK)) ? Mode.LIGHT : Mode.DARK;
   }
 
   /** Whether the saved theme is dark. */
   public static boolean isDark() {
-    return DARK.equals(prefs().get(KEY, LIGHT));
+    return current() == Mode.DARK;
+  }
+
+  /** Saves and installs {@code mode}: the look and feel and the active token palette. */
+  public static void apply(Mode mode) {
+    prefs().put(KEY, mode == Mode.DARK ? DARK : LIGHT);
+    install(mode);
   }
 
   /** Switches between light and dark, saves the choice and repaints {@code root}'s component tree. */
   public static void toggle(Component root) {
-    boolean dark = !isDark();
-    prefs().put(KEY, dark ? DARK : LIGHT);
-    install(dark);
+    apply(isDark() ? Mode.LIGHT : Mode.DARK);
     SwingUtilities.updateComponentTreeUI(root);
   }
 
-  private static void install(boolean dark) {
-    if (dark) {
-      FlatDarkLaf.setup();
+  private static void install(Mode mode) {
+    if (mode == Mode.DARK) {
+      WowForeverDarkLaf.setup();
+      Theme.setCurrent(Tokens.DARK);
     } else {
-      FlatLightLaf.setup();
+      WowForeverLightLaf.setup();
+      Theme.setCurrent(Tokens.LIGHT);
     }
   }
 
