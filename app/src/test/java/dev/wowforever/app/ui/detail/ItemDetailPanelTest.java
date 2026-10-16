@@ -15,8 +15,8 @@ import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
 import dev.wowforever.app.nav.ViewTarget;
+import com.formdev.flatlaf.FlatLaf;
 import dev.wowforever.app.ui.LinkRenderer;
-import dev.wowforever.app.ui.ThemeManager;
 import dev.wowforever.app.ui.theme.QualityColors;
 import java.awt.Color;
 import java.awt.Component;
@@ -131,10 +131,11 @@ class ItemDetailPanelTest {
     Object loaded = DetailPanels.load(new EntityRef(ITEM, 17204), repos).orElseThrow();
     var p = (ItemDetailPanel) DetailPanels.render(loaded, repos, t -> {});
     assertThat(p.iconLabel().getIcon()).isNotNull();
+    assertThat(p.iconLabel().isVisible()).isTrue();
     assertThat(p.iconLabel().getIcon().getIconWidth()).isEqualTo(ItemDetailPanel.ICON_SIZE);
     assertThat(p.iconLabel().getIcon().getIconHeight()).isEqualTo(ItemDetailPanel.ICON_SIZE);
     assertThat(p.header().title()).isEqualTo("Eye of Sulfuras");
-    assertThat(p.header().titleColor()).isEqualTo(QualityColors.text(5, ThemeManager.isDark()));
+    assertThat(p.header().titleColor()).isEqualTo(QualityColors.text(5, FlatLaf.isLafDark()));
     assertThat(p.tooltip().labels()).extracting(JLabel::getText).containsExactly("Eye of Sulfuras",
         "Binds when picked up",
         "Use: The Eye of Sulfuras can be combined with the Sulfuron Hammer to create Sulfuras, legendary hammer"
@@ -167,6 +168,7 @@ class ItemDetailPanelTest {
   void withoutAnyIconTheIconSpaceStaysEmpty() {
     var p = new ItemDetailPanel(repos.items().detail(17204).get(), null, t -> {});
     assertThat(p.iconLabel().getIcon()).isNull();
+    assertThat(p.iconLabel().isVisible()).as("no icon: the title is not pushed right").isFalse();
     assertThat(p.tooltip().labels()).hasSize(5);
   }
 

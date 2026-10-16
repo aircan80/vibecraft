@@ -26,10 +26,13 @@ public final class DetailPanels {
   /** What {@link #load} returns for an item: the item and its decoded icon (null when there is none). */
   public record ItemPage(ItemDetail detail, BufferedImage icon) {}
 
+  /** What {@link #load} returns for a zone: the zone and its decoded map (null: none, or it does not decode). */
+  public record ZonePage(ZoneDetail detail, BufferedImage map) {}
+
   /**
-   * The detail record of {@code ref} ({@link ItemPage}, {@link NpcDetail}, ...), or empty when there is no
-   * such entity. Bosses have no page of their own (they are shown inside their instance), so they load empty.
-   * An item's icon (or the question-mark fallback) is read and decoded here, off the EDT.
+   * The detail record of {@code ref} ({@link ItemPage}, {@link NpcDetail}, {@link ZonePage}, ...), or empty when
+   * there is no such entity. Bosses have no page of their own (they are shown inside their instance), so they load
+   * empty. An item's icon (or the question-mark fallback) and a zone's map are read and decoded here, off the EDT.
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
@@ -39,7 +42,8 @@ public final class DetailPanels {
       case NPC -> repos.npcs().detail(id);
       case OBJECT -> repos.objects().detail(id);
       case QUEST -> repos.quests().detail(id);
-      case ZONE -> repos.zones().detail(id);
+      case ZONE -> repos.zones().detail(id)
+          .map(d -> new ZonePage(d, d.map().flatMap(m -> Images.decode(m.jpeg())).orElse(null)));
       case INSTANCE -> repos.instances().detail(id);
       case BOSS -> Optional.empty();
     };
@@ -53,7 +57,7 @@ public final class DetailPanels {
       case NpcDetail d -> new NpcDetailPanel(d, nav);
       case ObjectDetail d -> new ObjectDetailPanel(d, nav);
       case QuestDetail d -> new QuestDetailPanel(d, nav);
-      case ZoneDetail d -> new ZoneDetailPanel(d, nav);
+      case ZonePage p -> new ZoneDetailPanel(p.detail(), p.map(), nav);
       case InstanceDetail d -> new InstanceDetailPanel(d, repos, nav);
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
@@ -66,7 +70,7 @@ public final class DetailPanels {
       case NpcDetail d -> d.summary().displayName();
       case ObjectDetail d -> d.summary().displayName();
       case QuestDetail d -> d.summary().displayName();
-      case ZoneDetail d -> d.summary().displayName();
+      case ZonePage p -> p.detail().summary().displayName();
       case InstanceDetail d -> d.summary().displayName();
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };

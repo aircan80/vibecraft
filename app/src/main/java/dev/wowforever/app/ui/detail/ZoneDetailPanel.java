@@ -8,6 +8,7 @@ import dev.wowforever.app.model.ZoneSummary;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import java.awt.BorderLayout;
+import java.awt.image.BufferedImage;
 import java.util.Locale;
 import java.util.Optional;
 import javax.swing.BorderFactory;
@@ -24,7 +25,13 @@ public final class ZoneDetailPanel extends JPanel {
   private final JTabbedPane tabs = new JTabbedPane();
   private final LinkTable<InstanceSummary> instances;
 
+  /** The zone page without a map image. */
   public ZoneDetailPanel(ZoneDetail d, Navigator nav) {
+    this(d, null, nav);
+  }
+
+  /** The zone page with {@code mapImage}, the decoded zone map (null: no map is shown). */
+  public ZoneDetailPanel(ZoneDetail d, BufferedImage mapImage, Navigator nav) {
     super(new BorderLayout());
     ZoneSummary s = d.summary();
     header = new HeaderPanel(s.displayName(), HeaderPanel.join("Zone #" + s.id(), kindText(s.kind())));
@@ -38,7 +45,7 @@ public final class ZoneDetailPanel extends JPanel {
     instances = LinkTable.addTab(tabs, "Dungeons & Raids", Columns.instances(), d.instances(), nav);
     LinkTable.addTab(tabs, "Sub-zones", Columns.zones(), d.subzones(), nav);
     LinkTable.selectFirstEnabled(tabs);
-    map = d.map().map(MapImagePanel::new).orElse(null);
+    map = mapImage == null ? null : new MapImagePanel(mapImage);
     JPanel top = new JPanel(new BorderLayout());
     top.add(header, BorderLayout.NORTH);
     if (map != null) {

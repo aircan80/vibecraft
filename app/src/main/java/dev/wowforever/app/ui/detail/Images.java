@@ -11,14 +11,17 @@ import javax.imageio.stream.MemoryCacheImageInputStream;
 final class Images {
   private Images() {}
 
-  /** The decoded image, or empty when {@code bytes} is null or not an image ImageIO can read. */
+  /**
+   * The decoded image, or empty when {@code bytes} is null or not an image ImageIO can read. Corrupt data never
+   * throws: ImageIO plugins may fail with unchecked exceptions as well as {@link IOException}.
+   */
   static Optional<BufferedImage> decode(byte[] bytes) {
     if (bytes == null) {
       return Optional.empty();
     }
     try { // ImageIO.read closes the stream itself
       return Optional.ofNullable(ImageIO.read(new MemoryCacheImageInputStream(new ByteArrayInputStream(bytes))));
-    } catch (IOException e) {
+    } catch (IOException | RuntimeException e) {
       return Optional.empty();
     }
   }

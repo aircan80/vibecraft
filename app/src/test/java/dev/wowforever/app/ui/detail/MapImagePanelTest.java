@@ -1,10 +1,9 @@
 package dev.wowforever.app.ui.detail;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
+import static org.assertj.core.api.Assertions.assertThatNullPointerException;
 
 import dev.wowforever.app.db.FixtureDb;
-import dev.wowforever.app.model.ZoneMap;
 import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import org.junit.jupiter.api.Test;
@@ -12,15 +11,20 @@ import org.junit.jupiter.api.extension.ExtendWith;
 
 @ExtendWith(FixtureDb.class)
 class MapImagePanelTest {
-  private final ZoneMap westfall = FixtureDb.repositories().zones().map(40).orElseThrow();
+  private final BufferedImage westfall =
+      Images.decode(FixtureDb.repositories().zones().map(40).orElseThrow().jpeg()).orElseThrow();
 
   @Test
-  void decodesTheJpeg() {
+  void holdsTheDecodedImage() {
     var p = new MapImagePanel(westfall);
-    assertThat(p.zoneMap()).isSameAs(westfall);
-    assertThat(p.image()).isNotNull();
+    assertThat(p.image()).isSameAs(westfall);
     assertThat(p.image().getWidth()).isEqualTo(1002);
     assertThat(p.image().getHeight()).isEqualTo(668);
+  }
+
+  @Test
+  void needsAnImage() {
+    assertThatNullPointerException().isThrownBy(() -> new MapImagePanel(null));
   }
 
   @Test
@@ -32,17 +36,6 @@ class MapImagePanelTest {
     assertThat(p.heightFor(0)).isZero();
     p.setSize(501, 10);
     assertThat(p.getPreferredSize().height).isEqualTo(334);
-  }
-
-  @Test
-  void undecodableBytesPaintNothing() {
-    var p = new MapImagePanel(new ZoneMap(1, 100, 50, new byte[] {1, 2, 3}));
-    assertThat(p.image()).isNull();
-    p.setSize(100, 50);
-    BufferedImage canvas = new BufferedImage(100, 50, BufferedImage.TYPE_INT_ARGB);
-    Graphics2D g = canvas.createGraphics();
-    assertThatCode(() -> p.paint(g)).doesNotThrowAnyException();
-    g.dispose();
   }
 
   @Test

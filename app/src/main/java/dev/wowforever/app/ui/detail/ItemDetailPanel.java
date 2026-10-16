@@ -1,5 +1,6 @@
 package dev.wowforever.app.ui.detail;
 
+import com.formdev.flatlaf.FlatLaf;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
@@ -9,7 +10,6 @@ import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
-import dev.wowforever.app.ui.ThemeManager;
 import dev.wowforever.app.ui.theme.QualityColors;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -43,7 +43,7 @@ public final class ItemDetailPanel extends JPanel {
     this(d, null, nav);
   }
 
-  /** The item page with {@code icon} (null leaves the icon space empty). */
+  /** The item page with {@code icon} (null: no icon and no icon space). */
   public ItemDetailPanel(ItemDetail d, BufferedImage icon, Navigator nav) {
     super(new BorderLayout());
     ItemSummary s = d.summary();
@@ -57,7 +57,7 @@ public final class ItemDetailPanel extends JPanel {
     }
     Integer quality = d.card().quality();
     if (quality != null) {
-      header.setTitleColor(() -> QualityColors.text(quality, ThemeManager.isDark()));
+      header.setTitleColor(() -> QualityColors.text(quality, FlatLaf.isLafDark()));
     }
     if (icon != null) {
       Image scaled = icon.getWidth() == ICON_SIZE && icon.getHeight() == ICON_SIZE ? icon
@@ -67,6 +67,7 @@ public final class ItemDetailPanel extends JPanel {
     iconLabel.setVerticalAlignment(JLabel.TOP);
     iconLabel.setBorder(BorderFactory.createEmptyBorder(10, 12, 0, 0));
     iconLabel.setPreferredSize(new Dimension(ICON_SIZE + 12, ICON_SIZE + 10));
+    iconLabel.setVisible(icon != null); // no icon at all: the title stays at the left edge
     tooltip = new TooltipLinesPanel(d.card().lines());
     droppedBy = LinkTable.addTab(tabs, "Dropped by", Columns.dropSources(), d.droppedBy(), nav);
     inInstanceLoot = LinkTable.addTab(tabs, "In instance loot", Columns.instanceLoot(), d.inInstanceLoot(), nav);
@@ -106,7 +107,7 @@ public final class ItemDetailPanel extends JPanel {
     return header;
   }
 
-  /** The label holding the item icon; its icon is null when there is none. */
+  /** The label holding the item icon; hidden, with a null icon, when there is none. */
   public JLabel iconLabel() {
     return iconLabel;
   }

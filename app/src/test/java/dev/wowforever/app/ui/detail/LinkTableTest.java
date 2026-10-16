@@ -6,6 +6,9 @@ import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceLoot;
@@ -15,7 +18,6 @@ import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.LinkRenderer;
-import dev.wowforever.app.ui.ThemeManager;
 import dev.wowforever.app.ui.theme.QualityColors;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
@@ -24,8 +26,10 @@ import javax.swing.JComponent;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
+import javax.swing.LookAndFeel;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
+import javax.swing.UIManager;
 import org.junit.jupiter.api.Test;
 
 class LinkTableTest {
@@ -149,9 +153,27 @@ class LinkTableTest {
         new ItemSummary(1176, "Smelling Salts", null, null, null, null, 0)));
     JTable table = t.table();
     assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
-        .isEqualTo(QualityColors.text(5, ThemeManager.isDark()));
+        .isEqualTo(QualityColors.text(5, FlatLaf.isLafDark()));
     assertThat(table.prepareRenderer(table.getCellRenderer(1, 0), 1, 0).getForeground())
         .as("no quality: plain link colour").isEqualTo(LinkRenderer.linkColor());
+  }
+
+  @Test
+  void qualityColourFollowsTheInstalledTheme() throws Exception {
+    LookAndFeel saved = UIManager.getLookAndFeel();
+    try {
+      var t = new LinkTable<>(Columns.items(), v -> {});
+      t.setRows(List.of(new ItemSummary(17204, "Eye of Sulfuras", 60, null, "Quest", "Quest", 0, 5, 134124L)));
+      JTable table = t.table();
+      UIManager.setLookAndFeel(new FlatDarkLaf());
+      assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
+          .isEqualTo(QualityColors.text(5, true));
+      UIManager.setLookAndFeel(new FlatLightLaf());
+      assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
+          .isEqualTo(QualityColors.text(5, false));
+    } finally {
+      UIManager.setLookAndFeel(saved);
+    }
   }
 
   @Test
@@ -161,7 +183,7 @@ class LinkTableTest {
         new SearchHit(new EntityRef(NPC, 448), "Hogger", "NPC")));
     JTable table = t.table();
     assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
-        .isEqualTo(QualityColors.text(3, ThemeManager.isDark()));
+        .isEqualTo(QualityColors.text(3, FlatLaf.isLafDark()));
     assertThat(table.prepareRenderer(table.getCellRenderer(1, 0), 1, 0).getForeground())
         .isEqualTo(LinkRenderer.linkColor());
   }
