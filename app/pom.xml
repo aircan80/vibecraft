@@ -27,6 +27,19 @@
       <artifactId>slf4j-simple</artifactId>
     </dependency>
     <dependency>
+      <groupId>dev.wowforever</groupId>
+      <artifactId>importer</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>dev.wowforever</groupId>
+      <artifactId>importer</artifactId>
+      <version>${project.version}</version>
+      <type>test-jar</type>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
       <groupId>org.junit.jupiter</groupId>
       <artifactId>junit-jupiter</artifactId>
       <scope>test</scope>
