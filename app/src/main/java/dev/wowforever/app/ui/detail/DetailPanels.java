@@ -9,6 +9,7 @@ import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
+import dev.wowforever.app.ui.pages.ItemPage;
 import java.util.Optional;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
@@ -43,7 +44,7 @@ public final class DetailPanels {
   /** The page for a record from {@link #load}. */
   public static JComponent render(Object detail, Repositories repos, Navigator nav) {
     return switch (detail) {
-      case ItemDetail d -> new ItemDetailPanel(d, nav);
+      case ItemDetail d -> new ItemPage(d, nav);
       case NpcDetail d -> new NpcDetailPanel(d, nav);
       case ObjectDetail d -> new ObjectDetailPanel(d, nav);
       case QuestDetail d -> new QuestDetailPanel(d, nav);

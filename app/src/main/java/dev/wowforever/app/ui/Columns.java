@@ -3,7 +3,6 @@ package dev.wowforever.app.ui;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
-import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
@@ -156,13 +155,31 @@ public final class Columns {
         plain("Origin", String.class, DropSource::origin));
   }
 
-  /** The AtlasLoot loot tables an item is in: the instance, the boss (linked to its NPC if any), slot and chance. */
-  public static List<Column<InstanceLoot>> instanceLoot() {
+  /**
+   * The ranked drop table of the item page ({@link DropRow#ranked}): source, level, zone, rate (a {@link Double},
+   * null when unknown) and data origin. The divider row shows its text in the Source column and links nowhere.
+   */
+  public static List<Column<DropRow>> dropSourcesRanked() {
     return List.of(
-        link("Instance", InstanceLoot::instanceDisplayName, l -> Optional.of(l.instance())),
-        link("Boss", InstanceLoot::bossDisplayName, InstanceLoot::bossNpc),
-        plain("Slot", Integer.class, InstanceLoot::slot),
-        numeric("Drop %", l -> percentText(l.dropPct())));
+        link("Source", r -> r instanceof DropRow.Divider d ? d.text() : r.drop().orElseThrow().displayName(),
+            r -> r.drop().map(DropSource::ref)),
+        plain("Level", Levels.class, r -> r.drop().map(s -> new Levels(positive(s.levelMin()),
+            positive(s.levelMax()))).orElse(null)),
+        link("Zone", r -> r.drop().map(DropSource::zoneName).orElse(null),
+            r -> r.drop().flatMap(s -> zoneRef(s.zoneId()))),
+        plain("Rate", Double.class, r -> r.drop().map(DropSource::dropPct).orElse(null)),
+        plain("Origin", String.class, r -> r.drop().map(DropSource::origin).orElse(null)));
+  }
+
+  /**
+   * The AtlasLoot loot lists an item is in ({@link LootListRow}): the list linked to its instance, the boss
+   * linked to its NPC if any, and the rate (a {@link Double}, null when unknown).
+   */
+  public static List<Column<LootListRow>> lootLists() {
+    return List.of(
+        link("Loot list", LootListRow::title, r -> Optional.of(r.loot().instance())),
+        link("Boss", r -> r.loot().bossDisplayName(), r -> r.loot().bossNpc()),
+        plain("Rate", Double.class, r -> r.loot().dropPct()));
   }
 
   /** Objects, containers, vendors and quests linked to an item. */
@@ -170,6 +187,11 @@ public final class Columns {
     return List.of(
         link("Name", ItemSource::displayName, s -> Optional.of(s.ref())),
         plain("Kind", String.class, s -> sourceKindText(s.kind())));
+  }
+
+  /** Vendors or quests linked to an item, when a table holds one kind only: the name alone. */
+  public static List<Column<ItemSource>> sourceNames() {
+    return List.of(link("Name", ItemSource::displayName, s -> Optional.of(s.ref())));
   }
 
   /** Items an NPC drops or sells, an object contains or a quest rewards. */
@@ -254,6 +276,11 @@ public final class Columns {
       case 4 -> "Rare";
       default -> "Rank " + rank;
     };
+  }
+
+  /** A level, or null when unknown (null, 0 or below). */
+  private static Integer positive(Integer level) {
+    return level != null && level > 0 ? level : null;
   }
 
   private static Optional<EntityRef> zoneRef(Long zoneId) {

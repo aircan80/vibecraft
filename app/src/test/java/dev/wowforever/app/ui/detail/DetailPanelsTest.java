@@ -14,6 +14,7 @@ import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.QuestDetail;
+import dev.wowforever.app.ui.pages.ItemPage;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class DetailPanelsTest {
 
   @Test
   void rendersAPanelForEveryNavigableKind() {
-    assertThat(render(ITEM, 14149)).isInstanceOf(ItemDetailPanel.class);
+    assertThat(render(ITEM, 14149)).isInstanceOf(ItemPage.class);
     assertThat(render(NPC, 639)).isInstanceOf(NpcDetailPanel.class);
     assertThat(render(OBJECT, 386759)).isInstanceOf(ObjectDetailPanel.class);
     assertThat(render(QUEST, 2)).isInstanceOf(QuestDetailPanel.class);

@@ -23,13 +23,39 @@ public final class LinkTable<T> extends JPanel {
   private final ResultsTableModel<T> model;
   private final JTable table = new JTable();
 
+  private final boolean inline;
+
+  /** A link table in its own scroll pane. */
   public LinkTable(List<Columns.Column<T>> cols, Navigator nav) {
+    this(cols, nav, false);
+  }
+
+  private LinkTable(List<Columns.Column<T>> cols, Navigator nav, boolean inline) {
     super(new BorderLayout());
     this.nav = Objects.requireNonNull(nav, "nav");
     this.model = new ResultsTableModel<>(cols);
+    this.inline = inline;
     TableLinks.setModel(table, model);
     TableLinks.bindActivation(table, this::activateRow, ref -> nav.open(new ViewTarget.Entity(ref)));
-    add(new JScrollPane(table), BorderLayout.CENTER);
+    if (inline) {
+      add(table.getTableHeader(), BorderLayout.NORTH);
+      add(table, BorderLayout.CENTER);
+    } else {
+      add(new JScrollPane(table), BorderLayout.CENTER);
+    }
+  }
+
+  /**
+   * A link table without its own scroll pane: the column header over the table, as tall as all its rows, for a
+   * page that scrolls as a whole.
+   */
+  public static <T> LinkTable<T> inline(List<Columns.Column<T>> cols, Navigator nav) {
+    return new LinkTable<>(cols, nav, true);
+  }
+
+  /** Whether this table has no scroll pane of its own ({@link #inline}). */
+  public boolean isInline() {
+    return inline;
   }
 
   /** Replaces every row. */

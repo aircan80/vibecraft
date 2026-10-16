@@ -13,9 +13,9 @@ import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.nav.ViewTarget;
-import dev.wowforever.app.ui.detail.ItemDetailPanel;
 import dev.wowforever.app.ui.detail.NpcDetailPanel;
 import dev.wowforever.app.ui.detail.ZoneDetailPanel;
+import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.widgets.ListEntry;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
@@ -262,7 +262,7 @@ class AppControllerTest {
     previewRow(1);
     previewRow(2);
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(2)));
-    assertThat(view.detail).isInstanceOf(ItemDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(ItemPage.class);
     assertThat(list().heading()).startsWith("Armor › Cloth (");
     // three previews took one history slot, right after the list
     c.back();
@@ -359,7 +359,7 @@ class AppControllerTest {
     list().commitSelected();
     assertThat(view.delay.pending()).isZero();
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(1)));
-    assertThat(view.detail).isInstanceOf(ItemDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(ItemPage.class);
     c.back();
     assertThat(c.current()).isEqualTo(new ViewTarget.ItemClass(4, 1));
   }
@@ -382,7 +382,7 @@ class AppControllerTest {
   void entityTargetRendersDetailPanel() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
-    assertThat(view.detail).isInstanceOf(ItemDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(ItemPage.class);
     assertThat(view.titleSuffix).isEqualTo("Subterranean Cape");
   }
 
@@ -390,21 +390,14 @@ class AppControllerTest {
   void clickThroughFromItemToNpcAndBack() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
-    var droppedBy = ((ItemDetailPanel) view.detail).droppedBy();
-    int row = -1;
-    for (int r = 0; r < droppedBy.rowCount(); r++) {
-      if (droppedBy.model().rowAt(droppedBy.table().convertRowIndexToModel(r)).ref().id() == 11520) {
-        row = r;
-      }
-    }
-    assertThat(row).isNotNegative();
-    droppedBy.activateRow(row);
+    // the first row is the highest known rate; the fixture item has one source, Taragaman
+    ((ItemPage) view.detail).droppedBy().activateRow(0);
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(NPC, 11520)));
     assertThat(view.detail).isInstanceOf(NpcDetailPanel.class);
     assertThat(view.titleSuffix).isEqualTo("Taragaman the Hungerer");
     c.back();
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
-    assertThat(view.detail).isInstanceOf(ItemDetailPanel.class);
+    assertThat(view.detail).isInstanceOf(ItemPage.class);
   }
 
   @Test
