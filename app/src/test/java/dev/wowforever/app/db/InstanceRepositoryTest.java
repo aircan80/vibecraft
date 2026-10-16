@@ -34,4 +34,18 @@ class InstanceRepositoryTest {
     assertThat(repos.instances().bossLoot(rfc.bosses().get(0).id())).extracting(LootRow::slot).containsExactly(1, 2, 3);
     assertThat(repos.instances().all()).extracting(i -> i.id()).contains(1L);
   }
+
+  @Test
+  void bossLootCarriesDisagreementAndSourceCount() {
+    assertThat(repos.instances().bossLoot(10)).filteredOn(l -> l.item().id() == 2874).singleElement()
+        .satisfies(l -> {
+          assertThat(l.disagrees()).isTrue();
+          assertThat(l.sourceCount()).isEqualTo(4);
+        });
+    assertThat(repos.instances().bossLoot(10)).filteredOn(l -> l.item().id() == 5191).singleElement()
+        .satisfies(l -> {
+          assertThat(l.disagrees()).isFalse();
+          assertThat(l.sourceCount()).isEqualTo(1);
+        });
+  }
 }

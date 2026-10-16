@@ -1,19 +1,28 @@
 package dev.wowforever.app.ui.detail;
 
+import static dev.wowforever.app.model.EntityKind.INSTANCE;
+import static dev.wowforever.app.model.EntityKind.ITEM;
 import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.InstanceLoot;
+import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.LootRow;
+import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.LinkRenderer;
+import dev.wowforever.app.ui.ThemeManager;
+import dev.wowforever.app.ui.theme.QualityColors;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
@@ -104,5 +113,56 @@ class LinkTableTest {
     assertThat(t.table().getColumnModel().getColumn(0).getCellRenderer()).isInstanceOf(LinkRenderer.class);
     assertThat(t.table().getColumnModel().getColumn(2).getCellRenderer()).isInstanceOf(LinkRenderer.class);
     assertThat(t.table().getColumnModel().getColumn(1).getCellRenderer()).isNull();
+  }
+
+  @Test
+  void disagreeingRatesAreMarkedInEveryDropTable() {
+    var drops = new LinkTable<>(Columns.dropSources(), v -> {});
+    drops.setRows(List.of(new DropSource(new EntityRef(NPC, 639), "Edwin VanCleef", 19, 19, "The Deadmines", 1581L,
+        60.0, "questie-correction", "both", true, 4), dropSource(2, "B", 5.0)));
+    assertThat(drops.table().getValueAt(0, 3)).isEqualTo("60.00 % ≠");
+    assertThat(drops.table().getValueAt(1, 3)).isEqualTo("5.00 %");
+
+    LootRow letter = new LootRow(new EntityRef(ITEM, 2874), "An Unsent Letter", 16, 60.0, "both", 5, true, 4);
+    var loot = new LinkTable<>(Columns.lootRows(), v -> {});
+    loot.setRows(List.of(letter));
+    assertThat(loot.table().getValueAt(0, 2)).isEqualTo("60.00 % ≠");
+    var boss = new LinkTable<>(Columns.bossLoot(), v -> {});
+    boss.setRows(List.of(letter));
+    assertThat(boss.table().getValueAt(0, 3)).isEqualTo("60.00 % ≠");
+    var instance = new LinkTable<>(Columns.instanceLoot(), v -> {});
+    instance.setRows(List.of(new InstanceLoot(new EntityRef(INSTANCE, 4), "The Deadmines", 10, "Edwin VanCleef",
+        639L, 5, 60.0, true, 4)));
+    assertThat(instance.table().getValueAt(0, 3)).isEqualTo("60.00 % ≠");
+  }
+
+  @Test
+  void markedRatesStillSortByTheirNumber() {
+    assertThat(Columns.NUMERIC_TEXT.compare("60.00 % ≠", "5.00 %")).isPositive();
+    assertThat(Columns.NUMERIC_TEXT.compare("5.00 % ≠", "60.00 %")).isNegative();
+  }
+
+  @Test
+  void itemNamesAreColouredByQuality() {
+    var t = new LinkTable<>(Columns.items(), v -> {});
+    t.setRows(List.of(new ItemSummary(17204, "Eye of Sulfuras", 60, null, "Quest", "Quest", 0, 5, 134124L),
+        new ItemSummary(1176, "Smelling Salts", null, null, null, null, 0)));
+    JTable table = t.table();
+    assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
+        .isEqualTo(QualityColors.text(5, ThemeManager.isDark()));
+    assertThat(table.prepareRenderer(table.getCellRenderer(1, 0), 1, 0).getForeground())
+        .as("no quality: plain link colour").isEqualTo(LinkRenderer.linkColor());
+  }
+
+  @Test
+  void itemSearchHitsAreColouredByQuality() {
+    var t = new LinkTable<>(Columns.searchHits(), v -> {});
+    t.setRows(List.of(new SearchHit(new EntityRef(ITEM, 19682), "Bloodvine Vest", "Item", 3),
+        new SearchHit(new EntityRef(NPC, 448), "Hogger", "NPC")));
+    JTable table = t.table();
+    assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
+        .isEqualTo(QualityColors.text(3, ThemeManager.isDark()));
+    assertThat(table.prepareRenderer(table.getCellRenderer(1, 0), 1, 0).getForeground())
+        .isEqualTo(LinkRenderer.linkColor());
   }
 }

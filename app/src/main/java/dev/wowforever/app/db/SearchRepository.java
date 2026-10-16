@@ -23,7 +23,7 @@ public final class SearchRepository {
    */
   private static final String SQL = """
       SELECT s.kind, s.id, s.name,
-             ic.name AS class_name, isc.name AS subclass_name, i.item_level,
+             ic.name AS class_name, isc.name AS subclass_name, i.item_level, i.quality,
              n.min_level, n.max_level, nz.name AS npc_zone,
              oz.name AS object_zone,
              q.quest_level,
@@ -136,7 +136,8 @@ public final class SearchRepository {
       }
       default -> { }
     }
-    return new SearchHit(new EntityRef(kind.get(), rs.getLong("id")), rs.getString("name"), subtitle.toString());
+    return new SearchHit(new EntityRef(kind.get(), rs.getLong("id")), rs.getString("name"), subtitle.toString(),
+        Sql.integer(rs, "quality"));
   }
 
   /** {@code "20–21"}, {@code "20"} when equal or only one is known, or null when neither is. */

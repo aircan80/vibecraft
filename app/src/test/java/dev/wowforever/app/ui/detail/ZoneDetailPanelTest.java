@@ -12,6 +12,7 @@ import dev.wowforever.app.model.ZoneSummary;
 import dev.wowforever.app.nav.ViewTarget;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -62,5 +63,19 @@ class ZoneDetailPanelTest {
     p.instances().activateRow(0);
     assertThat(opened).singleElement().isInstanceOfSatisfying(ViewTarget.Entity.class,
         e -> assertThat(e.ref().kind()).isEqualTo(INSTANCE));
+  }
+
+  @Test
+  void mapShownWhenPresent() {
+    var p = new ZoneDetailPanel(repos.zones().detail(40).get(), t -> {});
+    assertThat(p.map()).hasValueSatisfying(m -> {
+      assertThat(m.zoneMap().uiMapId()).isEqualTo(1436);
+      assertThat(SwingUtilities.isDescendingFrom(m, p)).isTrue();
+    });
+  }
+
+  @Test
+  void noMapWithoutOne() {
+    assertThat(new ZoneDetailPanel(repos.zones().detail(2437).get(), t -> {}).map()).isEmpty();
   }
 }

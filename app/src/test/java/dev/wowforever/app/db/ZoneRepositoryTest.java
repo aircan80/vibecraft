@@ -3,6 +3,7 @@ package dev.wowforever.app.db;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.model.ZoneDetail;
+import dev.wowforever.app.model.ZoneMap;
 import dev.wowforever.app.model.ZoneSummary;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -45,5 +46,23 @@ class ZoneRepositoryTest {
       assertThat(d.npcs().size() + d.objects().size() + d.quests().size() + d.instances().size() + d.subzones().size())
           .as("zone %s has content", z.id()).isPositive();
     }
+  }
+
+  @Test
+  void mapJoinsTheZonesUiMap() {
+    ZoneMap map = repos.zones().map(40).orElseThrow();
+    assertThat(map.uiMapId()).isEqualTo(1436);
+    assertThat(map.width()).isEqualTo(1002);
+    assertThat(map.height()).isEqualTo(668);
+    assertThat(map.jpeg()).startsWith((byte) 0xFF, (byte) 0xD8); // JPEG start-of-image marker
+    assertThat(repos.zones().detail(40).get().map())
+        .hasValueSatisfying(m -> assertThat(m.uiMapId()).isEqualTo(1436));
+  }
+
+  @Test
+  void zoneWithoutAMapHasNone() {
+    assertThat(repos.zones().map(2437)).isEmpty();
+    assertThat(repos.zones().detail(2437).get().map()).isEmpty();
+    assertThat(repos.zones().map(-1)).isEmpty();
   }
 }

@@ -1,7 +1,9 @@
 package dev.wowforever.app.db;
 
 import dev.wowforever.app.model.ZoneDetail;
+import dev.wowforever.app.model.ZoneMap;
 import dev.wowforever.app.model.ZoneSummary;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
@@ -49,7 +51,7 @@ public final class ZoneRepository {
 
   /**
    * The zone page, or empty when there is no such zone. Instances are those in this zone or in one of its
-   * direct subzones; every list holds at most {@link #DETAIL_LIST_CAP} rows.
+   * direct subzones; every list holds at most {@link #DETAIL_LIST_CAP} rows. The map is the zone's {@link #map}.
    */
   public Optional<ZoneDetail> detail(long id) {
     return db.read(c -> {
@@ -71,8 +73,23 @@ public final class ZoneRepository {
 
               WHERE z.parent_id = ?
               ORDER BY z.name IS NULL, z.name COLLATE NOCASE, z.id LIMIT ?""",
-              ZoneRepository::summary, id, DETAIL_LIST_CAP)));
+              ZoneRepository::summary, id, DETAIL_LIST_CAP),
+          map(c, id)));
     });
+  }
+
+  /** The map of zone {@code zoneId} (the zone_map of its UiMap), or empty when it has none. */
+  public Optional<ZoneMap> map(long zoneId) {
+    return db.read(c -> map(c, zoneId));
+  }
+
+  private static Optional<ZoneMap> map(Connection c, long zoneId) throws SQLException {
+    return Sql.one(c, """
+        SELECT m.ui_map_id, m.width, m.height, m.jpeg
+        FROM zone z JOIN zone_map m ON m.ui_map_id = z.ui_map_id
+        WHERE z.id = ?""",
+        rs -> new ZoneMap(rs.getLong("ui_map_id"), rs.getInt("width"), rs.getInt("height"), rs.getBytes("jpeg")),
+        zoneId);
   }
 
   private static ZoneSummary summary(ResultSet rs) throws SQLException {

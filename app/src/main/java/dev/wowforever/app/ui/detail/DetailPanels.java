@@ -9,6 +9,7 @@ import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
+import java.awt.image.BufferedImage;
 import java.util.Optional;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
@@ -22,14 +23,19 @@ import javax.swing.SwingConstants;
 public final class DetailPanels {
   private DetailPanels() {}
 
+  /** What {@link #load} returns for an item: the item and its decoded icon (null when there is none). */
+  public record ItemPage(ItemDetail detail, BufferedImage icon) {}
+
   /**
-   * The detail record of {@code ref} ({@link ItemDetail}, {@link NpcDetail}, ...), or empty when there is no
+   * The detail record of {@code ref} ({@link ItemPage}, {@link NpcDetail}, ...), or empty when there is no
    * such entity. Bosses have no page of their own (they are shown inside their instance), so they load empty.
+   * An item's icon (or the question-mark fallback) is read and decoded here, off the EDT.
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
     Optional<?> detail = switch (ref.kind()) {
-      case ITEM -> repos.items().detail(id);
+      case ITEM -> repos.items().detail(id).map(d -> new ItemPage(d,
+          repos.assets().iconOrFallback(d.card().iconId()).flatMap(Images::decode).orElse(null)));
       case NPC -> repos.npcs().detail(id);
       case OBJECT -> repos.objects().detail(id);
       case QUEST -> repos.quests().detail(id);
@@ -43,7 +49,7 @@ public final class DetailPanels {
   /** The page for a record from {@link #load}. */
   public static JComponent render(Object detail, Repositories repos, Navigator nav) {
     return switch (detail) {
-      case ItemDetail d -> new ItemDetailPanel(d, nav);
+      case ItemPage p -> new ItemDetailPanel(p.detail(), p.icon(), nav);
       case NpcDetail d -> new NpcDetailPanel(d, nav);
       case ObjectDetail d -> new ObjectDetailPanel(d, nav);
       case QuestDetail d -> new QuestDetailPanel(d, nav);
@@ -56,7 +62,7 @@ public final class DetailPanels {
   /** The display name of a record from {@link #load}. */
   public static String name(Object detail) {
     return switch (detail) {
-      case ItemDetail d -> d.summary().displayName();
+      case ItemPage p -> p.detail().summary().displayName();
       case NpcDetail d -> d.summary().displayName();
       case ObjectDetail d -> d.summary().displayName();
       case QuestDetail d -> d.summary().displayName();

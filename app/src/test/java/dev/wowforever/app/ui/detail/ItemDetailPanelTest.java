@@ -1,10 +1,12 @@
 package dev.wowforever.app.ui.detail;
 
 import static dev.wowforever.app.model.EntityKind.INSTANCE;
+import static dev.wowforever.app.model.EntityKind.ITEM;
 import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.QUEST;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.db.AssetRepository;
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
@@ -14,9 +16,22 @@ import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.LinkRenderer;
+import dev.wowforever.app.ui.ThemeManager;
+import dev.wowforever.app.ui.theme.QualityColors;
+import java.awt.Color;
 import java.awt.Component;
+import java.awt.Graphics2D;
+import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.util.ArrayList;
 import java.util.List;
+import javax.imageio.ImageIO;
+import javax.swing.ImageIcon;
+import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -37,9 +52,9 @@ class ItemDetailPanelTest {
   }
 
   @Test
-  void dropPercentFormatted() {
+  void dropPercentFormattedAndMarkedWhenSourcesDisagree() {
     var p = new ItemDetailPanel(repos.items().detail(2874).get(), t -> {});
-    assertThat(p.droppedBy().table().getValueAt(0, 3)).isEqualTo("60.00 %");
+    assertThat(p.droppedBy().table().getValueAt(0, 3)).isEqualTo("60.00 % ≠");
   }
 
   @Test
@@ -109,5 +124,66 @@ class ItemDetailPanelTest {
     assertThat(p.header().subtitle()).isEqualTo("Item #2874 · Quest · iLvl 1 · Starts quest: The Unsent Letter");
     p.header().links().get(0).doClick();
     assertThat(opened).containsExactly(new ViewTarget.Entity(quest));
+  }
+
+  @Test
+  void cardShowsIconQualityAndLines() {
+    Object loaded = DetailPanels.load(new EntityRef(ITEM, 17204), repos).orElseThrow();
+    var p = (ItemDetailPanel) DetailPanels.render(loaded, repos, t -> {});
+    assertThat(p.iconLabel().getIcon()).isNotNull();
+    assertThat(p.iconLabel().getIcon().getIconWidth()).isEqualTo(ItemDetailPanel.ICON_SIZE);
+    assertThat(p.iconLabel().getIcon().getIconHeight()).isEqualTo(ItemDetailPanel.ICON_SIZE);
+    assertThat(p.header().title()).isEqualTo("Eye of Sulfuras");
+    assertThat(p.header().titleColor()).isEqualTo(QualityColors.text(5, ThemeManager.isDark()));
+    assertThat(p.tooltip().labels()).extracting(JLabel::getText).containsExactly("Eye of Sulfuras",
+        "Binds when picked up",
+        "Use: The Eye of Sulfuras can be combined with the Sulfuron Hammer to create Sulfuras, legendary hammer"
+            + " of Ragnaros.",
+        "Item Level 60", "Sell Price: 20g");
+    assertThat(p.tooltip().labels().get(2).getForeground()).isEqualTo(new Color(0x1EFF00));
+    assertThat(SwingUtilities.isDescendingFrom(p.tooltip(), p)).isTrue();
+    assertThat(SwingUtilities.isDescendingFrom(p.iconLabel(), p)).isTrue();
+  }
+
+  @Test
+  void missingIconFallsBackToTheQuestionMark() {
+    BufferedImage fallback = decode(repos.assets().icon(AssetRepository.FALLBACK_ICON_ID).orElseThrow());
+    Object loaded = DetailPanels.load(new EntityRef(ITEM, 1307), repos).orElseThrow(); // icon blob missing
+    var p = (ItemDetailPanel) DetailPanels.render(loaded, repos, t -> {});
+    assertThat(pixels(((ImageIcon) p.iconLabel().getIcon()).getImage())).isEqualTo(pixels(fallback));
+  }
+
+  @Test
+  void itemWithoutClientDataHasNoLinesAndAPlainName() {
+    Object loaded = DetailPanels.load(new EntityRef(ITEM, 1176), repos).orElseThrow();
+    var p = (ItemDetailPanel) DetailPanels.render(loaded, repos, t -> {});
+    assertThat(p.header().title()).isEqualTo("Smelling Salts");
+    assertThat(p.header().titleColor()).isEqualTo(new JLabel().getForeground());
+    assertThat(p.tooltip().labels()).isEmpty();
+    assertThat(p.iconLabel().getIcon()).as("question-mark fallback").isNotNull();
+  }
+
+  @Test
+  void withoutAnyIconTheIconSpaceStaysEmpty() {
+    var p = new ItemDetailPanel(repos.items().detail(17204).get(), null, t -> {});
+    assertThat(p.iconLabel().getIcon()).isNull();
+    assertThat(p.tooltip().labels()).hasSize(5);
+  }
+
+  private static BufferedImage decode(byte[] png) {
+    try {
+      return ImageIO.read(new ByteArrayInputStream(png));
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    }
+  }
+
+  private static int[] pixels(Image image) {
+    BufferedImage copy = new BufferedImage(image.getWidth(null), image.getHeight(null),
+        BufferedImage.TYPE_INT_ARGB);
+    Graphics2D g = copy.createGraphics();
+    g.drawImage(image, 0, 0, null);
+    g.dispose();
+    return copy.getRGB(0, 0, copy.getWidth(), copy.getHeight(), null, 0, copy.getWidth());
   }
 }
