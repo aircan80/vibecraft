@@ -27,8 +27,9 @@ Wowhead-style sites is out of scope and against their terms.
    **dungeons/raids (with bosses)** known for Forever.
 2. For any item show every source: NPC drops (with % where known), object drops, container
    drops, vendors, quest rewards, related quests, "starts quest".
-3. For any NPC/object/boss/instance/zone show what it drops or contains, where it is
-   (zone + coordinates as text), and quest links.
+3. For any NPC/object/boss/instance show what it drops or contains, where it is
+   (zone + coordinates as text), and quest links. A zone shows the NPCs, objects, quests and
+   dungeons in it (lists, not an aggregated item view).
 4. Everything is a link: an NPC in an item's drop list opens that NPC; a zone opens its NPC
    list; a boss opens its loot. Back/forward history.
 5. Fast: name search returns well under a second on ordinary hardware; startup in a few seconds.
@@ -93,6 +94,13 @@ Correction semantics the importer must implement (from `docs/api.md`):
   skipped and reported with file and line**; it never aborts the import.
 - A replacement and an operation on the same field in one row is an upstream error; the
   importer applies the replacement, then the operation, and logs a warning.
+- **Acceptance bar for the shipped database:** zero skipped corrections on the fields the UI
+  shows (entity names and sub-names, item `npcDrops`/`objectDrops`/`itemDrops`/`vendors`/
+  `questRewards`/`relatedQuests`/`startQuest`/`class`/`subClass`/levels, NPC and object
+  levels/rank/`zoneID`/`spawns`/`questStarts`/`questEnds`/`npcFlags`, quest `name`/
+  `startedBy`/`finishedBy`/levels/`zoneOrSort`/`objectivesText`/flags). Skips on other fields
+  (for example quest `objectives`, `preQuestGroup`, `extraObjectives`) are acceptable but
+  must appear in the report. `--fail-on-unsupported` enforces the bar for the UI fields only.
 
 Questie/QuestieDB publish no license file. The app's NOTICE must credit Questie and link the
 repository; the user should confirm they are comfortable redistributing this data (see §9).
@@ -116,6 +124,11 @@ so on). Loot rows whose second element is a string (section headers / icons) are
 Only top-level `data["..."] = {...}` statements are instances; the `KEYS`, `T1_SET` style
 locals are not. Boss entries with `ExtraList = true` (Trash Mobs, Keys) are kept as non-boss
 "extra" lists within the instance.
+
+AtlasLoot boss loot **is an item source**: every (boss `npcID`, item) pair is merged into
+`item_npc_drop` with `origin` = `questie`, `atlasloot` or `both`, so an item's "Dropped by" list
+shows raid bosses even when Questie's `npcDrops` lacks the pair. `boss_loot` is kept as well
+for the instance/boss view (slot order, difficulty, extra lists).
 
 Drop-percentage precedence for an (npc, item) pair: `itemDropCorrections` explicit value, then
 `droprate_override`, then Questie Wowhead data, then AtlasLoot `droprate`, else unknown (NULL).
@@ -266,7 +279,8 @@ game_object(id PK, name, zone_id, faction_id)
 quest(id PK, name, required_level, quest_level, zone_or_sort, required_races, required_classes,
       objectives_text, quest_flags, special_flags)
 quest_giver(quest_id, kind TEXT, entity_id, role TEXT)   -- kind npc|object|item, role start|end
-item_npc_drop(item_id, npc_id, drop_pct REAL NULL, pct_source TEXT NULL, PRIMARY KEY(item_id, npc_id))
+item_npc_drop(item_id, npc_id, drop_pct REAL NULL, pct_source TEXT NULL, origin TEXT,
+              PRIMARY KEY(item_id, npc_id))   -- origin: questie | atlasloot | both
 item_object_drop(item_id, object_id, PRIMARY KEY(item_id, object_id))
 item_container_drop(item_id, container_item_id, PRIMARY KEY(item_id, container_item_id))
 item_vendor(item_id, npc_id, PRIMARY KEY(item_id, npc_id))
