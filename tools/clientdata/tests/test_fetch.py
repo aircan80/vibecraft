@@ -224,3 +224,13 @@ def test_maps_with_missing_csv_fails_clearly(server, tmp_path, capsys):
     err = capsys.readouterr().err
     assert "WorldMapOverlayTile" in err and "Traceback" not in err
     assert _fetched_fdids(server) == []
+
+
+def test_fdids_fetches_exactly_the_listed_ids(server, tmp_path):
+    assert _cli(server, tmp_path, "--fdids", "300,100,100") == 0
+    assert _fetched_fdids(server) == [100, 300]
+
+
+def test_fdids_rejects_non_numbers(server, tmp_path, capsys):
+    assert _cli(server, tmp_path, "--fdids", "1,x") == 2
+    assert "--fdids" in capsys.readouterr().err

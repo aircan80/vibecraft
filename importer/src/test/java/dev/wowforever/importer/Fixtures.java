@@ -32,6 +32,11 @@ public final class Fixtures {
     return Holder.ROOT.resolve("atlasloot");
   }
 
+  /** A converted client-data output directory in miniature (csv/, icons/, maps/, maps.json, build.lock). */
+  public static Path clientDataRoot() {
+    return Holder.ROOT.resolve("clientdata");
+  }
+
   public static SourceRoots roots() {
     return new SourceRoots(questieDbRoot(), atlasLootRoot());
   }
@@ -66,7 +71,7 @@ public final class Fixtures {
       fs = FileSystems.getFileSystem(uri);
     }
     Path target = Files.createTempDirectory("wowforever-fixtures");
-    for (String tree : List.of("questiedb", "atlasloot")) {
+    for (String tree : List.of("questiedb", "atlasloot", "clientdata")) {
       Path source = fs.getPath("/fixtures", tree);
       try (Stream<Path> files = Files.walk(source)) {
         for (Path p : (Iterable<Path>) files::iterator) {

@@ -31,7 +31,8 @@ Never install the requirements globally.
 
 Flags: `--product` (required), `--build` (default newest), `--base-url` (default
 `http://localhost:8080`), `--cache` (required), `--tables A,B` (subset), `--icons-from ITEM_CSV`
-(path, or file name inside `{cache}/{build}/csv`), `--maps`, `--retry-missing`, `--rate` (default 4 req/s).
+(path, or file name inside `{cache}/{build}/csv`), `--maps`, `--fdids 1,2,3` (exactly these files),
+`--retry-missing`, `--rate` (default 4 req/s).
 
 Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no network).
 
@@ -92,3 +93,24 @@ Reads `{cache}/{build}` and writes a deterministic (no timestamps) import tree:
   Base tiles go at `(col*256, row*256)`, overlay tiles alpha-composited at `(OffsetX + col*256, OffsetY + row*256)`,
   then cropped to the layer size. Maps with several phases use the lowest `PhaseID`.
 - A missing or undecodable tile leaves a transparent area (black in the JPEG) and counts in `missing_tiles`; never fatal.
+
+## make_fixture.py: importer test fixture
+
+Cuts a small, self-consistent subset of the cached tables: the given items (plus every piece of their sets)
+and every row reached from them (effects, spells incl. trigger and `$<id>` text references, enchantments,
+set bonuses, scaling rows for the item levels used), the UiMap chain of the given maps, the given areas with
+their sub-zones, and the small lookup tables whole. Rows are copied byte for byte under the original header.
+`--list-fdids icons|tiles` prints the files the subset needs instead of writing.
+
+The fixture `importer/src/test/resources/fixtures/clientdata` was built from `wow_classic_beta` 1.60.1.70425:
+
+    B=1.60.1.70425; C=~/.cache/wowforever-clientdata
+    ARGS="--cache $C --build $B --sets 203,421 --ui-maps 1436,1429 --areas 12,40       --items 25,730,2874,5191,14145,14148,14149,16800,19019,17204,19137,18422,13262,12640,16865,10329,2092,6948,117,159,4500,7736,190179,215129"
+    python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C
+    python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C       --fdids "$(python tools/clientdata/make_fixture.py $ARGS --out x --list-fdids icons),$(python tools/clientdata/make_fixture.py $ARGS --out x --list-fdids tiles)"
+    # a scratch mini cache holding only the subset, so convert.py emits exactly the fixture
+    python tools/clientdata/make_fixture.py $ARGS --out MINI/$B
+    cp $C/$B/build.lock MINI/$B/ && mkdir MINI/$B/files && cp $C/$B/files/*.blp MINI/$B/files/
+    python tools/clientdata/convert.py --cache MINI --build $B --out importer/src/test/resources/fixtures/clientdata
+
+The fixture tree is `-text` in `.gitattributes`: one quoted ItemSparse cell holds a real CRLF.

@@ -162,6 +162,7 @@ def main(argv=None) -> int:
                     help="Item.csv (path or name inside the cache); fetch every distinct IconFileDataID")
     ap.add_argument("--maps", action="store_true",
                     help="fetch UiMapArtTile and WorldMapOverlayTile FileDataIDs")
+    ap.add_argument("--fdids", help="comma-separated FileDataIDs to fetch (e.g. a fixture's icons)")
     ap.add_argument("--retry-missing", action="store_true",
                     help="re-request files previously recorded as 404 in missing.txt")
     ap.add_argument("--rate", type=float, default=4.0, help="max requests per second (default 4)")
@@ -177,6 +178,12 @@ def main(argv=None) -> int:
     print("tables cached: %d" % len(tables))
 
     fdids = set()
+    if args.fdids:
+        parts = [x.strip() for x in args.fdids.split(",") if x.strip()]
+        if not all(x.isdigit() for x in parts):
+            print("error: --fdids takes comma-separated numbers, got %r" % args.fdids, file=sys.stderr)
+            return 2
+        fdids |= {int(x) for x in parts if int(x) > 0}
     try:
         if args.icons_from:
             p = Path(args.icons_from)

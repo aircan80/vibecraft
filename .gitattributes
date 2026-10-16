@@ -3,3 +3,6 @@
 *.bat text eol=crlf
 *.sqlite binary
 *.png binary
+*.jpg binary
+# client-data fixture: byte-exact (a quoted CSV cell holds a real CRLF)
+importer/src/test/resources/fixtures/clientdata/** -text
