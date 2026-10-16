@@ -41,12 +41,21 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select drop_pct from item_npc_drop where item_id = 2874 and npc_id = 639")).isEqualTo(60.0);
       assertThat(scalar(c, "select origin from item_npc_drop where item_id = 14149 and npc_id = 11520")).isEqualTo("both");
       assertThat(scalar(c, "select count(*) from boss_loot bl join boss b on b.id = bl.boss_id where b.npc_id = 11520")).isEqualTo(3);
+      assertThat(scalar(c, "select count(*) from drop_rate_source where npc_id = 639 and item_id = 2874")).isEqualTo(4);
+      assertThat(scalar(c, "select source_count || '/' || disagrees from item_npc_drop where item_id = 2874 and npc_id = 639")).isEqualTo("4/1");
+      assertThat(scalar(c, "select source_count || '/' || disagrees from item_npc_drop where item_id = 14149 and npc_id = 11520")).isEqualTo("1/0");
+      assertThat(scalar(c, "select count(*) from drop_rate_source where npc_id = 11520 and item_id = 14149")).isEqualTo(1);
+      assertThat(scalar(c, "select min(source_count || '/' || disagrees) from boss_loot bl join boss b on b.id = bl.boss_id where b.npc_id = 11520 and bl.item_id = 14149")).isEqualTo("1/0");
       assertThat(scalar(c, "select name from zone where id = 1581")).isEqualTo("The Deadmines");
       assertThat(scalar(c, "select value from meta where key = 'questiedb_commit'")).isEqualTo("49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4");
       assertThat(scalar(c, "select count(*) from quest_giver where quest_id = 2 and role = 'start'")).isEqualTo(1);
     }
     assertThat(r.skipsOnUiFields()).isZero();
     assertThat(tmp.resolve("import-report.txt")).exists();
+    assertThat(r.get("provenance.pairs")).isPositive();
+    assertThat(r.get("provenance.disagreeing")).isPositive();
+    assertThat(r.get("provenance.sources.questie-correction")).isPositive();
+    assertThat(r.render()).contains("== Conflicts ==").contains("639 2874 questie-correction=60.0");
   }
 
   @Test

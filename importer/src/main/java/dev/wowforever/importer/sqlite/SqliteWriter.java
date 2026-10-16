@@ -157,6 +157,7 @@ public final class SqliteWriter {
       LuaColumns columns = new LuaColumns(report);
       EntityWriter entities = new EntityWriter(c, columns, report);
       NpcDrops drops = new NpcDrops();
+      DropProvenance provenance = new DropProvenance(model.dropRates());
       Map<Long, Long> spawnZones = new HashMap<>();
       entities.items(table(model, EntityKind.ITEM), drops, clientItems);
       entities.npcs(table(model, EntityKind.NPC), spawnZones);
@@ -166,8 +167,9 @@ public final class SqliteWriter {
       writeItemValues(c, values, items);
       writeTooltips(c, tooltips, items);
       new AtlasWriter(c, report).write(model.instances(), model.zones()::containsKey, items::contains,
-          model.dropRates(), drops);
-      drops.write(c, model.dropRates());
+          model.dropRates(), drops, provenance);
+      drops.write(c, model.dropRates(), provenance);
+      provenance.write(c, report);
       writeZones(c, model.zones(), spawnZones, client.zoneMaps().zoneToMap(), report);
       writeIcons(c, client.icons());
       writeZoneMaps(c, client.zoneMaps());

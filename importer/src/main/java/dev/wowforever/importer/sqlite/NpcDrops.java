@@ -26,14 +26,16 @@ final class NpcDrops {
   }
 
   /** Inserts every pair with its drop rate, if {@code rates} knows one. */
-  void write(Connection c, DropRates rates) throws SQLException {
+  void write(Connection c, DropRates rates, DropProvenance provenance) throws SQLException {
     try (Batch rows = new Batch(c,
-        "INSERT INTO item_npc_drop(item_id, npc_id, drop_pct, pct_source, origin) VALUES (?, ?, ?, ?, ?)")) {
+        "INSERT INTO item_npc_drop(item_id, npc_id, drop_pct, pct_source, origin,"
+            + " disagrees, source_count) VALUES (?, ?, ?, ?, ?, ?, ?)")) {
       for (Map.Entry<Pair, String> e : origins.entrySet()) {
         Pair p = e.getKey();
         Optional<DropRate> rate = rates.get(p.npcId(), p.itemId());
+        DropProvenance.Stat stat = provenance.stat(p.npcId(), p.itemId());
         rows.add(p.itemId(), p.npcId(), rate.map(DropRate::percent).orElse(null),
-            rate.map(DropRate::source).orElse(null), e.getValue());
+            rate.map(DropRate::source).orElse(null), e.getValue(), stat.disagrees(), stat.sourceCount());
       }
     }
   }
