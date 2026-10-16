@@ -29,10 +29,15 @@ Never install the requirements globally.
     # also icons (needs Item.csv in the cache) and map tiles
     ... --icons-from Item.csv --maps
 
+    # also the Classic Era ItemSparse as a fallback for items Forever's ItemSparse lacks (ruling 17)
+    ... --fallback-product wow_classic_era
+
 Flags: `--product` (required), `--build` (default newest), `--base-url` (default
 `http://localhost:8080`), `--cache` (required), `--tables A,B` (subset), `--icons-from ITEM_CSV`
 (path, or file name inside `{cache}/{build}/csv`), `--maps`, `--fdids 1,2,3` (exactly these files),
-`--retry-missing`, `--rate` (default 4 req/s).
+`--retry-missing`, `--rate` (default 4 req/s), `--fallback-product PRODUCT` (also fetch that product's newest
+`ItemSparse`, and nothing else from it), `--fallback-build BUILD` (pin the fallback build; needs
+`--fallback-product`).
 
 Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no network).
 
@@ -41,10 +46,14 @@ Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no
     {cache}/{build}/csv/{Table}.csv     CSV export; skipped when present and non-empty
     {cache}/{build}/files/{fdid}.blp    BLP2 bytes; skipped when present
     {cache}/{build}/missing.txt         FileDataIDs that returned 404 (not fatal)
-    {cache}/{build}/build.lock          {product, build, fetched_at, base_url, tables{name: sha256}, file_count, missing_count}
+    {cache}/{build}/csv/ItemSparse.era.csv   the fallback product's ItemSparse (--fallback-product)
+    {cache}/{build}/build.lock          {product, build, fetched_at, base_url, tables{name: sha256}, file_count, missing_count
+                                         [, fallback_product, fallback_build]}; the fallback table is tables["ItemSparse.era"]
 
 Re-running is idempotent: cached items and files already recorded in `missing.txt` cause no requests
-(only `/api/builds` is read each run). Pass `--retry-missing` to deliberately re-request the known-404 files.
+(only `/api/builds` is read each run, once). Pass `--retry-missing` to deliberately re-request the known-404 files.
+`ItemSparse.era.csv` is cached under the Forever build; it is fetched again when the last `build.lock` names a
+different (or no) `fallback_build` than the one resolved now, so a newer Era build replaces it.
 `build.lock` is generated; it is committed only in a later task.
 
 ## Endpoints used
@@ -79,7 +88,7 @@ fetches a single small table. Prefer a local wow.tools.local instance for full r
 
 Reads `{cache}/{build}` and writes a deterministic (no timestamps) import tree:
 
-    OUT/csv/*.csv           copies of the cached tables
+    OUT/csv/*.csv           copies of the cached tables (ItemSparse.era.csv included when cached)
     OUT/build.lock          copy of the fetch lock
     OUT/icons/{fdid}.png    56x56 RGBA, one per cached BLP referenced by Item.csv IconFileDataID
     OUT/icons/0.png         fallback "?" icon (drawn, no external asset)
@@ -100,13 +109,16 @@ Cuts a small, self-consistent subset of the cached tables: the given items (plus
 and every row reached from them (effects, spells incl. trigger and `$<id>` text references, enchantments,
 set bonuses, scaling rows for the item levels used), the UiMap chain of the given maps, the given areas with
 their sub-zones, and the small lookup tables whole. Rows are copied byte for byte under the original header.
+When the cache has `ItemSparse.era.csv`, the Era rows of every subset item are kept in `ItemSparse.era.csv`; for
+items without a Forever ItemSparse row they also add their item levels (and references) to the closures, but
+they never add items or sets.
 `--list-fdids icons|tiles` prints the files the subset needs instead of writing.
 
 The fixture `importer/src/test/resources/fixtures/clientdata` was built from `wow_classic_beta` 1.60.1.70425:
 
     B=1.60.1.70425; C=~/.cache/wowforever-clientdata
     ARGS="--cache $C --build $B --sets 203,421 --ui-maps 1436,1429 --areas 12,40       --items 25,730,2874,5191,14145,14148,14149,16800,19019,17204,19137,18422,13262,12640,16865,10329,2092,6948,117,159,4500,7736,190179,215129"
-    python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C
+    python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C         --fallback-product wow_classic_era --fallback-build 1.15.9.70003
     python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C       --fdids "$(python tools/clientdata/make_fixture.py $ARGS --out x --list-fdids icons),$(python tools/clientdata/make_fixture.py $ARGS --out x --list-fdids tiles)"
     # a scratch mini cache holding only the subset, so convert.py emits exactly the fixture
     python tools/clientdata/make_fixture.py $ARGS --out MINI/$B
@@ -114,3 +126,6 @@ The fixture `importer/src/test/resources/fixtures/clientdata` was built from `wo
     python tools/clientdata/convert.py --cache MINI --build $B --out importer/src/test/resources/fixtures/clientdata
 
 The fixture tree is `-text` in `.gitattributes`: one quoted ItemSparse cell holds a real CRLF.
+The fixture's `ItemSparse.era.csv` came from Era build 1.15.9.70003 (`/db2/ItemSparse/csv?build=1.15.9.70003`,
+sha256 `eef48b88d1af6ea23872155819dc59342204b2f34c0b613df0405ef06f7a5145`); the fixture `build.lock` predates the
+fallback and has no `fallback_*` keys.

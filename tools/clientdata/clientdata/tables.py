@@ -14,3 +14,7 @@ REQUIRED_TABLES = (
     "UiMapAssignment", "WorldMapOverlay", "WorldMapOverlayTile",
     "AreaTable", "Map", "ChrRaces", "ChrClasses", "SkillLine", "Faction",
 )
+
+# The fallback product's ItemSparse (ruling 17), cached and converted as csv/ItemSparse.era.csv
+# and locked under this name; read only for items absent from the main ItemSparse.
+FALLBACK_NAME = "ItemSparse.era"

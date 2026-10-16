@@ -234,3 +234,77 @@ def test_fdids_fetches_exactly_the_listed_ids(server, tmp_path):
 def test_fdids_rejects_non_numbers(server, tmp_path, capsys):
     assert _cli(server, tmp_path, "--fdids", "1,x") == 2
     assert "--fdids" in capsys.readouterr().err
+
+
+ERA_BUILDS = [
+    {"product": "wow_classic_era", "version": "1.15.8.65000", "created_at": "2026-09-01 10:00:00"},
+    {"product": "wow_classic_era", "version": "1.15.9.70003", "created_at": "2026-10-14 08:00:00"},
+]
+ERA_SPARSE = "ID,Display_lang,ItemLevel\n16800,Arcanist Boots,66\n"
+
+
+def _era_server(server, builds=ERA_BUILDS):
+    data = dict(BUILDS)
+    data["wow_classic_era"] = builds
+    server.routes["/api/builds"] = (200, json.dumps(data))
+    for b in builds:
+        server.routes["/db2/ItemSparse/csv?build=%s" % b["version"]] = (200, ERA_SPARSE.replace("66", b["version"][-2:]))
+
+
+def _era_requests(server):
+    return [p for p in server.paths if p.startswith("/db2/ItemSparse/")]
+
+
+def test_fallback_product_fetches_only_item_sparse_beside_the_forever_tables(server, tmp_path):
+    _era_server(server)
+    assert _cli(server, tmp_path, "--fallback-product", "wow_classic_era") == 0
+    era = tmp_path / "1.60.1.70425" / "csv" / "ItemSparse.era.csv"
+    assert era.read_text() == ERA_SPARSE.replace("66", "03")
+    assert _era_requests(server) == ["/db2/ItemSparse/csv?build=1.15.9.70003"]
+    assert [p for p in server.paths if p.startswith("/db2/")] == [
+        "/db2/ItemClass/csv?build=1.60.1.70425", "/db2/ItemSparse/csv?build=1.15.9.70003"]
+    assert server.paths.count("/api/builds") == 1
+    lock = json.loads((tmp_path / "1.60.1.70425" / "build.lock").read_text())
+    assert lock["product"] == "wow_classic_beta" and lock["build"] == "1.60.1.70425"
+    assert lock["fallback_product"] == "wow_classic_era" and lock["fallback_build"] == "1.15.9.70003"
+    assert lock["tables"]["ItemSparse.era"] == hashlib.sha256(era.read_bytes()).hexdigest()
+    assert set(lock["tables"]) == {"ItemClass", "ItemSparse.era"}
+
+
+def test_fallback_is_cached_until_the_fallback_build_changes(server, tmp_path):
+    _era_server(server)
+    assert _cli(server, tmp_path, "--fallback-product", "wow_classic_era") == 0
+    assert _cli(server, tmp_path, "--fallback-product", "wow_classic_era") == 0
+    assert len(_era_requests(server)) == 1
+    newer = ERA_BUILDS + [{"product": "wow_classic_era", "version": "1.15.9.71111",
+                           "created_at": "2026-10-15 08:00:00"}]
+    _era_server(server, newer)
+    assert _cli(server, tmp_path, "--fallback-product", "wow_classic_era") == 0
+    assert _era_requests(server)[-1] == "/db2/ItemSparse/csv?build=1.15.9.71111"
+    assert len(_era_requests(server)) == 2
+    lock = json.loads((tmp_path / "1.60.1.70425" / "build.lock").read_text())
+    assert lock["fallback_build"] == "1.15.9.71111"
+
+
+def test_fallback_build_pins_the_fallback(server, tmp_path):
+    _era_server(server)
+    assert _cli(server, tmp_path, "--fallback-product", "wow_classic_era", "--fallback-build", "1.15.8.65000") == 0
+    assert _era_requests(server) == ["/db2/ItemSparse/csv?build=1.15.8.65000"]
+
+
+def test_fallback_build_without_product_is_rejected(server, tmp_path, capsys):
+    assert _cli(server, tmp_path, "--fallback-build", "1.15.8.65000") == 2
+    assert "--fallback-product" in capsys.readouterr().err
+
+
+def test_unknown_fallback_product_fails_clearly(server, tmp_path, capsys):
+    assert _cli(server, tmp_path, "--fallback-product", "wow_nope") == 2
+    err = capsys.readouterr().err
+    assert "wow_nope" in err and "Traceback" not in err
+    assert _era_requests(server) == []
+
+
+def test_lock_without_fallback_has_no_fallback_keys(server, tmp_path):
+    assert _cli(server, tmp_path) == 0
+    lock = json.loads((tmp_path / "1.60.1.70425" / "build.lock").read_text())
+    assert "fallback_product" not in lock and "fallback_build" not in lock

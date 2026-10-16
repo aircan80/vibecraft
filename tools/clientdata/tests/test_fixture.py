@@ -89,3 +89,34 @@ def test_cli_writes_csv_dir_and_lists_fdids(tmp_path, capsys):
     assert fixture.main(base + ["--out", str(tmp_path / "out")]) == 0
     assert (tmp_path / "out" / "csv" / "Item.csv").exists()
     assert fixture.main(["--cache", str(tmp_path), "--build", "nope", "--out", "o", "--items", "1"]) == 2
+
+
+ERA = ("ID,Description_lang,Display_lang,ItemLevel,ItemSet,RequiredSkill,MinFactionID,"
+       "ItemNameDescriptionID,Socket_match_enchantment_ID,Extra\n"
+       "1,,Sword (era),11,0,0,0,0,0,x\n"
+       "3,,Pants,30,8,0,0,0,0,y\n"
+       "9,,Other,99,0,0,0,0,0,z\n")
+
+
+def test_era_rows_are_kept_for_subset_items_and_feed_the_level_closure(tmp_path):
+    csv_dir = _cache(tmp_path)
+    (csv_dir / "ItemSparse.era.csv").write_bytes(ERA.encode("utf-8"))
+    (csv_dir / "RandPropPoints.csv").write_bytes(b"ID,Epic_0\n10,1\n11,1\n20,2\n30,3\n60,6\n99,9\n")
+    s = fixture.build_subset(csv_dir, items=[1], sets=[7], extra_levels=[60])
+    counts = s.write(tmp_path / "out" / "csv")
+
+    # every subset item the Era table has (1 overlaps Forever, 3 is Item-only); 9 is not in the subset
+    assert _out(tmp_path, "ItemSparse.era") == ERA.splitlines(keepends=True)[0] + "1,,Sword (era),11,0,0,0,0,0,x\n" \
+        + "3,,Pants,30,8,0,0,0,0,y\n"
+    assert counts["ItemSparse.era"] == 2
+    # level 30 comes from the Era row of item 3; item 1's Era level 11 is ignored (Forever wins)
+    assert _out(tmp_path, "RandPropPoints") == "ID,Epic_0\n10,1\n20,2\n30,3\n60,6\n"
+    # Era rows never widen the subset: set 8 (and its piece 9) stay out
+    assert counts["ItemSet"] == 1 and counts["Item"] == 3
+
+
+def test_no_era_table_in_the_cache_writes_none(tmp_path):
+    csv_dir = _cache(tmp_path)
+    counts = fixture.build_subset(csv_dir, items=[1]).write(tmp_path / "out" / "csv")
+    assert "ItemSparse.era" not in counts
+    assert not (tmp_path / "out" / "csv" / "ItemSparse.era.csv").exists()

@@ -132,3 +132,12 @@ def test_convert_is_deterministic(tmp_path):
     data = json.loads(t1["maps.json"])
     assert data == [{"ui_map_id": 1436, "name": "Westfall", "width": 1002, "height": 668,
                      "tiles": 12, "overlays": 1, "missing_tiles": 8 + 0}]
+
+
+def test_convert_copies_the_era_item_sparse_when_present(tmp_path):
+    cache = _make_cache(tmp_path)
+    era = b"ID,Display_lang\r\n16800,Arcanist Boots\r\n"
+    (cache / BUILD / "csv" / "ItemSparse.era.csv").write_bytes(era)
+    out = tmp_path / "o"
+    assert convert_cli.main(["--cache", str(cache), "--build", BUILD, "--out", str(out)]) == 0
+    assert (out / "csv" / "ItemSparse.era.csv").read_bytes() == era

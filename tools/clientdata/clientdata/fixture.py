@@ -4,6 +4,9 @@ Given item ids (plus optional item sets and UiMaps) it keeps every row the impor
 follow from them, transitively:
 
   Item, ItemSparse                      the items (plus every piece of each referenced set)
+  ItemSparse.era (when cached)          the Era fallback rows of those items; they feed the level and
+                                        reference closures only for items without a Forever row and
+                                        never add items or sets
   ItemSet, ItemSetSpell                 the sets named by --sets and by ItemSparse.ItemSet
   ItemXItemEffect -> ItemEffect         the items' effects
   Spell, SpellName, SpellEffect,        every spell reached from item effects and set bonuses,
@@ -19,7 +22,8 @@ follow from them, transitively:
   small lookup tables                   whole (ArmorLocation, ItemClass, ItemSubClass, ...)
 
 Rows are copied byte for byte (original quoting and line endings), in source order, under
-the original header line. Every table in REQUIRED_TABLES is written, even when empty.
+the original header line. Every table in REQUIRED_TABLES is written, even when empty; the
+optional tables (ItemSparse.era) only when the cache has them.
 """
 import argparse
 import csv
@@ -29,7 +33,10 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
-from .tables import REQUIRED_TABLES
+from .tables import FALLBACK_NAME, REQUIRED_TABLES
+
+# Written only when present in the cache.
+OPTIONAL_TABLES = (FALLBACK_NAME,)
 
 # Copied whole: small lookup tables (all well under WHOLE_TABLE_LIMIT in 1.60.1.70425).
 WHOLE_TABLES = ("ArmorLocation", "ItemClass", "ItemSubClass", "ItemNameDescription",
@@ -150,7 +157,7 @@ class Subset:
     def write(self, out_csv: Path) -> Dict[str, int]:
         out_csv.mkdir(parents=True, exist_ok=True)
         counts = {}
-        for name in REQUIRED_TABLES:
+        for name in REQUIRED_TABLES + OPTIONAL_TABLES:
             t = self.table(name)
             if t is None:
                 continue
@@ -186,7 +193,11 @@ def build_subset(csv_dir, items: Iterable[int], sets: Iterable[int] = (), ui_map
             break
 
     s.select("Item", lambda r: _int(r["ID"]) in item_ids)
-    sparse = s.select("ItemSparse", lambda r: _int(r["ID"]) in item_ids)
+    forever_sparse = s.select("ItemSparse", lambda r: _int(r["ID"]) in item_ids)
+    era = s.select(FALLBACK_NAME, lambda r: _int(r["ID"]) in item_ids)
+    forever_ids = {_int(r["ID"]) for r in forever_sparse}
+    # the row the importer uses per item: Forever's, else Era's
+    sparse = forever_sparse + [r for r in era if _int(r["ID"]) not in forever_ids]
     s.select("ItemSet", lambda r: _int(r["ID"]) in set_ids)
     set_spells = s.select("ItemSetSpell", lambda r: _int(r["ItemSetID"]) in set_ids)
 
