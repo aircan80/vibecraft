@@ -123,6 +123,10 @@ Reads `{cache}/{build}` and writes a deterministic (no timestamps) import tree:
   Base tiles go at `(col*256, row*256)`, overlay tiles alpha-composited at `(OffsetX + col*256, OffsetY + row*256)`,
   then cropped to the layer size. Maps with several phases use the lowest `PhaseID`.
 - A missing or undecodable tile leaves a transparent area (black in the JPEG) and counts in `missing_tiles`; never fatal.
+- An undecodable icon is skipped and counted (`icons_failed`); the importer then counts it in `clientdata.icons.missing`
+  and the browser shows the fallback icon. Known limitation: Pillow cannot read BLP encoding 3 (uncompressed
+  BGRA). In build 1.60.1.70425 that is icon 4559256, used by Rough Wolf Pelt (247877), Savannah Lion Hide (269715)
+  and Tanning Rack (279941).
 
 ## make_fixture.py: importer test fixture
 
