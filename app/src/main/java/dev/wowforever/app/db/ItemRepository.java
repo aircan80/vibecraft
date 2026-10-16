@@ -11,10 +11,12 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /** Items: detail pages, class-filtered lists and the class tree. */
 public final class ItemRepository {
@@ -31,6 +33,9 @@ public final class ItemRepository {
       LEFT JOIN item_class ic ON ic.id = i.class_id
       LEFT JOIN item_subclass isc ON isc.class_id = i.class_id AND isc.id = i.subclass_id""";
   private static final String NAME_ORDER = "name IS NULL, name COLLATE NOCASE, id";
+  /** True for an {@code item} row whose subclass is null or not in {@code item_subclass} for its class. */
+  private static final String UNKNOWN_SUBCLASS =
+      "NOT EXISTS (SELECT 1 FROM item_subclass s WHERE s.class_id = item.class_id AND s.id = item.subclass_id)";
 
   private final Database db;
 
@@ -71,7 +76,8 @@ public final class ItemRepository {
 
   /**
    * One page of items ordered by name (nameless stubs last). A null {@code classId} lists every item; a null
-   * {@code subclassId} lists every subclass.
+   * {@code subclassId} lists every subclass; {@link ItemClassNode#OTHER_SUBCLASSES} lists the items whose
+   * subclass is null or missing from the subclass table.
    */
   public List<ItemSummary> list(Integer classId, Integer subclassId, int limit, int offset) {
     StringBuilder where = new StringBuilder(" WHERE 1 = 1");
@@ -80,7 +86,9 @@ public final class ItemRepository {
       where.append(" AND class_id = ?");
       params.add(classId);
     }
-    if (subclassId != null) {
+    if (subclassId != null && subclassId == ItemClassNode.OTHER_SUBCLASSES) {
+      where.append(" AND " + UNKNOWN_SUBCLASS);
+    } else if (subclassId != null) {
       where.append(" AND subclass_id = ?");
       params.add(subclassId);
     }
@@ -92,7 +100,10 @@ public final class ItemRepository {
     return db.read(c -> Sql.list(c, sql, ItemRepository::summary, params.toArray()));
   }
 
-  /** Item classes that have items, each with the subclasses that have items, by class id then subclass id. */
+  /**
+   * Item classes that have items, each with the subclasses that have items, by class id then subclass id; a
+   * class with items of an unknown (or null) subclass ends with an {@code "(other)"} child.
+   */
   public List<ItemClassNode> classTree() {
     return db.read(c -> {
       List<ItemClassNode> classes = Sql.list(c, """
@@ -106,6 +117,13 @@ public final class ItemRepository {
           ORDER BY s.class_id, s.id""",
           rs -> new ItemClassNode(rs.getInt("class_id"), rs.getString("name"), List.of(), rs.getInt("id")))) {
         children.computeIfAbsent(sub.classId(), k -> new ArrayList<>()).add(sub);
+      }
+      Set<Integer> withOther = new HashSet<>(Sql.list(c,
+          "SELECT DISTINCT class_id FROM item WHERE class_id IS NOT NULL AND " + UNKNOWN_SUBCLASS,
+          rs -> rs.getInt("class_id")));
+      for (int classId : withOther) {
+        children.computeIfAbsent(classId, k -> new ArrayList<>())
+            .add(new ItemClassNode(classId, "(other)", List.of(), ItemClassNode.OTHER_SUBCLASSES));
       }
       return classes.stream()
           .map(cls -> new ItemClassNode(cls.classId(), cls.name(), children.getOrDefault(cls.classId(), List.of()),
