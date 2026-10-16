@@ -2,6 +2,7 @@ package dev.wowforever.importer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.importer.report.ImportReport;
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
@@ -49,6 +50,22 @@ class MainTest {
     assertThat(Main.exitCode(true, 3)).isEqualTo(2);
     assertThat(Main.exitCode(false, 3)).isEqualTo(0);
     assertThat(Main.exitCode(true, 0)).isEqualTo(0);
+  }
+
+  @Test
+  void missingFieldsAndUnresolvedUiFieldsCountAsUnsupported() {
+    ImportReport r = new ImportReport();
+    r.count("unresolved.npc.waypoints", 4); // not shown in the UI
+    r.count("missingField.item.name", 0);
+    assertThat(Main.unsupportedCounters(r)).isZero();
+    r.count("missingField.item.someRenamedField", 1);
+    assertThat(Main.unsupportedCounters(r)).isEqualTo(1);
+    r.count("unresolved.npc.name", 2);
+    r.count("unresolved.quest.objectivesText", 1);
+    assertThat(Main.unsupportedCounters(r)).isEqualTo(4);
+    r.count("unresolved.zone.name", 5); // not an entity kind: ignored rather than thrown on
+    assertThat(Main.unsupportedCounters(r)).isEqualTo(4);
+    assertThat(Main.exitCode(true, 0 + Main.unsupportedCounters(r))).isEqualTo(2);
   }
 
   private static PrintStream print(ByteArrayOutputStream bytes) {

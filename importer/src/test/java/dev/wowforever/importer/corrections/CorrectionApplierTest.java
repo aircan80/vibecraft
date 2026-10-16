@@ -78,6 +78,14 @@ class CorrectionApplierTest {
   }
 
   @Test
+  void fieldIndexZeroIsSkippedNotThrown() {
+    EntityTable items = itemsWith(730);
+    apply(items, "{ [730] = { ['op:add:0'] = {1}, ['op:remove:-1'] = {2}, [itemKeys.itemLevel] = 7 } }", "x");
+    assertThat(report.skips()).hasSize(2).allMatch(s -> s.reason().equals("unknown key"));
+    assertThat(LuaValues.asLong(items.get(730, "itemLevel"))).hasValue(7);
+  }
+
+  @Test
   void unknownKeysAreSkipped() {
     EntityTable items = itemsWith(730);
     apply(items, "{ [730] = { [99] = 1, ['name'] = 'x', ['op:add:99'] = {1} } }", "x");

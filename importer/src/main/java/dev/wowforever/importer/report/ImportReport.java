@@ -30,6 +30,11 @@ public final class ImportReport {
     return counters.getOrDefault(counter, 0L);
   }
 
+  /** Every counter by name, read-only. */
+  public Map<String, Long> counters() {
+    return Collections.unmodifiableMap(counters);
+  }
+
   public void skip(Skip s) {
     skips.add(s);
   }

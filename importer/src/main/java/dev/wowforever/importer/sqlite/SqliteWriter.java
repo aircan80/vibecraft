@@ -35,14 +35,17 @@ public final class SqliteWriter {
   private static final Pattern INDEX_MARKER = Pattern.compile("^-- @indexes\\s*$", Pattern.MULTILINE);
   private static final List<String> PRAGMAS = List.of(
       "PRAGMA page_size = 4096", "PRAGMA journal_mode = OFF", "PRAGMA synchronous = OFF", "PRAGMA temp_store = MEMORY");
+  /** Every named entity, except {@code Zone #id} placeholder names, which only clutter search results. */
   private static final String SEARCH_INDEX = """
       INSERT INTO search_index(kind, id, name)
-            SELECT 'item', id, name FROM item WHERE name IS NOT NULL
+      SELECT kind, id, name FROM (
+                SELECT 'item' AS kind, id, name FROM item WHERE name IS NOT NULL
       UNION ALL SELECT 'npc', id, name FROM npc WHERE name IS NOT NULL
       UNION ALL SELECT 'object', id, name FROM game_object WHERE name IS NOT NULL
       UNION ALL SELECT 'quest', id, name FROM quest WHERE name IS NOT NULL
       UNION ALL SELECT 'zone', id, name FROM zone WHERE name IS NOT NULL AND kind <> 'unknown'
-      UNION ALL SELECT 'instance', id, name FROM instance WHERE name IS NOT NULL""";
+      UNION ALL SELECT 'instance', id, name FROM instance WHERE name IS NOT NULL)
+      WHERE name NOT LIKE 'Zone #%'""";
 
   private SqliteWriter() {}
 

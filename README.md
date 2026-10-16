@@ -48,7 +48,7 @@ java -jar importer/target/importer.jar --out app/src/main/resources/data/wowfore
 The same import runs inside Maven with `./mvnw -B -pl importer -am -Pimport-data verify`.
 
 - **Download cache.** Upstream files are downloaded once into `~/.cache/wowforever-importer` and reused afterwards. Use `--cache <dir>` to put the cache elsewhere, or `--questiedb-dir` and `--atlasloot-dir` to read local checkouts instead.
-- **`--fail-on-unsupported`.** The importer exits with code 2 when a correction could not be applied to a field the browser shows. Always pass it when refreshing the shipped database.
+- **`--fail-on-unsupported`.** The importer exits with code 2 when a correction could not be applied to a field the browser shows, when a field the importer reads is missing from the upstream schema (`missingField.*` counters), or when a value of a field the browser shows could not be resolved (`unresolved.<kind>.<field>` counters). Always pass it when refreshing the shipped database.
 - **Outputs.** The importer writes `import-report.txt` and `build-id.txt` beside the database. Commit all three files together.
 
 The committed build has these headline row counts:

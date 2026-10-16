@@ -114,7 +114,8 @@ public final class CorrectionApplier {
     EntitySchema schema = table.schema();
     SortedMap<Integer, Map<Op, LuaValue>> byField = new TreeMap<>();
     for (Map.Entry<LuaValue, LuaValue> e : fields.entries()) {
-      Optional<CorrectionKey> key = CorrectionKey.parse(e.getKey()).filter(k -> k.fieldIndex() <= schema.fieldCount());
+      Optional<CorrectionKey> key = CorrectionKey.parse(e.getKey())
+          .filter(k -> k.fieldIndex() >= 1 && k.fieldIndex() <= schema.fieldCount());
       if (key.isEmpty()) {
         report.skip(new Skip(layer, table.kind(), id, "<key " + e.getKey() + ">", "unknown key"));
         continue;

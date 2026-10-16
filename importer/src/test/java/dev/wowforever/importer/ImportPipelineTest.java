@@ -13,6 +13,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -74,17 +76,31 @@ class ImportPipelineTest {
   }
 
   @Test
-  void buildIdIsStableForTheSameSources(@TempDir Path tmp) throws Exception {
+  void everyRunGetsANewBuildIdEqualToTheWrittenMeta(@TempDir Path tmp) throws Exception {
     String first = buildId(tmp.resolve("a"));
     String second = buildId(tmp.resolve("b"));
-    assertThat(second).isEqualTo(first);
+    assertThat(second).isNotEqualTo(first);
   }
 
+  @Test
+  void buildIdFoldsInTheBuildTime() {
+    Instant t = Instant.parse("2026-10-16T12:00:00.123Z");
+    Map<String, String> a = ImportPipeline.meta("q", "a", t);
+    assertThat(a.get("built_at")).isEqualTo("2026-10-16T12:00:00.123Z");
+    assertThat(ImportPipeline.meta("q", "a", t).get("build_id")).isEqualTo(a.get("build_id"));
+    assertThat(ImportPipeline.meta("q", "a", t.plusMillis(1)).get("build_id")).isNotEqualTo(a.get("build_id"));
+  }
+
+  /** Runs the import into {@code dir}; asserts build-id.txt equals meta.build_id of the written DB. */
   private static String buildId(Path dir) throws Exception {
     ImportOptions o = new ImportOptions(dir.resolve("out.sqlite"), dir.resolve("cache"),
         Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), false);
     ImportPipeline.run(o, QUIET);
-    return Files.readString(o.buildIdOut(), StandardCharsets.UTF_8);
+    String txt = Files.readString(o.buildIdOut(), StandardCharsets.UTF_8);
+    try (Connection c = open(o.out())) {
+      assertThat(scalar(c, "select value from meta where key = 'build_id'")).isEqualTo(txt);
+    }
+    return txt;
   }
 
   static Connection open(Path file) throws SQLException {

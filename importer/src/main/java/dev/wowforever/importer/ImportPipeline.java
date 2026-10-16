@@ -110,7 +110,7 @@ public final class ImportPipeline {
         .collect(Collectors.toSet());
     Map<Long, Zone> zones = ZoneLoader.load(questieDb, constants, raidAreaIds, stage(problems, "zones"));
 
-    Map<String, String> meta = meta(questieSpec.commit(), atlasSpec.commit());
+    Map<String, String> meta = meta(questieSpec.commit(), atlasSpec.commit(), Instant.now());
     SqliteWriter.write(opts.out(), new ImportModel(tables, rates, zones, instances, meta), report);
     countRows(opts.out(), report);
     summariseProblems(problems, report);
@@ -132,11 +132,16 @@ public final class ImportPipeline {
     return problems.computeIfAbsent(stage, s -> new ProblemCollector());
   }
 
-  /** {@code build_id} is the SHA-256 of both source commits, the importer version and the schema text. */
-  static Map<String, String> meta(String questieCommit, String atlasCommit) {
+  /**
+   * {@code build_id} is the SHA-256 of both source commits, the importer version, the schema text and
+   * {@code built_at} (the build time to the millisecond), so every regeneration gets a new id and the app
+   * re-extracts the database even when only the importer's output changed.
+   */
+  static Map<String, String> meta(String questieCommit, String atlasCommit, Instant builtAt) {
+    String built = builtAt.truncatedTo(ChronoUnit.MILLIS).toString();
     Map<String, String> meta = new LinkedHashMap<>();
-    meta.put("build_id", sha256(questieCommit + atlasCommit + IMPORTER_VERSION + SqliteWriter.schemaSql()));
-    meta.put("built_at", Instant.now().truncatedTo(ChronoUnit.SECONDS).toString());
+    meta.put("build_id", sha256(questieCommit + atlasCommit + IMPORTER_VERSION + SqliteWriter.schemaSql() + built));
+    meta.put("built_at", built);
     meta.put("questiedb_commit", questieCommit);
     meta.put("atlasloot_commit", atlasCommit);
     meta.put("importer_version", IMPORTER_VERSION);

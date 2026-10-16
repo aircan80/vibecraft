@@ -220,6 +220,19 @@ class SqliteWriterTest {
   }
 
   @Test
+  void zonePlaceholderNamesStayOutOfTheSearchIndex(@TempDir Path tmp) throws Exception {
+    Builder b = new Builder();
+    b.zones.put(1581L, new Zone(1581, "The Deadmines", 40L, "dungeon"));
+    b.zones.put(9999L, new Zone(9999, "Zone #9999", 1581L, "subzone"));
+    SqliteWriter.write(tmp.resolve("t.sqlite"), b.model(), new ImportReport());
+    try (Connection c = open(tmp.resolve("t.sqlite"))) {
+      assertThat(scalar(c, "select name from zone where id = 9999")).isEqualTo("Zone #9999");
+      assertThat(column(c, "select id from search_index where kind = 'zone'")).containsExactly(1581L);
+      assertThat(scalar(c, "select count(*) from search_index where name like 'Zone #%'")).isEqualTo(0);
+    }
+  }
+
+  @Test
   void instancesAndBossesGetSequentialIdsAndZoneLinks(@TempDir Path tmp) throws Exception {
     Builder b = new Builder();
     b.zones.put(1581L, new Zone(1581, "The Deadmines", 40L, "dungeon"));
