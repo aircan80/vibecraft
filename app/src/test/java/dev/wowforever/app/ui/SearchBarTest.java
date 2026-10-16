@@ -49,19 +49,36 @@ class SearchBarTest {
     node.removeNode();
   }
 
-  private SearchBar.Lookup lookup(String text, Optional<EntityKind> kind) {
-    lookups.add(text + " " + kind.map(Enum::name).orElse("ALL"));
-    List<SearchHit> hits = HITS.stream().filter(h -> kind.isEmpty() || h.ref().kind() == kind.get()).toList();
-    return new SearchBar.Lookup(hits, COUNTS);
+  /** Every counts-only lookup asked for, by text. */
+  private final List<String> countLookups = new ArrayList<>();
+
+  /** {@link #COUNTS} for "hog"; for other text, as many items as it has characters, so stale counts show. */
+  private static Map<EntityKind, Integer> countsOf(String text) {
+    return text.equals("hog") ? COUNTS : Map.of(ITEM, text.length());
   }
 
+  private final SearchBar.Source source = new SearchBar.Source() {
+    @Override
+    public SearchBar.Lookup lookup(String text, Optional<EntityKind> kind) {
+      lookups.add(text + " " + kind.map(Enum::name).orElse("ALL"));
+      List<SearchHit> hits = HITS.stream().filter(h -> kind.isEmpty() || h.ref().kind() == kind.get()).toList();
+      return new SearchBar.Lookup(hits, countsOf(text));
+    }
+
+    @Override
+    public Map<EntityKind, Integer> counts(String text) {
+      countLookups.add(text);
+      return countsOf(text);
+    }
+  };
+
   private void attachInline() {
-    bar.attach(this::lookup, Runnable::run);
+    bar.attach(source, Runnable::run);
   }
 
   private void attachQueued() {
     Executor later = queued::add;
-    bar.attach(this::lookup, later);
+    bar.attach(source, later);
   }
 
   private void runQueued() {
@@ -326,5 +343,62 @@ class SearchBarTest {
     assertThat(bar.kindChips().chips()).noneMatch(AbstractButton::isEnabled);
     bar.setEnabled(true);
     assertThat(bar.kindChips().chips()).allMatch(AbstractButton::isEnabled);
+  }
+
+  @Test
+  void enterBeforeTheDebounceShowsTheCountsOfTheSearchedText() {
+    attachInline();
+    typeAndWait("hog");
+    assertThat(chipTexts()).startsWith("All 6", "Items 4");
+    bar.textField().setText("hogger");
+    press("ENTER");
+    assertThat(opened).containsExactly(new ViewTarget.Search("hogger", Optional.empty()));
+    assertThat(countLookups).containsExactly("hogger");
+    assertThat(chipTexts()).startsWith("All 6", "Items 6", "NPCs 0");
+  }
+
+  @Test
+  void pastedNameShowsItsCounts() {
+    attachInline();
+    typeAndWait("hog");
+    bar.textField().selectAll();
+    assertThat(bar.pasteIntercepted("[Captain Sanders' Hidden Treasure]")).isTrue();
+    assertThat(chipTexts()).startsWith("All 32", "Items 32");
+  }
+
+  @Test
+  void chosenRecentSearchShowsItsCounts() {
+    attachInline();
+    state.addRecentSearch("deadmines");
+    typeAndWait("hog");
+    bar.textField().setText("");
+    press("DOWN");
+    press("ENTER");
+    assertThat(chipTexts()).startsWith("All 9", "Items 9");
+  }
+
+  @Test
+  void countsArriveUnderTheGenerationGuard() {
+    attachQueued();
+    bar.focusChanged(true);
+    bar.textField().setText("hogger");
+    press("ENTER"); // counts for "hogger" queued on the worker
+    bar.textField().setText("rag"); // typing on overtakes them
+    runQueued();
+    assertThat(countLookups).containsExactly("hogger");
+    assertThat(chipTexts()).startsWith("All", "Items");
+  }
+
+  @Test
+  void enterRightAfterAKindChangeRunsTheFullSearchInsteadOfTheOldTopHit() {
+    attachQueued();
+    bar.focusChanged(true);
+    bar.textField().setText("hog");
+    delay.fire();
+    runQueued();
+    assertThat(dropdown.isShowing()).isTrue();
+    bar.kindChips().chips().get(1).doClick(); // Items: the new rows are still on the worker
+    press("ENTER");
+    assertThat(opened).containsExactly(new ViewTarget.Search("hog", Optional.of(ITEM)));
   }
 }

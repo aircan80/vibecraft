@@ -242,4 +242,51 @@ class SearchDropdownTest {
     assertThat(one).isInstanceOfSatisfying(javax.swing.JLabel.class,
         l -> assertThat(l.getText()).isEqualTo("Show 1 result"));
   }
+
+  /** The summed preferred heights of the rows shown, as the list lays them out. */
+  private int rowHeights() {
+    var list = dropdown.jlist();
+    int sum = 0;
+    for (int i = 0; i < list.getModel().getSize(); i++) {
+      sum += list.getCellRenderer().getListCellRendererComponent(list, list.getModel().getElementAt(i), i, false,
+          false).getPreferredSize().height;
+    }
+    return sum;
+  }
+
+  @Test
+  void heightFitsEveryRowWithoutScrollingOrPadding() {
+    List<ListEntry> hits = List.of(hit(INSTANCE, 1, "Deadmines"), hit(ITEM, 2, "Cruel Barb"),
+        hit(NPC, 3, "Edwin VanCleef"), hit(ITEM, 4, "Smelting Pants"), hit(ZONE, 5, "Westfall"),
+        hit(ITEM, 6, "Blackened Defias Belt"), hit(QUEST, 7, "The Defias Brotherhood"), hit(NPC, 8, "Mr. Smite"));
+    dropdown.showHits(hits, 22);
+    int border = 2; // a one-pixel line above and below
+    assertThat(host.height).isEqualTo(rowHeights() + border);
+    // eight two-line hits are taller than eight rows of the first (heading) row, the old scroll pane height
+    var list = dropdown.jlist();
+    int headingHeight = list.getCellRenderer().getListCellRendererComponent(list, dropdown.rows().get(0), 0, false,
+        false).getPreferredSize().height;
+    assertThat(host.height).isGreaterThan(8 * headingHeight + border);
+
+    dropdown.showHits(List.of(hit(ITEM, 1, "Cruel Barb")), 1);
+    assertThat(dropdown.rows()).hasSize(3);
+    assertThat(host.height).isEqualTo(rowHeights() + border);
+  }
+
+  @Test
+  void heightIsCapped() {
+    dropdown.showRecents(IntStream.rangeClosed(1, 60).mapToObj(i -> "search " + i).toList());
+    assertThat(rowHeights()).isGreaterThan(com.formdev.flatlaf.util.UIScale.scale(SearchDropdown.MAX_HEIGHT));
+    assertThat(host.height).isEqualTo(com.formdev.flatlaf.util.UIScale.scale(SearchDropdown.MAX_HEIGHT));
+  }
+
+  @Test
+  void notShowingWhenTheHostCannotShowIt() {
+    host.anchorShowing = false;
+    dropdown.showHits(List.of(hit(ITEM, 1, "Cruel Barb")), 1);
+    assertThat(dropdown.isShowing()).isFalse();
+    assertThat(Keys.press(field, "ESCAPE")).isFalse();
+    press("ENTER"); // nothing on screen to open: the full search runs
+    assertThat(listener.calls).containsExactly("show all");
+  }
 }

@@ -15,6 +15,7 @@ import dev.wowforever.app.nav.NavigationHistory;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.detail.DetailPanels;
+import dev.wowforever.app.ui.widgets.ListEntries;
 import dev.wowforever.app.ui.widgets.ListEntry;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.util.List;
@@ -281,7 +282,7 @@ public final class AppController implements Navigator {
 
   private Listing search(ViewTarget.Search s) {
     var hits = repos.search().search(s.text(), s.kind(), SEARCH_LIMIT);
-    return new Listing("Search: " + s.text(), entries(hits, AppController::entry), SEARCH_LIMIT, null);
+    return new Listing("Search: " + s.text(), entries(hits, ListEntries::of), SEARCH_LIMIT, null);
   }
 
   private Listing itemClass(ViewTarget.ItemClass c) {
@@ -347,11 +348,6 @@ public final class AppController implements Navigator {
 
   private static <T> List<ListEntry> entries(List<T> rows, Function<T, ListEntry> toEntry) {
     return rows.stream().map(toEntry).toList();
-  }
-
-  /** {@code h} as a list row: its name over its subtitle, with the count of hits it stands for. */
-  static ListEntry entry(SearchHit h) {
-    return new ListEntry(h.ref(), h.displayName(), Labels.withCount(h.subtitle(), h.count()), null, null);
   }
 
   private static ListEntry entry(ItemSummary i) {

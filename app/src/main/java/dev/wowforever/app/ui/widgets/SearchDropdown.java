@@ -84,8 +84,11 @@ public final class SearchDropdown {
 
   /** Puts the list on screen under the search box. */
   public interface Host {
-    /** Shows {@code content} under {@code anchor} (again, resized to its new rows, when already showing). */
-    void show(JComponent anchor, JComponent content);
+    /**
+     * Shows {@code content}, {@code height} pixels tall, under {@code anchor} (again, resized to its new rows, when
+     * already showing); returns whether it is on screen (not when the anchor is not).
+     */
+    boolean show(JComponent anchor, JComponent content, int height);
 
     /** Takes the list off screen. */
     void hide();
@@ -233,10 +236,22 @@ public final class SearchDropdown {
   private void show(List<Row> r) {
     setRows(r);
     stale = false;
-    showing = true;
     Color line = UIManager.getColor("Component.borderColor"); // read on each show: the theme may have changed
     content.setBorder(BorderFactory.createLineBorder(line != null ? line : Theme.current().textMuted()));
-    host.show(field, content);
+    showing = host.show(field, content, preferredHeight());
+  }
+
+  /**
+   * How tall the list wants to be: every row at its own height plus the border, so that a short list has no empty
+   * space and a long one no scrollbar, up to {@value #MAX_HEIGHT} logical pixels.
+   */
+  int preferredHeight() {
+    ListCellRenderer<? super Row> renderer = list.getCellRenderer();
+    int height = content.getInsets().top + content.getInsets().bottom;
+    for (int i = 0; i < rows.size(); i++) {
+      height += renderer.getListCellRendererComponent(list, rows.get(i), i, false, false).getPreferredSize().height;
+    }
+    return Math.min(height, UIScale.scale(MAX_HEIGHT));
   }
 
   private void setRows(List<Row> r) {
@@ -321,6 +336,7 @@ public final class SearchDropdown {
       private JWindow window;
       private JComponent anchor;
       private JComponent shown;
+      private int height;
       private LookAndFeel themed;
       private final ComponentAdapter follow = new ComponentAdapter() {
         @Override
@@ -335,9 +351,10 @@ public final class SearchDropdown {
       };
 
       @Override
-      public void show(JComponent anchor, JComponent content) {
+      public boolean show(JComponent anchor, JComponent content, int height) {
         if (anchor == null || !anchor.isShowing()) {
-          return;
+          hide();
+          return false;
         }
         Window owner = SwingUtilities.getWindowAncestor(anchor);
         if (window == null || window.getOwner() != owner) {
@@ -356,6 +373,7 @@ public final class SearchDropdown {
           shown = content;
         }
         this.anchor = anchor;
+        this.height = height;
         // a theme switch updates the main window's tree only, which this window is not part of
         if (themed != UIManager.getLookAndFeel()) {
           themed = UIManager.getLookAndFeel();
@@ -363,6 +381,7 @@ public final class SearchDropdown {
         }
         place();
         window.setVisible(true);
+        return true;
       }
 
       @Override
@@ -378,7 +397,6 @@ public final class SearchDropdown {
         }
         Point p = anchor.getLocationOnScreen();
         int width = Math.max(anchor.getWidth(), UIScale.scale(MIN_WIDTH));
-        int height = Math.min(shown.getPreferredSize().height, UIScale.scale(MAX_HEIGHT));
         window.setBounds(p.x, p.y + anchor.getHeight() + UIScale.scale(2), width, height);
         window.validate();
       }

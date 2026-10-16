@@ -5,6 +5,7 @@ import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.widgets.KindChips;
+import dev.wowforever.app.ui.widgets.ListEntries;
 import dev.wowforever.app.ui.widgets.ListEntry;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.SearchDropdown;
@@ -55,9 +56,24 @@ public final class SearchBar extends JPanel {
   public interface Source {
     Lookup lookup(String text, Optional<EntityKind> kind);
 
+    /** Only the per-kind counts of {@code text}, for a search that runs without type-ahead. */
+    default Map<EntityKind, Integer> counts(String text) {
+      return lookup(text, Optional.empty()).counts();
+    }
+
     /** The top {@value SearchDropdown#MAX_HITS} hits of {@code repo} and its per-kind counts. */
     static Source of(SearchRepository repo) {
-      return (text, kind) -> new Lookup(repo.search(text, kind, SearchDropdown.MAX_HITS), repo.countsByKind(text));
+      return new Source() {
+        @Override
+        public Lookup lookup(String text, Optional<EntityKind> kind) {
+          return new Lookup(repo.search(text, kind, SearchDropdown.MAX_HITS), repo.countsByKind(text));
+        }
+
+        @Override
+        public Map<EntityKind, Integer> counts(String text) {
+          return repo.countsByKind(text);
+        }
+      };
     }
   }
 
@@ -233,6 +249,7 @@ public final class SearchBar extends JPanel {
     }
     if (dropdown.isShowing()) {
       delay.cancel();
+      dropdown.markStale(); // Enter must not open the old kind's top hit before the new rows come
       lookUp();
     } else {
       commit();
@@ -264,7 +281,7 @@ public final class SearchBar extends JPanel {
     if (focused) {
       int total = kind.map(k -> found.counts().getOrDefault(k, 0))
           .orElseGet(() -> found.counts().values().stream().mapToInt(Integer::intValue).sum());
-      dropdown.showHits(found.hits().stream().map(AppController::entry).toList(), total);
+      dropdown.showHits(found.hits().stream().map(ListEntries::of).toList(), total);
     }
   }
 
@@ -276,7 +293,29 @@ public final class SearchBar extends JPanel {
       return;
     }
     state.addRecentSearch(q);
+    countsFor(q);
     onOpen.accept(new ViewTarget.Search(q, chips.selected()));
+  }
+
+  /**
+   * Updates the chip counts for {@code q} from the worker: a search that runs before (or without) a type-ahead
+   * lookup for its text would otherwise leave the counts of older text on the chips.
+   */
+  private void countsFor(String q) {
+    if (source == null) {
+      return;
+    }
+    Source s = source;
+    int lookup = ++generation;
+    Async.run(worker, () -> s.counts(q), counts -> {
+      if (lookup == generation) {
+        chips.setCounts(counts);
+      }
+    }, e -> {
+      if (lookup == generation) {
+        LOG.warn("Counting hits for {} failed", q, e);
+      }
+    });
   }
 
   /** Opens {@code target}, a hit picked for the text, which goes to the recent searches. */
@@ -285,6 +324,7 @@ public final class SearchBar extends JPanel {
     String q = query();
     if (!q.isEmpty()) {
       state.addRecentSearch(q);
+      countsFor(q);
     }
     onOpen.accept(target);
   }
