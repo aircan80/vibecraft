@@ -100,6 +100,13 @@ Calls made by the author on the owner's behalf (check these):
   `ChrRaces`, `ChrClasses`, `SkillLine`, `Faction`. Exact column names come from the CSV
   headers at fetch time; the pipeline fails loudly if a required column is missing.
 - Files: `https://wago.tools/api/casc/{FileDataID}?download&branch={product}` → BLP2.
+- **Local alternative (recommended on the owner's machine):** wow.tools.local (MIT; wago.tools'
+  own code as a localhost service) run against the local install with
+  `-wowFolder "C:\Program Files (x86)\World of Warcraft" -wowProduct wow_classic_beta` (or
+  `wowf` once installed) serves the same CSV and file endpoints, with hotfixes applied, and
+  renders reference item tooltips at `/dbc/tooltip/item/{id}` that the stat formula can be
+  checked against. The fetcher therefore takes a configurable base URL; one implementation
+  serves both sources. Its spell-description parser is unlicensed: rewrite, never copy.
 - Icon id: `Item.IconFileDataID`. Map chain: AreaID → `UiMapAssignment` → `UiMap` →
   `UiMapXMapArt` → `UiMapArt` → `UiMapArtTile` (base, Row/Col) plus `WorldMapOverlay` /
   `WorldMapOverlayTile` (OffsetX/Y, composited over the base), cropped to the style's
