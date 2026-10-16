@@ -1,6 +1,30 @@
 # WoW Forever Item & Drop Browser
 
-A Swing desktop application for browsing World of Warcraft items and where they drop, backed by a shipped SQLite database that is built from community addon data.
+## What it is
+
+A desktop browser for World of Warcraft: Forever items and their sources. You search for an item, NPC, object, quest or zone, and cross-linked detail panels show where items drop, who sells them, which quests give them and where creatures spawn. The data is built from QuestieDB's Forever flavour and from AtlasLootClassic, and it ships inside the application as a SQLite database. Forever launches on 4 Nov 2026, and the upstream Forever data is still being completed by the community, so expect gaps and corrections in later builds.
+
+_Screenshot coming soon_
+
+## Requirements
+
+Java 21 or newer. Nothing else is needed to run the application.
+
+## Run
+
+```
+java -jar app/target/wow-forever-browser.jar
+```
+
+On first start the embedded database is extracted to a per-user data directory, and it is replaced when a newer build is shipped:
+
+| OS | Data directory |
+|---|---|
+| Windows | `%LOCALAPPDATA%\WoWForeverBrowser` |
+| macOS | `~/Library/Application Support/WoWForeverBrowser` |
+| Linux and others | `$XDG_DATA_HOME/wowforever-browser`, or `~/.local/share/wowforever-browser` |
+
+`java -jar app/target/wow-forever-browser.jar --self-test` opens the database without showing a window and prints a line such as `items=21543 npcs=13392 instances=33 build_id=...`. CI uses it to check the packaged jar.
 
 ## Build
 
@@ -8,11 +32,7 @@ A Swing desktop application for browsing World of Warcraft items and where they 
 ./mvnw -B verify
 ```
 
-## Run
-
-```
-java -jar app/target/wow-forever-browser.jar
-```
+Use `.\mvnw.cmd -B verify` on Windows. The build produces `app/target/wow-forever-browser.jar` (a single runnable jar that contains the database) and `importer/target/importer.jar`.
 
 ## Rebuild the data
 
@@ -44,6 +64,50 @@ Known gaps in the upstream data, as of this build:
 - **Unknown-NPC references.** 325 `item_npc_drop` rows name an NPC id that is not in the NPC table.
 - **Nameless stubs.** 249 items and 1 game object have no name. The items exist only because a QuestieDB correction gives them a quest-start link, and none of them is searchable.
 
+## Tests
+
+```
+./mvnw -B verify
+```
+
+To skip the checks against the shipped database, which extract the 26 MB resource and take a moment:
+
+```
+./mvnw -B verify -DexcludedGroups=shipped-data
+```
+
+- **lua-table.** The Lua lexer, parser and evaluator, and the table values they produce.
+- **importer.** Source loading, QuestieDB and AtlasLoot parsing, correction layers, drop and zone derivation, and the SQLite schema, mostly against fixtures.
+- **app.** The repositories and database installer against a fixture database, the Swing panels and navigation, and the `shipped-data` sanity tests (row counts, orphan limits, known drops) against the real committed database.
+
+## Data sources & licensing
+
+- [QuestieDB](https://github.com/Questie/QuestieDB), commit `49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4`. It publishes no license file, so the data is used with attribution.
+- [AtlasLootClassic](https://github.com/Hoizame/AtlasLootClassic), commit `8e99341e4e779328460bf7684c0d5b22ce50ddf1`, licensed under GPL-2.0.
+
+This project is licensed under GPL-2.0-or-later, see `LICENSE`. Full credits are in [NOTICE.md](NOTICE.md).
+
+## Known limitations
+
+- No item stats, icons or quality: the sources do not contain them.
+- Crafting, PvP and faction vendors are not imported.
+- English only.
+- Per-character (dynamic) corrections are not applied.
+- Drop percentages exist for about 11,000 of the 164,447 drop rows.
+- 325 drop rows reference NPCs that are missing upstream.
+- 249 stub items have no name.
+- Some Forever-only zone names are unconfirmed.
+
+## Project layout
+
+- `lua-table/` parses the Lua table syntax used by the upstream data files.
+- `importer/` downloads the pinned sources, applies the layered corrections and writes the SQLite database and import report.
+- `app/` is the Swing application: repositories over the database, the search, tree, results and detail panels, and the packaged jar.
+
+## Contributing
+
+Issues and pull requests are welcome. Run `./mvnw -B verify` before opening one, and refresh the database with the importer rather than editing it by hand.
+
 ## License
 
-GPL-2.0, see `LICENSE`. Data credits are in `NOTICE.md`.
+GPL-2.0-or-later, see `LICENSE`. Data credits are in `NOTICE.md`.
