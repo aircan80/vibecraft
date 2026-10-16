@@ -1,11 +1,12 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.ui.widgets.MasterList;
 import javax.swing.JComponent;
 
 /** What {@link AppController} drives: the main window in production, a headless stub in tests. */
 public interface MainView {
-  /** The centre results table. */
-  ResultsPanel results();
+  /** The master list left of the detail. */
+  MasterList masterList();
 
   /** Replaces the right-hand detail area. */
   void setDetail(JComponent c);

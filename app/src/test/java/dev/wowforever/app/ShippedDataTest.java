@@ -13,8 +13,8 @@ import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.MainView;
-import dev.wowforever.app.ui.ResultsPanel;
 import dev.wowforever.app.ui.StatusBar;
+import dev.wowforever.app.ui.widgets.MasterList;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -120,18 +120,18 @@ class ShippedDataTest {
   void itemClassListsAreNotCapped() {
     long armor = scalar("select count(*) from item where class_id = 4");
     assertThat(armor).isGreaterThan(500);
-    ResultsPanel results = new ResultsPanel(t -> {});
+    MasterList results = new MasterList();
     StatusBar status = new StatusBar();
     MainView view = new MainView() {
-      @Override public ResultsPanel results() { return results; }
+      @Override public MasterList masterList() { return results; }
       @Override public void setDetail(JComponent c) { }
       @Override public void setHistoryState(boolean canBack, boolean canForward) { }
       @Override public StatusBar status() { return status; }
       @Override public void setTitleSuffix(String s) { }
     };
     new AppController(repos, view, Runnable::run).open(new ViewTarget.ItemClass(4, -1));
-    assertThat((long) results.model().getRowCount()).isEqualTo(armor);
-    assertThat(results.title()).isEqualTo(String.format(Locale.ROOT, "Armor (%,d)", armor));
+    assertThat((long) results.entries().size()).isEqualTo(armor);
+    assertThat(results.heading()).isEqualTo(String.format(Locale.ROOT, "Armor (%,d)", armor));
   }
 
   @Test

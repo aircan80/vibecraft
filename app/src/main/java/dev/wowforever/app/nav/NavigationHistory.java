@@ -23,6 +23,19 @@ public final class NavigationHistory {
     cursor++;
   }
 
+  /**
+   * Puts {@code t} in place of the current target without growing the history or touching what is forward of
+   * it (used for list previews); on an empty history it is {@link #push}.
+   */
+  public void replaceCurrent(ViewTarget t) {
+    Objects.requireNonNull(t, "t");
+    if (entries.isEmpty()) {
+      push(t);
+      return;
+    }
+    entries.set(cursor, t);
+  }
+
   /** Moves back and returns the new current target, or empty when already at the start. */
   public Optional<ViewTarget> back() {
     if (!canBack()) {

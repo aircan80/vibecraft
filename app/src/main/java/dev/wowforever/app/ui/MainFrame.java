@@ -1,14 +1,18 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.ui.widgets.MasterList;
+import dev.wowforever.app.ui.widgets.Rail;
 import java.awt.BorderLayout;
-import java.awt.Dimension;
 import java.awt.event.ActionEvent;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JCheckBoxMenuItem;
@@ -29,20 +33,24 @@ import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
 
 /**
- * The main window: back/forward and search on top, browse tree | results | detail in the middle, status
- * at the bottom. Created before the database is open; {@link #attach} wires in the controller and the tree.
- * Never created in tests (they use {@link #buildContent} and the panels directly).
+ * The main window: back/forward and search on top; the icon rail, the master list and the detail in the middle;
+ * status at the bottom. Created before the database is open; {@link #attach} wires in the controller. Never
+ * created in tests (they use {@link #buildContent} and the panels directly).
  */
 public final class MainFrame extends JFrame implements MainView {
   public static final String APP_NAME = "WoW Forever Item & Drop Browser";
+  /** The action key of Ctrl+B, which hides or shows the master list. */
+  static final String TOGGLE_LIST = "toggleList";
+  private static final String SHOWN_DIVIDER_SIZE = "wowforever.shownDividerSize";
 
   private final JButton back = new JButton("←");
   private final JButton forward = new JButton("→");
   private final SearchBar searchBar;
-  private final ResultsPanel results;
+  private final Rail rail = new Rail();
+  private final MasterList list = new MasterList();
   private final StatusBar status = new StatusBar();
-  private final JPanel treeHolder = new JPanel(new BorderLayout());
   private final JPanel detailHolder = new JPanel(new BorderLayout());
+  private final JPanel content;
   private AppController controller;
 
   public MainFrame() {
@@ -52,9 +60,9 @@ public final class MainFrame extends JFrame implements MainView {
         controller.open(t);
       }
     });
-    results = new ResultsPanel(t -> {
+    rail.onSelect(t -> {
       if (controller != null) {
-        controller.open(t);
+        controller.open(AppController.target(t));
       }
     });
     searchBar.setEnabled(false);
@@ -63,7 +71,7 @@ public final class MainFrame extends JFrame implements MainView {
     back.addActionListener(e -> back());
     forward.addActionListener(e -> forward());
     setHistoryState(false, false);
-    treeHolder.add(new JLabel("Loading…", SwingConstants.CENTER), BorderLayout.CENTER);
+    detailHolder.add(new JLabel("Loading…", SwingConstants.CENTER), BorderLayout.CENTER);
 
     JToolBar toolbar = new JToolBar();
     toolbar.setFloatable(false);
@@ -72,7 +80,8 @@ public final class MainFrame extends JFrame implements MainView {
     toolbar.add(forward);
     toolbar.add(searchBar);
 
-    setContentPane(buildContent(toolbar, treeHolder, results, detailHolder, status));
+    content = buildContent(toolbar, rail, list, detailHolder, status, UiState.load());
+    setContentPane(content);
     setJMenuBar(menuBar());
     bindKeys();
     setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
@@ -80,32 +89,59 @@ public final class MainFrame extends JFrame implements MainView {
     setLocationRelativeTo(null);
   }
 
-  /** The window content: {@code toolbar} on top, tree | (results | detail) splits, {@code status} below. */
-  public static JPanel buildContent(JComponent toolbar, JComponent tree, JComponent results, JComponent detail,
-      JComponent status) {
-    results.setPreferredSize(new Dimension(570, 600));
-    detail.setPreferredSize(new Dimension(470, 600));
-    JSplitPane right = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, results, detail);
-    right.setResizeWeight(0.55);
-    right.setContinuousLayout(true);
-    tree.setPreferredSize(new Dimension(240, 600));
-    JSplitPane main = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, tree, right);
-    main.setDividerLocation(240);
-    main.setContinuousLayout(true);
+  /**
+   * The window content: {@code toolbar} on top; {@code rail} at the left of a {@code list | detail} split whose
+   * divider starts at, and is saved to, {@code state}; {@code status} below. Ctrl+B ({@link #TOGGLE_LIST}) hides
+   * or shows the list.
+   */
+  public static JPanel buildContent(JComponent toolbar, JComponent rail, JComponent list, JComponent detail,
+      JComponent status, UiState state) {
+    JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, list, detail);
+    split.setContinuousLayout(true);
+    split.setResizeWeight(0);
+    split.setDividerLocation(state.dividerLocation());
+    split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
+      if (list.isVisible()) {
+        state.setDividerLocation(split.getDividerLocation());
+      }
+    });
+    JPanel middle = new JPanel(new BorderLayout());
+    middle.add(rail, BorderLayout.WEST);
+    middle.add(split, BorderLayout.CENTER);
     JPanel content = new JPanel(new BorderLayout());
     content.add(toolbar, BorderLayout.NORTH);
-    content.add(main, BorderLayout.CENTER);
+    content.add(middle, BorderLayout.CENTER);
     content.add(status, BorderLayout.SOUTH);
+    content.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ctrl B"), TOGGLE_LIST);
+    content.getActionMap().put(TOGGLE_LIST, new AbstractAction("Show list") {
+      @Override
+      public void actionPerformed(ActionEvent e) {
+        toggleList(split, list, state);
+      }
+    });
     return content;
   }
 
-  /** Wires in the controller and the browse tree once the database is open, and enables searching. */
-  public void attach(AppController controller, BrowseTree tree) {
+  /** Hides the list (the detail takes the whole split), or shows it again at the saved width. */
+  private static void toggleList(JSplitPane split, JComponent list, UiState state) {
+    if (list.isVisible()) {
+      split.putClientProperty(SHOWN_DIVIDER_SIZE, split.getDividerSize());
+      list.setVisible(false);
+      split.setDividerSize(0);
+    } else {
+      list.setVisible(true);
+      if (split.getClientProperty(SHOWN_DIVIDER_SIZE) instanceof Integer size) {
+        split.setDividerSize(size);
+      }
+      split.setDividerLocation(state.dividerLocation());
+    }
+    split.revalidate();
+    split.repaint();
+  }
+
+  /** Wires in the controller once the database is open, and enables searching. */
+  public void attach(AppController controller) {
     this.controller = controller;
-    treeHolder.removeAll();
-    treeHolder.add(tree, BorderLayout.CENTER);
-    treeHolder.revalidate();
-    treeHolder.repaint();
     searchBar.setEnabled(true);
   }
 
@@ -130,7 +166,23 @@ public final class MainFrame extends JFrame implements MainView {
   private JMenuBar menuBar() {
     JCheckBoxMenuItem dark = new JCheckBoxMenuItem("Dark theme", ThemeManager.isDark());
     dark.addActionListener(e -> ThemeManager.toggle(this));
+    Action toggleList = content.getActionMap().get(TOGGLE_LIST);
+    JCheckBoxMenuItem showList = new JCheckBoxMenuItem(toggleList);
+    showList.setSelected(true);
+    showList.setAccelerator(KeyStroke.getKeyStroke("ctrl B"));
+    list.addComponentListener(new ComponentAdapter() {
+      @Override
+      public void componentShown(ComponentEvent e) {
+        showList.setSelected(true);
+      }
+
+      @Override
+      public void componentHidden(ComponentEvent e) {
+        showList.setSelected(false);
+      }
+    });
     JMenu view = new JMenu("View");
+    view.add(showList);
     view.add(dark);
     JMenuItem about = new JMenuItem("About");
     about.addActionListener(e -> showAbout());
@@ -184,8 +236,8 @@ public final class MainFrame extends JFrame implements MainView {
   }
 
   @Override
-  public ResultsPanel results() {
-    return results;
+  public MasterList masterList() {
+    return list;
   }
 
   @Override

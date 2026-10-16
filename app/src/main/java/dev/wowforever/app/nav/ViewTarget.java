@@ -23,10 +23,13 @@ public sealed interface ViewTarget {
     }
   }
 
-  /** An item class/subclass listing. */
-  record ItemClass(int classId, int subclassId) implements ViewTarget {}
+  /** An item class/subclass listing; {@link #ALL_CLASSES} as the class lists every item. */
+  record ItemClass(int classId, int subclassId) implements ViewTarget {
+    /** The {@code classId} that stands for every item, whatever its class. */
+    public static final int ALL_CLASSES = -1;
+  }
 
-  /** A full listing of one kind (all zones, all instances). */
+  /** A full listing of one kind (all zones, all instances; NPCs and quests list zones to pick from). */
   record List(EntityKind kind) implements ViewTarget {
     public List {
       Objects.requireNonNull(kind, "kind");

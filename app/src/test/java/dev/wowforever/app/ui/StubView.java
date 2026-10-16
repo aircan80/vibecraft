@@ -1,10 +1,13 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.ui.widgets.ManualDelay;
+import dev.wowforever.app.ui.widgets.MasterList;
 import javax.swing.JComponent;
 
-/** A headless {@link MainView}: real panels, no frame. */
+/** A headless {@link MainView}: real panels, no frame; list previews wait for {@code delay.fire()}. */
 final class StubView implements MainView {
-  private final ResultsPanel results = new ResultsPanel(t -> {});
+  final ManualDelay delay = new ManualDelay();
+  private final MasterList list = new MasterList(delay);
   private final StatusBar status = new StatusBar();
   JComponent detail;
   boolean canBack;
@@ -12,8 +15,8 @@ final class StubView implements MainView {
   String titleSuffix;
 
   @Override
-  public ResultsPanel results() {
-    return results;
+  public MasterList masterList() {
+    return list;
   }
 
   @Override

@@ -15,7 +15,7 @@ import javax.swing.SwingUtilities;
 import javax.swing.table.TableRowSorter;
 
 /**
- * What every table of links shares ({@link ResultsPanel} and the detail panels' link tables): the sorter and
+ * What every table of links shares (the list tables and the detail panels' link tables): the sorter and
  * link renderer for a model, Enter and double-click activation, and the view-to-model lookup of a row's link.
  */
 public final class TableLinks {
