@@ -71,3 +71,24 @@ A flat list of the same entries is also accepted. wow.tools.local's `/api/builds
 wago.tools' robots.txt disallows crawling and states no terms, so the tool throttles to at most
 4 requests per second, sends a descriptive User-Agent, caches everything, and the live smoke test
 fetches a single small table. Prefer a local wow.tools.local instance for full runs.
+
+## convert.py: icons and zone maps
+
+    python tools/clientdata/convert.py --cache ~/.cache/wowforever-clientdata --build 1.60.1.70425 --out OUT
+
+Reads `{cache}/{build}` and writes a deterministic (no timestamps) import tree:
+
+    OUT/csv/*.csv           copies of the cached tables
+    OUT/build.lock          copy of the fetch lock
+    OUT/icons/{fdid}.png    56x56 RGBA, one per cached BLP referenced by Item.csv IconFileDataID
+    OUT/icons/0.png         fallback "?" icon (drawn, no external asset)
+    OUT/maps/{uiMapId}.jpg  composited zone map, 1002x668, JPEG quality 85
+    OUT/maps.json           [{ui_map_id, name, width, height, tiles, overlays, missing_tiles}] by ui_map_id
+
+- Icons: the 64 px source has a 4 px decorative border (`ICON_BORDER_PX`), cropped on every side, then LANCZOS to 56 px.
+  Without `Item.csv` in the cache, every cached BLP that is not a map tile is converted.
+- Maps: chain `UiMap` -> `UiMapXMapArt` -> `UiMapArt` -> `UiMapArtStyleLayer` (size) + `UiMapArtTile`, plus
+  `WorldMapOverlay` -> `WorldMapOverlayTile`. Only `LayerIndex` 0 is used (every tile row in the build is layer 0).
+  Base tiles go at `(col*256, row*256)`, overlay tiles alpha-composited at `(OffsetX + col*256, OffsetY + row*256)`,
+  then cropped to the layer size. Maps with several phases use the lowest `PhaseID`.
+- A missing or undecodable tile leaves a transparent area (black in the JPEG) and counts in `missing_tiles`; never fatal.
