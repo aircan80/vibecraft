@@ -1,5 +1,6 @@
 ID,EffectAura,DifficultyID,EffectIndex,Effect,EffectAmplitude,EffectAttributes,EffectAuraPeriod,EffectBonusCoefficient,EffectChainAmplitude,EffectChainTargets,EffectItemType,EffectMechanic,EffectPointsPerResource,EffectPos_facing,EffectRealPointsPerLevel,EffectTriggerSpell,BonusCoefficientFromAP,PvpMultiplier,Coefficient,Variance,ResourceCoefficient,GroupSizeBasePointsCoefficient,EffectBasePointsF,ScalingClass,Node__Field_12_0_0_63534_001,EffectMiscValue_0,EffectMiscValue_1,EffectRadiusIndex_0,EffectRadiusIndex_1,EffectSpellClassMask_0,EffectSpellClassMask_1,EffectSpellClassMask_2,EffectSpellClassMask_3,ImplicitTarget_0,ImplicitTarget_1,SpellID
 679026,84,0,0,6,1,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,17,0,0,0,0,0,0,0,0,0,0,1,0,433
+679206,33,0,0,6,0,0,0,0,1,0,0,11,0,0,0,0,0,1,0,0,0,1,-40,0,0,0,0,0,0,0,0,0,0,6,0,1139
 679364,85,0,0,6,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,42,0,0,0,0,0,0,0,0,0,0,1,0,430
 686507,0,0,0,252,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,9,8690
 686508,0,0,1,77,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,8690
@@ -10,6 +11,7 @@ ID,EffectAura,DifficultyID,EffectIndex,Effect,EffectAmplitude,EffectAttributes,E
 699098,23,0,0,6,0,0,3000,1,1,0,0,0,0,0,0,21740,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,21741
 699400,29,0,0,6,0,0,0,1,1,0,0,0,0,0,0,0,0,1,0,0,0,1,15,0,0,2,0,0,0,0,0,0,0,5,0,21740
 699401,83,0,1,6,0,0,0,1,1,0,0,0,0,0,0,0,0,1,0,0,0,1,100,0,0,126,0,0,0,0,0,0,0,5,0,21740
+699832,15,0,0,6,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,4,0,0,0,0,0,0,0,0,0,0,1,0,21991
 699880,22,0,0,6,0,0,0,0,1,5,0,0,0,0,0,0,0,1,0,0,0,1,-25,0,0,8,0,0,0,0,0,0,0,6,0,21992
 699881,0,0,1,2,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,300,0,0,0,0,0,0,0,0,0,0,6,0,21992
 699882,0,0,2,64,0,0,0,0,1,0,0,0,0,0,0,27648,0,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,6,0,21992
@@ -23,3 +25,4 @@ ID,EffectAura,DifficultyID,EffectIndex,Effect,EffectAmplitude,EffectAttributes,E
 1132215,0,0,0,2,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0.40000000596,0,1,75,0,0,0,0,0,0,0,0,0,0,25,0,439164
 1137203,42,0,0,6,0,0,0,0,1,0,0,0,0,0,0,439164,0,1,0,0,0,1,10,0,0,0,0,0,0,0,0,0,0,1,0,442206
 1314525,27,0,0,6,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,0,0,0,126,0,0,0,0,0,0,0,6,0,1293654
+1350306,342,0,1,6,0,0,0,0,1,0,0,0,0,0,0,0,0,1,0,0,0,1,-20,0,0,0,0,0,0,0,0,0,0,6,0,1139

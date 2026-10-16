@@ -1,11 +1,14 @@
 ID,NameSubtext_lang,Description_lang,AuraDescription_lang
 430,,"Restores ${($s1/5)*$d} mana over $d.  Must remain seated while drinking.","Restores $/5;s1 mana per second."
 433,,"Restores $o1 health over $d.  Must remain seated while eating.","Restores $/5;s1 health per second."
+1139,,"Increases time between target's attacks by $s2% and reduces their movement speed by $s1% for $d.","Attack speed slowed by $s2%.
+Movement speed slowed by $s1%."
 8690,,"Returns you to $z.  Speak to an Innkeeper in a different place to change your home location.",
 18382,,"Improves your chance to get a critical strike with spells by ${$s1}.1%.",
 21160,,"The Eye of Sulfuras can be combined with the Sulfuron Hammer to create Sulfuras, legendary hammer of Ragnaros.",
 21740,,,"Pet's stamina and spell resistances increased."
 21741,,"Your pet gains $21740s1 stamina and $21740s2 spell resistance against all schools of magic.",
+21991,"Rank 1","When struck in combat inflicts $s1 Nature damage to the attacker.","Lightning Shield"
 21992,,"Blasts your enemy with lightning, dealing $s2 Nature damage and then jumping to additional nearby enemies.  Each jump reduces that victim's Nature resistance by $s1. Affects $x1 targets. Your primary target is also consumed by a cyclone, slowing its attack speed by $27648s1% for $d.","Nature resistance reduced by $s1."
 23553,,"Mana cost of Shadow spells reduced by $s1%.",
 23554,,"Health or Mana gained from Drain Life and Drain Mana increased by $s1%.",

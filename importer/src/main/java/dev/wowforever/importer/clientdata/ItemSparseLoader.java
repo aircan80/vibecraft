@@ -51,6 +51,18 @@ public final class ItemSparseLoader {
           IntStream.range(0, STAT_SLOTS).mapToObj(i -> "StatPercentEditor_" + i))
       .flatMap(s -> s)
       .toList();
+  private static final int DAMAGE_SLOTS = 5;
+  private static final int RESISTANCES = 7;
+  /** The Era row's absolute values (ruling 17); Forever's ItemSparse has none of these columns. */
+  static final List<String> ERA_ABSOLUTE_COLUMNS = Stream.of(
+          IntStream.range(0, STAT_SLOTS).mapToObj(i -> "StatModifier_bonusAmount_" + i),
+          IntStream.range(0, DAMAGE_SLOTS).mapToObj(i -> "MinDamage_" + i),
+          IntStream.range(0, DAMAGE_SLOTS).mapToObj(i -> "MaxDamage_" + i),
+          IntStream.range(0, RESISTANCES).mapToObj(i -> "Resistances_" + i))
+      .flatMap(s -> s)
+      .toList();
+  static final List<String> ERA_COLUMNS =
+      Stream.concat(SPARSE_COLUMNS.stream(), ERA_ABSOLUTE_COLUMNS.stream()).toList();
 
   private ItemSparseLoader() {}
 
@@ -63,7 +75,7 @@ public final class ItemSparseLoader {
     Map<Long, CsvTable.Row> items = index(src.table(ITEM), ITEM, ITEM_COLUMNS);
     Map<Long, CsvTable.Row> forever = index(src.table(SPARSE), SPARSE, SPARSE_COLUMNS);
     Optional<CsvTable> eraTable = src.optionalTable(ERA_SPARSE);
-    Map<Long, CsvTable.Row> era = eraTable.isPresent() ? index(eraTable.get(), ERA_SPARSE, SPARSE_COLUMNS) : Map.of();
+    Map<Long, CsvTable.Row> era = eraTable.isPresent() ? index(eraTable.get(), ERA_SPARSE, ERA_COLUMNS) : Map.of();
 
     Map<Long, ClientItem> out = new LinkedHashMap<>();
     long matchedForever = 0;
@@ -101,6 +113,27 @@ public final class ItemSparseLoader {
     return Collections.unmodifiableMap(out);
   }
 
+  /**
+   * The Era rows alone ({@code clientSource = "era"}, with their absolute values) joined with Forever's Item rows,
+   * for every id in {@code ids} that has both; for the Era overlap oracle, which compares an item's Era values with
+   * what its Forever row computes to. Empty without an {@code ItemSparse.era} table.
+   */
+  static Map<Long, ClientItem> loadEra(ClientDataSource src, Set<Long> ids) {
+    Optional<CsvTable> eraTable = src.optionalTable(ERA_SPARSE);
+    if (eraTable.isEmpty()) {
+      return Map.of();
+    }
+    Map<Long, CsvTable.Row> items = index(src.table(ITEM), ITEM, ITEM_COLUMNS);
+    Map<Long, CsvTable.Row> era = index(eraTable.get(), ERA_SPARSE, ERA_COLUMNS);
+    Map<Long, ClientItem> out = new LinkedHashMap<>();
+    for (long id : new TreeSet<>(ids)) {
+      if (items.containsKey(id) && era.containsKey(id)) {
+        out.put(id, item(id, items.get(id), era.get(id), ClientItem.ERA));
+      }
+    }
+    return Collections.unmodifiableMap(out);
+  }
+
   private static Map<Long, CsvTable.Row> index(CsvTable table, String name, List<String> columns) {
     for (String col : columns) {
       if (!table.hasColumn(col)) {
@@ -118,7 +151,7 @@ public final class ItemSparseLoader {
     if (s == null) {
       Integer inventoryType = item == null ? null : integer(item, "InventoryType");
       return new ClientItem(id, false, null, null, null, classId, subclassId, inventoryType, null, null, null, null,
-          iconId, null, null, null, null, null, null, null, List.of(), null, List.of(), null, null, null, null);
+          iconId, null, null, null, null, null, null, null, List.of(), null, List.of(), null, null, null, null, null);
     }
     Integer requiredSkill = positiveInt(s.getInt("RequiredSkill"));
     List<Integer> flags = new ArrayList<>(FLAG_COLUMNS);
@@ -158,7 +191,33 @@ public final class ItemSparseLoader {
         positiveInt(s.getInt("ItemDelay")),
         decimal(s.getDouble("DmgVariance")),
         integer(s, "DamageType"),
-        source);
+        source,
+        ClientItem.ERA.equals(source) ? absolute(s) : null);
+  }
+
+  /** The Era row's absolute values: non-zero stat amounts, the first damage range, armour and resistances. */
+  private static ClientItem.Absolute absolute(CsvTable.Row s) {
+    List<ClientItem.StatValue> stats = new ArrayList<>();
+    for (int i = 0; i < STAT_SLOTS; i++) {
+      int stat = s.intOr("StatModifier_bonusStat_" + i, -1);
+      int amount = s.intOr("StatModifier_bonusAmount_" + i, 0);
+      if (stat >= 0 && amount != 0) {
+        stats.add(new ClientItem.StatValue(stat, amount));
+      }
+    }
+    int slots = 0;
+    for (int i = 0; i < DAMAGE_SLOTS; i++) {
+      if (s.intOr("MaxDamage_" + i, 0) > 0) {
+        slots++;
+      }
+    }
+    int max = s.intOr("MaxDamage_0", 0);
+    List<Integer> resistances = new ArrayList<>();
+    for (int i = 1; i < RESISTANCES; i++) {
+      resistances.add(s.intOr("Resistances_" + i, 0));
+    }
+    return new ClientItem.Absolute(stats, max > 0 ? s.intOr("MinDamage_0", 0) : null, max > 0 ? max : null, slots,
+        s.intOr("Resistances_0", 0), resistances);
   }
 
   private static Integer integer(CsvTable.Row r, String col) {

@@ -2,6 +2,9 @@ package dev.wowforever.importer.sqlite;
 
 import dev.wowforever.importer.clientdata.ClientItem;
 import dev.wowforever.importer.clientdata.ItemClassNames;
+import dev.wowforever.importer.clientdata.ItemDamage;
+import dev.wowforever.importer.clientdata.ItemStat;
+import dev.wowforever.importer.clientdata.ItemValues;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
 import dev.wowforever.importer.report.ImportReport;
@@ -80,11 +83,21 @@ public final class SqliteWriter {
    */
   public static void write(Path out, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
       ItemClassNames classNames) throws IOException, SQLException {
+    write(out, model, report, clientItems, classNames, Map.of());
+  }
+
+  /**
+   * Writes the model with client data and the computed {@code values} (from {@link ItemValues#compute}), which fill
+   * {@code item_stat}, {@code item_damage} and {@code item_armor} for the ids that are item rows; an empty map leaves
+   * those tables empty.
+   */
+  public static void write(Path out, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
+      ItemClassNames classNames, Map<Long, ItemValues> values) throws IOException, SQLException {
     Path file = out.toAbsolutePath();
     Files.deleteIfExists(file);
     Files.createDirectories(file.getParent());
     try {
-      writeFile(file, model, report, clientItems, classNames);
+      writeFile(file, model, report, clientItems, classNames, values);
     } catch (SQLException | RuntimeException e) {
       Files.deleteIfExists(file);
       throw e;
@@ -92,7 +105,7 @@ public final class SqliteWriter {
   }
 
   private static void writeFile(Path file, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
-      ItemClassNames classNames) throws SQLException {
+      ItemClassNames classNames, Map<Long, ItemValues> values) throws SQLException {
     String schema = schemaSql();
     Matcher m = INDEX_MARKER.matcher(schema);
     if (!m.find()) {
@@ -115,6 +128,7 @@ public final class SqliteWriter {
       entities.objects(table(model, EntityKind.OBJECT), spawnZones);
       entities.quests(table(model, EntityKind.QUEST));
       EntityTable items = table(model, EntityKind.ITEM);
+      writeItemValues(c, values, items);
       new AtlasWriter(c, report).write(model.instances(), model.zones()::containsKey, items::contains,
           model.dropRates(), drops);
       drops.write(c, model.dropRates());
@@ -137,6 +151,34 @@ public final class SqliteWriter {
     try (Batch rows = new Batch(c, "INSERT INTO meta(key, value) VALUES (?, ?)")) {
       for (Map.Entry<String, String> e : meta.entrySet()) {
         rows.add(e.getKey(), e.getValue());
+      }
+    }
+  }
+
+  /** {@code item_stat} (ordinal = tooltip order), {@code item_damage} and {@code item_armor} for the item rows. */
+  private static void writeItemValues(Connection c, Map<Long, ItemValues> values, EntityTable items)
+      throws SQLException {
+    try (Batch stats = new Batch(c, "INSERT INTO item_stat(item_id, ordinal, stat_id, value) VALUES (?, ?, ?, ?)");
+        Batch damage = new Batch(c,
+            "INSERT INTO item_damage(item_id, min, max, school, delay_ms, dps) VALUES (?, ?, ?, ?, ?, ?)");
+        Batch armor = new Batch(c, "INSERT INTO item_armor(item_id, armor, block) VALUES (?, ?, ?)")) {
+      for (Map.Entry<Long, ItemValues> e : new TreeMap<>(values).entrySet()) {
+        long id = e.getKey();
+        if (!items.contains(id)) {
+          continue;
+        }
+        ItemValues v = e.getValue();
+        int ordinal = 0;
+        for (ItemStat s : v.stats()) {
+          stats.add(id, ordinal++, s.statId(), s.value());
+        }
+        if (v.damage() != null) {
+          ItemDamage d = v.damage();
+          damage.add(id, d.min(), d.max(), d.school(), d.delayMs() > 0 ? d.delayMs() : null, d.dps());
+        }
+        if (v.armor() != null) {
+          armor.add(id, v.armor().armor(), v.armor().block());
+        }
       }
     }
   }

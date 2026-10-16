@@ -18,6 +18,8 @@ import java.util.List;
  * @param statShares   the slots of {@code StatModifier_bonusStat_n} that name a stat, with
  *                     {@code StatPercentEditor_n}; Era rows carry absolute amounts instead, so their shares are 0
  * @param clientSource {@link #FOREVER} or {@link #ERA} for the ItemSparse row's origin; null without one
+ * @param absolute     the Era row's absolute stat, damage, armour and resistance values; null for a Forever row
+ *                     (whose values are computed from the budget tables) and without a sparse row
  */
 public record ClientItem(
     long id,
@@ -46,13 +48,35 @@ public record ClientItem(
     Integer delayMs,
     Double dmgVariance,
     Integer damageType,
-    String clientSource) {
+    String clientSource,
+    Absolute absolute) {
 
   public static final String FOREVER = "forever";
   public static final String ERA = "era";
 
   /** One stat slot: an ItemModType stat id and its budget share ({@code StatPercentEditor}). */
   public record StatShare(int statId, int share) {}
+
+  /** An absolute stat amount ({@code StatModifier_bonusStat_n} with {@code StatModifier_bonusAmount_n}). */
+  public record StatValue(int statId, int value) {}
+
+  /**
+   * The absolute values an Era {@code ItemSparse} row carries (Forever rows carry budget shares instead).
+   *
+   * @param stats        the stat slots with a non-zero amount, in slot order
+   * @param minDamage    {@code MinDamage_0}; null when {@code MaxDamage_0} is 0 (no weapon damage)
+   * @param maxDamage    {@code MaxDamage_0}; null likewise
+   * @param damageSlots  how many of {@code MaxDamage_0..4} are non-zero (a second slot is bonus elemental damage)
+   * @param armor        {@code Resistances_0}, the armour value (0 for none)
+   * @param resistances  {@code Resistances_1..6}: holy, fire, nature, frost, shadow, arcane (0 for none)
+   */
+  public record Absolute(List<StatValue> stats, Integer minDamage, Integer maxDamage, int damageSlots, int armor,
+      List<Integer> resistances) {
+    public Absolute {
+      stats = stats == null ? List.of() : List.copyOf(stats);
+      resistances = resistances == null ? List.of() : List.copyOf(resistances);
+    }
+  }
 
   public ClientItem {
     flags = flags == null ? List.of() : List.copyOf(flags);

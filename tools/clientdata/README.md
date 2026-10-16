@@ -117,7 +117,7 @@ they never add items or sets.
 The fixture `importer/src/test/resources/fixtures/clientdata` was built from `wow_classic_beta` 1.60.1.70425:
 
     B=1.60.1.70425; C=~/.cache/wowforever-clientdata
-    ARGS="--cache $C --build $B --sets 203,421 --ui-maps 1436,1429 --areas 12,40       --items 25,730,2874,5191,14145,14148,14149,16800,19019,17204,19137,18422,13262,12640,16865,10329,2092,6948,117,159,4500,7736,190179,215129"
+    ARGS="--cache $C --build $B --sets 203,421 --ui-maps 1436,1429 --areas 12,40       --items 25,730,2874,5191,14145,14148,14149,16800,19019,17204,19137,18422,13262,12640,16865,10329,2092,6948,117,159,4500,7736,190179,215129,11306,4127,18837,5248,15327,2916,19321,1306,1282,17783,4549,5079,2902,4836,19316,1485,4134,15855,7919,11863"
     python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C         --fallback-product wow_classic_era --fallback-build 1.15.9.70003
     python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C       --fdids "$(python tools/clientdata/make_fixture.py $ARGS --out x --list-fdids icons),$(python tools/clientdata/make_fixture.py $ARGS --out x --list-fdids tiles)"
     # a scratch mini cache holding only the subset, so convert.py emits exactly the fixture
@@ -125,7 +125,18 @@ The fixture `importer/src/test/resources/fixtures/clientdata` was built from `wo
     cp $C/$B/build.lock MINI/$B/ && mkdir MINI/$B/files && cp $C/$B/files/*.blp MINI/$B/files/
     python tools/clientdata/convert.py --cache MINI --build $B --out importer/src/test/resources/fixtures/clientdata
 
+The last 20 ids (from 11306) were added for the known-items gate (`known_items.py` below). They were cut offline
+from the cache with the steps above minus the two `fetch.py` runs, so their 19 icons are not in the cache and the
+fixture has no PNG for them (`icons/` is unchanged); every CSV change was additive.
+
 The fixture tree is `-text` in `.gitattributes`: one quoted ItemSparse cell holds a real CRLF.
+
+## known_items.py: the known-items oracle
+
+Builds `importer/src/test/resources/fixtures/clientdata/known-items.csv` from Wowhead's Forever tooltips
+(`--fetch` downloads `nether.wowhead.com/forever/tooltip/item/{id}` for its `ITEMS`, one request every half second;
+without it the saved responses in `--raw` are read). Why Wowhead and not wow.tools.local, and which rows drop which
+kinds, is in `fixtures/clientdata/KnownItemsOracle.md`.
 The fixture's `ItemSparse.era.csv` came from Era build 1.15.9.70003 (`/db2/ItemSparse/csv?build=1.15.9.70003`,
 sha256 `eef48b88d1af6ea23872155819dc59342204b2f34c0b613df0405ef06f7a5145`); the fixture `build.lock` predates the
 fallback and has no `fallback_*` keys.

@@ -73,6 +73,43 @@ class ItemSparseLoaderTest {
   }
 
   @Test
+  void eraRowsCarryTheirAbsoluteValuesAndForeverRowsNone() {
+    Map<Long, ClientItem> items =
+        ItemSparseLoader.load(source(), Set.of(16800L, 5191L, 19019L, 16805L), new ImportReport());
+
+    ClientItem.Absolute boots = items.get(16800L).absolute();
+    assertThat(boots.stats()).containsExactly(new ClientItem.StatValue(7, 13), new ClientItem.StatValue(5, 14),
+        new ClientItem.StatValue(6, 11));
+    assertThat(boots.armor()).isEqualTo(70);
+    assertThat(boots.resistances()).as("holy, fire, nature, frost, shadow, arcane").containsExactly(0, 0, 0, 0, 10, 0);
+    assertThat(boots.minDamage()).isNull();
+    assertThat(boots.maxDamage()).isNull();
+    assertThat(boots.damageSlots()).isZero();
+
+    ClientItem.Absolute barb = items.get(5191L).absolute();
+    assertThat(barb.minDamage()).isEqualTo(30);
+    assertThat(barb.maxDamage()).isEqualTo(57);
+    assertThat(barb.damageSlots()).isEqualTo(1);
+    assertThat(barb.stats()).isEmpty();
+
+    assertThat(items.get(16805L).absolute().resistances()).containsExactly(0, 7, 0, 0, 0, 0);
+    assertThat(items.get(19019L).absolute()).as("Forever row: budget shares, no absolute values").isNull();
+  }
+
+  @Test
+  void anEraTableWithoutTheAbsoluteColumnsFailsNamingOne() throws IOException {
+    Path dir = copyTables("Item", "ItemSparse", "ItemSparse.era");
+    Path era = dir.resolve("csv/ItemSparse.era.csv");
+    List<String> lines = Files.readAllLines(era);
+    lines.set(0, lines.get(0).replace("MaxDamage_0", "MaxDamageZero"));
+    Files.write(era, lines);
+    assertThatThrownBy(() -> ItemSparseLoader.load(new ClientDataSource(dir), Set.of(16800L), new ImportReport()))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("ItemSparse.era")
+        .hasMessageContaining("MaxDamage_0");
+  }
+
+  @Test
   void eraRowsFillItemsMissingFromForeversItemSparse() {
     ImportReport report = new ImportReport();
     Map<Long, ClientItem> items = ItemSparseLoader.load(source(), Set.of(16800L, 16803L, 17204L), report);

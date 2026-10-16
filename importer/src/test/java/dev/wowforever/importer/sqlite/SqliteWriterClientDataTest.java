@@ -7,6 +7,9 @@ import dev.wowforever.importer.clientdata.ClientDataSource;
 import dev.wowforever.importer.clientdata.ClientItem;
 import dev.wowforever.importer.clientdata.ItemClassNames;
 import dev.wowforever.importer.clientdata.ItemSparseLoader;
+import dev.wowforever.importer.clientdata.ItemStat;
+import dev.wowforever.importer.clientdata.ItemValues;
+import dev.wowforever.importer.clientdata.ScalingTables;
 import dev.wowforever.importer.drops.DropRates;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
@@ -104,6 +107,59 @@ class SqliteWriterClientDataTest {
     assertThat(report.get("clientdata.alt.item_level")).isEqualTo(1);
     assertThat(report.get("clientdata.alt.required_level")).isZero();
     assertThat(report.get("clientdata.alt.class_id")).isZero();
+  }
+
+  @Test
+  void computedStatsDamageAndArmourAreWritten() throws Exception {
+    Items b = new Items();
+    b.item(19019, "Thunderfury");
+    b.item(12640, "Lionheart Helm");
+    b.item(19321, "The Immovable Object");
+    b.item(19316, "Ice Threaded Arrow");
+    b.item(16800, "Arcanist Boots");
+    b.item(4134, "Nimboya's Mystical Staff");
+    b.item(999_999, "Questie Only");
+    ImportReport report = new ImportReport();
+    Map<Long, ClientItem> client = ItemSparseLoader.load(fixtureSource(), b.ids(), report);
+    Map<Long, ItemValues> values = ItemValues.compute(client, ScalingTables.load(fixtureSource()), report);
+    values = new java.util.HashMap<>(values);
+    values.put(424_242L, new ItemValues(List.of(new ItemStat(7, 1)), null, null)); // not an item row: not written
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, b.model(), report, client, null, values);
+
+    try (Connection c = open(db)) {
+      assertThat(column(c, "select ordinal || ':' || stat_id || ':' || value from item_stat where item_id = 19019"
+          + " order by ordinal")).containsExactly("0:3:5", "1:7:8", "2:51:8", "3:55:9");
+      assertThat(column(c, "select stat_id || ':' || value from item_stat where item_id = 16800 order by ordinal"))
+          .as("Era absolute values, resistances last").containsExactly("7:13", "5:14", "6:11", "54:10");
+      assertThat(row(c, "select min, max, school, delay_ms, round(dps, 2) from item_damage where item_id = 19019"))
+          .containsExactly(82, 153, 0, 1900, 61.84);
+      assertThat(row(c, "select min, max, delay_ms, dps from item_damage where item_id = 19316"))
+          .as("ammunition has no speed").containsExactly(16, 17, null, 16.5);
+      assertThat(scalar(c, "select count(*) from item_damage where item_id = 4134")).as("unverified").isEqualTo(0);
+      assertThat(column(c, "select item_id || ':' || armor || ':' || coalesce(block, 'null') from item_armor"
+          + " order by item_id")).containsExactly("12640:565:null", "16800:70:null", "19321:2291:null");
+      assertThat(scalar(c, "select count(*) from item_stat where item_id in (999999, 424242)")).isEqualTo(0);
+    }
+    assertThat(report.get("clientdata.stats.items")).as("all but the arrow").isEqualTo(5);
+    assertThat(report.get("clientdata.damage.items")).isEqualTo(2);
+    assertThat(report.get("clientdata.armor.items")).isEqualTo(3);
+    assertThat(report.get("clientdata.unverified.damage")).isEqualTo(1);
+    assertThat(report.get("clientdata.unverified.block")).isEqualTo(1);
+    assertThat(report.counters()).containsKeys("clientdata.unverified.stats", "clientdata.unverified.armor");
+  }
+
+  @Test
+  void withoutValuesTheValueTablesStayEmpty() throws Exception {
+    Items b = new Items();
+    b.item(19019, "Thunderfury");
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, b.model(), new ImportReport(), ItemSparseLoader.load(fixtureSource(), b.ids(),
+        new ImportReport()), null);
+    try (Connection c = open(db)) {
+      assertThat(scalar(c, "select (select count(*) from item_stat) + (select count(*) from item_damage)"
+          + " + (select count(*) from item_armor)")).isEqualTo(0);
+    }
   }
 
   @Test
@@ -217,7 +273,7 @@ class SqliteWriterClientDataTest {
 
   private static ClientItem itemOnly(long id, int classId, int subclassId, long iconId) {
     return new ClientItem(id, false, null, null, null, classId, subclassId, 13, null, null, null, null, iconId, null,
-        null, null, null, null, null, null, List.of(), null, List.of(), null, null, null, null);
+        null, null, null, null, null, null, List.of(), null, List.of(), null, null, null, null, null);
   }
 
   /** Questie items with the fixture's real item schema. */
