@@ -6,9 +6,10 @@ import requests
 
 
 class FetchError(Exception):
-    def __init__(self, path, status):
-        super().__init__("GET %s failed with HTTP %s" % (path, status))
+    def __init__(self, path, status, url=None):
+        super().__init__("GET %s failed with HTTP %s" % (url or path, status))
         self.path = path
+        self.url = url or path
         self.status = status
 
 
@@ -37,7 +38,7 @@ class Client:
         self._throttle()
         resp = self._session.get(self.base_url + path, timeout=(10, 120))
         if resp.status_code != 200:
-            raise FetchError(path, resp.status_code)
+            raise FetchError(path, resp.status_code, self.base_url + path)
         return resp
 
     def get_text(self, path):

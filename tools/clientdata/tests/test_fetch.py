@@ -119,8 +119,21 @@ def test_fetch_files_records_404_as_missing(server, tmp_path):
     assert out[100].read_bytes() == b"BLP2data"
     assert (tmp_path / "B" / "missing.txt").read_text().split() == ["101"]
     hits = server.hits
-    out2 = fetch.fetch_files(c, "wow_classic_beta", [100], tmp_path, build="B")
+    out2 = fetch.fetch_files(c, "wow_classic_beta", [100, 101], tmp_path, build="B")
     assert server.hits == hits and out2 == {100: out[100]}
+    # deliberate retry re-requests the known-missing file
+    server.routes["/api/casc/101?download&branch=wow_classic_beta"] = (200, b"now")
+    out3 = fetch.fetch_files(c, "wow_classic_beta", [100, 101], tmp_path, build="B", retry_missing=True)
+    assert server.hits == hits + 1 and set(out3) == {100, 101}
+    assert (tmp_path / "B" / "missing.txt").read_text() == ""
+
+
+def test_missing_txt_kept_when_later_request_fails(server, tmp_path):
+    server.routes["/api/casc/2?download&branch=p"] = (500, "x")
+    with pytest.raises(FetchError) as e:
+        fetch.fetch_files(make_client(server), "p", [1, 2], tmp_path, build="B")
+    assert server.url in str(e.value)
+    assert (tmp_path / "B" / "missing.txt").read_text().split() == ["1"]
 
 
 def test_non_404_error_raises(server):
@@ -172,3 +185,42 @@ def test_cli_end_to_end(server, tmp_path):
     assert rc == 0
     lock = json.loads((tmp_path / "1.60.1.70425" / "build.lock").read_text())
     assert list(lock["tables"]) == ["ItemClass"]
+
+
+
+
+def _cli(server, tmp_path, *extra):
+    server.routes["/db2/ItemClass/csv?build=1.60.1.70425"] = (200, "ID\n1\n")
+    return fetch.main(["--product", "wow_classic_beta", "--base-url", server.url,
+                       "--cache", str(tmp_path), "--tables", "ItemClass", "--rate", "1000", *extra])
+
+
+def _csv(tmp_path, name, text):
+    p = tmp_path / "1.60.1.70425" / "csv" / (name + ".csv")
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(text, encoding="utf-8")
+
+
+def _fetched_fdids(server):
+    return sorted(int(x.split("?")[0].rsplit("/", 1)[1]) for x in server.paths if x.startswith("/api/casc/"))
+
+
+def test_icons_from_fetches_distinct_positive_ids(server, tmp_path):
+    _csv(tmp_path, "Item", 'ID,Name,IconFileDataID\n1,"A, quoted",100\n2,"B ""x""",100\n3,C,\n4,D,0\n5,E,200\n')
+    assert _cli(server, tmp_path, "--icons-from", "Item.csv") == 0
+    assert _fetched_fdids(server) == [100, 200]
+
+
+def test_maps_unions_both_tile_tables(server, tmp_path):
+    _csv(tmp_path, "UiMapArtTile", "ID,FileDataID\n1,10\n2,20\n3,0\n")
+    _csv(tmp_path, "WorldMapOverlayTile", "ID,FileDataID\n1,20\n2,30\n")
+    assert _cli(server, tmp_path, "--maps") == 0
+    assert _fetched_fdids(server) == [10, 20, 30]
+
+
+def test_maps_with_missing_csv_fails_clearly(server, tmp_path, capsys):
+    _csv(tmp_path, "UiMapArtTile", "ID,FileDataID\n1,10\n")
+    assert _cli(server, tmp_path, "--maps") == 2
+    err = capsys.readouterr().err
+    assert "WorldMapOverlayTile" in err and "Traceback" not in err
+    assert _fetched_fdids(server) == []

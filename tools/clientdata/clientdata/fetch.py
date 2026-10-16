@@ -68,32 +68,43 @@ def _read_missing(cache_dir, build):
     return set(p.read_text().split()) if p.exists() else set()
 
 
-def fetch_files(client, product, fdids: Iterable[int], cache_dir, build=None):
-    """Files land in cache_dir/{build}/files (cache_dir/files when build is None)."""
+def fetch_files(client, product, fdids: Iterable[int], cache_dir, build=None, retry_missing=False):
+    """Files land in cache_dir/{build}/files (cache_dir/files when build is None).
+
+    FDIDs already recorded in missing.txt are skipped unless retry_missing is set.
+    missing.txt is written even if a later request fails.
+    """
     base = Path(cache_dir) / build if build else Path(cache_dir)
     out = {}
     missing = set(_read_missing(cache_dir, build)) if build else set()
-    new_missing = False
-    for fdid in sorted(set(fdids)):
-        path = base / "files" / ("%d.blp" % fdid)
-        if path.exists() and path.stat().st_size > 0:
+    dirty = False
+    try:
+        for fdid in sorted(set(fdids)):
+            path = base / "files" / ("%d.blp" % fdid)
+            if path.exists() and path.stat().st_size > 0:
+                out[fdid] = path
+                continue
+            if str(fdid) in missing and not retry_missing:
+                continue
+            try:
+                data = client.get_bytes("/api/casc/%d?download&branch=%s" % (fdid, product))
+            except FetchError as e:
+                if e.status != 404:
+                    raise
+                if str(fdid) not in missing:
+                    missing.add(str(fdid))
+                    dirty = True
+                continue
+            _write_atomic(path, data)
             out[fdid] = path
-            continue
-        try:
-            data = client.get_bytes("/api/casc/%d?download&branch=%s" % (fdid, product))
-        except FetchError as e:
-            if e.status != 404:
-                raise
-            if str(fdid) not in missing:
-                missing.add(str(fdid))
-                new_missing = True
-            continue
-        _write_atomic(path, data)
-        out[fdid] = path
-    if new_missing:
-        mp = base / "missing.txt"
-        mp.parent.mkdir(parents=True, exist_ok=True)
-        mp.write_text("".join(m + "\n" for m in sorted(missing, key=int)))
+            if str(fdid) in missing:
+                missing.discard(str(fdid))
+                dirty = True
+    finally:
+        if dirty:
+            mp = base / "missing.txt"
+            mp.parent.mkdir(parents=True, exist_ok=True)
+            mp.write_text("".join(m + "\n" for m in sorted(missing, key=int)))
     return out
 
 
@@ -123,8 +134,15 @@ def write_lock(cache_dir, build, tables, files, product="", base_url="", missing
     return path
 
 
-def _column_ids(csv_path: Path, column: str):
+class MissingInputError(Exception):
+    pass
+
+
+def _column_ids(csv_path: Path, column: str, table: str = ""):
     ids = set()
+    if not csv_path.exists():
+        raise MissingInputError("%s not found at %s (fetch it first, do not filter it out with --tables)"
+                                % (table or csv_path.name, csv_path))
     with open(csv_path, newline="", encoding="utf-8-sig") as f:
         for row in csv.DictReader(f):
             v = (row.get(column) or "").strip()
@@ -144,6 +162,8 @@ def main(argv=None) -> int:
                     help="Item.csv (path or name inside the cache); fetch every distinct IconFileDataID")
     ap.add_argument("--maps", action="store_true",
                     help="fetch UiMapArtTile and WorldMapOverlayTile FileDataIDs")
+    ap.add_argument("--retry-missing", action="store_true",
+                    help="re-request files previously recorded as 404 in missing.txt")
     ap.add_argument("--rate", type=float, default=4.0, help="max requests per second (default 4)")
     args = ap.parse_args(argv)
 
@@ -157,16 +177,21 @@ def main(argv=None) -> int:
     print("tables cached: %d" % len(tables))
 
     fdids = set()
-    if args.icons_from:
-        p = Path(args.icons_from)
-        if not p.exists():
-            p = cache / b.build / "csv" / args.icons_from
-        fdids |= _column_ids(p, "IconFileDataID")
-    if args.maps:
-        for name in ("UiMapArtTile", "WorldMapOverlayTile"):
-            p = tables.get(name) or (cache / b.build / "csv" / (name + ".csv"))
-            fdids |= _column_ids(p, "FileDataID")
-    files = fetch_files(client, b.product, fdids, cache, build=b.build) if fdids else {}
+    try:
+        if args.icons_from:
+            p = Path(args.icons_from)
+            if not p.exists():
+                p = cache / b.build / "csv" / args.icons_from
+            fdids |= _column_ids(p, "IconFileDataID", "Item")
+        if args.maps:
+            for name in ("UiMapArtTile", "WorldMapOverlayTile"):
+                p = tables.get(name) or (cache / b.build / "csv" / (name + ".csv"))
+                fdids |= _column_ids(p, "FileDataID", name)
+    except MissingInputError as e:
+        print("error: %s" % e, file=sys.stderr)
+        return 2
+    files = (fetch_files(client, b.product, fdids, cache, build=b.build, retry_missing=args.retry_missing)
+             if fdids else {})
     if fdids:
         print("files cached: %d of %d" % (len(files), len(fdids)))
 

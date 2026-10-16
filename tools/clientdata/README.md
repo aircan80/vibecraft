@@ -31,7 +31,7 @@ Never install the requirements globally.
 
 Flags: `--product` (required), `--build` (default newest), `--base-url` (default
 `http://localhost:8080`), `--cache` (required), `--tables A,B` (subset), `--icons-from ITEM_CSV`
-(path, or file name inside `{cache}/{build}/csv`), `--maps`, `--rate` (default 4 req/s).
+(path, or file name inside `{cache}/{build}/csv`), `--maps`, `--retry-missing`, `--rate` (default 4 req/s).
 
 Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no network).
 
@@ -42,7 +42,8 @@ Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no
     {cache}/{build}/missing.txt         FileDataIDs that returned 404 (not fatal)
     {cache}/{build}/build.lock          {product, build, fetched_at, base_url, tables{name: sha256}, file_count, missing_count}
 
-Re-running is idempotent: cached items cause no requests (only `/api/builds` is read each run).
+Re-running is idempotent: cached items and files already recorded in `missing.txt` cause no requests
+(only `/api/builds` is read each run). Pass `--retry-missing` to deliberately re-request the known-404 files.
 `build.lock` is generated; it is committed only in a later task.
 
 ## Endpoints used
