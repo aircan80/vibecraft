@@ -89,6 +89,9 @@ final class ClientItemWriter implements AutoCloseable {
     if (questie instanceof Number && clientValue instanceof Number) {
       return sameNumber(questie, clientValue);
     }
+    if (questie instanceof String q && clientValue instanceof String v) {
+      return q.strip().equals(v.strip()); // surrounding whitespace is not a disagreement
+    }
     return questie.equals(clientValue);
   }
 

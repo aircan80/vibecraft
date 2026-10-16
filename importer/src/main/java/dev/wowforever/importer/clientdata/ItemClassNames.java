@@ -7,8 +7,10 @@ import java.util.TreeMap;
 
 /**
  * Item class and subclass names from the client's {@code ItemClass} ({@code ClassID}, {@code ClassName_lang}) and
- * {@code ItemSubClass} ({@code ClassID}, {@code SubClassID}, {@code DisplayName_lang}, falling back to
- * {@code VerboseName_lang} when empty; a row with neither is left out). Used instead of the static cmangos names
+ * {@code ItemSubClass} ({@code ClassID}, {@code SubClassID}, {@code VerboseName_lang}, falling back to
+ * {@code DisplayName_lang} when empty; a row with neither is left out). The verbose name keeps weapon subclasses
+ * apart ("One-Handed Axes" / "Two-Handed Axes", where the display name is "Axe" for both). Used instead of the
+ * static cmangos names
  * when client data is present. Keys are the class and subclass ids items use, not the tables' row {@code ID}s.
  *
  * @param classes    class id to name, in id order
@@ -37,7 +39,7 @@ public record ItemClassNames(Map<Integer, String> classes, Map<Integer, Map<Inte
     }
     Map<Integer, Map<Integer, String>> subclasses = new TreeMap<>();
     for (CsvTable.Row r : subTable.rows()) {
-      String name = r.get("DisplayName_lang").isEmpty() ? r.get("VerboseName_lang") : r.get("DisplayName_lang");
+      String name = r.get("VerboseName_lang").isEmpty() ? r.get("DisplayName_lang") : r.get("VerboseName_lang");
       if (r.getInt("ClassID").isPresent() && r.getInt("SubClassID").isPresent() && !name.isEmpty()) {
         subclasses.computeIfAbsent(r.getInt("ClassID").getAsInt(), k -> new TreeMap<>())
             .putIfAbsent(r.getInt("SubClassID").getAsInt(), name);

@@ -107,6 +107,43 @@ class SqliteWriterClientDataTest {
   }
 
   @Test
+  void everyReplacedFieldIsRecordedUnderItsColumnName() throws Exception {
+    Items b = new Items();
+    // client: Eye of Sulfuras, item level 60, required level 0, class 7, subclass 11
+    b.item(17204, "Eye of Sulfuras").set("itemLevel", 60).set("requiredLevel", 1).set("class", 15)
+        .set("subClass", 4);
+    ImportReport report = new ImportReport();
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, b.model(), report, ItemSparseLoader.load(fixtureSource(), b.ids(), report), null);
+    try (Connection c = open(db)) {
+      assertThat(row(c, "select required_level, class_id, subclass_id from item where id = 17204"))
+          .containsExactly(0, 7, 11);
+      assertThat(column(c, "select field || ':' || source || ':' || value from item_alt_value where item_id = 17204"
+          + " order by field")).containsExactly("class_id:questie:15", "required_level:questie:1",
+          "subclass_id:questie:4");
+    }
+    assertThat(report.get("clientdata.alt.required_level")).isEqualTo(1);
+    assertThat(report.get("clientdata.alt.class_id")).isEqualTo(1);
+    assertThat(report.get("clientdata.alt.subclass_id")).isEqualTo(1);
+    assertThat(report.get("clientdata.alt.name")).isZero();
+    assertThat(report.get("clientdata.alt.item_level")).isZero();
+  }
+
+  @Test
+  void namesDifferingOnlyInSurroundingWhitespaceAreNotAltValues() throws Exception {
+    Items b = new Items();
+    b.item(17204, "  Eye of Sulfuras ");
+    ImportReport report = new ImportReport();
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, b.model(), report, ItemSparseLoader.load(fixtureSource(), b.ids(), report), null);
+    try (Connection c = open(db)) {
+      assertThat(scalar(c, "select name from item where id = 17204")).isEqualTo("Eye of Sulfuras");
+      assertThat(scalar(c, "select count(*) from item_alt_value")).isEqualTo(0);
+    }
+    assertThat(report.get("clientdata.alt.name")).isZero();
+  }
+
+  @Test
   void questieGapsTakeTheClientValueWithoutAnAltValue() throws Exception {
     Items b = new Items();
     b.item(17204, null); // a stub without name, level or class
@@ -152,7 +189,8 @@ class SqliteWriterClientDataTest {
     try (Connection c = open(db)) {
       assertThat(scalar(c, "select count(*) from item_class")).isEqualTo(17);
       assertThat(scalar(c, "select name from item_class where id = 18")).isEqualTo("WoW Token");
-      assertThat(scalar(c, "select name from item_subclass where class_id = 2 and id = 7")).isEqualTo("Sword");
+      assertThat(scalar(c, "select name from item_subclass where class_id = 2 and id = 7"))
+          .isEqualTo("One-Handed Swords");
       assertThat(scalar(c, "select count(*) from item_subclass")).isEqualTo(100);
     }
   }
