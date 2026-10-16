@@ -3,7 +3,7 @@
 REQUIRED_TABLES = (
     "Item", "ItemSparse", "ItemClass", "ItemSubClass", "ItemNameDescription",
     "ItemXItemEffect", "ItemEffect",
-    "Spell", "SpellName", "SpellEffect", "SpellMisc", "SpellDuration",
+    "Spell", "SpellName", "SpellEffect", "SpellMisc", "SpellDuration", "SpellAuraOptions", "SpellRadius",
     "SpellItemEnchantment", "ItemSet", "ItemSetSpell",
     "RandPropPoints",
     "ItemDamageOneHand", "ItemDamageOneHandCaster", "ItemDamageTwoHand",

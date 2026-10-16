@@ -148,6 +148,7 @@ class ImportPipelineTest {
     assertThat(r.get("clientdata.skipped")).isZero();
     assertThat(r.get("clientdata.icons")).isPositive();
     assertThat(r.get("clientdata.maps")).isPositive();
+    assertThat(r.counters()).containsKey(ClientDataStage.DISPUTED);
     assertThat(r.notes()).anyMatch(n -> n.startsWith("clientdata.unmatched.ranges: "));
     assertThat(r.skipsOnUiFields()).isZero();
   }

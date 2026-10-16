@@ -19,7 +19,7 @@ Never install the requirements globally.
 
 ## Commands
 
-    # all 42 required tables, newest build of the product, local wow.tools.local (default base URL)
+    # all 44 required tables, newest build of the product, local wow.tools.local (default base URL)
     python tools/clientdata/fetch.py --product wow_classic_beta --cache ~/.cache/wowforever-clientdata
 
     # against wago.tools, one table only (smoke test)
@@ -28,6 +28,10 @@ Never install the requirements globally.
 
     # also icons (needs Item.csv in the cache) and map tiles
     ... --icons-from Item.csv --maps
+
+    # only the icons of the items in a browser database (what the shipped build used, see below)
+    ... --fdids "$(python tools/clientdata/needed_icons.py --db app/src/main/resources/data/wowforever.sqlite \
+        --cache ~/.cache/wowforever-clientdata --build 1.60.1.70425)"
 
     # also the Classic Era ItemSparse as a fallback for items Forever's ItemSparse lacks (ruling 17)
     ... --fallback-product wow_classic_era
@@ -52,9 +56,15 @@ Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no
 
 Re-running is idempotent: cached items and files already recorded in `missing.txt` cause no requests
 (only `/api/builds` is read each run, once). Pass `--retry-missing` to deliberately re-request the known-404 files.
+A request answered with HTTP 5xx is retried three times, after 2, 4 and 8 seconds, before the run fails; a 404 is
+never retried.
+Each run merges into the build's existing `build.lock`: it replaces the hashes of the tables it fetched (or found
+cached) and keeps every other table entry and the `fallback_*` keys of earlier runs, so a `--tables` or `--fdids`
+run never drops what an earlier run recorded. `file_count` counts the BLP files in `files/` and `missing_count`
+the ids in `missing.txt`, whatever the run fetched.
 `ItemSparse.era.csv` is cached under the Forever build; it is fetched again when the last `build.lock` names a
 different (or no) `fallback_build` than the one resolved now, so a newer Era build replaces it.
-`build.lock` is generated; it is committed only in a later task.
+`build.lock` is generated. The lock of the build the shipped database was imported from is committed as `tools/clientdata/build.lock`.
 
 ## Endpoints used
 
@@ -81,6 +91,17 @@ A flat list of the same entries is also accepted. wow.tools.local's `/api/builds
 wago.tools' robots.txt disallows crawling and states no terms, so the tool throttles to at most
 4 requests per second, sends a descriptive User-Agent, caches everything, and the live smoke test
 fetches a single small table. Prefer a local wow.tools.local instance for full runs.
+
+## needed_icons.py: the icons of the browser's items
+
+    python tools/clientdata/needed_icons.py --db app/src/main/resources/data/wowforever.sqlite \
+        --cache ~/.cache/wowforever-clientdata --build 1.60.1.70425
+
+Prints, comma-separated, the distinct `Item.csv` `IconFileDataID`s greater than 0 of every item in the database
+(opened read-only), for `fetch.py --fdids`. The importer embeds only the icons of the items it imports, so this
+fetches 2,925 files for the shipped item set where `--icons-from Item.csv` fetches every icon in the build. The item
+ids come from a browser database, which needs an import first: a `--skip-client-data` import writes the same item
+table, so a new item set is imported once without client data, then its icons are fetched, converted and imported.
 
 ## convert.py: icons and zone maps
 
@@ -135,6 +156,12 @@ time, periods, `${}` expressions, `$@spelldesc`, `$?` conditions, plurals, colou
 a quest starter, class, race, skill and reputation requirements, charges and a recipe. Set 163 (Chain of the
 Scarlet Crusade) is named only by Era rows, which never add sets, so it is listed in `--sets`. Again every CSV
 change was additive and `icons/` is unchanged.
+
+`SpellAuraOptions.csv` (the `$h` proc chance) and `SpellRadius.csv` (the `$aN` radius) were added for the real data
+run (task 11), when both tables joined `REQUIRED_TABLES`. They were cut offline with the same `ARGS` into a scratch
+directory and only those two files were copied; every other CSV the cut wrote equals the fixture's, except
+`UiMapAssignment.csv`, which the fixture extends by hand. The fixture `build.lock` was not changed and lists neither
+table. The importer reads both tables only when present.
 
 The fixture tree is `-text` in `.gitattributes`: one quoted ItemSparse cell holds a real CRLF.
 

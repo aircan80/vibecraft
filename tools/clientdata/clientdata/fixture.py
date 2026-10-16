@@ -10,7 +10,9 @@ follow from them, transitively:
   ItemSet, ItemSetSpell                 the sets named by --sets and by ItemSparse.ItemSet
   ItemXItemEffect -> ItemEffect         the items' effects
   Spell, SpellName, SpellEffect,        every spell reached from item effects and set bonuses,
-  SpellMisc, SpellDuration              EffectTriggerSpell, enchantment spells and $<id> text refs
+  SpellMisc, SpellDuration,             EffectTriggerSpell, enchantment spells and $<id> text refs
+  SpellAuraOptions                      (SpellAuraOptions by SpellID: the $h proc chance)
+  SpellRadius                           radii named by the kept effects' EffectRadiusIndex_0/_1
   SpellItemEnchantment                  enchantments named by enchanting spell effects
   RandPropPoints, ItemDamage*,          rows for every item level used (plus --extra-levels)
   ItemArmorTotal/Quality/Shield
@@ -211,10 +213,13 @@ def build_subset(csv_dir, items: Iterable[int], sets: Iterable[int] = (), ui_map
 
     s.select("Spell", lambda r: _int(r["ID"]) in spell_ids)
     s.select("SpellName", lambda r: _int(r["ID"]) in spell_ids)
-    s.select("SpellEffect", lambda r: _int(r["SpellID"]) in spell_ids)
+    spell_effects = s.select("SpellEffect", lambda r: _int(r["SpellID"]) in spell_ids)
     misc = s.select("SpellMisc", lambda r: _int(r["SpellID"]) in spell_ids)
     durations = _ids(r["DurationIndex"] for r in misc)
     s.select("SpellDuration", lambda r: _int(r["ID"]) in durations)
+    s.select("SpellAuraOptions", lambda r: _int(r["SpellID"]) in spell_ids)
+    radii = _ids(r.get(c, "") for r in spell_effects for c in ("EffectRadiusIndex_0", "EffectRadiusIndex_1"))
+    s.select("SpellRadius", lambda r: _int(r["ID"]) in radii)
     s.select("SpellItemEnchantment", lambda r: _int(r["ID"]) in enchant_ids)
 
     levels = _ids(r["ItemLevel"] for r in sparse) | set(extra_levels)

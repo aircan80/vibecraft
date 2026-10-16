@@ -146,23 +146,44 @@ def _sha256(path: Path):
     return h.hexdigest()
 
 
-def write_lock(cache_dir, build, tables, files, product="", base_url="", missing_count=None, fallback=None):
-    """``fallback`` is the fallback Build (its product and build are recorded) or None; the fallback
-    table's sha is expected in ``tables`` under FALLBACK_NAME."""
+def _cached_file_count(cache_dir, build):
+    files = Path(cache_dir) / build / "files"
+    return sum(1 for p in files.glob("*.blp") if p.stat().st_size > 0) if files.is_dir() else 0
+
+
+def write_lock(cache_dir, build, tables, files=None, product="", base_url="", missing_count=None, fallback=None):
+    """Writes {cache_dir}/{build}/build.lock, merged into the build's existing lock.
+
+    ``tables`` maps the names this run fetched (or verified) to their CSV paths; their sha256 replaces the
+    existing lock's entries and every other existing table entry is kept, so a ``--tables`` or ``--fdids``
+    run never drops what earlier runs recorded. ``fallback`` is the fallback Build (its product and build
+    are recorded, and its table's sha is expected in ``tables`` under FALLBACK_NAME); without one the
+    existing fallback keys are kept. ``file_count`` is the number of BLP files in the cache's files
+    directory and ``missing_count`` the number of ids in missing.txt, whatever this run fetched; ``files``
+    is accepted for compatibility and not counted.
+    """
+    previous = read_lock(cache_dir, build)
+    if previous.get("build") not in (None, build):
+        previous = {}
     if missing_count is None:
         missing_count = len(_read_missing(cache_dir, build))
+    merged_tables = dict(previous.get("tables") or {})
+    merged_tables.update({name: _sha256(p) for name, p in tables.items()})
     lock = {
-        "product": product,
+        "product": product or previous.get("product", ""),
         "build": build,
         "fetched_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "base_url": base_url,
-        "tables": {name: _sha256(p) for name, p in sorted(tables.items())},
-        "file_count": len(files),
+        "base_url": base_url or previous.get("base_url", ""),
+        "tables": dict(sorted(merged_tables.items())),
+        "file_count": _cached_file_count(cache_dir, build),
         "missing_count": missing_count,
     }
     if fallback is not None:
         lock["fallback_product"] = fallback.product
         lock["fallback_build"] = fallback.build
+    elif previous.get("fallback_product") and previous.get("fallback_build"):
+        lock["fallback_product"] = previous["fallback_product"]
+        lock["fallback_build"] = previous["fallback_build"]
     path = Path(cache_dir) / build / "build.lock"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")

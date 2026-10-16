@@ -5,13 +5,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 
 /**
  * The client's spell tables, as far as spell descriptions need them: {@code Spell} (descriptions),
  * {@code SpellName}, {@code SpellEffect} (per spell and effect index), {@code SpellMisc} and {@code SpellDuration}
- * (a spell's duration), and {@code SpellRadius} when present (it is not fetched in phase 2A; {@code $aN} then stays
- * unformatted). Rows of {@code DifficultyID} 0 are preferred where a table has several per spell.
+ * (a spell's duration), and the optional {@code SpellRadius} (radii) and {@code SpellAuraOptions} (proc chances):
+ * fetched since the real data run, but read only when present, so {@code $aN} and {@code $h} stay unformatted
+ * without them. Rows of {@code DifficultyID} 0 are preferred where a table has several per spell.
  *
  * <p>Every column read is checked up front; a missing table or column fails naming both.
  */
@@ -24,6 +26,7 @@ public final class SpellTables {
   static final List<String> MISC_COLUMNS = List.of("SpellID", "DifficultyID", "DurationIndex");
   static final List<String> DURATION_COLUMNS = List.of("ID", "Duration");
   static final List<String> RADIUS_COLUMNS = List.of("ID", "Radius");
+  static final List<String> AURA_OPTIONS_COLUMNS = List.of("SpellID", "DifficultyID", "ProcChance");
 
   /**
    * One spell effect.
@@ -44,14 +47,16 @@ public final class SpellTables {
   private final Map<Long, Map<Integer, Effect>> effects;
   private final Map<Long, Long> durationsMs;
   private final Map<Integer, Double> radii;
+  private final Map<Long, Integer> procChances;
 
   private SpellTables(Map<Long, Text> texts, Map<Long, String> names, Map<Long, Map<Integer, Effect>> effects,
-      Map<Long, Long> durationsMs, Map<Integer, Double> radii) {
+      Map<Long, Long> durationsMs, Map<Integer, Double> radii, Map<Long, Integer> procChances) {
     this.texts = texts;
     this.names = names;
     this.effects = effects;
     this.durationsMs = durationsMs;
     this.radii = radii;
+    this.procChances = procChances;
   }
 
   /** @throws IllegalStateException when a required table is missing or lacks a column read here */
@@ -118,7 +123,26 @@ public final class SpellTables {
         r.getInt("ID").ifPresent(id -> radii.put(id, r.doubleOr("Radius", 0)));
       }
     }
-    return new SpellTables(texts, names, effects, durationsMs, radii);
+
+    Map<Long, Integer> procChances = new HashMap<>();
+    Map<Long, Integer> optionsDifficulty = new HashMap<>();
+    Optional<CsvTable> auraOptions = src.optionalTable("SpellAuraOptions");
+    if (auraOptions.isPresent()) {
+      for (CsvTable.Row r : require(auraOptions.get(), "SpellAuraOptions", AURA_OPTIONS_COLUMNS).rows()) {
+        OptionalLong spell = r.getLong("SpellID");
+        if (spell.isEmpty()) {
+          continue;
+        }
+        int difficulty = r.intOr("DifficultyID", 0);
+        Integer previous = optionsDifficulty.get(spell.getAsLong());
+        if (previous != null && (previous == 0 || difficulty != 0)) {
+          continue;
+        }
+        optionsDifficulty.put(spell.getAsLong(), difficulty);
+        procChances.put(spell.getAsLong(), r.intOr("ProcChance", 0));
+      }
+    }
+    return new SpellTables(texts, names, effects, durationsMs, radii, procChances);
   }
 
   /** {@code Spell.Description_lang}, empty when the spell is unknown or has none. */
@@ -147,6 +171,15 @@ public final class SpellTables {
   public OptionalLong durationMs(long spellId) {
     Long ms = durationsMs.get(spellId);
     return ms == null ? OptionalLong.empty() : OptionalLong.of(ms);
+  }
+
+  /**
+   * The spell's proc chance in percent ({@code SpellAuraOptions.ProcChance}, 1 to 100); empty without the table or
+   * a row, and for 0 and the values above 100 (101 marks a proc that does not roll a percentage).
+   */
+  public OptionalInt procChance(long spellId) {
+    Integer pct = procChances.get(spellId);
+    return pct == null || pct < 1 || pct > 100 ? OptionalInt.empty() : OptionalInt.of(pct);
   }
 
   /** The effect's radius in yards; empty without {@code SpellRadius} or a radius index. */

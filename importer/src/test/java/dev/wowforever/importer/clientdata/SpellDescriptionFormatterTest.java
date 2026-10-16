@@ -2,11 +2,16 @@ package dev.wowforever.importer.clientdata;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.importer.Fixtures;
 import dev.wowforever.importer.report.ImportReport;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -143,20 +148,46 @@ class SpellDescriptionFormatterTest {
   }
 
   @Test
-  void unknownPlaceholderKeepsRawText() {
-    // 7617: $h is the proc chance (SpellAuraOptions, not fetched); the rest still formats ($16783s1 = 100 +/- 25 %)
+  void procChanceAndRadiusComeFromTheOptionalTables() {
+    // 7617 (Totem of Infliction): $h = SpellAuraOptions.ProcChance 1; $16783s1 = 100 +/- 25 %
     SpellDescriptionFormatter.Formatted f = formatter.description(7617);
+    assertThat(f.text()).isEqualTo("When struck in combat has a 1% chance of inflicting 75 to 125 Shadow damage to the "
+        + "attacker.");
+    assertThat(f.complete()).isTrue();
+    // 1293674: ProcChance 15
+    assertThat(formatter.description(1293674).text()).startsWith("Taking damage has a 15% chance to grant ");
+    // 12022: $M1 = 10, $a1 = SpellRadius 10 (EffectRadiusIndex_0 of effect 0) = 30 yards
+    SpellDescriptionFormatter.Formatted hat = formatter.description(12022);
+    assertThat(hat.text()).isEqualTo("Gives 10 additional stamina to party members within 30 yards.");
+    assertThat(hat.complete()).isTrue();
+    // ProcChance 101 (12022's row) marks a proc that rolls no percentage: $h stays raw
+    SpellDescriptionFormatter.Formatted always = formatter.format(12022, "a $h% chance, ${$h*2}");
+    assertThat(always.text()).isEqualTo("a $h% chance, ${$h*2}");
+    assertThat(always.unresolved()).containsExactly("$h", "${$h*2}");
+    assertThat(formatter.format(7617, "${$h*2}% and $H%").text()).isEqualTo("2% and 1%");
+  }
+
+  @Test
+  void withoutTheOptionalTablesProcChanceAndRadiusStayRaw(@TempDir Path dir) throws IOException {
+    Path csv = Files.createDirectories(dir.resolve("csv"));
+    for (String table : List.of("Spell", "SpellName", "SpellEffect", "SpellMisc", "SpellDuration")) {
+      Files.copy(Fixtures.clientDataRoot().resolve("csv").resolve(table + ".csv"), csv.resolve(table + ".csv"));
+    }
+    SpellDescriptionFormatter bare = new SpellDescriptionFormatter(SpellTables.load(new ClientDataSource(dir)));
+    SpellDescriptionFormatter.Formatted f = bare.description(7617);
     assertThat(f.text()).isEqualTo("When struck in combat has a $h% chance of inflicting 75 to 125 Shadow damage to the "
         + "attacker.");
-    assertThat(f.complete()).isFalse();
     assertThat(f.unresolved()).containsExactly("$h");
+    assertThat(bare.description(12022).unresolved()).containsExactly("$a1");
+  }
 
+  @Test
+  void unknownPlaceholderKeepsRawText() {
     // 8690 Hearthstone: $z (the bound home) has no client table
-    assertThat(formatter.description(8690).text()).startsWith("Returns you to $z.");
-    // 12022: $M1 = 10, but $a1 needs SpellRadius, which is not fetched
-    SpellDescriptionFormatter.Formatted hat = formatter.description(12022);
-    assertThat(hat.text()).isEqualTo("Gives 10 additional stamina to party members within $a1 yards.");
-    assertThat(hat.unresolved()).containsExactly("$a1");
+    SpellDescriptionFormatter.Formatted home = formatter.description(8690);
+    assertThat(home.text()).startsWith("Returns you to $z.");
+    assertThat(home.complete()).isFalse();
+    assertThat(home.unresolved()).containsExactly("$z");
     // a missing effect index, a token nobody knows and an unbalanced expression stay as written
     SpellDescriptionFormatter.Formatted odd = formatter.format(18112, "A $s3 B $proccooldown C ${$s1+ D");
     assertThat(odd.text()).isEqualTo("A $s3 B $proccooldown C ${$s1+ D");
@@ -167,10 +198,10 @@ class SpellDescriptionFormatterTest {
   @Test
   void levelConditionsAssumeLevelSixtyAndOtherConditionsAreFalse() {
     // 440212 Cryoblast: $?$pl>=25[$s1][...] at level 60 takes $s1 = 50 +/- 14.88 = 42.56 to 57.44 -> 43 to 57;
-    // $a1 stays raw (no SpellRadius)
+    // $a1 = SpellRadius 8 = 5 yards
     SpellDescriptionFormatter.Formatted f = formatter.description(440212);
-    assertThat(f.text()).isEqualTo("Inflicts 43 to 57 Frost damage in a $a1 yard radius.");
-    assertThat(f.unresolved()).containsExactly("$a1");
+    assertThat(f.text()).isEqualTo("Inflicts 43 to 57 Frost damage in a 5 yard radius.");
+    assertThat(f.complete()).isTrue();
     assertThat(formatter.format(18112, "$?$pl<10[low]?s123[known][else $s1]").text()).isEqualTo("else 700");
     assertThat(formatter.format(18112, "$?!s123[not known][else]").text()).isEqualTo("not known");
     assertThat(formatter.format(18112, "a$?s123[known] b").text()).isEqualTo("a b");
@@ -207,15 +238,16 @@ class SpellDescriptionFormatterTest {
   @Test
   void reportsUnformattedSpellsOnce() {
     SpellDescriptionFormatter f = new SpellDescriptionFormatter(SpellTables.load(ClientItems.fixture()));
-    f.description(7617);
-    f.description(7617);
-    f.description(12022);
+    f.description(8690);
+    f.description(8690);
+    f.format(12022, "$h%");
     f.description(18112);
+    f.description(7617);
     ImportReport report = new ImportReport();
     f.report(report);
     assertThat(report.get(SpellDescriptionFormatter.UNFORMATTED)).isEqualTo(2);
-    assertThat(report.notes()).anyMatch(n -> n.startsWith("clientdata.unformatted:") && n.contains("7617 ($h)")
-        && n.contains("12022 ($a1)"));
-    assertThat(List.of(f.unformattedSpells().keySet().toArray())).containsExactly(7617L, 12022L);
+    assertThat(report.notes()).anyMatch(n -> n.startsWith("clientdata.unformatted:") && n.contains("8690 ($z)")
+        && n.contains("12022 ($h)"));
+    assertThat(List.of(f.unformattedSpells().keySet().toArray())).containsExactly(8690L, 12022L);
   }
 }

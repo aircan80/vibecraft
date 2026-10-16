@@ -32,10 +32,10 @@ class ItemSetLoaderTest {
     assertThat(scarlet.bonuses().get(0).text()).isEqualTo("+10 Shadow Resistance.");
     assertThat(scarlet.bonuses().get(1).text()).isEqualTo("+30 Attack Power against Undead.");
     assertThat(scarlet.bonuses().get(3).text()).isEqualTo("Improves your chance to hit by 1.0%.");
-    // (4) needs the proc chance ($h): kept raw, the rest formatted
-    assertThat(scarlet.bonuses().get(2).text()).isEqualTo("Taking damage has a $h% chance to grant Enraging Light "
+    // (4) the proc chance $h is SpellAuraOptions.ProcChance 15 of spell 1293674
+    assertThat(scarlet.bonuses().get(2).text()).isEqualTo("Taking damage has a 15% chance to grant Enraging Light "
         + "for 10 sec, causing your melee attacks to deal 20 Holy damage. Deals 3 times as much damage to Undead.");
-    assertThat(scarlet.bonuses().get(2).complete()).isFalse();
+    assertThat(scarlet.bonuses().get(2).complete()).isTrue();
 
     assertThat(sets.get(203L).bonuses()).extracting(ItemSetInfo.Bonus::threshold).containsExactly(3, 5, 8);
     assertThat(sets.get(203L).itemIds()).hasSize(8);

@@ -8,8 +8,10 @@ import dev.wowforever.lua.LuaString;
 import dev.wowforever.lua.LuaValue;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * The importer's client-data stage: reads a converted client-data directory and returns everything the writer embeds.
@@ -24,6 +26,10 @@ import java.util.Objects;
  * {@code clientdata.items.named.matched} (those with an ItemSparse row; {@code clientdata.items.matched} also counts
  * nameless items) and {@code clientdata.coverage.pct}, the named matched items as a whole percentage of the named
  * items, rounded down. The coverage gate ({@link #coverageTooLow}) compares the exact ratio.
+ *
+ * <p>{@value #DISPUTED} counts the items of {@link #DISPUTED_ITEMS} that have client data, with a note naming each
+ * one and the dispute. Their computed values are still written; the list only flags them for whoever reads the
+ * report.
  */
 public final class ClientDataStage {
   public static final String SKIPPED = "clientdata.skipped";
@@ -36,6 +42,15 @@ public final class ClientDataStage {
    * percentage have an ItemSparse row.
    */
   public static final int DEFAULT_MIN_COVERAGE_PCT = 85;
+  public static final String DISPUTED = "clientdata.disputed";
+  /**
+   * Items whose computed values a secondary source disputes, by id, with what differs. Add an item here when the
+   * known-items oracle ({@code fixtures/clientdata/KnownItemsOracle.md}) drops a kind for it because no client table
+   * produces the other source's value, and the computed value is kept.
+   */
+  static final Map<Long, String> DISPUTED_ITEMS = Map.of(
+      19019L, "Thunderfury, Blessed Blade of the Windseeker: damage 82 - 153 plus 16 - 30 Nature from the client"
+          + " tables (item level 80), Wowhead's Forever tooltip shows 44 - 115");
 
   private ClientDataStage() {}
 
@@ -69,6 +84,7 @@ public final class ClientDataStage {
 
     ItemClassNames classNames = ItemClassNames.load(source);
     Map<Long, ItemValues> values = ItemValues.compute(clientItems, ScalingTables.load(source), report);
+    reportDisputed(clientItems, report);
     ItemTooltips tooltips = ItemTooltips.build(source, clientItems, values, names, report);
     Map<Long, byte[]> icons = IconLoader.load(source, clientItems.values(), report);
     ZoneMaps zoneMaps = ZoneMapLoader.load(source, questieDbRoot, zones, report);
@@ -88,6 +104,19 @@ public final class ClientDataStage {
       return false;
     }
     return report.get(NAMED_MATCHED) * 100 < (long) minPct * named;
+  }
+
+  /**
+   * Counts {@value #DISPUTED} (always emitted) as the {@link #DISPUTED_ITEMS} present in {@code clientItems}, and
+   * notes them in id order.
+   */
+  static void reportDisputed(Map<Long, ClientItem> clientItems, ImportReport report) {
+    List<Long> present = DISPUTED_ITEMS.keySet().stream().filter(clientItems::containsKey).sorted().toList();
+    report.count(DISPUTED, present.size());
+    if (!present.isEmpty()) {
+      report.note(DISPUTED + ": " + present.stream().map(id -> id + " (" + DISPUTED_ITEMS.get(id) + ")")
+          .collect(Collectors.joining("; ")));
+    }
   }
 
   /** Item names by id, as the writer will store them: a string {@code name}; nil and unresolved values are absent. */

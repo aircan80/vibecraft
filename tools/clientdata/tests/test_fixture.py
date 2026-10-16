@@ -15,8 +15,10 @@ TABLES = {
               '400,,"Deals $s1 and $401s1, see $@spelldesc402",\n401,,,\n402,,"Uses $?s403[x][y]",\n'
               '403,,,\n404,,,\n405,,,\n499,,,\n500,,,\n900,,,\n'),
     "SpellName": "ID,Name_lang\n400,A\n401,B\n404,T\n499,X\n",
-    "SpellEffect": ("ID,Effect,EffectTriggerSpell,EffectMiscValue_0,SpellID\n"
-                    "1,6,404,0,400\n2,53,0,77,500\n3,6,0,0,499\n"),
+    "SpellEffect": ("ID,Effect,EffectTriggerSpell,EffectMiscValue_0,EffectRadiusIndex_0,EffectRadiusIndex_1,SpellID\n"
+                    "1,6,404,0,8,0,400\n2,53,0,77,0,0,500\n3,6,0,0,9,0,499\n4,6,0,0,0,10,401\n"),
+    "SpellAuraOptions": "ID,DifficultyID,ProcChance,SpellID\n1,0,5,400\n2,0,10,499\n",
+    "SpellRadius": "ID,Radius\n8,10\n9,20\n10,30\n11,40\n",
     "SpellMisc": "ID,DurationIndex,SpellID\n1,3,400\n2,5,499\n",
     "SpellDuration": "ID,Duration\n3,1000\n5,2000\n",
     "SpellItemEnchantment": "ID,Name_lang,Effect_0,EffectArg_0,Effect_1,EffectArg_1,Effect_2,EffectArg_2\n77,E,1,405,0,0,0,0\n78,F,0,0,0,0,0,0\n",
@@ -68,6 +70,9 @@ def test_subset_follows_references_and_copies_rows_verbatim(tmp_path):
     assert spells == {400, 401, 402, 403, 404, 405, 500}
     assert _out(tmp_path, "SpellItemEnchantment").splitlines()[1:] == ["77,E,1,405,0,0,0,0"]
     assert _out(tmp_path, "SpellDuration") == "ID,Duration\n3,1000\n"
+    # proc chances of the kept spells; radii named by either radius index of their effects (400: 8, 401: 10)
+    assert _out(tmp_path, "SpellAuraOptions") == "ID,DifficultyID,ProcChance,SpellID\n1,0,5,400\n"
+    assert _out(tmp_path, "SpellRadius") == "ID,Radius\n8,10\n10,30\n"
     # scaling rows for item levels 10 and 20 (sparse) plus 60
     assert _out(tmp_path, "RandPropPoints") == "ID,Epic_0\n10,1\n20,2\n60,6\n"
     assert _out(tmp_path, "ItemDamageOneHand") == "ID,ItemLevel,Quality_0\n1,10,1.5\n3,60,6.5\n"

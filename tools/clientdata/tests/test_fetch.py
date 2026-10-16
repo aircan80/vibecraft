@@ -7,10 +7,12 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 import pytest
 
 from clientdata import fetch
+from clientdata import http
 from clientdata import tables
 from clientdata.http import Client, FetchError
 
 UA = "wowforever-clientdata-test/1.0 (+test)"
+DEFAULT_RETRY_DELAYS = http.RETRY_DELAYS  # before no_retry_waits patches it
 
 BUILDS = {
     "wow_classic_beta": [
@@ -36,7 +38,9 @@ class _Server:
                 outer.hits += 1
                 outer.paths.append(self.path)
                 outer.headers.append(dict(self.headers))
-                status, body = outer.routes.get(self.path, (404, b"nope"))
+                route = outer.routes.get(self.path, (404, b"nope"))
+                # a list of responses is served in order, its last one from then on
+                status, body = (route.pop(0) if len(route) > 1 else route[0]) if isinstance(route, list) else route
                 if isinstance(body, str):
                     body = body.encode()
                 self.send_response(status)
@@ -55,6 +59,12 @@ class _Server:
     def close(self):
         self.httpd.shutdown()
         self.httpd.server_close()
+
+
+@pytest.fixture(autouse=True)
+def no_retry_waits(monkeypatch):
+    """Clients made by the tests (the CLI's too) retry 5xx without waiting."""
+    monkeypatch.setattr(http, "RETRY_DELAYS", (0, 0, 0))
 
 
 @pytest.fixture
@@ -89,12 +99,12 @@ def test_fetch_tables_skips_cached_files(server, tmp_path):
         server.routes["/db2/%s/csv?build=%s" % (t, build)] = (200, "ID,Name\n1,%s\n" % t)
     c = make_client(server)
     out = fetch.fetch_tables(c, build, tmp_path)
-    assert len(tables.REQUIRED_TABLES) == 42
+    assert len(tables.REQUIRED_TABLES) == 44
     assert set(out) == set(tables.REQUIRED_TABLES)
     assert out["Item"] == tmp_path / build / "csv" / "Item.csv"
     assert out["Item"].read_text() == "ID,Name\n1,Item\n"
     hits = server.hits
-    assert hits == 42
+    assert hits == 44
     out2 = fetch.fetch_tables(c, build, tmp_path)
     assert server.hits == hits
     assert out2 == out
@@ -143,6 +153,47 @@ def test_non_404_error_raises(server):
     assert e.value.status == 500 and e.value.path == "/boom"
 
 
+def test_retry_delays_default_to_2_4_8_seconds():
+    assert DEFAULT_RETRY_DELAYS == (2, 4, 8)
+    assert http.Client("http://x", UA)._retry_delays == (0, 0, 0)  # read when made: patched for the tests
+
+
+def test_transient_5xx_is_retried_with_backoff(server):
+    server.routes["/flaky"] = [(500, "x"), (503, "x"), (200, "ok")]
+    waits = []
+    c = Client(server.url, UA, rate_per_second=1000.0, retry_delays=(2, 4, 8), sleep=waits.append)
+    assert c.get_text("/flaky") == "ok"
+    assert server.hits == 3 and waits == [2, 4]
+
+
+def test_persistent_5xx_raises_after_three_retries(server):
+    server.routes["/down"] = (502, "x")
+    waits = []
+    c = Client(server.url, UA, rate_per_second=1000.0, retry_delays=(2, 4, 8), sleep=waits.append)
+    with pytest.raises(FetchError) as e:
+        c.get_bytes("/down")
+    assert e.value.status == 502
+    assert server.hits == 4 and waits == [2, 4, 8]
+
+
+def test_404_and_other_4xx_are_not_retried(server):
+    waits = []
+    c = Client(server.url, UA, rate_per_second=1000.0, retry_delays=(2, 4, 8), sleep=waits.append)
+    server.routes["/gone"] = (403, "x")
+    for path, status in (("/nope", 404), ("/gone", 403)):
+        with pytest.raises(FetchError) as e:
+            c.get_text(path)
+        assert e.value.status == status
+    assert server.hits == 2 and waits == []
+
+
+def test_icon_download_survives_a_transient_500(server, tmp_path):
+    server.routes["/api/casc/1?download&branch=p"] = [(500, "x"), (200, b"BLP2")]
+    out = fetch.fetch_files(make_client(server), "p", [1], tmp_path, build="B")
+    assert out[1].read_bytes() == b"BLP2"
+    assert not (tmp_path / "B" / "missing.txt").exists()
+
+
 def test_throttle_respects_rate(server):
     server.routes["/x"] = (200, "ok")
     c = make_client(server, rate=4.0)
@@ -170,6 +221,50 @@ def test_lock_file_contents(tmp_path):
     assert lock["base_url"] == "https://wago.tools"
     assert lock["tables"] == {"ItemClass": hashlib.sha256(b"ID\n1\n").hexdigest()}
     assert lock["file_count"] == 1 and lock["missing_count"] == 2
+
+
+def test_lock_merges_into_the_existing_lock(tmp_path):
+    csv_dir = tmp_path / "B" / "csv"
+    csv_dir.mkdir(parents=True)
+    a, b, era = csv_dir / "ItemClass.csv", csv_dir / "Spell.csv", csv_dir / "ItemSparse.era.csv"
+    a.write_bytes(b"ID\n1\n")
+    b.write_bytes(b"ID\n2\n")
+    era.write_bytes(b"ID\n3\n")
+    fb = fetch.Build("wow_classic_era", "1.15.9.70003", "")
+    fetch.write_lock(tmp_path, "B", {"ItemClass": a, tables.FALLBACK_NAME: era}, {},
+                     product="wow_classic_beta", base_url="https://wago.tools", fallback=fb)
+    files = tmp_path / "B" / "files"
+    files.mkdir()
+    for fdid in (7, 8, 9):
+        (files / ("%d.blp" % fdid)).write_bytes(b"x")
+    (tmp_path / "B" / "missing.txt").write_text("10\n")
+    # a later run that fetched one other table and one file, without --fallback-product
+    a.write_bytes(b"ID\n1\nchanged on disk, not re-fetched\n")
+    p = fetch.write_lock(tmp_path, "B", {"Spell": b}, {9: files / "9.blp"},
+                         product="wow_classic_beta", base_url="https://wago.tools")
+    lock = json.loads(p.read_text())
+    assert lock["tables"] == {
+        "ItemClass": hashlib.sha256(b"ID\n1\n").hexdigest(),          # kept from the first run
+        tables.FALLBACK_NAME: hashlib.sha256(b"ID\n3\n").hexdigest(),
+        "Spell": hashlib.sha256(b"ID\n2\n").hexdigest(),
+    }
+    assert (lock["fallback_product"], lock["fallback_build"]) == ("wow_classic_era", "1.15.9.70003")
+    assert lock["file_count"] == 3 and lock["missing_count"] == 1
+    # a run that refreshes a table replaces its hash
+    p = fetch.write_lock(tmp_path, "B", {"ItemClass": a}, {}, product="wow_classic_beta", base_url="u")
+    assert json.loads(p.read_text())["tables"]["ItemClass"] == hashlib.sha256(a.read_bytes()).hexdigest()
+
+
+def test_fdids_run_keeps_the_tables_and_fallback_of_earlier_runs(server, tmp_path):
+    server.routes["/db2/ItemSparse/csv?build=1.15.9.70003"] = (200, "ID\n9\n")
+    server.routes["/api/casc/5?download&branch=wow_classic_beta"] = (200, b"BLP2")
+    assert _cli(server, tmp_path, "--fallback-product", "wow_classic_era", "--fallback-build", "1.15.9.70003") == 0
+    first = json.loads((tmp_path / "1.60.1.70425" / "build.lock").read_text())
+    assert fetch.main(["--product", "wow_classic_beta", "--base-url", server.url, "--cache", str(tmp_path),
+                       "--tables", "ItemClass", "--fdids", "5", "--rate", "1000"]) == 0
+    lock = json.loads((tmp_path / "1.60.1.70425" / "build.lock").read_text())
+    assert lock["tables"] == first["tables"] and set(lock["tables"]) == {"ItemClass", tables.FALLBACK_NAME}
+    assert lock["fallback_build"] == "1.15.9.70003" and lock["file_count"] == 1
 
 
 def test_user_agent_header_sent(server):

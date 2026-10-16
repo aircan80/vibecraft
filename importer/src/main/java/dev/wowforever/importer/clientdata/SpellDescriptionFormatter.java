@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalDouble;
+import java.util.OptionalInt;
 import java.util.OptionalLong;
 import java.util.Set;
 import java.util.TreeMap;
@@ -30,7 +31,7 @@ import java.util.stream.Collectors;
  *       every 5 s in the game.
  *   <li>{@code $d}/{@code $D}: the spell's duration ("10 sec", "2 min", "1 hour", "2 hrs", "1 day").
  *   <li>{@code $tN} the period in seconds, {@code $xN} the chain targets, {@code $aN} the radius (needs
- *       {@code SpellRadius}).
+ *       {@code SpellRadius}), {@code $h} the proc chance in percent (needs {@code SpellAuraOptions}).
  *   <li>{@code $/N;sN} (and {@code $*N;sN}): a value divided (multiplied) by N.
  *   <li>{@code ${expr}} with {@code + - * /}, parentheses, the values above, {@code $pl} (level 60) and
  *       {@code $max $min $floor $ceil $abs $round}; a following {@code .N} sets N decimals (default none).
@@ -42,8 +43,8 @@ import java.util.stream.Collectors;
  *   <li>{@code |cffRRGGBB}, {@code |cn...:}, {@code |r}, {@code |T...|t} and link markup are stripped; CRLF, LF,
  *       {@code |n} and a literal {@code \n} become a line break.
  * </ul>
- * Anything else ({@code $h} proc chance, {@code $u} stacks, {@code $z} home, {@code $aN} without radii, a missing
- * effect ...) is kept as written and makes the result incomplete. The formatter remembers every spell whose text was
+ * Anything else ({@code $u} stacks, {@code $z} home, {@code $aN} without radii, {@code $h} without a proc chance, a
+ * missing effect ...) is kept as written and makes the result incomplete. The formatter remembers every spell whose text was
  * incomplete; {@link #report} counts them as {@value #UNFORMATTED} with a note listing them.
  */
 public final class SpellDescriptionFormatter {
@@ -363,6 +364,10 @@ public final class SpellDescriptionFormatter {
         OptionalDouble r = tables.radius(spell, index - 1);
         return r.isEmpty() ? null : number(r.getAsDouble());
       }
+      case "h", "H" -> {
+        OptionalInt pct = tables.procChance(spell);
+        return pct.isEmpty() ? null : String.valueOf(pct.getAsInt());
+      }
       default -> {
         return null;
       }
@@ -401,6 +406,10 @@ public final class SpellDescriptionFormatter {
       }
       case "a", "A" -> {
         return tables.radius(spell, index - 1);
+      }
+      case "h", "H" -> {
+        OptionalInt pct = tables.procChance(spell);
+        return pct.isEmpty() ? OptionalDouble.empty() : OptionalDouble.of(pct.getAsInt());
       }
       case "pl", "PL" -> {
         return OptionalDouble.of(PLAYER_LEVEL);
