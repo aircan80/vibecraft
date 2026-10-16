@@ -339,31 +339,38 @@ public final class AppController implements Navigator {
   }
 
   private static ListEntry entry(SearchHit h) {
-    return new ListEntry(h.ref(), h.displayName(), h.subtitle(), null, null);
+    return new ListEntry(h.ref(), h.displayName(), Labels.withCount(h.subtitle(), h.count()), null, null);
   }
 
   private static ListEntry entry(ItemSummary i) {
-    return new ListEntry(i.ref(), i.displayName(), Subtitles.item(i), null, null);
+    return new ListEntry(i.ref(), i.displayName(), Labels.withKind(EntityKind.ITEM,
+        Labels.itemSubtitle(i.className(), i.subclassName(), i.itemLevel(), i.requiredLevel())), null, null);
   }
 
   private static ListEntry entry(NpcSummary n) {
-    return new ListEntry(n.ref(), n.displayName(), Subtitles.npc(n), null, null);
+    return new ListEntry(n.ref(), n.displayName(), Labels.withKind(EntityKind.NPC,
+        Labels.npcSubtitle(n.rank(), n.minLevel(), n.maxLevel(), n.zoneName())), null, null);
   }
 
   private static ListEntry entry(ObjectSummary o) {
-    return new ListEntry(o.ref(), o.displayName(), Subtitles.object(o), null, null);
+    return new ListEntry(o.ref(), o.displayName(),
+        Labels.withKind(EntityKind.OBJECT, Labels.objectSubtitle(o.zoneName())), null, null);
   }
 
   private static ListEntry entry(QuestSummary q) {
-    return new ListEntry(q.ref(), q.displayName(), Subtitles.quest(q), null, null);
+    return new ListEntry(q.ref(), q.displayName(),
+        Labels.withKind(EntityKind.QUEST, Labels.questSubtitle(q.questLevel(), q.zoneName())), null, null);
   }
 
   private static ListEntry entry(ZoneSummary z) {
-    return new ListEntry(z.ref(), z.displayName(), Subtitles.zone(z), null, null);
+    return new ListEntry(z.ref(), z.displayName(), Labels.zoneSubtitle(z.kind(), z.parentName()), null, null);
   }
 
   private static ListEntry entry(InstanceSummary i) {
-    return new ListEntry(i.ref(), i.displayName(), Subtitles.instance(i), null, null);
+    // an instance's own zone usually carries its name; repeating it says nothing
+    String zone = Objects.equals(i.zoneName(), i.name()) ? null : i.zoneName();
+    return new ListEntry(i.ref(), i.displayName(),
+        Labels.instanceSubtitle(i.contentType(), i.levelMin(), i.levelMax(), zone), null, null);
   }
 
   /** The home page text. */

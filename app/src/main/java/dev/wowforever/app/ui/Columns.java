@@ -135,7 +135,7 @@ public final class Columns {
   public static List<Column<InstanceSummary>> instances() {
     return List.of(
         link("Name", InstanceSummary::displayName, i -> Optional.of(i.ref())),
-        plain("Type", String.class, i -> contentTypeText(i.contentType())),
+        plain("Type", String.class, i -> Labels.contentType(i.contentType())),
         plain("Levels", Levels.class, i -> new Levels(i.levelMin(), i.levelMax())),
         link("Zone", InstanceSummary::zoneName, i -> zoneRef(i.zoneId())));
   }
@@ -254,21 +254,6 @@ public final class Columns {
       case 4 -> "Rare";
       default -> "Rank " + rank;
     };
-  }
-
-  /** AtlasLoot content type for display: {@code DUNGEON} → Dungeon, {@code RAID40} → Raid (40). */
-  public static String contentTypeText(String contentType) {
-    if (contentType == null) {
-      return null;
-    }
-    if (contentType.equals("DUNGEON")) {
-      return "Dungeon";
-    }
-    if (contentType.startsWith("RAID")) {
-      String size = contentType.substring("RAID".length());
-      return size.isEmpty() ? "Raid" : "Raid (" + size + ")";
-    }
-    return contentType;
   }
 
   private static Optional<EntityRef> zoneRef(Long zoneId) {

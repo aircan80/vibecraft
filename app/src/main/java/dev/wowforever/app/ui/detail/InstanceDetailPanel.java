@@ -8,7 +8,7 @@ import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.nav.Navigator;
-import dev.wowforever.app.ui.Columns;
+import dev.wowforever.app.ui.Labels;
 import java.awt.BorderLayout;
 import java.awt.Component;
 import java.util.List;
@@ -37,7 +37,7 @@ public final class InstanceDetailPanel extends JPanel {
     this.nav = nav;
     InstanceSummary s = d.summary();
     header = new HeaderPanel(s.displayName(), HeaderPanel.join("Instance #" + s.id(),
-        Columns.contentTypeText(s.contentType()), HeaderPanel.levelText(s.levelMin(), s.levelMax())));
+        Labels.contentType(s.contentType()), HeaderPanel.levelText(s.levelMin(), s.levelMax())));
     if (s.zoneId() != null) {
       EntityRef zone = new EntityRef(EntityKind.ZONE, s.zoneId());
       header.addLink(zone.displayName(s.zoneName()), zone, nav);

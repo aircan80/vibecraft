@@ -19,6 +19,11 @@ import dev.wowforever.app.ui.detail.ZoneDetailPanel;
 import dev.wowforever.app.ui.widgets.ListEntry;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +32,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.JLabel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(FixtureDb.class)
 class AppControllerTest {
@@ -108,6 +114,26 @@ class AppControllerTest {
   }
 
   @Test
+  void collapsedSearchHitsShowTheirCount(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement s = conn.createStatement()) {
+      for (int id = 94001; id <= 94004; id++) {
+        s.executeUpdate("insert into search_index(kind, id, name) values ('object', " + id + ", 'Westfall')");
+        s.executeUpdate("insert into game_object(id, name, zone_id) values (" + id + ", 'Westfall', 40)");
+      }
+    }
+    try (Database db = Database.open(copy)) {
+      AppController c = new AppController(Repositories.of(db), view, Runnable::run);
+      c.open(new ViewTarget.Search("westfall", Optional.empty()));
+      assertThat(list().entries().get(0).ref()).isEqualTo(new EntityRef(ZONE, 40));
+      assertThat(list().entries()).filteredOn(e -> e.ref().kind() == OBJECT).singleElement()
+          .satisfies(e -> assertThat(e.subtitle()).isEqualTo("Object · Westfall · ×4"));
+      assertThat(list().entries().get(0).subtitle()).doesNotContain("×");
+    }
+  }
+
+  @Test
   void itemClassListsEveryItemOfTheClass() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(new ViewTarget.ItemClass(4, -1));
@@ -115,7 +141,7 @@ class AppControllerTest {
     assertThat(list().entries()).hasSize(all).isNotEmpty()
         .allSatisfy(e -> {
           assertThat(e.ref().kind()).isEqualTo(ITEM);
-          assertThat(e.subtitle()).startsWith("Armor");
+          assertThat(e.subtitle()).isNotBlank().doesNotContain("null", "iLvl 1 ", "Req 0");
         });
     assertThat(list().heading()).isEqualTo("Armor (" + all + ")");
     assertThat(view.titleSuffix).isEqualTo("Armor");
@@ -125,7 +151,7 @@ class AppControllerTest {
   void subclassListFiltersAndNamesBoth() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(new ViewTarget.ItemClass(4, 1));
-    assertThat(list().entries()).isNotEmpty().allSatisfy(e -> assertThat(e.subtitle()).startsWith("Armor · Cloth"));
+    assertThat(list().entries()).isNotEmpty().allSatisfy(e -> assertThat(e.subtitle()).startsWith("Cloth"));
     assertThat(list().heading()).startsWith("Armor › Cloth (");
   }
 
