@@ -64,7 +64,7 @@ class ZoneLoaderTest {
   }
 
   @Test
-  void dungeonAltAreaIdsBecomeSubzonesUnlessAlreadyPresent(@TempDir Path tmp) throws Exception {
+  void dungeonAltAreaIdsBecomeSubzonesOfTheirDungeon(@TempDir Path tmp) throws Exception {
     Path zonesDir = Files.createDirectories(tmp.resolve("support/Forever/Zones"));
     Files.writeString(zonesDir.resolve("dungeons.lua"),
         """
@@ -79,17 +79,38 @@ class ZoneLoaderTest {
     Map<Long, Zone> z = ZoneLoader.load(tmp, constants(), Set.of(), problems);
     assertThat(z.get(99001L)).isEqualTo(new Zone(99001, "The Deadmines", 1581L, "subzone"));
     assertThat(z.get(99002L)).isEqualTo(new Zone(99002, "The Deadmines", 1581L, "subzone"));
-    assertThat(z.get(10L)).isEqualTo(new Zone(10, "Duskwood", null, "zone"));
+    // an alt id the zone enum names keeps that name but is reparented under the dungeon
+    assertThat(z.get(10L)).isEqualTo(new Zone(10, "Duskwood", 1581L, "subzone"));
     assertThat(problems.problems()).isEmpty();
   }
 
   @Test
-  void fixtureAltAreaIdsAlreadyInTheZoneEnumKeepTheirEnumEntry() {
+  void fixtureAltAreaIdsInTheZoneEnumBecomeSubzonesOfTheirDungeon() {
     Map<Long, Zone> withAlts = ZoneLoader.load(Fixtures.questieDbRoot(), constants(), Set.of(), new ProblemCollector());
-    // 10029 (Deadmines) and 10014..10019 (Shadowfang Keep) are zoneIDs symbols, so they are not re-added
-    assertThat(withAlts.get(10029L).kind()).isEqualTo("zone");
-    assertThat(withAlts.get(10029L).name()).isNotEqualTo("The Deadmines");
-    assertThat(withAlts.get(10014L).kind()).isEqualTo("zone");
+    // 10029 (Deadmines) and 10014..10019 (Shadowfang Keep) are zoneIDs symbols: they keep their own
+    // symbol-derived name but hang under the dungeon as sub-zones
+    assertThat(withAlts.get(10029L)).isEqualTo(new Zone(10029, "The Deadmines Ironclad Cove", 1581L, "subzone"));
+    assertThat(withAlts.get(10014L)).isEqualTo(new Zone(10014, "Shadowfang Keep Dining Hall", 209L, "subzone"));
+    assertThat(withAlts.get(10019L).parentId()).isEqualTo(209L);
+    assertThat(withAlts.get(10019L).kind()).isEqualTo("subzone");
+  }
+
+  @Test
+  void altAreaIdThatIsItselfADungeonIsLeftAlone(@TempDir Path tmp) throws Exception {
+    Path zonesDir = Files.createDirectories(tmp.resolve("support/Forever/Zones"));
+    Files.writeString(zonesDir.resolve("dungeons.lua"),
+        """
+        local dungeons = {
+          [1583] = {"Blackrock Spire",{1584, 10003},51,{{51, 34.9, 83.9}}},
+          [1584] = {"Blackrock Depths",nil,51,{{51, 34.9, 83.9}}},
+        }
+        """);
+    Files.writeString(zonesDir.resolve("subZoneToParentZone.lua"),
+        "ZoneDB.private.subZoneToParentZoneOverride = [[return {\n}]]\n");
+    Map<Long, Zone> z = ZoneLoader.load(tmp, constants(), Set.of(), new ProblemCollector());
+    assertThat(z.get(1584L)).isEqualTo(new Zone(1584, "Blackrock Depths", 51L, "dungeon"));
+    assertThat(z.get(10003L).parentId()).isEqualTo(1583L);
+    assertThat(z.get(10003L).kind()).isEqualTo("subzone");
   }
 
   @Test

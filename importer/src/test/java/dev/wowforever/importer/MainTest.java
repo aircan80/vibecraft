@@ -29,7 +29,7 @@ class MainTest {
         "--questiedb-dir", Fixtures.questieDbRoot().toString(), "--atlasloot-dir", Fixtures.atlasLootRoot().toString()},
         print(out), print(err));
     assertThat(code).isEqualTo(0);
-    assertThat(out.toString(StandardCharsets.UTF_8)).contains("== Counters ==").contains("rows.item = ");
+    assertThat(out.toString(StandardCharsets.UTF_8)).contains("== Counters ==").contains("table.item = ");
   }
 
   @Test

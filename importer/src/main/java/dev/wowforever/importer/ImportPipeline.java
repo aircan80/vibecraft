@@ -151,7 +151,7 @@ public final class ImportPipeline {
     }
   }
 
-  /** {@code rows.<table>} for every table, the search index included. */
+  /** {@code table.<table>} row counts for every table, the search index included. */
   private static void countRows(Path db, ImportReport report) throws SQLException {
     try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath());
         Statement s = c.createStatement()) {
@@ -165,7 +165,7 @@ public final class ImportPipeline {
       for (String table : tableNames) {
         try (ResultSet rs = s.executeQuery("SELECT count(*) FROM " + table)) {
           rs.next();
-          report.count("rows." + table, rs.getLong(1));
+          report.count("table." + table, rs.getLong(1));
         }
       }
     }

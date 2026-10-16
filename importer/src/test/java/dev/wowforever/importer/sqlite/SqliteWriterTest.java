@@ -11,6 +11,8 @@ import dev.wowforever.importer.drops.DropRates;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
 import dev.wowforever.importer.report.ImportReport;
+import dev.wowforever.importer.schema.EntitySchema;
+import dev.wowforever.importer.schema.FieldType;
 import dev.wowforever.importer.schema.MetaLoader;
 import dev.wowforever.importer.zones.Zone;
 import dev.wowforever.lua.LuaNil;
@@ -47,6 +49,29 @@ class SqliteWriterTest {
       assertThat(rs.getObject(2)).isNull();
       assertThat(rs.getObject(3)).isNull();
       assertThat(scalar(c, "select origin from item_npc_drop where item_id = 190179 and npc_id = 11520")).isEqualTo("questie");
+    }
+  }
+
+  @Test
+  void fieldsMissingFromTheSchemaAreCountedOncePerKindAndField(@TempDir Path tmp) throws Exception {
+    EntitySchema slim = new EntitySchema("Item", List.of("name", "npcDrops"),
+        List.of(FieldType.STRING, FieldType.TABLE), java.util.Arrays.asList(null, null));
+    EntityTable items = new EntityTable(EntityKind.ITEM, slim);
+    items.create(1);
+    items.set(1, "name", new LuaString("One"));
+    items.create(2);
+    items.set(2, "name", new LuaString("Two"));
+    Map<EntityKind, EntityTable> tables = new EnumMap<>(EntityKind.class);
+    tables.put(EntityKind.ITEM, items);
+    ImportReport report = new ImportReport();
+    SqliteWriter.write(tmp.resolve("t.sqlite"),
+        new ImportModel(tables, new DropRates(), new LinkedHashMap<>(), List.of(), new LinkedHashMap<>()), report);
+    assertThat(report.get("missingField.item.itemLevel")).isEqualTo(1);
+    assertThat(report.get("missingField.item.teachesSpell")).isEqualTo(1);
+    assertThat(report.get("missingField.item.name")).isZero();
+    assertThat(report.get("missingField.item.npcDrops")).isZero();
+    try (Connection c = open(tmp.resolve("t.sqlite"))) {
+      assertThat(scalar(c, "select count(*) from item where item_level is null")).isEqualTo(2);
     }
   }
 

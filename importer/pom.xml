@@ -116,6 +116,7 @@
                   <arguments>
                     <argument>--out</argument>
                     <argument>${project.basedir}/../app/src/main/resources/data/wowforever.sqlite</argument>
+                    <argument>--fail-on-unsupported</argument>
                   </arguments>
                   <systemProperties>
                     <systemProperty>

@@ -46,7 +46,8 @@ public final class ZoneLoader {
 
   /**
    * Entries are {@code [areaId] = {name, altAreaIds|nil, parentZoneId, locations}}. Alternative area ids
-   * not yet known become sub-zones of the dungeon, named after it. Returns the dungeon ids seen.
+   * become sub-zones of the dungeon; those the zone enum does not name are named after it. Returns the
+   * dungeon ids seen.
    */
   private static Set<Long> applyDungeons(
       Path root, Map<Long, Zone> zones, Set<Long> raidAreaIds, ProblemCollector problems) {
@@ -87,12 +88,21 @@ public final class ZoneLoader {
         altAreas.put(areaId, altIds);
       }
     }
-    // NPC spawns reference the alternative area ids; ids the zone enum already names keep their entry.
+    // NPC spawns reference the alternative area ids (dungeon floors). Each becomes a sub-zone of its
+    // dungeon: ids the zone enum names keep that name, others take the dungeon's. An alt id that is a
+    // dungeon itself is left alone, and one already claimed by an earlier dungeon stays with it.
     altAreas.forEach((areaId, altIds) -> {
       for (LuaValue alt : altIds.array()) {
         var altId = LuaValues.asLong(alt);
-        if (altId.isPresent() && !zones.containsKey(altId.getAsLong())) {
-          zones.put(altId.getAsLong(), new Zone(altId.getAsLong(), zones.get(areaId).name(), areaId, "subzone"));
+        if (altId.isEmpty() || seen.contains(altId.getAsLong())) {
+          continue;
+        }
+        long id = altId.getAsLong();
+        Zone existing = zones.get(id);
+        if (existing == null) {
+          zones.put(id, new Zone(id, zones.get(areaId).name(), areaId, "subzone"));
+        } else if (!existing.kind().equals("subzone")) {
+          zones.put(id, new Zone(id, existing.name(), areaId, "subzone"));
         }
       }
     });

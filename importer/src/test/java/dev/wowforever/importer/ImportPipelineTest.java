@@ -63,12 +63,13 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select count(*) from npc_spawn s left join zone z on z.id = s.zone_id where z.id is null")).isEqualTo(0);
       assertThat(scalar(c, "select kind from zone where id = 2717")).isEqualTo("raid");
       assertThat(scalar(c, "select zone_id from instance where key = 'TheDeadmines'")).isEqualTo(1581);
-      assertThat(r.get("rows.item")).isEqualTo((long) (int) scalar(c, "select count(*) from item"));
+      assertThat(r.get("table.item")).isEqualTo((long) (int) scalar(c, "select count(*) from item"));
     }
     assertThat(Files.readString(o.buildIdOut(), StandardCharsets.UTF_8)).isEqualTo(buildId);
     assertThat(o.buildIdOut()).isEqualTo(tmp.resolve("db/build-id.txt"));
-    assertThat(r.get("rows.npc_spawn")).isPositive();
-    assertThat(r.get("rows.search_index")).isPositive();
+    assertThat(r.get("table.npc_spawn")).isPositive();
+    assertThat(r.get("table.search_index")).isPositive();
+    assertThat(r.get("rows.item")).as("per-table counters are table.<name>, not rows.<name>").isZero();
     assertThat(Files.readString(tmp.resolve("db/import-report.txt"), StandardCharsets.UTF_8)).isEqualTo(r.render());
   }
 

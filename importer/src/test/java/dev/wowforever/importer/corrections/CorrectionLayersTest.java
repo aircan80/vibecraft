@@ -15,6 +15,7 @@ import dev.wowforever.importer.report.ImportReport;
 import dev.wowforever.importer.report.Skip;
 import dev.wowforever.lua.LuaChunk;
 import dev.wowforever.lua.LuaNil;
+import dev.wowforever.lua.LuaNumber;
 import dev.wowforever.lua.LuaString;
 import dev.wowforever.lua.LuaTable;
 import dev.wowforever.lua.LuaValues;
@@ -68,17 +69,17 @@ class CorrectionLayersTest {
     assertThat(tables.get(QUEST).get(136, "reputationReward")).isEqualTo(LuaNil.NIL);
     assertThat(LuaValues.deepEquals(tables.get(QUEST).get(2, "reputationReward"), CorrectionTestSupport.lua("{{81,100}}"))).isTrue();
 
-    // classicQuestFixes 9422 references Questie.ICON_TYPE_* and l10n(...), which are not modelled
-    assertThat(report.skips()).extracting(Skip::layer, Skip::entityId, Skip::field).containsExactlyInAnyOrder(
-        org.assertj.core.groups.Tuple.tuple("legacy/classicQuestFixes", 9422L, "objectives"),
-        org.assertj.core.groups.Tuple.tuple("legacy/classicQuestFixes", 9422L, "extraObjectives"));
+    // classicQuestFixes 9422 uses Questie.ICON_TYPE_* and l10n(...): both are bound, so nothing is skipped
+    assertThat(report.skips()).isEmpty();
+    LuaTable extra = (LuaTable) ((LuaTable) tables.get(QUEST).get(9422, "extraObjectives")).get(1);
+    assertThat(extra.get(2)).isEqualTo(LuaNumber.of(4));
+    assertThat(extra.get(3)).isEqualTo(new LuaString("Silithyst"));
     for (CorrectionLayer l : CorrectionLayers.forever()) {
       assertThat(report.get("rows." + l.name())).as(l.name()).isPositive();
     }
     assertThat(report.get("layer.missing")).isZero();
-    // the evaluator's problems for those two values are surfaced per layer, and only where they occur
-    assertThat(report.get("problems.legacy/classicQuestFixes")).isEqualTo(3);
-    assertThat(report.render()).containsOnlyOnce("problems.");
+    assertThat(report.get("problems.legacy/classicQuestFixes")).isZero();
+    assertThat(report.render()).doesNotContain("problems.");
   }
 
   @Test

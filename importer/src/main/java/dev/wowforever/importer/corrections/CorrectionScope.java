@@ -49,6 +49,12 @@ public final class CorrectionScope {
     scope.define("QuestieCorrections", corrections);
     scope.define("DropDB", module("correctionKeys", constants.get("dropCorrectionKeys")));
     scope.define("l10n", new LuaTable());
+    // Objective icons: Questie.ICON_TYPE_* mirrors constants.iconTypes under the same names.
+    LuaTable questie = new LuaTable();
+    if (constants.get("iconTypes") instanceof LuaTable icons) {
+      icons.entries().forEach(e -> questie.put(e.getKey(), e.getValue()));
+    }
+    scope.define("Questie", questie);
     scope.define("Expansions", new LuaTable());
 
     CallHandler calls = (name, args, line) -> switch (name) {
@@ -59,6 +65,8 @@ public final class CorrectionScope {
       case "QuestieLoader:CreateModule" -> Optional.of(new LuaTable());
       case "UnitClassBase" -> Optional.of(str("WARRIOR"));
       case "UnitFactionGroup" -> Optional.of(str("Alliance"));
+      // l10n(text) translates for the client locale; the database keeps the English source text.
+      case "l10n" -> args.isEmpty() ? Optional.empty() : Optional.of(args.get(0));
       default -> Optional.empty();
     };
     return new Bound(scope, calls);

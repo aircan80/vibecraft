@@ -12,9 +12,11 @@ import dev.wowforever.lua.LuaValue;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /** Writes the four Questie entity tables and the relation and spawn tables derived from their fields. */
 final class EntityWriter {
@@ -23,6 +25,8 @@ final class EntityWriter {
   private final Connection c;
   private final LuaColumns columns;
   private final ImportReport report;
+  /** {@code <kind>.<field>} pairs already counted as {@code missingField.<kind>.<field>}. */
+  private final Set<String> missingFields = new HashSet<>();
 
   EntityWriter(Connection c, LuaColumns columns, ImportReport report) {
     this.c = c;
@@ -111,7 +115,10 @@ final class EntityWriter {
     }
   }
 
-  /** One entity row; reads fields by name and treats fields absent from the schema as nil. */
+  /**
+   * One entity row; reads fields by name. A field absent from the schema reads as nil and is counted
+   * once per kind as {@code missingField.<kind>.<field>}, so an upstream rename shows in the report.
+   */
   private final class Row {
     private final EntitySchema schema;
     private final String kind;
@@ -124,7 +131,13 @@ final class EntityWriter {
     }
 
     LuaValue raw(String field) {
-      return schema.has(field) ? values[schema.index(field) - 1] : LuaNil.NIL;
+      if (schema.has(field)) {
+        return values[schema.index(field) - 1];
+      }
+      if (missingFields.add(kind + "." + field)) {
+        report.count("missingField." + kind + "." + field, 1);
+      }
+      return LuaNil.NIL;
     }
 
     Object scalar(String field) {
