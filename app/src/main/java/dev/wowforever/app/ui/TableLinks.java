@@ -20,6 +20,10 @@ import javax.swing.table.TableRowSorter;
  */
 public final class TableLinks {
   private static final String OPEN_ROW = "openRow";
+  /** Preferred width of a table's name column (its first link column). */
+  public static final int NAME_WIDTH = 260;
+  /** Preferred width of a number column (counts, levels, slots, percentages). */
+  public static final int NUMBER_WIDTH = 70;
 
   private TableLinks() {}
 
@@ -49,13 +53,22 @@ public final class TableLinks {
     });
   }
 
-  /** Shows {@code model} in {@code table}: a fresh (unsorted) sorter with column orders, links in link colour. */
+  /**
+   * Shows {@code model} in {@code table}: a fresh (unsorted) sorter with column orders, links in link colour,
+   * a wide name column ({@link #NAME_WIDTH}) and narrow number columns ({@link #NUMBER_WIDTH}).
+   */
   public static void setModel(JTable table, ResultsTableModel<?> model) {
     table.setModel(model);
     TableRowSorter<ResultsTableModel<?>> sorter = new TableRowSorter<>(model);
     LinkRenderer linkRenderer = new LinkRenderer();
+    int nameColumn = model.firstLinkColumn();
     for (int c = 0; c < model.getColumnCount(); c++) {
       Columns.Column<?> column = model.column(c);
+      if (c == nameColumn) {
+        table.getColumnModel().getColumn(c).setPreferredWidth(NAME_WIDTH);
+      } else if (isNumber(column)) {
+        table.getColumnModel().getColumn(c).setPreferredWidth(NUMBER_WIDTH);
+      }
       if (column.order() != null) {
         sorter.setComparator(c, column.order());
       }
@@ -64,6 +77,11 @@ public final class TableLinks {
       }
     }
     table.setRowSorter(sorter);
+  }
+
+  private static boolean isNumber(Columns.Column<?> column) {
+    return Number.class.isAssignableFrom(column.type()) || column.type() == Columns.Levels.class
+        || column.order() == Columns.NUMERIC_TEXT;
   }
 
   /** The entity of the first link column of view row {@code viewRow}; empty when the row links nowhere. */

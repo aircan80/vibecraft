@@ -42,9 +42,6 @@ public final class ResultsPanel extends JPanel {
   public void show(String title, ResultsTableModel<?> model, boolean capped) {
     this.model = model;
     TableLinks.setModel(table, model);
-    if (model.getColumnCount() > 0) {
-      table.getColumnModel().getColumn(0).setPreferredWidth(260);
-    }
     this.title.setText(String.format(Locale.ROOT, capped ? "%s (first %,d)" : "%s (%,d)", title,
         model.getRowCount()));
   }

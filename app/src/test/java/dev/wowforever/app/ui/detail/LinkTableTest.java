@@ -13,6 +13,7 @@ import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
+import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
@@ -75,6 +76,26 @@ class LinkTableTest {
         .get(KeyStroke.getKeyStroke("ENTER"));
     t.table().getActionMap().get(key).actionPerformed(new ActionEvent(t.table(), ActionEvent.ACTION_PERFORMED, ""));
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 1)));
+  }
+
+  @Test
+  void tabsScrollInsteadOfWrapping() {
+    JTabbedPane tabs = new JTabbedPane();
+    LinkTable.addTab(tabs, "Drops", Columns.dropSources(), List.of(), v -> {});
+    assertThat(tabs.getTabLayoutPolicy()).isEqualTo(JTabbedPane.SCROLL_TAB_LAYOUT);
+  }
+
+  @Test
+  void nameColumnsAreWideAndNumberColumnsNarrow() {
+    var loot = new LinkTable<>(Columns.lootRows(), v -> {}).table().getColumnModel();
+    assertThat(loot.getColumn(0).getPreferredWidth()).as("Item").isEqualTo(260);
+    assertThat(loot.getColumn(1).getPreferredWidth()).as("Item level").isEqualTo(70);
+    assertThat(loot.getColumn(2).getPreferredWidth()).as("Drop %").isEqualTo(70);
+    assertThat(loot.getColumn(4).getPreferredWidth()).as("Slot").isEqualTo(70);
+    var drops = new LinkTable<>(Columns.dropSources(), v -> {}).table().getColumnModel();
+    assertThat(drops.getColumn(0).getPreferredWidth()).as("Source").isEqualTo(260);
+    assertThat(drops.getColumn(1).getPreferredWidth()).as("Level").isEqualTo(70);
+    assertThat(drops.getColumn(3).getPreferredWidth()).as("Drop %").isEqualTo(70);
   }
 
   @Test

@@ -53,12 +53,13 @@ public final class LinkTable<T> extends JPanel {
 
   /**
    * Adds a tab titled {@code "<title> (<rows>)"} holding a link table of {@code rows}; the tab is disabled when
-   * there are no rows.
+   * there are no rows. The tab strip scrolls rather than wrapping onto a second row.
    */
   static <T> LinkTable<T> addTab(JTabbedPane tabs, String title, List<Columns.Column<T>> cols, List<T> rows,
       Navigator nav) {
     LinkTable<T> t = new LinkTable<>(cols, nav);
     t.setRows(rows);
+    tabs.setTabLayoutPolicy(JTabbedPane.SCROLL_TAB_LAYOUT);
     tabs.addTab(String.format(Locale.ROOT, "%s (%,d)", title, rows.size()), t);
     tabs.setEnabledAt(tabs.getTabCount() - 1, !rows.isEmpty());
     return t;

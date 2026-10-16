@@ -18,14 +18,19 @@ import java.nio.file.Path;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Starts the browser. {@code --self-test} installs and opens the database, prints its row counts and exits
  * (a packaging smoke test); without arguments it shows the main window.
  */
 public final class Main {
+  private static final Logger LOG = LoggerFactory.getLogger(Main.class);
+
   private Main() {}
 
   /** The open database and everything the window needs from it, loaded off the EDT. */
@@ -64,7 +69,10 @@ public final class Main {
     return d.read(c -> Sql.one(c, "SELECT count(*) AS n FROM " + table, rs -> rs.getLong("n")).orElseThrow());
   }
 
-  /** On the EDT: shows the window, then opens the database in the background and wires the controller. */
+  /**
+   * On the EDT: shows the window, then opens the database in the background and wires the controller. A failure
+   * of either step is logged and shown, and the application exits with status 1.
+   */
   private static void startGui() {
     ThemeManager.applySaved();
     MainFrame frame = new MainFrame();
@@ -81,17 +89,37 @@ public final class Main {
     });
     frame.status().setMessage("Loading database…");
     frame.setVisible(true);
-    Async.run(Main::load, loaded -> {
+    Async.run(Main::load, loaded -> runOrFail(() -> {
       open.set(loaded.db());
       AppController controller = new AppController(loaded.repos(), frame, Async.SWING_WORKER, loaded.meta());
       frame.attach(controller, new BrowseTree(loaded.tree(), controller, controller::openZoneList));
       controller.start();
-    }, e -> {
-      String reason = e.getMessage() != null ? e.getMessage() : e.toString();
-      JOptionPane.showMessageDialog(frame, "The database could not be opened:\n" + reason,
-          MainFrame.APP_NAME, JOptionPane.ERROR_MESSAGE);
-      System.exit(1);
-    });
+    }, e -> startupFailed(frame, "The browser could not start:\n", e)),
+        e -> startupFailed(frame, "The database could not be opened:\n", e));
+  }
+
+  /** Runs {@code body}; anything it throws goes to {@code onFailure} instead of escaping. */
+  static void runOrFail(Runnable body, Consumer<Exception> onFailure) {
+    try {
+      body.run();
+    } catch (Exception e) {
+      onFailure.accept(e);
+    } catch (Error e) { // say, a class failing to load: must not leave the window on "Loading database…"
+      onFailure.accept(new IllegalStateException(e.toString(), e));
+    }
+  }
+
+  /** Logs a start-up failure with its stack trace. */
+  static void logStartupFailure(Throwable e) {
+    LOG.error("Startup failed", e);
+  }
+
+  /** Logs {@code e}, shows {@code prefix} and its reason in a dialog over {@code frame}, then exits with 1. */
+  private static void startupFailed(MainFrame frame, String prefix, Exception e) {
+    logStartupFailure(e);
+    String reason = e.getMessage() != null ? e.getMessage() : e.toString();
+    JOptionPane.showMessageDialog(frame, prefix + reason, MainFrame.APP_NAME, JOptionPane.ERROR_MESSAGE);
+    System.exit(1);
   }
 
   private static Loaded load() {
