@@ -321,6 +321,62 @@ class SqliteWriterClientDataTest {
     }
   }
 
+  @Test
+  void iconsZoneMapsAndClientMetaAreEmbedded() throws Exception {
+    Items b = new Items();
+    b.item(17204, "Eye of Sulfuras");
+    b.item(25, "Worn Short Sword");
+    ImportReport report = new ImportReport();
+    ClientDataSource source = fixtureSource();
+    Map<Long, ClientItem> client = ItemSparseLoader.load(source, b.ids(), report);
+    ImportModel model = b.model();
+    model.zones().put(40L, new dev.wowforever.importer.zones.Zone(40, "Westfall", null, "zone"));
+    model.zones().put(20L, new dev.wowforever.importer.zones.Zone(20, "Moonbrook", 40L, "subzone"));
+    model.zones().put(1L, new dev.wowforever.importer.zones.Zone(1, "Dun Morogh", null, "zone"));
+    var maps = dev.wowforever.importer.clientdata.ZoneMapLoader.load(source, Fixtures.questieDbRoot(), model.zones(),
+        report);
+    var icons = dev.wowforever.importer.clientdata.IconLoader.load(source, client.values(), report);
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, model, report, new dev.wowforever.importer.clientdata.ClientDataBundle(client, null,
+        Map.of(), ItemTooltips.empty(), icons, maps, source.lock()));
+
+    try (Connection c = open(db)) {
+      byte[] png = (byte[]) scalar(c, "select png from icon where id = 134124");
+      java.awt.image.BufferedImage img = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(png));
+      assertThat(img.getWidth()).isEqualTo(56);
+      assertThat(img.getHeight()).isEqualTo(56);
+      assertThat(scalar(c, "select count(*) from icon where id = 0")).isEqualTo(1);
+      assertThat(scalar(c, "select count(*) from icon")).isEqualTo(icons.size());
+
+      assertThat(column(c, "select ui_map_id from zone order by id")).containsExactly(null, 1436L, 1436L);
+      assertThat(row(c, "select width, height from zone_map where ui_map_id = 1436")).containsExactly(1002, 668);
+      byte[] jpeg = (byte[]) scalar(c, "select jpeg from zone_map where ui_map_id = 1436");
+      java.awt.image.BufferedImage map = javax.imageio.ImageIO.read(new java.io.ByteArrayInputStream(jpeg));
+      assertThat(map.getWidth()).isEqualTo(1002);
+      assertThat(map.getHeight()).isEqualTo(668);
+      assertThat(scalar(c, "select count(*) from zone_map")).isEqualTo(1);
+
+      assertThat(scalar(c, "select value from meta where key = 'client_product'")).isEqualTo("wow_classic_beta");
+      assertThat(scalar(c, "select value from meta where key = 'client_build'")).isEqualTo("1.60.1.70425");
+      assertThat(scalar(c, "select value from meta where key = 'client_fetched_at'")).isEqualTo("2026-10-16T20:34:38Z");
+      assertThat(scalar(c, "select value from meta where key = 'client_item_count'"))
+          .isEqualTo(String.valueOf(scalar(c, "select count(*) from item where has_client_data = 1")));
+      assertThat(scalar(c, "select value from meta where key = 'icon_count'")).isEqualTo(String.valueOf(icons.size()));
+      assertThat(scalar(c, "select value from meta where key = 'zone_map_count'")).isEqualTo("1");
+    }
+  }
+
+  @Test
+  void withoutAClientBuildLockNoClientMetaIsWritten() throws Exception {
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, new Items().model(), new ImportReport(),
+        dev.wowforever.importer.clientdata.ClientDataBundle.EMPTY);
+    try (Connection c = open(db)) {
+      assertThat(scalar(c, "select count(*) from meta where key like 'client_%'")).isEqualTo(0);
+      assertThat(scalar(c, "select count(*) from icon")).isEqualTo(0);
+    }
+  }
+
   // ---------------------------------------------------------------------------------------------
 
   private static ClientDataSource fixtureSource() {

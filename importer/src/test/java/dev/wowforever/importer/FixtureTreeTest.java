@@ -36,8 +36,8 @@ class FixtureTreeTest {
         }
       }
     }
-    // four entity DBs, two drop tables, two sub-zone tables
-    assertThat(embedded).isEqualTo(8);
+    // four entity DBs, two drop tables, two sub-zone tables, one area-to-UiMap override
+    assertThat(embedded).isEqualTo(9);
   }
 
   @Test
