@@ -158,6 +158,11 @@ public final class CsvTable {
       return line;
     }
 
+    /** The table this record belongs to. */
+    public CsvTable table() {
+      return CsvTable.this;
+    }
+
     public String get(int column) {
       return cells[column];
     }

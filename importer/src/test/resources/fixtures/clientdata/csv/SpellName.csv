@@ -1,9 +1,26 @@
 ID,Name_lang
 430,Drink
 433,Food
+439,"Healing Potion"
 1139,"Cold Eye"
+4975,"Cleanse Winterhoof Well"
+5024,Flee
+7597,"Increased Critical 1"
 8690,Hearthstone
+9796,Blight
+12022,"Admiral's Hat"
+14673,"Increased Shadow Resist 10"
+15279,"Crystal Spire"
+16939,"Ancestor's Vengeance"
+17538,"Elixir of the Mongoose"
+17559,"Transmute: Air to Fire"
+17626,"Flask of the Titans"
+17746,"Stealth 06"
+18074,"Undead Slayer 30"
+18364,"Cloak of Fire"
 18382,"Increased Critical Spell"
+18388,"Quick Fade"
+18956,"Restore Life"
 21160,"Eye of Sulfuras"
 21740,"Demonic Ally"
 21991,"Talisman of Binding"
@@ -12,11 +29,38 @@ ID,Name_lang
 23554,"Improved Drain Life"
 435467,Dismantle
 435481,"Enchant Weapon - Dismantle"
+440212,Cryoblast
+446847,"S03 - Tuning and Overrides Passive - All Classes"
+1247426,"Stock Crate"
+1293670,"Scarlet Guardian"
+1293673,"Enraging Light"
+1293675,"Enraged Light"
 18381,Cripple
+13439,Frostbolt
+25696,Drink
+25695,Food
+1226808,Food
+2023,"Restore Mana"
+17534,"Healing Potion"
+7617,"Shadow Bolt"
+16783,"Shadow Bolt"
+9159,Sleep
+9160,Sleep
 18112,Firebolt
+16403,Rend
 1293654,Silence
+17768,"Wolfshead Helm"
+430952,"Arcane Power"
+14134,"Item - Purify"
+432639,"Increased Hit Chance 01"
+1314143,"Ancestor's Vengeance"
+1226814,"Enriched Manna Biscuit"
+18374,"Cloak of Fire"
 21741,"Demonic Ally"
 27648,Thunderfury
 402265,Learning
 439164,Dismantle
 442206,Dismantle
+1308117,"Stock Crate"
+1293733,"Scarlet Guardian"
+1293674,"Enraging Light"

@@ -7,6 +7,7 @@ import dev.wowforever.importer.Fixtures;
 import dev.wowforever.importer.report.ImportReport;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -20,18 +21,23 @@ import org.junit.jupiter.api.Test;
  * The known-items gate (spec 4.4, ruling 10): the computed values of 28 items against the secondary oracle, Wowhead's
  * Forever tooltips ({@code fixtures/clientdata/known-items.csv}, produced as {@code KnownItemsOracle.md} describes).
  *
- * <p>Each row is compared only in its {@code compare_kinds}; this task's kinds are {@code damage} (min, max, school),
+ * <p>Each row is compared only in its {@code compare_kinds}: the value kinds {@code damage} (min, max, school),
  * {@code speed} (delay), {@code dps} (to the precision the tooltip shows), {@code armor} (the base value; an empty
  * cell expects none), {@code stat} and {@code resist}. Stats are compared as values per id over the ids Wowhead shows
  * as plain {@code +N} lines ({@link #TOOLTIP_STATS}); ratings and spell power, which it rewrites as "Equip:" text,
- * are outside the gate. Every row runs against the fixture, and again against the real client data when it is cached
- * on this machine.
+ * are outside the gate. The text kinds ({@link #TEXT_KINDS}, task 6) compare the rendered tooltip lines of that kind
+ * with the {@code lines} column, in order; a kind absent from the cell expects no such line. Every row runs against
+ * the fixture, and again against the real client data when it is cached on this machine.
  */
 class KnownItemsTest {
   static final Set<Integer> TOOLTIP_STATS = Set.of(0, 1, 3, 4, 5, 6, 7, 39, 48, 50, 51, 52, 53, 54, 55, 56);
-  static final Set<String> KINDS = Set.of("damage", "speed", "dps", "armor", "stat", "resist");
+  static final Set<String> VALUE_KINDS = Set.of("damage", "speed", "dps", "armor", "stat", "resist");
+  /** Tooltip text kinds (task 6), compared as the ordered texts of that kind; whitespace runs count as one space. */
+  static final List<String> TEXT_KINDS = List.of("binding", "slot", "req_level", "use", "equip", "proc");
+  static final Set<String> KINDS = union(VALUE_KINDS, TEXT_KINDS);
 
-  record Row(long id, String name, Set<String> kinds, String stats, String damage, String armor) {}
+  record Row(long id, String name, Set<String> kinds, String stats, String damage, String armor,
+      Map<String, List<String>> lines) {}
 
   @Test
   void theFixtureCoversEveryCategoryTheSpecAsksFor() {
@@ -70,6 +76,8 @@ class KnownItemsTest {
     Map<Long, ClientItem> items = ItemSparseLoader.load(src, rows.stream().map(Row::id).collect(Collectors.toSet()),
         new ImportReport());
     ScalingTables tables = ScalingTables.load(src);
+    ItemTooltips tooltips = ItemTooltips.build(src, items, ItemValues.compute(items, tables, new ImportReport()),
+        Map.of(), new ImportReport());
     List<String> out = new ArrayList<>();
     for (Row r : rows) {
       ClientItem item = items.get(r.id());
@@ -79,6 +87,7 @@ class KnownItemsTest {
       }
       ImportReport report = new ImportReport();
       List<ItemStat> stats = ItemStatsCalculator.stats(item, tables, report);
+      out.addAll(textMismatches(r, tooltips.lines().getOrDefault(r.id(), List.of())));
       Optional<ItemDamage> damage = ItemDamageCalculator.damage(item, tables, report);
       Optional<ItemArmor> armor = ItemArmorCalculator.armor(item, tables, report);
       String p = r.id() + " " + r.name() + ": ";
@@ -143,9 +152,47 @@ class KnownItemsTest {
         }
       }
       out.add(new Row(r.getLong("item_id").orElseThrow(), r.get("name"), kinds, r.get("stats"), r.get("damage"),
-          r.get("armor")));
+          r.get("armor"), parseLines(r.get("lines"))));
     }
     return out;
+  }
+
+  /** The expected and rendered texts of each compared text kind, reported with both lists when they differ. */
+  static List<String> textMismatches(Row r, List<TooltipLine> rendered) {
+    List<String> out = new ArrayList<>();
+    for (String kind : TEXT_KINDS) {
+      if (!r.kinds().contains(kind)) {
+        continue;
+      }
+      List<String> expected = r.lines().getOrDefault(kind, List.of()).stream().map(KnownItemsTest::normal).toList();
+      List<String> actual = rendered.stream().filter(l -> l.kind().equals(kind)).map(l -> normal(l.text())).toList();
+      if (!expected.equals(actual)) {
+        out.add(r.id() + " " + r.name() + ": " + kind + "\n  expected " + expected + "\n  rendered " + actual);
+      }
+    }
+    return out;
+  }
+
+  private static String normal(String text) {
+    return text.replace("\\t", "\t").replaceAll("[ \\n]+", " ").strip();
+  }
+
+  /** {@code kind=text|kind=text}, in tooltip order; the slot's separator is written {@code \t} (escaped). */
+  private static Map<String, List<String>> parseLines(String cell) {
+    Map<String, List<String>> out = new LinkedHashMap<>();
+    for (String entry : cell.split("\\|")) {
+      int eq = entry.indexOf('=');
+      if (eq > 0) {
+        out.computeIfAbsent(entry.substring(0, eq), k -> new ArrayList<>()).add(entry.substring(eq + 1));
+      }
+    }
+    return out;
+  }
+
+  private static Set<String> union(Set<String> a, List<String> b) {
+    Set<String> out = new LinkedHashSet<>(a);
+    out.addAll(b);
+    return Set.copyOf(out);
   }
 
   private static Map<Integer, Integer> parseStats(String cell) {

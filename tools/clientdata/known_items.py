@@ -8,7 +8,8 @@ the saved responses are read. See fixtures/clientdata/KnownItemsOracle.md for wh
 
 Columns: item_id, name, expected_lines (the tooltip lines, '|'-separated, sell price left out), compare_kinds,
 stats ("id:value;..." in tooltip order: plain "+N" lines, resistances, bonus armour as 50), damage
-("min-max/delayMs/dps/school", "*-*/0/dps/0" for ammunition), armor ("armor/block", empty for none).
+("min-max/delayMs/dps/school", "*-*/0/dps/0" for ammunition), armor ("armor/block", empty for none), lines
+("kind=text|..." for the binding, slot, required level and Use/Equip/Chance on hit lines, in tooltip order).
 """
 import argparse
 import csv
@@ -25,8 +26,14 @@ ITEMS = [19019, 13262, 25, 2092, 12640, 19682, 19683, 19684, 11306, 4127, 18837,
 # kinds left out of a row, and why (KnownItemsOracle.md)
 EXCLUDE = {
     19019: {"damage", "dps"},  # Wowhead shows the original 44 - 115; the tables and the Era row give 82 - 153
-    4134: {"damage", "speed", "dps"},  # Forever caster weapon (Flags_4 0x100): damage unverified, not written
+    # Forever caster weapon (Flags_4 0x100): damage unverified, not written; its spell power "Equip:" line has no
+    # stat slot or ItemXItemEffect row in the client data
+    4134: {"damage", "speed", "dps", "equip"},
 }
+# tooltip text kinds compared by KnownItemsTest (task 6); a kind absent from `lines` expects no such line
+TEXT_KINDS = ["binding", "slot", "req_level", "use", "equip", "proc"]
+BINDINGS = {"Binds when picked up", "Binds when equipped", "Binds when used", "Quest Item"}
+EFFECT_PREFIX = {"Use: ": "use", "Equip: ": "equip", "Chance on hit: ": "proc"}
 URL = "https://nether.wowhead.com/forever/tooltip/item/%d"
 USER_AGENT = "wow-forever-browser-pipeline (known-items oracle)"
 RES = {"Fire": 51, "Frost": 52, "Holy": 53, "Shadow": 54, "Nature": 55, "Arcane": 56}
@@ -91,13 +98,36 @@ def parse(item_id, w):
     elif adds:
         damage = "*-*/0/%s/0" % adds.group(1)
         kinds += ["dps"]
-    kinds += ["armor", "stat", "resist"]
+    kinds += ["armor", "stat", "resist"] + TEXT_KINDS
     kinds = [k for k in kinds if k not in EXCLUDE.get(item_id, set())]
     return {
         "item_id": item_id, "name": w["name"], "expected_lines": "|".join(lines), "compare_kinds": ",".join(kinds),
         "stats": ";".join("%d:%d" % s for s in stats), "damage": damage,
         "armor": "" if armor is None else "%d/%d" % (armor, block),
+        "lines": "|".join("%s=%s" % kv for kv in text_lines(tip, lines)),
     }
+
+
+def text_lines(tip, lines):
+    """(kind, text) for the TEXT_KINDS lines in tooltip order; the slot row is "Slot\\tSubclass" (a literal
+    backslash-t, the subclass left out when Wowhead's cell is empty)."""
+    out = []
+    for line in lines:
+        if line in BINDINGS:
+            out.append(("binding", line))
+            break
+    # the slot row; a cloak's has no subclass cell at all
+    slot = re.search(r'<table width="100%"><tr><td>(.*?)</td>(?:<th>(.*?)</th>)?</tr></table>', tip, re.S)
+    if slot:
+        left = html.unescape(re.sub(r"<[^>]+>", "", slot.group(1))).strip()
+        right = html.unescape(re.sub(r"<[^>]+>", "", slot.group(2) or "")).strip()
+        out.append(("slot", left + ("\\t" + right if right else "")))
+    out += [("req_level", line) for line in lines if line.startswith("Requires Level ")]
+    for line in lines:
+        for prefix, kind in EFFECT_PREFIX.items():
+            if line.startswith(prefix):
+                out.append((kind, line))
+    return out
 
 
 def main(argv=None) -> int:

@@ -35,7 +35,7 @@ final class ClientItems {
       Double variance, List<Integer> flags, ClientItem.StatShare... shares) {
     return new ClientItem(1, true, quality, itemLevel, 1, classId, subclassId, inventoryType, 0, 0L, 0L, 1, null,
         null, "Synthetic", null, -1, -1L, null, null, flags == null ? List.of(0, 0, 0, 0, 0) : flags, null,
-        List.of(shares), delayMs, variance, 0, ClientItem.FOREVER, null);
+        List.of(shares), delayMs, variance, 0, ClientItem.FOREVER, null, null);
   }
 
   static ClientItem.StatShare share(int statId, int share) {

@@ -24,7 +24,10 @@ import java.util.stream.Stream;
  * fallback's {@code ItemSparse.era} row when that table exists and has one ({@code "era"}, ruling 17); the
  * {@code Item} row (class, subclass, icon) always comes from Forever. The client's "none" values become null:
  * {@code ItemSet}, {@code StartQuestID}, {@code IconFileDataID}, {@code RequiredSkill} and {@code ItemDelay} of 0, an
- * empty {@code Display_lang} or {@code Description_lang}; {@code RequiredSkillRank} is null without a skill.
+ * empty {@code Display_lang} or {@code Description_lang}; {@code RequiredSkillRank} is null without a skill. The
+ * tooltip-only columns ({@link ClientItem.Details}) likewise: {@code MaxCount}, {@code ContainerSlots},
+ * {@code DurationInInventory} and {@code MinFactionID} of 0 are null, {@code MinReputation} is null without a
+ * faction, and {@code MaxDurability} is read only from a table that has it (the Era one).
  *
  * <p>Every column read is checked up front; a missing one fails naming the table and the column.
  *
@@ -45,7 +48,8 @@ public final class ItemSparseLoader {
           Stream.of("ID", "Display_lang", "Description_lang", "ItemLevel", "OverallQualityID", "RequiredLevel",
               "InventoryType", "Bonding", "SellPrice", "BuyPrice", "Stackable", "ItemSet", "StartQuestID",
               "AllowableClass", "AllowableRace_0", "RequiredSkill", "RequiredSkillRank", "ItemDelay", "DmgVariance",
-              "DamageType"),
+              "DamageType", "MaxCount", "MinFactionID", "MinReputation", "ContainerSlots", "DurationInInventory",
+              "AllowableRace_1"),
           IntStream.range(0, FLAG_COLUMNS).mapToObj(i -> "Flags_" + i),
           IntStream.range(0, STAT_SLOTS).mapToObj(i -> "StatModifier_bonusStat_" + i),
           IntStream.range(0, STAT_SLOTS).mapToObj(i -> "StatPercentEditor_" + i))
@@ -63,6 +67,8 @@ public final class ItemSparseLoader {
       .toList();
   static final List<String> ERA_COLUMNS =
       Stream.concat(SPARSE_COLUMNS.stream(), ERA_ABSOLUTE_COLUMNS.stream()).toList();
+  /** Read when the table has it: the Era table does, Forever's (build 1.60.1.70425) does not. */
+  static final String MAX_DURABILITY = "MaxDurability";
 
   private ItemSparseLoader() {}
 
@@ -151,7 +157,8 @@ public final class ItemSparseLoader {
     if (s == null) {
       Integer inventoryType = item == null ? null : integer(item, "InventoryType");
       return new ClientItem(id, false, null, null, null, classId, subclassId, inventoryType, null, null, null, null,
-          iconId, null, null, null, null, null, null, null, List.of(), null, List.of(), null, null, null, null, null);
+          iconId, null, null, null, null, null, null, null, List.of(), null, List.of(), null, null, null, null, null,
+          ClientItem.Details.NONE);
     }
     Integer requiredSkill = positiveInt(s.getInt("RequiredSkill"));
     List<Integer> flags = new ArrayList<>(FLAG_COLUMNS);
@@ -192,7 +199,22 @@ public final class ItemSparseLoader {
         decimal(s.getDouble("DmgVariance")),
         integer(s, "DamageType"),
         source,
-        ClientItem.ERA.equals(source) ? absolute(s) : null);
+        ClientItem.ERA.equals(source) ? absolute(s) : null,
+        details(s));
+  }
+
+  /** The tooltip-only columns; {@code MaxDurability} only when the row's table has the column. */
+  private static ClientItem.Details details(CsvTable.Row s) {
+    Integer faction = positiveInt(s.getInt("MinFactionID"));
+    OptionalLong raceHigh = s.getLong("AllowableRace_1");
+    return new ClientItem.Details(
+        positiveInt(s.getInt("MaxCount")),
+        s.table().hasColumn(MAX_DURABILITY) ? positiveInt(s.getInt(MAX_DURABILITY)) : null,
+        positiveInt(s.getInt("ContainerSlots")),
+        faction,
+        faction == null ? null : integer(s, "MinReputation"),
+        positiveInt(s.getInt("DurationInInventory")),
+        raceHigh.isPresent() ? raceHigh.getAsLong() : null);
   }
 
   /** The Era row's absolute values: non-zero stat amounts, the first damage range, armour and resistances. */
@@ -212,12 +234,14 @@ public final class ItemSparseLoader {
       }
     }
     int max = s.intOr("MaxDamage_0", 0);
+    int extraMax = s.intOr("MaxDamage_1", 0);
     List<Integer> resistances = new ArrayList<>();
     for (int i = 1; i < RESISTANCES; i++) {
       resistances.add(s.intOr("Resistances_" + i, 0));
     }
     return new ClientItem.Absolute(stats, max > 0 ? s.intOr("MinDamage_0", 0) : null, max > 0 ? max : null, slots,
-        s.intOr("Resistances_0", 0), resistances);
+        s.intOr("Resistances_0", 0), resistances, extraMax > 0 ? s.intOr("MinDamage_1", 0) : null,
+        extraMax > 0 ? extraMax : null);
   }
 
   private static Integer integer(CsvTable.Row r, String col) {

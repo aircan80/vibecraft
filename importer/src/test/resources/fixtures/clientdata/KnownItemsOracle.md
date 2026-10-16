@@ -1,7 +1,8 @@
 # Known items oracle
 
-`known-items.csv` is the secondary gate for item stats, damage and armour (spec 4.4, ruling 10). `KnownItemsTest`
-compares the computed values of each row in the kinds listed in its `compare_kinds`. The primary gate is the Era
+`known-items.csv` is the secondary gate for item stats, damage and armour (spec 4.4, ruling 10) and for the tooltip
+texts (task 6). `KnownItemsTest` compares the computed values and the rendered tooltip lines of each row in the
+kinds listed in its `compare_kinds`. The primary gate is the Era
 overlap (`EraOverlapOracleTest`): items present in both Forever's and the Era client's `ItemSparse`.
 
 ## Oracle used: Wowhead's Forever tooltips
@@ -48,6 +49,16 @@ nothing under the WoW folder changed.
 - **`damage`:** `min-max/delayMs/dps/school`. The dps is compared to the precision Wowhead prints it. Ammunition
   is `*-*/0/dps/0`, from "Adds 16.5 damage per second".
 - **`armor`:** `base/block`. Empty means no armour line. Block is recorded but not compared.
+- **`lines`:** the tooltip text kinds, `kind=text` entries separated by `|`, in tooltip order:
+  - `binding`: "Binds when picked up", "Binds when equipped", "Binds when used" or "Quest Item".
+  - `slot`: Wowhead's slot row, the slot and the subclass separated by a literal `	` (the tooltip line's tab);
+    the subclass is left out when Wowhead's cell is empty (rings, trinkets) or missing (cloaks).
+  - `req_level`: "Requires Level n".
+  - `use`, `equip`, `proc`: the "Use:", "Equip:" and "Chance on hit:" lines, cooldown included.
+
+  Every row compares all six text kinds unless excluded; a kind with no entry expects no such line. Texts are
+  compared with runs of spaces and line breaks counted as one space, because Wowhead collapses the game's double
+  spaces. A mismatch is reported with the expected and the rendered lists.
 
 ## Rows and exclusions
 
@@ -68,17 +79,24 @@ There are 28 Forever-sourced items. They cover:
 
 Twenty of them were added to the fixture for this gate. See the fixture README's `--items` list.
 
+Wowhead prints the rating and spell bonus stats as "Equip:" lines ("Improves your chance to hit by 2.0%."). The
+tooltip renders them the same way from the computed stats (`StatText`): hit at 10 and critical strike at 14 rating
+per 1 %, which Lionheart Helm and the three Bloodvine pieces confirm, and spell power as "Increases damage and
+healing done by magical spells and effects by up to n.". Lionheart Helm's slots hold critical strike before hit,
+but Wowhead prints hit first, so these lines are ordered by stat id.
+
 Two rows drop kinds:
 
 - **19019 Thunderfury: `damage` and `dps` dropped.** Wowhead shows the original 44 - 115 (41.84 dps). Forever's
   item level 80 one-hand table gives 82 - 153 (61.85 dps), and so does the Era client row. No client table
   produces 44 - 115. Speed, stats and resistances are compared.
-- **4134 Nimboya's Mystical Staff: `damage`, `speed` and `dps` dropped.** Forever marks caster weapons with
+- **4134 Nimboya's Mystical Staff: `damage`, `speed`, `dps` and `equip` dropped.** Forever marks caster weapons with
   `Flags_4` bit 0x100. Wowhead shows them with about 26 % (two-hand) to 34 % (one-hand) less DPS than the tables,
   plus an "Increases damage and healing done by magical spells" line. That line has no `ItemXItemEffect` row in
   the client data, and Forever's caster damage tables equal the plain ones. The rule cannot be derived from the
   client data, so caster weapon damage is unverified: none is written, and it counts as
-  `clientdata.unverified.damage`. There are 99 such weapons in the build.
+  `clientdata.unverified.damage`. There are 99 such weapons in the build. For the same reason the tooltip cannot
+  produce the staff's "Equip: Increases damage and healing done ... by up to 38." line, so `equip` is dropped too.
 
 ## Era-sourced items are not in the gate
 

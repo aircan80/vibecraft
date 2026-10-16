@@ -3,8 +3,12 @@ package dev.wowforever.importer.sqlite;
 import dev.wowforever.importer.clientdata.ClientItem;
 import dev.wowforever.importer.clientdata.ItemClassNames;
 import dev.wowforever.importer.clientdata.ItemDamage;
+import dev.wowforever.importer.clientdata.ItemSetInfo;
+import dev.wowforever.importer.clientdata.ItemSpellEffect;
 import dev.wowforever.importer.clientdata.ItemStat;
+import dev.wowforever.importer.clientdata.ItemTooltips;
 import dev.wowforever.importer.clientdata.ItemValues;
+import dev.wowforever.importer.clientdata.TooltipLine;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
 import dev.wowforever.importer.report.ImportReport;
@@ -93,11 +97,22 @@ public final class SqliteWriter {
    */
   public static void write(Path out, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
       ItemClassNames classNames, Map<Long, ItemValues> values) throws IOException, SQLException {
+    write(out, model, report, clientItems, classNames, values, ItemTooltips.empty());
+  }
+
+  /**
+   * Writes the model with client data, computed values and {@code tooltips} (from {@link ItemTooltips#build}):
+   * {@code item_effect} and {@code item_tooltip_line} for the ids that are item rows, and every given set to
+   * {@code item_set}, {@code item_set_item} and {@code item_set_bonus}.
+   */
+  public static void write(Path out, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
+      ItemClassNames classNames, Map<Long, ItemValues> values, ItemTooltips tooltips)
+      throws IOException, SQLException {
     Path file = out.toAbsolutePath();
     Files.deleteIfExists(file);
     Files.createDirectories(file.getParent());
     try {
-      writeFile(file, model, report, clientItems, classNames, values);
+      writeFile(file, model, report, clientItems, classNames, values, tooltips);
     } catch (SQLException | RuntimeException e) {
       Files.deleteIfExists(file);
       throw e;
@@ -105,7 +120,7 @@ public final class SqliteWriter {
   }
 
   private static void writeFile(Path file, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
-      ItemClassNames classNames, Map<Long, ItemValues> values) throws SQLException {
+      ItemClassNames classNames, Map<Long, ItemValues> values, ItemTooltips tooltips) throws SQLException {
     String schema = schemaSql();
     Matcher m = INDEX_MARKER.matcher(schema);
     if (!m.find()) {
@@ -129,6 +144,7 @@ public final class SqliteWriter {
       entities.quests(table(model, EntityKind.QUEST));
       EntityTable items = table(model, EntityKind.ITEM);
       writeItemValues(c, values, items);
+      writeTooltips(c, tooltips, items);
       new AtlasWriter(c, report).write(model.instances(), model.zones()::containsKey, items::contains,
           model.dropRates(), drops);
       drops.write(c, model.dropRates());
@@ -178,6 +194,42 @@ public final class SqliteWriter {
         }
         if (v.armor() != null) {
           armor.add(id, v.armor().armor(), v.armor().block());
+        }
+      }
+    }
+  }
+
+  /** {@code item_effect} and {@code item_tooltip_line} for the item rows; every set with its pieces and bonuses. */
+  private static void writeTooltips(Connection c, ItemTooltips tooltips, EntityTable items) throws SQLException {
+    try (Batch effects = new Batch(c,
+            "INSERT INTO item_effect(item_id, ordinal, trigger, spell_id, text) VALUES (?, ?, ?, ?, ?)");
+        Batch sets = new Batch(c, "INSERT INTO item_set(id, name) VALUES (?, ?)");
+        Batch pieces = new Batch(c, "INSERT INTO item_set_item(set_id, item_id) VALUES (?, ?)");
+        Batch bonuses = new Batch(c,
+            "INSERT INTO item_set_bonus(set_id, threshold, spell_id, text) VALUES (?, ?, ?, ?)");
+        Batch lines = new Batch(c,
+            "INSERT INTO item_tooltip_line(item_id, ordinal, kind, text, colour) VALUES (?, ?, ?, ?, ?)")) {
+      for (Map.Entry<Long, List<ItemSpellEffect>> e : tooltips.effects().entrySet()) {
+        if (items.contains(e.getKey())) {
+          for (ItemSpellEffect x : e.getValue()) {
+            effects.add(e.getKey(), x.ordinal(), x.trigger(), x.spellId(), x.text());
+          }
+        }
+      }
+      for (ItemSetInfo s : tooltips.sets().values()) {
+        sets.add(s.id(), s.name());
+        for (long piece : s.itemIds()) {
+          pieces.add(s.id(), piece);
+        }
+        for (ItemSetInfo.Bonus b : s.bonuses()) {
+          bonuses.add(s.id(), b.threshold(), b.spellId(), b.text());
+        }
+      }
+      for (Map.Entry<Long, List<TooltipLine>> e : tooltips.lines().entrySet()) {
+        if (items.contains(e.getKey())) {
+          for (TooltipLine l : e.getValue()) {
+            lines.add(e.getKey(), l.ordinal(), l.kind(), l.text(), l.colour());
+          }
         }
       }
     }

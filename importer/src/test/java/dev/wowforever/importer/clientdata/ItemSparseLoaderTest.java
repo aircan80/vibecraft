@@ -73,6 +73,30 @@ class ItemSparseLoaderTest {
   }
 
   @Test
+  void tooltipDetailsFromTheirColumns() {
+    Map<Long, ClientItem> items = ItemSparseLoader.load(source(),
+        Set.of(19019L, 4500L, 5768L, 13482L, 10329L, 5411L, 117L), new ImportReport());
+    assertThat(items.get(19019L).details()).isEqualTo(new ClientItem.Details(1, null, null, null, null, null, -1L));
+    assertThat(items.get(4500L).details().containerSlots()).isEqualTo(16);
+    assertThat(items.get(5768L).details().durationInInventory()).isEqualTo(600);
+    assertThat(items.get(13482L).details().minFactionId()).isEqualTo(529);
+    assertThat(items.get(13482L).details().minReputation()).isEqualTo(5);
+    assertThat(items.get(10329L).details().maxDurability()).as("Era table only").isEqualTo(35);
+    assertThat(items.get(5411L).allowableRace()).isEqualTo(32L);
+    assertThat(items.get(5411L).details().allowableRaceHigh()).isZero();
+    assertThat(items.get(117L).details()).as("no MaxCount, no faction").satisfies(d -> {
+      assertThat(d.maxCount()).isNull();
+      assertThat(d.minReputation()).isNull();
+    });
+    // the Era row of Thunderfury has a second, bonus damage range
+    ClientItem.Absolute era = ItemSparseLoader.loadEra(source(), Set.of(19019L)).get(19019L).absolute();
+    assertThat(era.extraMinDamage()).isEqualTo(16);
+    assertThat(era.extraMaxDamage()).isEqualTo(30);
+    assertThat(ItemSparseLoader.load(source(), Set.of(5191L), new ImportReport()).get(5191L).absolute()
+        .extraMaxDamage()).isNull();
+  }
+
+  @Test
   void eraRowsCarryTheirAbsoluteValuesAndForeverRowsNone() {
     Map<Long, ClientItem> items =
         ItemSparseLoader.load(source(), Set.of(16800L, 5191L, 19019L, 16805L), new ImportReport());

@@ -100,7 +100,7 @@ class ItemStatsCalculatorTest {
   @Test
   void itemOnlyItemsHaveNoStats() {
     ClientItem iconOnly = new ClientItem(9, false, null, null, null, 4, 1, 5, null, null, null, null, 1L, null, null,
-        null, null, null, null, null, null, null, null, null, null, null, null, null);
+        null, null, null, null, null, null, null, null, null, null, null, null, null, null);
     assertThat(ItemStatsCalculator.stats(iconOnly, T, new ImportReport())).isEmpty();
   }
 }

@@ -6,8 +6,11 @@ import dev.wowforever.importer.Fixtures;
 import dev.wowforever.importer.clientdata.ClientDataSource;
 import dev.wowforever.importer.clientdata.ClientItem;
 import dev.wowforever.importer.clientdata.ItemClassNames;
+import dev.wowforever.importer.clientdata.ItemEffectLoader;
+import dev.wowforever.importer.clientdata.ItemSetLoader;
 import dev.wowforever.importer.clientdata.ItemSparseLoader;
 import dev.wowforever.importer.clientdata.ItemStat;
+import dev.wowforever.importer.clientdata.ItemTooltips;
 import dev.wowforever.importer.clientdata.ItemValues;
 import dev.wowforever.importer.clientdata.ScalingTables;
 import dev.wowforever.importer.drops.DropRates;
@@ -150,6 +153,59 @@ class SqliteWriterClientDataTest {
   }
 
   @Test
+  void effectsSetsAndTooltipLinesAreWrittenForItemRows() throws Exception {
+    Items b = new Items();
+    b.item(19019, "Thunderfury");
+    b.item(19682, "Bloodvine Vest");
+    b.item(5079, "Cold Basilisk Eye");
+    b.item(13482, "Recipe: Transmute Air to Fire");
+    b.item(999_999, "Questie Only");
+    ImportReport report = new ImportReport();
+    Map<Long, ClientItem> client = new java.util.HashMap<>(ItemSparseLoader.load(fixtureSource(), b.ids(), report));
+    Map<Long, ItemValues> values = ItemValues.compute(client, ScalingTables.load(fixtureSource()), report);
+    ItemTooltips tooltips = ItemTooltips.build(fixtureSource(), client, values, Map.of(), report);
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, b.model(), report, client, null, values, tooltips);
+
+    try (Connection c = open(db)) {
+      assertThat(row(c, "select ordinal, trigger, spell_id, text from item_effect where item_id = 5079"))
+          .containsExactly(0, 0, 1139, "Increases time between target's attacks by 20% and reduces their movement "
+              + "speed by 40% for 15 sec.");
+      assertThat(column(c, "select item_id || ':' || trigger || ':' || spell_id from item_effect order by item_id"))
+          .containsExactly("5079:0:1139", "13482:0:17559", "19019:2:21992");
+      assertThat(column(c, "select id || ':' || name from item_set")).containsExactly("421:Bloodvine Garb");
+      assertThat(column(c, "select item_id from item_set_item where set_id = 421 order by rowid"))
+          .containsExactly(19682L, 19683L, 19684L);
+      assertThat(row(c, "select threshold, spell_id, text from item_set_bonus where set_id = 421"))
+          .containsExactly(3, 18382, "Improves your chance to get a critical strike with spells by 2.0%.");
+      assertThat(column(c, "select kind from item_tooltip_line where item_id = 19019 order by ordinal"))
+          .startsWith("name", "binding", "unique", "slot", "damage").endsWith("proc", "item_level", "sell_price");
+      assertThat(row(c, "select text, colour from item_tooltip_line where item_id = 19019 and ordinal = 0"))
+          .containsExactly("Thunderfury, Blessed Blade of the Windseeker", "#ff8000");
+      assertThat(scalar(c, "select count(*) from item_tooltip_line where item_id = 999999")).isEqualTo(0);
+      assertThat(scalar(c, "select count(*) from item_tooltip_line"))
+          .isEqualTo((int) report.get(ItemTooltips.LINES));
+    }
+    assertThat(report.get(ItemTooltips.ITEMS)).isEqualTo(4);
+    assertThat(report.get(ItemEffectLoader.EFFECTS)).isEqualTo(3);
+    assertThat(report.get(ItemSetLoader.SETS)).isEqualTo(1);
+  }
+
+  @Test
+  void withoutTooltipsTheTooltipTablesStayEmpty() throws Exception {
+    Items b = new Items();
+    b.item(19019, "Thunderfury");
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, b.model(), new ImportReport(), ItemSparseLoader.load(fixtureSource(), b.ids(),
+        new ImportReport()), null, Map.of());
+    try (Connection c = open(db)) {
+      assertThat(scalar(c, "select (select count(*) from item_effect) + (select count(*) from item_set)"
+          + " + (select count(*) from item_set_item) + (select count(*) from item_set_bonus)"
+          + " + (select count(*) from item_tooltip_line)")).isEqualTo(0);
+    }
+  }
+
+  @Test
   void withoutValuesTheValueTablesStayEmpty() throws Exception {
     Items b = new Items();
     b.item(19019, "Thunderfury");
@@ -273,7 +329,7 @@ class SqliteWriterClientDataTest {
 
   private static ClientItem itemOnly(long id, int classId, int subclassId, long iconId) {
     return new ClientItem(id, false, null, null, null, classId, subclassId, 13, null, null, null, null, iconId, null,
-        null, null, null, null, null, null, List.of(), null, List.of(), null, null, null, null, null);
+        null, null, null, null, null, null, List.of(), null, List.of(), null, null, null, null, null, null);
   }
 
   /** Questie items with the fixture's real item schema. */
