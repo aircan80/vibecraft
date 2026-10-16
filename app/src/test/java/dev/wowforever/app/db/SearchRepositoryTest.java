@@ -8,10 +8,16 @@ import static org.assertj.core.api.Assertions.assertThatCode;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.SearchHit;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(FixtureDb.class)
 class SearchRepositoryTest {
@@ -58,6 +64,26 @@ class SearchRepositoryTest {
     assertThat(repos.search().search("subterranean cape", Optional.empty(), 10))
         .extracting(SearchHit::ref).contains(new EntityRef(ITEM, 14149));
     assertThat(repos.search().search("subterranean taragaman", Optional.empty(), 10)).isEmpty();
+  }
+
+  @Test
+  void zonePlaceholderNamesAreNotSearchable(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement s = c.createStatement()) {
+      s.executeUpdate("insert into search_index(kind, id, name) values ('zone', 9999, 'Zone #9999')");
+      s.executeUpdate("insert into search_index(kind, id, name) values ('zone', 9998, 'Zone 9999 Valley')");
+    }
+    try (Database db = Database.open(copy)) {
+      assertThat(new SearchRepository(db).search("Zone 9999", Optional.empty(), 10))
+          .extracting(SearchHit::name).containsExactly("Zone 9999 Valley");
+    }
+  }
+
+  @Test
+  void itemSubtitleOmitsASubclassNamedLikeItsClass() {
+    assertThat(repos.search().search("unsent letter", Optional.of(ITEM), 5)).singleElement()
+        .satisfies(h -> assertThat(h.subtitle()).isEqualTo("Item · Quest · iLvl 16"));
   }
 
   @Test

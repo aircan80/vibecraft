@@ -17,7 +17,10 @@ import org.slf4j.LoggerFactory;
 public final class SearchRepository {
   private static final Logger LOG = LoggerFactory.getLogger(SearchRepository.class);
 
-  /** The best {@code limit} matches first, then the subtitle columns of each hit's own table. */
+  /**
+   * The best {@code limit} matches first, then the subtitle columns of each hit's own table. {@code Zone #id}
+   * placeholder names (in databases built before the importer stopped indexing them) are left out.
+   */
   private static final String SQL = """
       SELECT s.kind, s.id, s.name,
              ic.name AS class_name, isc.name AS subclass_name, i.item_level,
@@ -27,7 +30,7 @@ public final class SearchRepository {
              z.kind AS zone_kind,
              inst.content_type, inst.level_min, inst.level_max
       FROM (SELECT kind, id, name, bm25(search_index) AS score FROM search_index
-            WHERE search_index MATCH ? AND name IS NOT NULL %s
+            WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%%' %s
             ORDER BY score, name LIMIT ?) s
       LEFT JOIN item i ON s.kind = 'item' AND i.id = s.id
       LEFT JOIN item_class ic ON ic.id = i.class_id
@@ -103,7 +106,7 @@ public final class SearchRepository {
         String cls = rs.getString("class_name");
         String sub = rs.getString("subclass_name");
         if (cls != null) {
-          subtitle.add(sub != null ? cls + "/" + sub : cls);
+          subtitle.add(sub != null && !sub.equals(cls) ? cls + "/" + sub : cls);
         }
         Integer ilvl = Sql.integer(rs, "item_level");
         if (ilvl != null) {

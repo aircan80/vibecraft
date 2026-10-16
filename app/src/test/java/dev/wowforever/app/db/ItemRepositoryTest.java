@@ -2,6 +2,8 @@ package dev.wowforever.app.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ItemClassNode;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSummary;
@@ -48,6 +50,27 @@ class ItemRepositoryTest {
   @Test
   void missingItemIsEmpty() {
     assertThat(repos.items().detail(-1)).isEmpty();
+  }
+
+  @Test
+  void listWithoutALimitReturnsEveryRow() {
+    List<ItemSummary> all = repos.items().list(null, null, null, 0);
+    assertThat(all).hasSize(repos.items().list(null, null, 1_000_000, 0).size()).hasSizeGreaterThan(2);
+    assertThat(repos.items().list(null, null, 2, 0)).hasSize(2);
+    assertThat(repos.items().list(null, null, null, 1)).hasSize(all.size() - 1);
+  }
+
+  @Test
+  void detailListsTheInstanceLootTheItemIsIn() {
+    ItemDetail d = repos.items().detail(14149).get();
+    assertThat(d.inInstanceLoot()).singleElement().satisfies(l -> {
+      assertThat(l.instance()).isEqualTo(new EntityRef(EntityKind.INSTANCE, 1));
+      assertThat(l.instanceName()).isEqualTo("Ragefire Chasm");
+      assertThat(l.bossName()).isEqualTo("Taragaman the Hungerer");
+      assertThat(l.bossNpcId()).isEqualTo(11520L);
+      assertThat(l.slot()).isNotNull();
+    });
+    assertThat(repos.items().detail(190179).get().inInstanceLoot()).isEmpty();
   }
 
   @Test

@@ -28,10 +28,8 @@ import org.slf4j.LoggerFactory;
  * All methods are called on the EDT.
  */
 public final class AppController implements Navigator {
-  /** Most search hits shown. */
+  /** Most search hits shown; item class lists show every item. */
   public static final int SEARCH_LIMIT = 200;
-  /** Items shown for an item class (one page, no paging in the UI). */
-  public static final int ITEM_PAGE = 500;
   private static final Logger LOG = LoggerFactory.getLogger(AppController.class);
 
   private final Repositories repos;
@@ -192,13 +190,8 @@ public final class AppController implements Navigator {
 
   private Table<?> itemClass(ViewTarget.ItemClass c) {
     Integer subclass = c.subclassId() == ItemClassNode.CLASS_NODE ? null : c.subclassId();
-    var items = repos.items().list(c.classId(), subclass, ITEM_PAGE, 0);
-    return new Table<>(itemClassName(c.classId(), c.subclassId()), Columns.items(), items, ITEM_PAGE);
-  }
-
-  /** {@code name}, marked {@code (first 500)} when {@code rows} fills the page. */
-  static String itemClassTitle(String name, int rows) {
-    return cappedTitle(name, rows, ITEM_PAGE);
+    var items = repos.items().list(c.classId(), subclass, null, 0);
+    return new Table<>(itemClassName(c.classId(), c.subclassId()), Columns.items(), items);
   }
 
   /** {@code name}, marked {@code (first <page>)} when {@code rows} fills a page; unchanged when {@code page} is 0. */

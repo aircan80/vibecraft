@@ -13,6 +13,17 @@ class ZoneRepositoryTest {
   private final Repositories repos = FixtureDb.repositories();
 
   @Test
+  void zoneSummaryNamesItsParentAndInstancesTheirZone() {
+    ZoneSummary deadmines = repos.zones().detail(1581).get().summary();
+    assertThat(deadmines.parentId()).isEqualTo(40L);
+    assertThat(deadmines.parentName()).isEqualTo("Westfall");
+    assertThat(repos.zones().all()).filteredOn(z -> z.id() == 1581).singleElement()
+        .satisfies(z -> assertThat(z.parentName()).isEqualTo("Westfall"));
+    assertThat(repos.zones().detail(40).get().instances()).filteredOn(i -> i.id() != 0)
+        .anySatisfy(i -> assertThat(i.zoneName()).isEqualTo("The Deadmines"));
+  }
+
+  @Test
   void zoneDetailListsNpcsAndInstances() {
     ZoneDetail z = repos.zones().detail(40).get();
     assertThat(z.instances()).extracting(i -> i.name()).contains("The Deadmines");

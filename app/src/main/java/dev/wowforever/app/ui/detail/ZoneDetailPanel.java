@@ -23,7 +23,8 @@ public final class ZoneDetailPanel extends JPanel {
     ZoneSummary s = d.summary();
     header = new HeaderPanel(s.displayName(), HeaderPanel.join("Zone #" + s.id(), kindText(s.kind())));
     if (s.parentId() != null) {
-      header.addLink("Parent zone #" + s.parentId(), new EntityRef(EntityKind.ZONE, s.parentId()), nav);
+      EntityRef parent = new EntityRef(EntityKind.ZONE, s.parentId());
+      header.addLink(parent.displayName(s.parentName()), parent, nav);
     }
     LinkTable.addTab(tabs, "NPCs", Columns.npcs(), d.npcs(), nav);
     LinkTable.addTab(tabs, "Objects", Columns.objects(), d.objects(), nav);

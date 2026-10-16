@@ -3,6 +3,7 @@ package dev.wowforever.app.db;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.ItemClassNode;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSource;
@@ -48,7 +49,8 @@ public final class ItemRepository {
     return db.read(c -> {
       Optional<ItemDetail> head = Sql.one(c, "SELECT " + COLUMNS + " FROM item i " + JOINS + " WHERE i.id = ?",
           rs -> new ItemDetail(summary(rs), Sql.integer(rs, "class_id"), Sql.integer(rs, "subclass_id"),
-              Sql.longValue(rs, "start_quest_id"), List.of(), List.of(), List.of(), List.of(), List.of(), List.of()),
+              Sql.longValue(rs, "start_quest_id"), List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
+              List.of()),
           id);
       if (head.isEmpty()) {
         return head;
@@ -56,6 +58,7 @@ public final class ItemRepository {
       ItemDetail h = head.get();
       return Optional.of(new ItemDetail(h.summary(), h.classId(), h.subclassId(), h.startQuestId(),
           droppedBy(c, id),
+          inInstanceLoot(c, id),
           sources(c, ItemSource.OBJECT, EntityKind.OBJECT, """
               SELECT d.object_id AS ref_id, o.name FROM item_object_drop d
               LEFT JOIN game_object o ON o.id = d.object_id WHERE d.item_id = ?""", id),
@@ -75,11 +78,12 @@ public final class ItemRepository {
   }
 
   /**
-   * One page of items ordered by name (nameless stubs last). A null {@code classId} lists every item; a null
-   * {@code subclassId} lists every subclass; {@link ItemClassNode#OTHER_SUBCLASSES} lists the items whose
-   * subclass is null or missing from the subclass table.
+   * Items ordered by name (nameless stubs last), at most {@code limit} of them after skipping {@code offset}; a
+   * null {@code limit} returns every row. A null {@code classId} lists every item; a null {@code subclassId}
+   * lists every subclass; {@link ItemClassNode#OTHER_SUBCLASSES} lists the items whose subclass is null or
+   * missing from the subclass table.
    */
-  public List<ItemSummary> list(Integer classId, Integer subclassId, int limit, int offset) {
+  public List<ItemSummary> list(Integer classId, Integer subclassId, Integer limit, int offset) {
     StringBuilder where = new StringBuilder(" WHERE 1 = 1");
     List<Object> params = new ArrayList<>();
     if (classId != null) {
@@ -92,7 +96,7 @@ public final class ItemRepository {
       where.append(" AND subclass_id = ?");
       params.add(subclassId);
     }
-    params.add(limit);
+    params.add(limit == null ? -1 : limit); // a negative LIMIT is no limit in SQLite
     params.add(offset);
     // page first, then compute the source counts for that page only
     String sql = "SELECT " + COLUMNS + " FROM (SELECT * FROM item" + where + " ORDER BY " + NAME_ORDER
@@ -145,6 +149,26 @@ public final class ItemRepository {
             Sql.integer(rs, "min_level"), Sql.integer(rs, "max_level"), rs.getString("zone_name"),
             Sql.longValue(rs, "zone_id"), Sql.doubleValue(rs, "drop_pct"), rs.getString("pct_source"),
             rs.getString("origin")),
+        itemId);
+  }
+
+  /**
+   * The AtlasLoot loot tables the item is in, by instance name, then boss (main list before extra lists, each
+   * in AtlasLoot order), then slot.
+   */
+  private static List<InstanceLoot> inInstanceLoot(Connection c, long itemId) throws SQLException {
+    return Sql.list(c, """
+        SELECT i.id AS instance_id, i.name AS instance_name, b.id AS boss_id, b.name AS boss_name, b.npc_id,
+               bl.slot, bl.drop_pct
+        FROM boss_loot bl
+        JOIN boss b ON b.id = bl.boss_id
+        JOIN instance i ON i.id = b.instance_id
+        WHERE bl.item_id = ?
+        ORDER BY i.name IS NULL, i.name COLLATE NOCASE, i.id, b.is_extra_list, b.sort_order, b.id,
+                 bl.slot IS NULL, bl.slot""",
+        rs -> new InstanceLoot(new EntityRef(EntityKind.INSTANCE, rs.getLong("instance_id")),
+            rs.getString("instance_name"), rs.getLong("boss_id"), rs.getString("boss_name"),
+            Sql.longValue(rs, "npc_id"), Sql.integer(rs, "slot"), Sql.doubleValue(rs, "drop_pct")),
         itemId);
   }
 

@@ -9,6 +9,7 @@ public record ItemDetail(
     Integer subclassId,
     Long startQuestId,
     List<DropSource> droppedBy,
+    List<InstanceLoot> inInstanceLoot,
     List<ItemSource> containedInObjects,
     List<ItemSource> containedInItems,
     List<ItemSource> soldBy,
@@ -17,6 +18,7 @@ public record ItemDetail(
 
   public ItemDetail {
     droppedBy = List.copyOf(droppedBy);
+    inInstanceLoot = List.copyOf(inInstanceLoot);
     containedInObjects = List.copyOf(containedInObjects);
     containedInItems = List.copyOf(containedInItems);
     soldBy = List.copyOf(soldBy);

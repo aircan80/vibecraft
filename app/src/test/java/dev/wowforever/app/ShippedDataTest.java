@@ -1,6 +1,7 @@
 package dev.wowforever.app;
 
 import static dev.wowforever.app.model.EntityKind.NPC;
+import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.Database;
@@ -9,11 +10,22 @@ import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.SearchHit;
+import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.AppController;
+import dev.wowforever.app.ui.MainView;
+import dev.wowforever.app.ui.ResultsPanel;
+import dev.wowforever.app.ui.StatusBar;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
+import javax.swing.JComponent;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -55,6 +67,20 @@ class ShippedDataTest {
     }
   }
 
+  private static List<Object> column(String sql) {
+    synchronized (db) {
+      try (Statement st = db.connection().createStatement(); ResultSet rs = st.executeQuery(sql)) {
+        List<Object> out = new ArrayList<>();
+        while (rs.next()) {
+          out.add(rs.getObject(1));
+        }
+        return out;
+      } catch (SQLException e) {
+        throw new IllegalStateException(sql, e);
+      }
+    }
+  }
+
   private static long count(String table) {
     return scalar("select count(*) from " + table);
   }
@@ -80,6 +106,53 @@ class ShippedDataTest {
     // documented upstream gap: 325 at the pinned commits
     assertThat(scalar("select count(*) from item_npc_drop d left join npc n on n.id = d.npc_id where n.id is null"))
         .isLessThanOrEqualTo(400);
+  }
+
+  @Test
+  void buildIdResourceMatchesTheShippedMeta() throws Exception {
+    try (InputStream in = ShippedDataTest.class.getResourceAsStream("/data/build-id.txt")) {
+      assertThat(in).isNotNull();
+      assertThat(new String(in.readAllBytes(), StandardCharsets.UTF_8).trim()).isEqualTo(db.meta().get("build_id"));
+    }
+  }
+
+  @Test
+  void itemClassListsAreNotCapped() {
+    long armor = scalar("select count(*) from item where class_id = 4");
+    assertThat(armor).isGreaterThan(500);
+    ResultsPanel results = new ResultsPanel(t -> {});
+    StatusBar status = new StatusBar();
+    MainView view = new MainView() {
+      @Override public ResultsPanel results() { return results; }
+      @Override public void setDetail(JComponent c) { }
+      @Override public void setHistoryState(boolean canBack, boolean canForward) { }
+      @Override public StatusBar status() { return status; }
+      @Override public void setTitleSuffix(String s) { }
+    };
+    new AppController(repos, view, Runnable::run).open(new ViewTarget.ItemClass(4, -1));
+    assertThat((long) results.model().getRowCount()).isEqualTo(armor);
+    assertThat(results.title()).isEqualTo(String.format(Locale.ROOT, "Armor (%,d)", armor));
+  }
+
+  @Test
+  void bossLootItemsShowTheirInstanceLoot() {
+    // Scarlet Monastery trash loot: in boss_loot, but no item_npc_drop row (extra lists stay out of it)
+    assertThat(repos.items().detail(10329).get().inInstanceLoot()).isNotEmpty();
+    for (Object id : column("select distinct bl.item_id from boss_loot bl join item i on i.id = bl.item_id"
+        + " order by random() limit 20")) {
+      long item = ((Number) id).longValue();
+      assertThat(repos.items().detail(item).get().inInstanceLoot()).as("item %d", item).isNotEmpty();
+    }
+  }
+
+  @Test
+  void zonePlaceholderNamesAreNotSearchable() {
+    for (Object name : column("select name from search_index where name like 'Zone #%'")) {
+      assertThat(repos.search().search((String) name, Optional.empty(), 200)).extracting(SearchHit::name)
+          .noneMatch(n -> n.startsWith("Zone #"));
+    }
+    assertThat(repos.search().search("Zone", Optional.of(ZONE), 200)).extracting(SearchHit::name)
+        .noneMatch(n -> n.startsWith("Zone #"));
   }
 
   @Test

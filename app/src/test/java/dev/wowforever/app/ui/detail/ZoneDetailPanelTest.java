@@ -1,11 +1,14 @@
 package dev.wowforever.app.ui.detail;
 
 import static dev.wowforever.app.model.EntityKind.INSTANCE;
+import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
+import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ZoneDetail;
+import dev.wowforever.app.model.ZoneSummary;
 import dev.wowforever.app.nav.ViewTarget;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +35,24 @@ class ZoneDetailPanelTest {
     assertThat(p.tabs().getTitleAt(1)).isEqualTo("Objects (" + d.objects().size() + ")");
     assertThat(p.tabs().getTitleAt(2)).isEqualTo("Quests (" + d.quests().size() + ")");
     assertThat(p.tabs().getTitleAt(4)).isEqualTo("Sub-zones (" + d.subzones().size() + ")");
+  }
+
+  @Test
+  void parentLinkIsNamedAfterTheParent() {
+    List<ViewTarget> opened = new ArrayList<>();
+    var p = new ZoneDetailPanel(repos.zones().detail(1581).get(), opened::add);
+    assertThat(p.header().links()).singleElement().satisfies(b -> assertThat(b.getText()).isEqualTo("Westfall"));
+    p.header().links().get(0).doClick();
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(ZONE, 40)));
+  }
+
+  @Test
+  void unnamedParentGetsAPlaceholder() {
+    ZoneDetail d = new ZoneDetail(new ZoneSummary(5, "Sub", "subzone", 77L, null), List.of(), List.of(), List.of(),
+        List.of(), List.of());
+    var p = new ZoneDetailPanel(d, t -> {});
+    assertThat(p.header().links()).singleElement()
+        .satisfies(b -> assertThat(b.getText()).isEqualTo("Unknown zone #77"));
   }
 
   @Test

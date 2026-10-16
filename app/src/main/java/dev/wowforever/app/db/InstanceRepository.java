@@ -15,6 +15,10 @@ import java.util.Optional;
 public final class InstanceRepository {
   /** The {@link LootRow#origin()} of boss loot, which always comes from AtlasLoot. */
   public static final String BOSS_LOOT_ORIGIN = "atlasloot";
+  /** The {@link #summary} columns of {@code instance i} with its zone's name; append WHERE and ORDER BY. */
+  static final String SUMMARY_SELECT = """
+      SELECT i.id, i.name, i.content_type, i.level_min, i.level_max, i.zone_id, z.name AS zone_name
+      FROM instance i LEFT JOIN zone z ON z.id = i.zone_id""";
 
   private final Database db;
 
@@ -25,7 +29,7 @@ public final class InstanceRepository {
   /** All instances in AtlasLoot order. */
   public List<InstanceSummary> all() {
     return db.read(c -> Sql.list(c,
-        "SELECT id, name, content_type, level_min, level_max FROM instance ORDER BY id",
+        SUMMARY_SELECT + " ORDER BY i.id",
         InstanceRepository::summary));
   }
 
@@ -33,7 +37,7 @@ public final class InstanceRepository {
   public Optional<InstanceDetail> detail(long id) {
     return db.read(c -> {
       Optional<InstanceSummary> instance = Sql.one(c,
-          "SELECT id, name, content_type, level_min, level_max FROM instance WHERE id = ?",
+          SUMMARY_SELECT + " WHERE i.id = ?",
           InstanceRepository::summary, id);
       if (instance.isEmpty()) {
         return Optional.empty();
@@ -62,6 +66,7 @@ public final class InstanceRepository {
 
   static InstanceSummary summary(ResultSet rs) throws SQLException {
     return new InstanceSummary(rs.getLong("id"), rs.getString("name"), rs.getString("content_type"),
-        Sql.integer(rs, "level_min"), Sql.integer(rs, "level_max"));
+        Sql.integer(rs, "level_min"), Sql.integer(rs, "level_max"), Sql.longValue(rs, "zone_id"),
+        rs.getString("zone_name"));
   }
 }

@@ -81,7 +81,7 @@ class ResultsTableModelTest {
   @Test
   void instanceColumns() {
     var m = new ResultsTableModel<>(Columns.instances());
-    m.setRows(List.of(new InstanceSummary(1, "Ragefire Chasm", "DUNGEON", 10, 13)));
+    m.setRows(List.of(new InstanceSummary(1, "Ragefire Chasm", "DUNGEON", 10, 13, 2437L, "Ragefire Chasm")));
     assertThat(m.refAt(0, 0)).contains(new EntityRef(INSTANCE, 1));
     assertThat(m.getValueAt(0, titles(m).indexOf("Type"))).isEqualTo("Dungeon");
     assertThat(m.getValueAt(0, titles(m).indexOf("Levels")).toString()).isEqualTo("10–13");

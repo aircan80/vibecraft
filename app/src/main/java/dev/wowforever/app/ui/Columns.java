@@ -3,6 +3,7 @@ package dev.wowforever.app.ui;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
@@ -135,7 +136,8 @@ public final class Columns {
     return List.of(
         link("Name", InstanceSummary::displayName, i -> Optional.of(i.ref())),
         plain("Type", String.class, i -> contentTypeText(i.contentType())),
-        plain("Levels", Levels.class, i -> new Levels(i.levelMin(), i.levelMax())));
+        plain("Levels", Levels.class, i -> new Levels(i.levelMin(), i.levelMax())),
+        link("Zone", InstanceSummary::zoneName, i -> zoneRef(i.zoneId())));
   }
 
   public static List<Column<SearchHit>> searchHits() {
@@ -152,6 +154,15 @@ public final class Columns {
         link("Zone", DropSource::zoneName, d -> zoneRef(d.zoneId())),
         numeric("Drop %", d -> percentText(d.dropPct())),
         plain("Origin", String.class, DropSource::origin));
+  }
+
+  /** The AtlasLoot loot tables an item is in: the instance, the boss (linked to its NPC if any), slot and chance. */
+  public static List<Column<InstanceLoot>> instanceLoot() {
+    return List.of(
+        link("Instance", InstanceLoot::instanceDisplayName, l -> Optional.of(l.instance())),
+        link("Boss", InstanceLoot::bossDisplayName, InstanceLoot::bossNpc),
+        plain("Slot", Integer.class, InstanceLoot::slot),
+        numeric("Drop %", l -> percentText(l.dropPct())));
   }
 
   /** Objects, containers, vendors and quests linked to an item. */

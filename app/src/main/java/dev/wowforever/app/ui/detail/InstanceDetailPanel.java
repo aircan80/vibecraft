@@ -38,6 +38,10 @@ public final class InstanceDetailPanel extends JPanel {
     InstanceSummary s = d.summary();
     header = new HeaderPanel(s.displayName(), HeaderPanel.join("Instance #" + s.id(),
         Columns.contentTypeText(s.contentType()), HeaderPanel.levelText(s.levelMin(), s.levelMax())));
+    if (s.zoneId() != null) {
+      EntityRef zone = new EntityRef(EntityKind.ZONE, s.zoneId());
+      header.addLink(zone.displayName(s.zoneName()), zone, nav);
+    }
     bosses = new JList<>(d.bosses().toArray(BossSummary[]::new));
     bosses.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     bosses.setCellRenderer(new DefaultListCellRenderer() {

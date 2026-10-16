@@ -18,6 +18,15 @@ class InstanceRepositoryTest {
   }
 
   @Test
+  void instanceSummaryNamesItsZone() {
+    var rfc = repos.instances().detail(1).get().summary();
+    assertThat(rfc.zoneId()).isEqualTo(2437L);
+    assertThat(rfc.zoneName()).isEqualTo("Ragefire Chasm");
+    assertThat(repos.instances().all()).filteredOn(i -> i.id() == 1).singleElement()
+        .satisfies(i -> assertThat(i.zoneName()).isEqualTo("Ragefire Chasm"));
+  }
+
+  @Test
   void ragefireStartsWithTaragaman() {
     InstanceDetail rfc = repos.instances().detail(1).get();
     assertThat(rfc.summary().name()).isEqualTo("Ragefire Chasm");

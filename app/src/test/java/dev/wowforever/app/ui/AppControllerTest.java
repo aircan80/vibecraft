@@ -98,11 +98,13 @@ class AppControllerTest {
     AppController c = new AppController(repos, frameStub(), Runnable::run);
     c.open(new ViewTarget.ItemClass(4, -1));
     var model = view.results().model();
-    assertThat(model.getRowCount()).isEqualTo(repos.items().list(4, null, 500, 0).size()).isPositive();
+    int all = repos.items().list(4, null, null, 0).size();
+    assertThat(model.getRowCount()).isEqualTo(all).isPositive();
     for (int r = 0; r < model.getRowCount(); r++) {
       assertThat(((ItemSummary) model.rowAt(r)).className()).isEqualTo("Armor");
     }
-    assertThat(view.results().title()).startsWith("Armor (");
+    assertThat(view.results().title()).isEqualTo("Armor (" + all + ")");
+    assertThat(view.titleSuffix).isEqualTo("Armor");
   }
 
   @Test
@@ -118,10 +120,11 @@ class AppControllerTest {
   }
 
   @Test
-  void fullPageIsMarkedFirst500() {
-    assertThat(AppController.itemClassTitle("Weapon", 500)).isEqualTo("Weapon (first 500)");
-    assertThat(AppController.itemClassTitle("Weapon", 499)).isEqualTo("Weapon");
-    assertThat(AppController.ITEM_PAGE).isEqualTo(500);
+  void fullSearchPageIsMarkedFirstN() {
+    assertThat(AppController.cappedTitle("Search: a", 200, AppController.SEARCH_LIMIT))
+        .isEqualTo("Search: a (first 200)");
+    assertThat(AppController.cappedTitle("Search: a", 199, AppController.SEARCH_LIMIT)).isEqualTo("Search: a");
+    assertThat(AppController.cappedTitle("Armor", 9_575, 0)).isEqualTo("Armor");
   }
 
   @Test

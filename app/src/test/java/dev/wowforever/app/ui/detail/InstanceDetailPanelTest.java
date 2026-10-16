@@ -1,11 +1,14 @@
 package dev.wowforever.app.ui.detail;
 
 import static dev.wowforever.app.model.EntityKind.ITEM;
+import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
+import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
+import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.nav.ViewTarget;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +54,27 @@ class InstanceDetailPanelTest {
     p.lootPanel().table().activateRow(0);
     assertThat(opened).singleElement().isInstanceOfSatisfying(ViewTarget.Entity.class,
         e -> assertThat(e.ref().kind()).isEqualTo(ITEM));
+  }
+
+  @Test
+  void headerLinksTheInstanceZone() {
+    List<ViewTarget> opened = new ArrayList<>();
+    var p = new InstanceDetailPanel(repos.instances().detail(1).get(), repos, opened::add);
+    assertThat(p.header().subtitle()).isEqualTo("Instance #1 · Dungeon · Level 10–13 · Ragefire Chasm");
+    assertThat(p.header().links()).hasSize(1);
+    p.header().links().get(0).doClick();
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(ZONE, 2437)));
+  }
+
+  @Test
+  void headerWithoutZoneHasNoLinkAndUnnamedZoneHasAPlaceholder() {
+    var none = new InstanceDetailPanel(new InstanceDetail(
+        new InstanceSummary(9, "X", "RAID40", 60, 60, null, null), List.of()), repos, t -> {});
+    assertThat(none.header().subtitle()).isEqualTo("Instance #9 · Raid (40) · Level 60");
+    assertThat(none.header().links()).isEmpty();
+    var unnamed = new InstanceDetailPanel(new InstanceDetail(
+        new InstanceSummary(9, "X", "DUNGEON", null, null, 77L, null), List.of()), repos, t -> {});
+    assertThat(unnamed.header().subtitle()).isEqualTo("Instance #9 · Dungeon · Unknown zone #77");
   }
 
   @Test
