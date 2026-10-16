@@ -7,15 +7,8 @@ import org.junit.jupiter.api.Test;
 
 class LuaTableTest {
 
-  /** Builds {1,{2,'x'}} by hand; Task 4 may switch this to the evaluator. */
-  private static LuaTable nested(long inner, String s) {
-    var in = new LuaTable();
-    in.put(LuaNumber.of(1), LuaNumber.of(inner));
-    in.put(LuaNumber.of(2), new LuaString(s));
-    var t = new LuaTable();
-    t.put(LuaNumber.of(1), LuaNumber.of(1));
-    t.put(LuaNumber.of(2), in);
-    return t;
+  private static LuaValue parse(String src) {
+    return EvaluatorTest.eval(src, new Scope());
   }
 
   @Test
@@ -42,8 +35,8 @@ class LuaTableTest {
 
   @Test
   void deepEquals() {
-    assertThat(LuaValues.deepEquals(nested(2, "x"), nested(2, "x"))).isTrue();
-    assertThat(LuaValues.deepEquals(nested(2, "x"), nested(3, "x"))).isFalse();
+    assertThat(LuaValues.deepEquals(parse("{1,{2,'x'}}"), parse("{1,{2,'x'}}"))).isTrue();
+    assertThat(LuaValues.deepEquals(parse("{1,{2,'x'}}"), parse("{1,{3,'x'}}"))).isFalse();
   }
 
   @Test
