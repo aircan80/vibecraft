@@ -54,6 +54,47 @@ Calls made by the author on the owner's behalf (check these):
    items (values read by a human from the game or Wowhead's Forever pages and typed into a test
    file; no scraping). Items whose computed tooltip does not match the fixture fail the build.
 
+### Rulings after the builder check (author's calls, 2026-10-16)
+
+10. **Oracle for the known-items gate:** wow.tools.local's `/dbc/tooltip/item/{id}` rendered
+    against the local install is the reference. The implementer generates
+    `known-items.csv` from it for ~25 items (one per category in §4.4) and records which
+    tooltip categories the pipeline implements; `KnownItemsTest` compares only implemented
+    categories and lists skipped ones. A category that cannot be matched is dropped from the
+    fixture's compared set *and* counted as `clientdata.unverified.<category>`; the build does
+    not fail for it, but the shipped-data test asserts the counter is reported. The owner may
+    replace any fixture value with one read in-game. Hotfixes are included because the oracle
+    and the CSVs both come from the local client (DBCache); the owner should log into the beta
+    once before a data refresh so the cache is current.
+11. **Coverage definition:** `has_client_data = 1` means an `ItemSparse` row exists (stats,
+    quality, tooltip). Items with only an `Item` row get icon and class but
+    `has_client_data = 0`. The gate is **≥ 85 %** of named items having `ItemSparse` data
+    (measured today: at most ~90 %), and the import report lists the unmatched ids by id range so
+    the gap can be understood. Client-only items (in the client, not in Questie) are **not**
+    added in this phase; only icons used by Questie items are embedded.
+12. **Which build:** the shipped data in 2A comes from the only Forever build available locally,
+    `wow_classic_beta`; `wowf` becomes the source as soon as the owner installs it (one re-run,
+    no code change). Regenerating the shipped database is the last task of plan 2A and runs on
+    the owner's machine through wow.tools.local (needs the .NET runtime; install it the same
+    way the JDK was) with wago.tools as the fallback for the same build.
+13. **Map alignment:** Questie's Forever spawn coordinates were converted into Forever map
+    space per UiMap (`data/Forever/conversion.json`), so pins use Questie's own area → UiMap
+    mapping (`support/Forever/Zones/areaIdToUiMapId.lua`, already cached) rather than
+    `UiMapAssignment`, and the map image is the UiMap art those percentages refer to, cropped
+    to the style's 1002×668 layer. Acceptance: five landmark spawns (e.g. Sentinel Hill's flight
+    master in Westfall, Hogger in Elwynn) land on their landmarks within ~2 % in a scripted
+    screenshot; a per-zone transform is out of scope unless that check fails.
+14. **Item field conflicts:** when an `ItemSparse` row exists, the client's name, item level,
+    required level and class/subclass replace Questie's in `item` and the search index; the
+    Questie values are kept in `item_alt_value(item_id, field, source, value)` only when they
+    differ, and the conflict report lists the 50 most-changed names. No UI marker for item
+    fields in this phase.
+15. **Boss loot gets the same provenance:** `boss_loot` gains `disagrees` and `source_count`,
+    fed from the same `drop_rate_source(npc_id, item_id, …)` rows.
+16. **Maps are stored once per UiMap:** `zone_map(ui_map_id PRIMARY KEY, width, height, jpeg)`
+    and `zone` gains `ui_map_id` (nullable; sub-zones resolve through their parent at import
+    time). Shipped maps stay ~51 images.
+
 ## 3. Goals, non-goals, anti-goals
 
 ### Goals
@@ -145,9 +186,12 @@ item_set_item(set_id, item_id)
 item_set_bonus(set_id, threshold, spell_id, text)
 item_tooltip_line(item_id, ordinal, kind TEXT, text TEXT, colour TEXT)   -- the rendered tooltip, in game order; kinds: name, binding, unique, begins_quest, slot, damage, speed, dps, armor, block, stat, resist, durability, req_class, req_race, req_level, req_skill, req_rep, use, equip, proc, set_name, set_item, set_bonus, charges, duration, flavour, item_level, sell_price
 icon(id INTEGER PRIMARY KEY, png BLOB)                       -- 56×56 RGBA PNG; id 0 is the question-mark fallback
-zone_map(zone_id INTEGER PRIMARY KEY, ui_map_id, width, height, jpeg BLOB)   -- 1002×668 fully revealed
+zone ADD COLUMN: ui_map_id INTEGER NULL                      -- resolved via Questie's areaIdToUiMapId, parent fallback
+zone_map(ui_map_id INTEGER PRIMARY KEY, width, height, jpeg BLOB)   -- 1002×668 fully revealed, one per UiMap
+item_alt_value(item_id, field TEXT, source TEXT, value TEXT)  -- Questie values replaced by client values (ruling 14)
 drop_rate_source(npc_id, item_id, source TEXT, pct REAL, PRIMARY KEY(npc_id, item_id, source))
 item_npc_drop ADD COLUMNS: disagrees INTEGER NOT NULL DEFAULT 0, source_count INTEGER NOT NULL DEFAULT 0
+boss_loot ADD COLUMNS: disagrees INTEGER NOT NULL DEFAULT 0, source_count INTEGER NOT NULL DEFAULT 0
 meta ADD KEYS: client_product, client_build, client_fetched_at, client_item_count, icon_count, zone_map_count
 ```
 `item_tooltip_line` is the contract with the UI: 2B's card renders lines, it does not recompute.
@@ -203,9 +247,12 @@ a table of 30 real descriptions from the fixture spells with expected output.
   `clientdata.items.matched/unmatched`, `clientdata.icons`, `clientdata.maps`, plus the
   unverified/unformatted counters above. `--fail-on-unsupported` also fails when
   `clientdata.items.matched` is below 90 % of items with a `name`.
-- Zone id mapping: Questie zone ids are AreaTable ids; `UiMapAssignment.AreaID` resolves them.
-  Sub-zones without their own map inherit the parent's map (`zone_map` row per Questie zone id
-  that resolves, directly or via parent) with the same image.
+- Zone id mapping: Questie zone ids are AreaTable ids; Questie's own
+  `support/Forever/Zones/areaIdToUiMapId.lua` (cached) resolves them to the UiMap its
+  coordinates refer to (ruling 13); `UiMapAssignment` is the fallback for ids Questie does not
+  list. Sub-zones without a mapping inherit the parent's `ui_map_id`.
+- Source URL: `--base-url` defaults to `http://localhost:8080` (wow.tools.local) and accepts
+  `https://wago.tools` (ruling 12); the same endpoint paths serve both.
 
 ### 4.8 Tests (2A)
 - Python: pytest for BLP decode on a 4×4 synthetic DXT1/DXT5 BLP, tile stitching + overlay
