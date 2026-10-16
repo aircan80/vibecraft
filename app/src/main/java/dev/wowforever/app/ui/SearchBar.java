@@ -1,79 +1,159 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.db.SearchRepository;
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.widgets.KindChips;
+import dev.wowforever.app.ui.widgets.ListEntry;
+import dev.wowforever.app.ui.widgets.MasterList;
+import dev.wowforever.app.ui.widgets.SearchDropdown;
 import java.awt.BorderLayout;
+import java.awt.Toolkit;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
-import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * The search box and kind filter. Typing searches after a {@value #DEBOUNCE_MILLIS} ms pause; Enter or a kind
- * change searches at once. Blank text never searches.
+ * The search box with type-ahead, kind chips, recent searches and paste parsing. Typing looks up the top hits and
+ * the per-kind counts on the worker {@value #DEBOUNCE_MILLIS} ms after the last keystroke and shows them in the
+ * {@link SearchDropdown} (a lookup that newer text has overtaken is dropped); the focused empty box shows the recent
+ * searches. Enter opens the chosen or top hit, or runs the full search when there is none (or the text changed
+ * since the hits came); Shift+Enter and "Show all" run the full search. A kind chip filters the dropdown and the
+ * full search, and re-runs the search at once while the dropdown is closed. Pasting a link, item string, Wowhead
+ * URL or bare number over the whole text opens that page; pasting {@code [Name]} searches for the name
+ * ({@link PasteParser}). Every search that runs, and the text of every hit opened, goes to the recent searches.
  */
 public final class SearchBar extends JPanel {
   public static final int DEBOUNCE_MILLIS = 250;
-  private static final String[] KIND_LABELS = {"All", "Items", "NPCs", "Objects", "Quests", "Zones",
-      "Dungeons & Raids"};
-  private static final EntityKind[] KINDS = {null, EntityKind.ITEM, EntityKind.NPC, EntityKind.OBJECT,
-      EntityKind.QUEST, EntityKind.ZONE, EntityKind.INSTANCE};
+  private static final Logger LOG = LoggerFactory.getLogger(SearchBar.class);
 
-  private final Consumer<ViewTarget.Search> onSearch;
-  private final JTextField text = new JTextField(32);
-  private final JComboBox<String> kind = new JComboBox<>(KIND_LABELS);
-  private final Timer debounce;
-
-  public SearchBar(Consumer<ViewTarget.Search> onSearch) {
-    this(onSearch, DEBOUNCE_MILLIS);
+  /** What a type-ahead lookup found: the best hits, and how many hits each kind has. */
+  public record Lookup(List<SearchHit> hits, Map<EntityKind, Integer> counts) {
+    public Lookup {
+      hits = List.copyOf(hits);
+      counts = Map.copyOf(counts);
+    }
   }
 
-  SearchBar(Consumer<ViewTarget.Search> onSearch, int debounceMillis) {
+  /** Looks up type-ahead hits; called on the worker. */
+  @FunctionalInterface
+  public interface Source {
+    Lookup lookup(String text, Optional<EntityKind> kind);
+
+    /** The top {@value SearchDropdown#MAX_HITS} hits of {@code repo} and its per-kind counts. */
+    static Source of(SearchRepository repo) {
+      return (text, kind) -> new Lookup(repo.search(text, kind, SearchDropdown.MAX_HITS), repo.countsByKind(text));
+    }
+  }
+
+  private final Consumer<ViewTarget> onOpen;
+  private final UiState state;
+  private final MasterList.Delay delay;
+  private final SearchDropdown dropdown;
+  private final KindChips chips = new KindChips();
+  private final JTextField text = new JTextField(32) {
+    @Override
+    public void paste() {
+      if (isEditable() && isEnabled()) {
+        String clip = clipboardText();
+        if (clip != null && pasteIntercepted(clip)) {
+          return;
+        }
+      }
+      super.paste();
+    }
+  };
+  private Source source;
+  private Executor worker;
+  /** Bumped by every text change and lookup, so only the newest lookup's result is shown. */
+  private int generation;
+  private boolean focused;
+  /** Set while the text is changed by code (a recent search or a pasted name), which then searches at once. */
+  private boolean quiet;
+
+  /** A search bar that opens what the user picks through {@code onOpen} and keeps recent searches in {@code state}. */
+  public SearchBar(Consumer<ViewTarget> onOpen, UiState state) {
+    this(onOpen, state, MasterList.timerDelay(DEBOUNCE_MILLIS), new SearchDropdown());
+  }
+
+  SearchBar(Consumer<ViewTarget> onOpen, UiState state, MasterList.Delay delay, SearchDropdown dropdown) {
     super(new BorderLayout(6, 0));
-    this.onSearch = Objects.requireNonNull(onSearch, "onSearch");
-    debounce = new Timer(debounceMillis, e -> fire());
-    debounce.setRepeats(false);
+    this.onOpen = Objects.requireNonNull(onOpen, "onOpen");
+    this.state = Objects.requireNonNull(state, "state");
+    this.delay = Objects.requireNonNull(delay, "delay");
+    this.dropdown = Objects.requireNonNull(dropdown, "dropdown");
     text.putClientProperty("JTextField.placeholderText", "Search items, NPCs, quests, zones… (Ctrl+F)");
     text.putClientProperty("JTextField.showClearButton", true);
     text.getDocument().addDocumentListener(new DocumentListener() {
       @Override
       public void insertUpdate(DocumentEvent e) {
-        debounce.restart();
+        textChanged();
       }
 
       @Override
       public void removeUpdate(DocumentEvent e) {
-        debounce.restart();
+        textChanged();
       }
 
       @Override
       public void changedUpdate(DocumentEvent e) {
-        debounce.restart();
+        textChanged();
       }
     });
-    text.addActionListener(e -> fire());
-    kind.addActionListener(e -> fire());
+    text.addFocusListener(new FocusAdapter() {
+      @Override
+      public void focusGained(FocusEvent e) {
+        focusChanged(true);
+      }
+
+      @Override
+      public void focusLost(FocusEvent e) {
+        focusChanged(false);
+      }
+    });
+    dropdown.install(text, new SearchDropdown.Listener() {
+      @Override
+      public void open(ListEntry hit) {
+        openTarget(new ViewTarget.Entity(hit.ref()));
+      }
+
+      @Override
+      public void showAll() {
+        commit();
+      }
+
+      @Override
+      public void searchRecent(String recent) {
+        setTextQuietly(recent);
+        commit();
+      }
+    });
+    chips.onSelect(kind -> kindChanged());
     setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
     add(new JLabel("Search:"), BorderLayout.WEST);
     add(text, BorderLayout.CENTER);
-    add(kind, BorderLayout.EAST);
+    add(chips, BorderLayout.EAST);
   }
 
-  /** Searches now for the current text and kind (cancelling a pending debounce); blank text does nothing. */
-  void fire() {
-    debounce.stop();
-    String query = text.getText().strip();
-    if (query.isEmpty()) {
-      return;
-    }
-    onSearch.accept(new ViewTarget.Search(query, Optional.ofNullable(KINDS[kind.getSelectedIndex()])));
+  /** Starts type-ahead: lookups go to {@code source} on {@code worker}. Until then typing looks nothing up. */
+  public void attach(Source source, Executor worker) {
+    this.source = Objects.requireNonNull(source, "source");
+    this.worker = Objects.requireNonNull(worker, "worker");
   }
 
   /** Moves the keyboard focus to the search box and selects its text. */
@@ -86,18 +166,154 @@ public final class SearchBar extends JPanel {
   public void setEnabled(boolean enabled) {
     super.setEnabled(enabled);
     text.setEnabled(enabled);
-    kind.setEnabled(enabled);
+    chips.setEnabled(enabled);
   }
 
   public JTextField textField() {
     return text;
   }
 
-  public JComboBox<String> kindCombo() {
-    return kind;
+  public KindChips kindChips() {
+    return chips;
   }
 
-  boolean debounceRunning() {
-    return debounce.isRunning();
+  /** Whether the search box has the focus changed: the empty focused box shows recents; leaving it closes the list. */
+  void focusChanged(boolean hasFocus) {
+    focused = hasFocus;
+    if (!hasFocus) {
+      dropdown.hide();
+    } else if (query().isEmpty()) {
+      dropdown.showRecents(state.recentSearches());
+    }
+  }
+
+  /**
+   * Handles pasting {@code clip}: when it replaces the whole text and {@link PasteParser} reads it, opens its page
+   * or searches for its name and returns true; otherwise returns false for an ordinary paste.
+   */
+  boolean pasteIntercepted(String clip) {
+    boolean replacesAll = text.getSelectionStart() == 0
+        && text.getSelectionEnd() == text.getDocument().getLength();
+    Optional<ViewTarget> target = replacesAll ? PasteParser.parse(clip) : Optional.empty();
+    if (target.isEmpty()) {
+      return false;
+    }
+    if (target.get() instanceof ViewTarget.Search s) {
+      setTextQuietly(s.text());
+      commit();
+    } else {
+      stop();
+      onOpen.accept(target.get());
+    }
+    return true;
+  }
+
+  private void textChanged() {
+    generation++;
+    delay.cancel();
+    dropdown.markStale();
+    if (quiet) {
+      return;
+    }
+    if (query().isEmpty()) {
+      chips.clearCounts();
+      if (focused) {
+        dropdown.showRecents(state.recentSearches());
+      } else {
+        dropdown.hide();
+      }
+    } else {
+      delay.schedule(this::lookUp);
+    }
+  }
+
+  private void kindChanged() {
+    if (query().isEmpty()) {
+      return;
+    }
+    if (dropdown.isShowing()) {
+      delay.cancel();
+      lookUp();
+    } else {
+      commit();
+    }
+  }
+
+  /** Looks up hits and counts for the current text and kind on the worker; shows them if nothing overtook them. */
+  private void lookUp() {
+    String q = query();
+    if (source == null || q.isEmpty()) {
+      return;
+    }
+    Optional<EntityKind> kind = chips.selected();
+    Source s = source;
+    int lookup = ++generation;
+    Async.run(worker, () -> s.lookup(q, kind), found -> {
+      if (lookup == generation) {
+        show(found, kind);
+      }
+    }, e -> {
+      if (lookup == generation) {
+        LOG.warn("Type-ahead for {} failed", q, e);
+      }
+    });
+  }
+
+  private void show(Lookup found, Optional<EntityKind> kind) {
+    chips.setCounts(found.counts());
+    if (focused) {
+      int total = kind.map(k -> found.counts().getOrDefault(k, 0))
+          .orElseGet(() -> found.counts().values().stream().mapToInt(Integer::intValue).sum());
+      dropdown.showHits(found.hits().stream().map(AppController::entry).toList(), total);
+    }
+  }
+
+  /** Runs the full search for the text and the selected kind; blank text does nothing. */
+  private void commit() {
+    stop();
+    String q = query();
+    if (q.isEmpty()) {
+      return;
+    }
+    state.addRecentSearch(q);
+    onOpen.accept(new ViewTarget.Search(q, chips.selected()));
+  }
+
+  /** Opens {@code target}, a hit picked for the text, which goes to the recent searches. */
+  private void openTarget(ViewTarget target) {
+    stop();
+    String q = query();
+    if (!q.isEmpty()) {
+      state.addRecentSearch(q);
+    }
+    onOpen.accept(target);
+  }
+
+  /** Drops the pending and running lookups and closes the list. */
+  private void stop() {
+    delay.cancel();
+    generation++;
+    dropdown.hide();
+  }
+
+  private void setTextQuietly(String s) {
+    quiet = true;
+    try {
+      text.setText(s);
+    } finally {
+      quiet = false;
+    }
+  }
+
+  private String query() {
+    return text.getText().strip();
+  }
+
+  private static String clipboardText() {
+    try {
+      return (String) Toolkit.getDefaultToolkit().getSystemClipboard().getData(DataFlavor.stringFlavor);
+    } catch (Exception e) { // no text on the clipboard, the clipboard busy, or no clipboard at all
+      return null;
+    }
   }
 }

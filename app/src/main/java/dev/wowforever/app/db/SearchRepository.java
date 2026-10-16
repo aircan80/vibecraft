@@ -7,6 +7,7 @@ import dev.wowforever.app.ui.Labels;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -81,6 +82,16 @@ public final class SearchRepository {
                s.score, s.name, s.kind, s.id
       LIMIT ?""";
 
+  /**
+   * How many hits each kind has for a MATCH text: rows as in {@link #SQL}, items, NPCs, objects and quests counted
+   * once per name (as {@link #collapse} folds them), instances and zones once each.
+   */
+  private static final String COUNTS_SQL = """
+      SELECT kind, CASE WHEN kind IN ('instance', 'zone') THEN count(*) ELSE count(DISTINCT name) END AS hits
+      FROM search_index
+      WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%'
+      GROUP BY kind""";
+
   private final Database db;
 
   public SearchRepository(Database db) {
@@ -116,6 +127,31 @@ public final class SearchRepository {
     } catch (Database.QueryException e) {
       LOG.warn("Search for {} failed: {}", match, e.getMessage());
       return List.of();
+    }
+  }
+
+  /**
+   * How many hits {@link #search} would find for {@code text} with each kind as its filter: the same matching,
+   * items, NPCs, objects and quests of one name counted once, every instance and zone on its own. Kinds without a
+   * hit are absent; blank text (or text without any letter or digit) gives an empty map, and so does a failed query.
+   */
+  public Map<EntityKind, Integer> countsByKind(String text) {
+    String match = matchExpression(text);
+    if (match.isEmpty()) {
+      return Map.of();
+    }
+    try {
+      record Count(String kind, int hits) {}
+      List<Count> rows = db.read(c -> Sql.list(c, COUNTS_SQL,
+          rs -> new Count(rs.getString("kind"), rs.getInt("hits")), match));
+      Map<EntityKind, Integer> counts = new EnumMap<>(EntityKind.class);
+      for (Count row : rows) {
+        EntityKind.fromDbKind(row.kind()).filter(k -> row.hits() > 0).ifPresent(k -> counts.put(k, row.hits()));
+      }
+      return counts;
+    } catch (Database.QueryException e) {
+      LOG.warn("Counting hits for {} failed: {}", match, e.getMessage());
+      return Map.of();
     }
   }
 

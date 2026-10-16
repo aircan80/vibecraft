@@ -197,6 +197,16 @@ public final class AppController implements Navigator {
     return history.current().orElse(null);
   }
 
+  /** The repositories this controller reads. */
+  public Repositories repos() {
+    return repos;
+  }
+
+  /** The executor every repository call runs on. */
+  public Executor worker() {
+    return worker;
+  }
+
   /** The database meta values this controller was given. */
   public Map<String, String> meta() {
     return meta;
@@ -339,7 +349,8 @@ public final class AppController implements Navigator {
     return rows.stream().map(toEntry).toList();
   }
 
-  private static ListEntry entry(SearchHit h) {
+  /** {@code h} as a list row: its name over its subtitle, with the count of hits it stands for. */
+  static ListEntry entry(SearchHit h) {
     return new ListEntry(h.ref(), h.displayName(), Labels.withCount(h.subtitle(), h.count()), null, null);
   }
 

@@ -51,6 +51,7 @@ public final class MainFrame extends JFrame implements MainView {
   private final MasterList list = new MasterList();
   private final StatusBar status = new StatusBar();
   private final JPanel detailHolder = new JPanel(new BorderLayout());
+  private final UiState uiState = UiState.load();
   private final JPanel content;
   private AppController controller;
 
@@ -60,7 +61,7 @@ public final class MainFrame extends JFrame implements MainView {
       if (controller != null) {
         controller.open(t);
       }
-    });
+    }, uiState);
     rail.onSelect(t -> {
       if (controller != null) {
         controller.open(AppController.target(t));
@@ -79,7 +80,7 @@ public final class MainFrame extends JFrame implements MainView {
     toolbar.add(forward);
     toolbar.add(searchBar);
 
-    content = buildContent(toolbar, rail, list, detailHolder, status, UiState.load());
+    content = buildContent(toolbar, rail, list, detailHolder, status, uiState);
     setContentPane(content);
     setJMenuBar(menuBar());
     bindKeys();
@@ -138,10 +139,11 @@ public final class MainFrame extends JFrame implements MainView {
     split.repaint();
   }
 
-  /** Wires in the controller once the database is open, and enables searching. */
+  /** Wires in the controller once the database is open, and enables searching and type-ahead. */
   public void attach(AppController controller) {
     this.controller = controller;
     MouseNavigation.install(controller, content);
+    searchBar.attach(SearchBar.Source.of(controller.repos().search()), controller.worker());
     searchBar.setEnabled(true);
   }
 

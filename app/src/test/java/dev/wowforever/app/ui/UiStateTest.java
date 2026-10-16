@@ -3,6 +3,7 @@ package dev.wowforever.app.ui;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.formdev.flatlaf.util.UIScale;
+import java.util.stream.IntStream;
 import java.util.UUID;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
@@ -40,5 +41,36 @@ class UiStateTest {
     state.setDividerLocation(0);
     state.setDividerLocation(-1);
     assertThat(state.dividerLocation()).isEqualTo(350);
+  }
+
+  @Test
+  void recentSearchesStartEmpty() {
+    assertThat(new UiState(node).recentSearches()).isEmpty();
+  }
+
+  @Test
+  void recentSearchesAreMostRecentFirstTrimmedAndDeduplicated() {
+    UiState state = new UiState(node);
+    state.addRecentSearch(" hogger ");
+    state.addRecentSearch("deadmines");
+    state.addRecentSearch("  ");
+    state.addRecentSearch(null);
+    state.addRecentSearch("Hogger");
+    assertThat(new UiState(node).recentSearches()).containsExactly("Hogger", "deadmines");
+  }
+
+  @Test
+  void recentSearchesKeepTheLastTen() {
+    UiState state = new UiState(node);
+    IntStream.rangeClosed(1, 12).forEach(i -> state.addRecentSearch("search " + i));
+    assertThat(state.recentSearches()).hasSize(UiState.RECENT_SEARCHES).first().isEqualTo("search 12");
+    assertThat(state.recentSearches()).last().isEqualTo("search 3");
+  }
+
+  @Test
+  void recentSearchKeepsApostrophesAndFoldsLineBreaks() {
+    UiState state = new UiState(node);
+    state.addRecentSearch("Captain Sanders' Hidden\nTreasure");
+    assertThat(state.recentSearches()).containsExactly("Captain Sanders' Hidden Treasure");
   }
 }
