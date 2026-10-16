@@ -163,14 +163,15 @@ public final class ItemPage extends JPanel {
     return scroll;
   }
 
-  /** The header: name, then "Item #id · class · subclass · iLvl · Requires", then a starts-quest link. */
+  /**
+   * The header: name, then "Item #id" and {@link Labels#itemSubtitle} ("Cloth · iLvl 18 · Req 13", no item or
+   * required level of 1 or below), then a starts-quest link.
+   */
   private static final class ItemHeader {
     static HeaderPanel of(ItemDetail d, Navigator nav) {
       ItemSummary s = d.summary();
-      HeaderPanel header = new HeaderPanel(s.displayName(), Labels.join("Item #" + s.id(), s.className(),
-          s.subclassName() != null && s.subclassName().equals(s.className()) ? null : s.subclassName(),
-          s.itemLevel() == null ? null : "iLvl " + s.itemLevel(),
-          s.requiredLevel() == null || s.requiredLevel() <= 0 ? null : "Requires " + s.requiredLevel()));
+      HeaderPanel header = new HeaderPanel(s.displayName(), Labels.join("Item #" + s.id(),
+          Labels.itemSubtitle(s.className(), s.subclassName(), s.itemLevel(), s.requiredLevel())));
       header.setAlignmentX(LEFT_ALIGNMENT);
       if (d.startQuestId() != null) {
         EntityRef quest = new EntityRef(EntityKind.QUEST, d.startQuestId());

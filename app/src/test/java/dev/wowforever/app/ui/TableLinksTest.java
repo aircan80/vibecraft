@@ -24,12 +24,12 @@ class TableLinksTest {
   private static final int ZONE_COLUMN = 2; // link column
 
   private final List<ViewTarget> opened = new ArrayList<>();
-  private final LinkTable<DropSource> linkTable = new LinkTable<>(Columns.dropSources(), opened::add);
+  private final LinkTable<DropRow> linkTable = new LinkTable<>(Columns.dropSourcesRanked(), opened::add);
   private final JTable table = linkTable.table();
 
   TableLinksTest() {
-    linkTable.setRows(List.of(
-        new DropSource(new EntityRef(NPC, 7), "Boss", 30, 31, "Ragefire Chasm", 2437L, 5.0, "questie", "both")));
+    linkTable.setRows(List.of(new DropRow.Source(
+        new DropSource(new EntityRef(NPC, 7), "Boss", 30, 31, "Ragefire Chasm", 2437L, 5.0, "questie", "both"))));
   }
 
   private Point centre(int row, int col) {

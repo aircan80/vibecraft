@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.widgets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Color;
 import java.awt.Graphics2D;
@@ -47,12 +48,14 @@ class RateBarRendererTest {
   @Test
   void paintsTheBarInTheBandColourRightOfTheNumber() {
     RateBarRenderer r = render(30.0);
-    r.setSize(140, 20);
+    int w = UIScale.scale(140);
+    int h = UIScale.scale(20);
+    r.setSize(w, h);
     Rectangle track = r.barTrack();
-    assertThat(track.width).isEqualTo(48);
-    assertThat(track.height).isEqualTo(10);
-    assertThat(track.x + track.width).isLessThanOrEqualTo(140);
-    BufferedImage img = new BufferedImage(140, 20, BufferedImage.TYPE_INT_RGB);
+    assertThat(track.width).isEqualTo(UIScale.scale(48));
+    assertThat(track.height).isEqualTo(UIScale.scale(10));
+    assertThat(track.x + track.width).isLessThanOrEqualTo(w);
+    BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
     Graphics2D g = img.createGraphics();
     r.paint(g);
     g.dispose();
@@ -64,6 +67,6 @@ class RateBarRendererTest {
     TableColumn column = new TableColumn(0);
     RateBarRenderer.install(column);
     assertThat(column.getCellRenderer()).isInstanceOf(RateBarRenderer.class);
-    assertThat(column.getPreferredWidth()).isEqualTo(RateBarRenderer.COLUMN_WIDTH);
+    assertThat(column.getPreferredWidth()).isEqualTo(UIScale.scale(RateBarRenderer.COLUMN_WIDTH));
   }
 }

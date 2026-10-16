@@ -207,7 +207,8 @@ public final class Labels {
     return level != null && level > 1;
   }
 
-  private static Integer positive(Integer level) {
+  /** A level, or null when unknown (null, 0 or below). */
+  static Integer positive(Integer level) {
     return level != null && level > 0 ? level : null;
   }
 

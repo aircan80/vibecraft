@@ -41,7 +41,8 @@ public sealed interface DropRow {
 
   /**
    * The NPCs with a known rate, highest first (ties by name), then a {@link Divider} and the NPCs whose rate is
-   * unknown, by name; no divider when every rate is known.
+   * unknown, by name. The divider only separates two groups: there is none when every rate is known or every
+   * rate is unknown.
    */
   static List<DropRow> ranked(List<DropSource> sources) {
     Comparator<DropSource> byName = Comparator.comparing(DropSource::displayName, String.CASE_INSENSITIVE_ORDER);
@@ -50,10 +51,10 @@ public sealed interface DropRow {
         .sorted(Comparator.comparing(DropSource::dropPct, Comparator.reverseOrder()).thenComparing(byName))
         .forEach(s -> rows.add(new Source(s)));
     List<DropSource> unknown = sources.stream().filter(s -> s.dropPct() == null).sorted(byName).toList();
-    if (!unknown.isEmpty()) {
+    if (!unknown.isEmpty() && !rows.isEmpty()) {
       rows.add(new Divider(unknown.size()));
-      unknown.forEach(s -> rows.add(new Source(s)));
     }
+    unknown.forEach(s -> rows.add(new Source(s)));
     return List.copyOf(rows);
   }
 }

@@ -145,16 +145,6 @@ public final class Columns {
         plain("Details", String.class, SearchHit::subtitle));
   }
 
-  /** The NPCs that drop an item: source, level, zone, drop chance and data origin. */
-  public static List<Column<DropSource>> dropSources() {
-    return List.of(
-        link("Source", DropSource::displayName, d -> Optional.of(d.ref())),
-        plain("Level", Levels.class, d -> new Levels(d.levelMin(), d.levelMax())),
-        link("Zone", DropSource::zoneName, d -> zoneRef(d.zoneId())),
-        numeric("Drop %", d -> percentText(d.dropPct())),
-        plain("Origin", String.class, DropSource::origin));
-  }
-
   /**
    * The ranked drop table of the item page ({@link DropRow#ranked}): source, level, zone, rate (a {@link Double},
    * null when unknown) and data origin. The divider row shows its text in the Source column and links nowhere.
@@ -163,8 +153,8 @@ public final class Columns {
     return List.of(
         link("Source", r -> r instanceof DropRow.Divider d ? d.text() : r.drop().orElseThrow().displayName(),
             r -> r.drop().map(DropSource::ref)),
-        plain("Level", Levels.class, r -> r.drop().map(s -> new Levels(positive(s.levelMin()),
-            positive(s.levelMax()))).orElse(null)),
+        plain("Level", Levels.class, r -> r.drop().map(s -> new Levels(Labels.positive(s.levelMin()),
+            Labels.positive(s.levelMax()))).orElse(null)),
         link("Zone", r -> r.drop().map(DropSource::zoneName).orElse(null),
             r -> r.drop().flatMap(s -> zoneRef(s.zoneId()))),
         plain("Rate", Double.class, r -> r.drop().map(DropSource::dropPct).orElse(null)),
@@ -276,11 +266,6 @@ public final class Columns {
       case 4 -> "Rare";
       default -> "Rank " + rank;
     };
-  }
-
-  /** A level, or null when unknown (null, 0 or below). */
-  private static Integer positive(Integer level) {
-    return level != null && level > 0 ? level : null;
   }
 
   private static Optional<EntityRef> zoneRef(Long zoneId) {

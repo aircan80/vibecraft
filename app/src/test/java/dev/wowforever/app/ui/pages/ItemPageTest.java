@@ -180,9 +180,9 @@ class ItemPageTest {
   }
 
   @Test
-  void unknownNpcRendersPlaceholderUnderTheDivider() {
+  void unknownNpcRendersPlaceholderWithoutADividerWhenNoRateIsKnown() {
     var p = new ItemPage(repos.items().detail(190179).get(), t -> {});
-    assertThat(column(p.droppedBy().table(), 0)).containsExactly("Rate unknown (1)", "Unknown NPC #185333");
+    assertThat(column(p.droppedBy().table(), 0)).containsExactly("Unknown NPC #185333");
   }
 
   @Test
@@ -234,10 +234,13 @@ class ItemPageTest {
   }
 
   @Test
-  void jumpingToADividerLedTableSelectsTheFirstSource() {
-    var p = new ItemPage(repos.items().detail(190179).get(), t -> {});
+  void allUnknownRatesHaveNoDividerAndJumpSelectsTheFirstSource() {
+    var p = new ItemPage(drops(drop(1, "Zed", null, "questie"), drop(3, "Abe", null, "questie")), t -> {});
+    JTable t = p.droppedBy().table();
+    assertThat(column(t, 0)).containsExactly("Abe", "Zed");
     press(p, KeyStroke.getKeyStroke(KeyEvent.VK_1, InputEvent.CTRL_DOWN_MASK));
-    assertThat(p.droppedBy().table().getSelectedRow()).isEqualTo(1);
+    assertThat(t.getSelectedRow()).isZero();
+    assertThat(p.droppedBy().model().rowAt(0)).isInstanceOf(DropRow.Source.class);
   }
 
   /** Lays out the whole tree top-down; headless components have no peer, so {@code validate()} does nothing. */
@@ -265,14 +268,15 @@ class ItemPageTest {
   void headerKeepsNameFactsAndStartsQuestLink() {
     var p = new ItemPage(repos.items().detail(14149).get(), t -> {});
     assertThat(p.header().title()).isEqualTo("Subterranean Cape");
-    assertThat(p.header().subtitle()).isEqualTo("Item #14149 · Armor · Cloth · iLvl 18 · Requires 13");
+    assertThat(p.header().subtitle()).isEqualTo("Item #14149 · Cloth · iLvl 18 · Req 13");
     EntityRef quest = new EntityRef(QUEST, 373);
     ItemDetail d = new ItemDetail(new ItemSummary(2874, "An Unsent Letter", 1, null, "Quest", "Quest", 1), 12, 0,
         373L, List.of(), List.of(), List.of(), List.of(), List.of(), List.of(),
         List.of(new ItemSource(ItemSource.RELATED, quest, "The Unsent Letter")));
     List<ViewTarget> opened = new ArrayList<>();
     var q = new ItemPage(d, opened::add);
-    assertThat(q.header().subtitle()).isEqualTo("Item #2874 · Quest · iLvl 1 · Starts quest: The Unsent Letter");
+    // a quest item of item level 1 shows no item level (never "iLvl 1")
+    assertThat(q.header().subtitle()).isEqualTo("Item #2874 · Quest · Starts quest: The Unsent Letter");
     q.header().links().get(0).doClick();
     assertThat(opened).containsExactly(new ViewTarget.Entity(quest));
   }
