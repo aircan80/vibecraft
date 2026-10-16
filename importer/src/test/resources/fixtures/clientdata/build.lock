@@ -27,6 +27,7 @@
     "ItemSet": "9180aa9bd764bdeb08defd2c66358c23ee71c776c1552bf501c376c63e230979",
     "ItemSetSpell": "adbb74f770e08199e42b4b95f7e43d804d511c3dd925b11fbf18db641c849524",
     "ItemSparse": "99e6d1df9055591cb39b42d3c352728591ee60ea99a32428136d7121eef436bc",
+    "ItemSparse.era": "fe5ee066283ded4253f3b8092f74d3cab17f31d675b3315288dafc9a1cca7d5e",
     "ItemSubClass": "b780c3fd8b6ef227c31164f42db2ee8ba94454461fa858b8590c98a1929e6c6f",
     "ItemXItemEffect": "399dfdee2d68f96178a2108b51c7bae7efb850e6bb2a39f678411eb092370493",
     "Map": "63e3681e1d37c2860ed4744511201121dd1391b8351ecb97d41ece33dc7b4f24",
@@ -48,5 +49,7 @@
     "WorldMapOverlayTile": "31d8b8c4cae7a1afd312f13a74ba75a461042e00b6e69e2b63809ce9809df02f"
   },
   "file_count": 34,
-  "missing_count": 0
+  "missing_count": 0,
+  "fallback_product": "wow_classic_era",
+  "fallback_build": "1.15.9.70003"
 }

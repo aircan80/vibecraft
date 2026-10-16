@@ -42,7 +42,14 @@ public final class ClientDataSource {
     return dir;
   }
 
-  /** @throws IllegalStateException when {@code build.lock} is missing or malformed */
+  /**
+   * The build lock, read once.
+   *
+   * @throws IllegalStateException when {@code build.lock} is missing or malformed, or when
+   *     {@code csv/ItemSparse.era.csv} exists but the lock does not record the fallback it came from
+   *     ({@code fallback_product}, {@code fallback_build} and {@code tables["ItemSparse.era"]}): the file is then left
+   *     over from an earlier fetch and its build is unknown
+   */
   public BuildLock lock() {
     BuildLock l = lock;
     if (l == null) {
@@ -51,9 +58,19 @@ public final class ClientDataSource {
         throw new IllegalStateException("client data directory has no build.lock: " + p);
       }
       l = BuildLock.read(p);
+      checkFallback(l, p);
       lock = l;
     }
     return l;
+  }
+
+  private void checkFallback(BuildLock l, Path lockFile) {
+    String era = ItemSparseLoader.ERA_SPARSE;
+    if (hasTable(era) && (l.fallbackProduct() == null || l.fallbackBuild() == null || !l.tableSha().containsKey(era))) {
+      throw new IllegalStateException(era + ".csv present but build.lock has no fallback entry"
+          + " (fallback_product, fallback_build and tables[\"" + era + "\"]); re-run fetch.py --fallback-product"
+          + " wow_classic_era and convert.py, or delete the stale " + tablePath(era) + " (lock: " + lockFile + ")");
+    }
   }
 
   public boolean hasTable(String name) {

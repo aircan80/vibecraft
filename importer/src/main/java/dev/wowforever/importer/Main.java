@@ -1,5 +1,6 @@
 package dev.wowforever.importer;
 
+import dev.wowforever.importer.clientdata.ClientDataStage;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.report.ImportReport;
 import dev.wowforever.importer.report.UiFields;
@@ -11,7 +12,8 @@ import java.util.Optional;
 /**
  * Command-line entry point. Exit codes: 0 success, 1 bad arguments or a failed import, 2 when
  * {@code --fail-on-unsupported} is given and a skip, a missing field or an unresolved value lost data the UI
- * shows (see {@link #unsupportedCounters}).
+ * shows (see {@link #unsupportedCounters}), or when client data was imported but fewer than 85 % of the named items
+ * matched an ItemSparse row ({@link ClientDataStage#coverageTooLow}).
  */
 public final class Main {
   /**
@@ -45,10 +47,19 @@ public final class Main {
       ImportReport report = ImportPipeline.run(options, out);
       long uiSkips = report.skipsOnUiFields();
       long unsupported = unsupportedCounters(report);
-      int code = exitCode(options.failOnUnsupported(), uiSkips + unsupported);
+      boolean lowCoverage = ClientDataStage.coverageTooLow(report);
+      int code = exitCode(options.failOnUnsupported(), uiSkips + unsupported + (lowCoverage ? 1 : 0));
       if (code != 0) {
-        err.println(uiSkips + " skip(s) and " + unsupported + " missingField/unresolved counter(s) lost data"
-            + " shown in the UI; failing because of --fail-on-unsupported");
+        if (uiSkips + unsupported > 0) {
+          err.println(uiSkips + " skip(s) and " + unsupported + " missingField/unresolved counter(s) lost data"
+              + " shown in the UI; failing because of --fail-on-unsupported");
+        }
+        if (lowCoverage) {
+          err.println("client data covers " + report.get(ClientDataStage.MATCHED) + " of "
+              + report.get(ClientDataStage.NAMED) + " named items (" + report.get(ClientDataStage.COVERAGE_PCT)
+              + " %), below " + ClientDataStage.MIN_COVERAGE_PCT + " %; see the clientdata.unmatched.ranges note;"
+              + " failing because of --fail-on-unsupported");
+        }
       }
       return code;
     } catch (Exception e) {

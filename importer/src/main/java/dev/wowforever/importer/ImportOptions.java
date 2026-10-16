@@ -15,9 +15,7 @@ import java.util.Optional;
  * @param atlasLootDir      a local AtlasLootClassic checkout to use instead of downloading
  * @param failOnUnsupported exit with code 2 when any skip lost a field the UI shows
  * @param buildIdOut        where the build id is written (no trailing newline)
- * @param clientData        {@code --client-data-dir} / {@code --skip-client-data}; empty when neither flag is
- *                          given. Parsed and validated only: the client-data stage that consumes it, and makes one
- *                          of the two flags required, lands in phase 2A Task 9.
+ * @param clientData        {@code --client-data-dir <dir>} or {@code --skip-client-data}; exactly one is required
  */
 public record ImportOptions(
     Path out,
@@ -26,18 +24,19 @@ public record ImportOptions(
     Optional<Path> atlasLootDir,
     boolean failOnUnsupported,
     Path buildIdOut,
-    Optional<ClientDataOptions> clientData) {
+    ClientDataOptions clientData) {
 
   public static final String USAGE = """
-      Usage: java -jar importer.jar --out <file.sqlite> [options]
+      Usage: java -jar importer.jar --out <file.sqlite> (--client-data-dir <dir> | --skip-client-data) [options]
         --out <path>             SQLite file to write (required)
         --cache <dir>            download cache (default: ~/.cache/wowforever-importer)
         --questiedb-dir <dir>    use a local QuestieDB checkout instead of downloading
         --atlasloot-dir <dir>    use a local AtlasLootClassic checkout instead of downloading
         --fail-on-unsupported    exit with code 2 when data shown in the UI was skipped
         --build-id-out <path>    where to write the build id (default: build-id.txt beside --out)
-        --client-data-dir <dir>  converted client data (tools/clientdata/convert.py output)
-        --skip-client-data       import without client data""";
+        --client-data-dir <dir>  converted client data (tools/clientdata/convert.py output); this or
+                                 --skip-client-data is required
+        --skip-client-data       import without client data (client tables are created empty)""";
 
   public ImportOptions {
     Objects.requireNonNull(out, "out");
@@ -48,23 +47,20 @@ public record ImportOptions(
     Objects.requireNonNull(clientData, "clientData");
   }
 
-  /** Options without client-data flags. */
-  public ImportOptions(Path out, Path cacheDir, Optional<Path> questieDbDir, Optional<Path> atlasLootDir,
-      boolean failOnUnsupported, Path buildIdOut) {
-    this(out, cacheDir, questieDbDir, atlasLootDir, failOnUnsupported, buildIdOut, Optional.empty());
-  }
-
   /** Options with the build id written to {@code build-id.txt} beside {@code out}. */
-  public ImportOptions(
-      Path out, Path cacheDir, Optional<Path> questieDbDir, Optional<Path> atlasLootDir, boolean failOnUnsupported) {
-    this(out, cacheDir, questieDbDir, atlasLootDir, failOnUnsupported, defaultBuildIdOut(out));
+  public ImportOptions(Path out, Path cacheDir, Optional<Path> questieDbDir, Optional<Path> atlasLootDir,
+      boolean failOnUnsupported, ClientDataOptions clientData) {
+    this(out, cacheDir, questieDbDir, atlasLootDir, failOnUnsupported, defaultBuildIdOut(out), clientData);
   }
 
   public static Path defaultBuildIdOut(Path out) {
     return out.toAbsolutePath().getParent().resolve("build-id.txt");
   }
 
-  /** @throws IllegalArgumentException for an unknown flag, a flag without its value or a missing {@code --out} */
+  /**
+   * @throws IllegalArgumentException for an unknown flag, a flag without its value, a missing {@code --out}, or
+   *     neither or both of {@code --client-data-dir} and {@code --skip-client-data}
+   */
   public static ImportOptions parse(String[] args) {
     Path out = null;
     Path cache = SourceFetcher.defaultCacheDir();
@@ -91,13 +87,11 @@ public record ImportOptions(
     if (out == null) {
       throw usage("--out is required");
     }
-    Optional<ClientDataOptions> clientData = Optional.empty();
-    if (clientDataDir.isPresent() || skipClientData) {
-      try {
-        clientData = Optional.of(new ClientDataOptions(clientDataDir, skipClientData));
-      } catch (IllegalArgumentException e) {
-        throw usage(e.getMessage());
-      }
+    ClientDataOptions clientData;
+    try {
+      clientData = new ClientDataOptions(clientDataDir, skipClientData);
+    } catch (IllegalArgumentException e) {
+      throw usage(e.getMessage());
     }
     return new ImportOptions(out, cache, questieDb, atlasLoot, failOnUnsupported,
         buildIdOut != null ? buildIdOut : defaultBuildIdOut(out), clientData);

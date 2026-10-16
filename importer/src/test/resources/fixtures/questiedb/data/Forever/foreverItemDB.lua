@@ -30,5 +30,7 @@ QuestieDB.itemData = [[return {
 [14148] = {'Crystalline Cuffs',{11520},nil,nil,nil,nil,nil,nil,18,13,0,4,1},
 [14149] = {'Subterranean Cape',{11520},nil,nil,nil,nil,nil,nil,18,13,0,4,1},
 [16800] = {'Arcanist Boots',nil,nil,nil,nil,nil,nil,nil,66,60,0,4,1},
+[17204] = {'Eye of Sulfuras',nil,nil,nil,nil,nil,nil,nil,60,0,0,7,11},
 [19019] = {'Thunderfury, Blessed Blade of the Windseeker',nil,nil,nil,nil,{7787},nil,nil,80,60,0,2,7},
+[19682] = {'Bloodvine Vest',nil,nil,nil,nil,nil,nil,nil,65,60,0,4,1},
 }]]

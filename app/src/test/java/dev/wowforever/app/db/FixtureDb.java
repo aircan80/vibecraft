@@ -3,6 +3,7 @@ package dev.wowforever.app.db;
 import dev.wowforever.importer.Fixtures;
 import dev.wowforever.importer.ImportOptions;
 import dev.wowforever.importer.ImportPipeline;
+import dev.wowforever.importer.clientdata.ClientDataOptions;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -84,7 +85,8 @@ public final class FixtureDb implements BeforeAllCallback {
         Path out = dir.resolve("wowforever.sqlite");
         Path buildIdOut = dir.resolve("build-id.txt");
         ImportOptions opts = new ImportOptions(out, dir.resolve("cache"),
-            Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), false, buildIdOut);
+            Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), false, buildIdOut,
+            ClientDataOptions.skipped());
         ImportPipeline.run(opts, new PrintStream(OutputStream.nullOutputStream()));
         return new Built(out, Files.readString(buildIdOut, StandardCharsets.UTF_8).trim());
       } catch (IOException e) {

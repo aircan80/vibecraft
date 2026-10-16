@@ -26,7 +26,9 @@ class ClientDataSourceTest {
     assertThat(lock.build()).isEqualTo("1.60.1.70425");
     assertThat(lock.baseUrl()).isEqualTo("https://wago.tools");
     assertThat(lock.fetchedAt()).matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z");
-    assertThat(lock.tableSha()).hasSize(42).containsKey("ItemSparse");
+    assertThat(lock.tableSha()).hasSize(43).containsKeys("ItemSparse", "ItemSparse.era");
+    assertThat(lock.fallbackProduct()).isEqualTo("wow_classic_era");
+    assertThat(lock.fallbackBuild()).isEqualTo("1.15.9.70003");
     assertThat(lock.tableSha().get("ItemSparse")).matches("[0-9a-f]{64}");
 
     CsvTable items = src.table("Item");
@@ -99,10 +101,10 @@ class ClientDataSourceTest {
         .hasMessageContaining("--skip-client-data");
 
     ImportOptions withDir = ImportOptions.parse(new String[] {"--out", "o.sqlite", "--client-data-dir", "cd"});
-    assertThat(withDir.clientData()).contains(new ClientDataOptions(Optional.of(Path.of("cd")), false));
+    assertThat(withDir.clientData()).isEqualTo(new ClientDataOptions(Optional.of(Path.of("cd")), false));
 
     ImportOptions skipped = ImportOptions.parse(new String[] {"--out", "o.sqlite", "--skip-client-data"});
-    assertThat(skipped.clientData()).contains(new ClientDataOptions(Optional.empty(), true));
+    assertThat(skipped.clientData()).isEqualTo(new ClientDataOptions(Optional.empty(), true));
 
     assertThatThrownBy(() -> ImportOptions.parse(
         new String[] {"--out", "o.sqlite", "--client-data-dir", "cd", "--skip-client-data"}))
@@ -111,9 +113,10 @@ class ClientDataSourceTest {
         .hasMessageContaining("Usage:");
     assertThatThrownBy(() -> ImportOptions.parse(new String[] {"--out", "o.sqlite", "--client-data-dir"}))
         .hasMessageContaining("--client-data-dir needs a value");
-
-    // Until the client-data stage is wired (phase 2A Task 9) neither flag is required.
-    assertThat(ImportOptions.parse(new String[] {"--out", "o.sqlite"}).clientData()).isEmpty();
+    assertThatThrownBy(() -> ImportOptions.parse(new String[] {"--out", "o.sqlite"}))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("--client-data-dir")
+        .hasMessageContaining("--skip-client-data");
   }
 
   @Test
@@ -128,10 +131,14 @@ class ClientDataSourceTest {
 
   @Test
   void buildLockFallbackFieldsAreOptional() throws IOException {
-    assertThat(new ClientDataSource(Fixtures.clientDataRoot()).lock().fallbackProduct()).isNull();
-    assertThat(new ClientDataSource(Fixtures.clientDataRoot()).lock().fallbackBuild()).isNull();
-
     Path p = tmp.resolve("build.lock");
+    Files.writeString(p, """
+        {"product": "p", "build": "b", "fetched_at": "f", "base_url": "u", "tables": {"ItemSparse": "aa"}}
+        """, StandardCharsets.UTF_8);
+    assertThat(BuildLock.read(p).fallbackProduct()).isNull();
+    assertThat(BuildLock.read(p).fallbackBuild()).isNull();
+    assertThat(new ClientDataSource(tmp).lock().fallbackProduct()).as("no Era file: no fallback needed").isNull();
+
     Files.writeString(p, """
         {"product": "wow_classic_beta", "build": "1.60.1.70425", "fetched_at": "2026-10-16T20:21:06Z",
          "base_url": "https://wago.tools", "tables": {"ItemSparse.era": "cc"},
@@ -148,5 +155,38 @@ class ClientDataSourceTest {
     assertThatThrownBy(() -> BuildLock.read(p))
         .isInstanceOf(IllegalStateException.class)
         .hasMessageContaining("fallback_build");
+  }
+
+  @Test
+  void staleEraFileWithoutLockEntryFails() throws IOException {
+    Files.createDirectories(tmp.resolve("csv"));
+    Files.writeString(tmp.resolve("csv/ItemSparse.era.csv"), "ID\n1\n", StandardCharsets.UTF_8);
+    String base = "\"product\": \"wow_classic_beta\", \"build\": \"1.60.1.70425\", \"fetched_at\": \"f\","
+        + " \"base_url\": \"u\"";
+    Path lock = tmp.resolve("build.lock");
+
+    Files.writeString(lock, "{" + base + ", \"tables\": {\"ItemSparse\": \"aa\"}}", StandardCharsets.UTF_8);
+    assertThatThrownBy(() -> new ClientDataSource(tmp).lock())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("ItemSparse.era.csv present but build.lock has no fallback entry")
+        .hasMessageContaining("fetch.py --fallback-product");
+
+    // the fallback product and build without the table's sha is just as stale
+    Files.writeString(lock, "{" + base + ", \"tables\": {\"ItemSparse\": \"aa\"},"
+        + " \"fallback_product\": \"wow_classic_era\", \"fallback_build\": \"1.15.9.70003\"}",
+        StandardCharsets.UTF_8);
+    assertThatThrownBy(() -> new ClientDataSource(tmp).lock())
+        .hasMessageContaining("ItemSparse.era.csv present but build.lock has no fallback entry");
+
+    // a table sha without the product and build too
+    Files.writeString(lock, "{" + base + ", \"tables\": {\"ItemSparse\": \"aa\", \"ItemSparse.era\": \"cc\"}}",
+        StandardCharsets.UTF_8);
+    assertThatThrownBy(() -> new ClientDataSource(tmp).lock())
+        .hasMessageContaining("ItemSparse.era.csv present but build.lock has no fallback entry");
+
+    Files.writeString(lock, "{" + base + ", \"tables\": {\"ItemSparse\": \"aa\", \"ItemSparse.era\": \"cc\"},"
+        + " \"fallback_product\": \"wow_classic_era\", \"fallback_build\": \"1.15.9.70003\"}",
+        StandardCharsets.UTF_8);
+    assertThat(new ClientDataSource(tmp).lock().fallbackBuild()).isEqualTo("1.15.9.70003");
   }
 }
