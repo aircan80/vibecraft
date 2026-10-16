@@ -1,0 +1,138 @@
+package dev.wowforever.importer.drops;
+
+import dev.wowforever.importer.source.SourceRoots;
+import dev.wowforever.lua.CallHandler;
+import dev.wowforever.lua.ChunkEvaluator;
+import dev.wowforever.lua.Evaluator;
+import dev.wowforever.lua.LuaChunk;
+import dev.wowforever.lua.LuaNumber;
+import dev.wowforever.lua.LuaString;
+import dev.wowforever.lua.LuaTable;
+import dev.wowforever.lua.LuaValue;
+import dev.wowforever.lua.LuaValues;
+import dev.wowforever.lua.ProblemCollector;
+import dev.wowforever.lua.Scope;
+import dev.wowforever.lua.ast.Expr;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.Optional;
+
+/**
+ * Loads drop percentages from four sources. Precedence (lower wins): 1 Questie manual corrections,
+ * 2 AtlasLoot item overrides, 3 Questie Wowhead data, 4 AtlasLoot drop table.
+ */
+public final class DropRateLoader {
+  private static final int CORRECTION = 1;
+  private static final int OVERRIDE = 2;
+  private static final int WOWHEAD = 3;
+  private static final int ATLASLOOT = 4;
+
+  private static final Path QUESTIE_DROPS = Path.of("support/Forever/DropTables/classicItemDrops.lua");
+  private static final Path QUESTIE_CORRECTIONS = Path.of("support/Forever/DropTables/itemDropCorrections.lua");
+  private static final Path ATLAS_DIR = Path.of("AtlasLootClassic_DungeonsAndRaids");
+
+  private DropRateLoader() {}
+
+  public static DropRates load(SourceRoots roots, ProblemCollector problems) {
+    DropRates rates = new DropRates();
+    loadWowhead(roots.questieDb().resolve(QUESTIE_DROPS), rates, problems);
+    loadCorrections(roots.questieDb().resolve(QUESTIE_CORRECTIONS), rates, problems);
+    loadAtlasLoot(roots.atlasLoot().resolve(ATLAS_DIR).resolve("droprate.lua"), rates, problems);
+    loadOverrides(roots.atlasLoot().resolve(ATLAS_DIR).resolve("droprate_override.lua"), rates, problems);
+    return rates;
+  }
+
+  /** {@code [itemId] = {[npcId] = pct}} inside the {@code wowheadData} long string. */
+  private static void loadWowhead(Path file, DropRates rates, ProblemCollector problems) {
+    LuaChunk outer = LuaChunk.parse(file);
+    Optional<String> text = outer.longStringAssignedTo("QuestieClassicItemDrops.wowheadData");
+    if (text.isEmpty()) {
+      problems.add(outer.fileName(), 0, "wowheadData long string not found");
+      return;
+    }
+    LuaChunk inner = LuaChunk.parse(text.get(), outer.fileName() + ":wowheadData");
+    LuaValue table = new ChunkEvaluator(inner.fileName(), CallHandler.NONE, problems)
+        .run(inner.statements(), new Scope()).orElse(null);
+    forEachPair(table, (itemId, npcId, pct) ->
+        rates.put(npcId, itemId, new DropRate(pct, "questie-wowhead"), WOWHEAD));
+  }
+
+  /**
+   * {@code QuestieItemDropCorrections.Era = {[itemId] = {[npcId] = pct | DropKeys.MARKER}}}. The Era
+   * expression is evaluated directly with {@code DropKeys} bound to the marker constants (-1, -2), so
+   * the outer chunk is never run; marker values are non-positive and therefore skipped.
+   */
+  private static void loadCorrections(Path file, DropRates rates, ProblemCollector problems) {
+    LuaChunk chunk = LuaChunk.parse(file);
+    Optional<Expr> era = chunk.assignedValue("QuestieItemDropCorrections.Era");
+    if (era.isEmpty()) {
+      problems.add(chunk.fileName(), 0, "QuestieItemDropCorrections.Era not found");
+      return;
+    }
+    LuaTable keys = new LuaTable();
+    keys.put(new LuaString("WOWHEAD"), LuaNumber.of(-1));
+    keys.put(new LuaString("PSERVER"), LuaNumber.of(-2));
+    Scope scope = new Scope();
+    scope.define("DropKeys", keys);
+    LuaValue table = new Evaluator(chunk.fileName(), scope, CallHandler.NONE, problems).eval(era.get());
+    forEachPair(table, (itemId, npcId, pct) ->
+        rates.put(npcId, itemId, new DropRate(pct, "questie-correction"), CORRECTION));
+  }
+
+  /** {@code local DropRateData = {[npcId] = {[itemId] = pct}}}. */
+  private static void loadAtlasLoot(Path file, DropRates rates, ProblemCollector problems) {
+    LuaChunk chunk = LuaChunk.parse(file);
+    Optional<Expr> data = chunk.localValue("DropRateData");
+    if (data.isEmpty()) {
+      problems.add(chunk.fileName(), 0, "DropRateData not found");
+      return;
+    }
+    LuaValue table = new Evaluator(chunk.fileName(), new Scope(), CallHandler.NONE, problems).eval(data.get());
+    forEachPair(table, (npcId, itemId, pct) ->
+        rates.put(npcId, itemId, new DropRate(pct, "atlasloot"), ATLASLOOT));
+  }
+
+  /** {@code DROPRATE_OV = {[itemId] = pct | false}}; a global in the real file, a local is tolerated too. */
+  private static void loadOverrides(Path file, DropRates rates, ProblemCollector problems) {
+    LuaChunk chunk = LuaChunk.parse(file);
+    Optional<Expr> data = chunk.assignedValue("DROPRATE_OV").or(() -> chunk.localValue("DROPRATE_OV"));
+    if (data.isEmpty()) {
+      problems.add(chunk.fileName(), 0, "DROPRATE_OV not found");
+      return;
+    }
+    LuaValue table = new Evaluator(chunk.fileName(), new Scope(), CallHandler.NONE, problems).eval(data.get());
+    if (!(table instanceof LuaTable t)) {
+      return;
+    }
+    for (Map.Entry<LuaValue, LuaValue> e : t.entries()) {
+      var itemId = LuaValues.asLong(e.getKey());
+      // A value of false means "ignore this item".
+      if (itemId.isPresent() && e.getValue() instanceof LuaNumber pct) {
+        rates.putItem(itemId.getAsLong(), new DropRate(pct.value(), "atlasloot-override"), OVERRIDE);
+      }
+    }
+  }
+
+  private interface PairSink {
+    void accept(long outerKey, long innerKey, double percent);
+  }
+
+  /** Visits {@code outer -> inner -> number}; non-positive numbers are reference markers and skipped. */
+  private static void forEachPair(LuaValue table, PairSink sink) {
+    if (!(table instanceof LuaTable outer)) {
+      return;
+    }
+    for (Map.Entry<LuaValue, LuaValue> o : outer.entries()) {
+      var outerKey = LuaValues.asLong(o.getKey());
+      if (outerKey.isEmpty() || !(o.getValue() instanceof LuaTable inner)) {
+        continue;
+      }
+      for (Map.Entry<LuaValue, LuaValue> i : inner.entries()) {
+        var innerKey = LuaValues.asLong(i.getKey());
+        if (innerKey.isPresent() && i.getValue() instanceof LuaNumber n && n.value() > 0) {
+          sink.accept(outerKey.getAsLong(), innerKey.getAsLong(), n.value());
+        }
+      }
+    }
+  }
+}

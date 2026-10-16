@@ -1,0 +1,8 @@
+target/
+.idea/
+*.iml
+.vscode/
+.DS_Store
+importer/import-report.txt
+.superpowers/
+packaging/dist/
