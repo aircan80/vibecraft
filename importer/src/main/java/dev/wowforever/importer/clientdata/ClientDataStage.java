@@ -49,8 +49,8 @@ public final class ClientDataStage {
    * produces the other source's value, and the computed value is kept.
    */
   static final Map<Long, String> DISPUTED_ITEMS = Map.of(
-      19019L, "Thunderfury, Blessed Blade of the Windseeker: damage 82 - 153 plus 16 - 30 Nature from the client"
-          + " tables (item level 80), Wowhead's Forever tooltip shows 44 - 115");
+      19019L, "Thunderfury, Blessed Blade of the Windseeker: damage 82 - 153 from Forever's item level 80 one-hand"
+          + " table (the Era row agrees and adds 16 - 30 Nature), Wowhead's Forever tooltip shows 44 - 115");
 
   private ClientDataStage() {}
 
