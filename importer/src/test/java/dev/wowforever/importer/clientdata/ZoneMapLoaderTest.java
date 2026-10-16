@@ -47,7 +47,9 @@ class ZoneMapLoaderTest {
     assertThat(report.get("clientdata.zones.mapped.override")).isEqualTo(1);
     assertThat(report.get("clientdata.zones.mapped.assignment")).isEqualTo(1);
     assertThat(report.get("clientdata.zones.mapped.parent")).isEqualTo(2);
-    assertThat(report.get("clientdata.zones.unmapped")).isEqualTo(3);  // 1 (override 0), 133, 77
+    // 1 (override 0 beats its assignment row), 133 (ancestor 1 says no map), 77
+    assertThat(report.get("clientdata.zones.unmapped")).isEqualTo(3);
+    assertThat(report.get("clientdata.zones.explicitNoMap")).isEqualTo(1);
     assertThat(report.get("clientdata.zones.missingArt")).isEqualTo(1); // 38 -> 9999
     assertThat(report.get("clientdata.maps")).isEqualTo(2);
     assertThat(report.get("clientdata.maps.missingTiles")).isZero();

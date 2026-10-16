@@ -56,11 +56,17 @@ public final class ZoneMapLoader {
     long byAssignment = 0;
     long byParent = 0;
     long unmapped = 0;
+    long explicitNoMap = 0;
     long missingArt = 0;
     for (Zone zone : zones.values()) {
       Long uiMap = null;
       int kind = 0;
       Resolved own = own(zone.id(), override, assignments, art);
+      if (own != null && own.noMap) {
+        unmapped++;
+        explicitNoMap++;
+        continue;
+      }
       if (own != null) {
         uiMap = own.uiMapId;
         kind = own.fromOverride ? 1 : 2;
@@ -68,6 +74,9 @@ public final class ZoneMapLoader {
         Long parent = zone.parentId();
         for (int depth = 0; depth < MAX_DEPTH && parent != null; depth++) {
           Resolved r = own(parent, override, assignments, art);
+          if (r != null && r.noMap) {
+            break;
+          }
           if (r != null) {
             uiMap = r.uiMapId;
             kind = 3;
@@ -104,22 +113,28 @@ public final class ZoneMapLoader {
     report.count("clientdata.zones.mapped.assignment", byAssignment);
     report.count("clientdata.zones.mapped.parent", byParent);
     report.count("clientdata.zones.unmapped", unmapped);
+    report.count("clientdata.zones.explicitNoMap", explicitNoMap);
     report.count("clientdata.zones.missingArt", missingArt);
     report.count("clientdata.maps", images.size());
     report.count("clientdata.maps.missingTiles", missingTiles);
     return new ZoneMaps(zoneToMap, images);
   }
 
-  private record Resolved(long uiMapId, boolean fromOverride) {}
+  private record Resolved(long uiMapId, boolean fromOverride, boolean noMap) {
+    static final Resolved NO_MAP = new Resolved(0, true, true);
+  }
 
   private record Assignment(long uiMapId, long orderIndex) {}
 
-  /** The zone's own UiMap (override, then assignment), ignoring ancestors; null when it has none. */
+  /** The zone own UiMap (override, then assignment), ignoring ancestors; null when it has none, NO_MAP for override 0. */
   private static Resolved own(long areaId, Map<Long, Long> override, Map<Long, List<Assignment>> assignments,
       LongPredicate art) {
     Long o = override.get(areaId);
-    if (o != null && o != 0) {
-      return new Resolved(o, true);
+    if (o != null && o == 0) {
+      return Resolved.NO_MAP;
+    }
+    if (o != null) {
+      return new Resolved(o, true, false);
     }
     List<Assignment> rows = assignments.get(areaId);
     if (rows == null || rows.isEmpty()) {
@@ -137,7 +152,7 @@ public final class ZoneMapLoader {
         best = a;
       }
     }
-    return new Resolved(best.uiMapId, false);
+    return new Resolved(best.uiMapId, false, false);
   }
 
   private static Map<Long, Long> readOverride(Path root, ImportReport report) {
@@ -165,6 +180,11 @@ public final class ZoneMapLoader {
           out.put(area.getAsLong(), map.getAsLong());
         }
       }
+    }
+    if (problems.size() > 0) {
+      report.count("problems.areaIdToUiMapId", problems.size());
+      report.note("problems.areaIdToUiMapId: " + problems.problems().stream().limit(5)
+          .map(p -> p.file() + ":" + p.line() + " " + p.message()).collect(java.util.stream.Collectors.joining("; ")));
     }
     return out;
   }
