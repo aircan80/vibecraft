@@ -36,9 +36,9 @@ import javax.swing.Timer;
 
 /**
  * The narrow results list left of the detail: a heading with the row count over two-line rows (name; kind and key
- * facts). Moving the selection previews the row once it has rested for {@value #PREVIEW_DELAY_MILLIS} ms, so
- * holding an arrow key through thousands of rows loads one page, not thousands; Enter or a double-click commits
- * the row at once.
+ * facts). Moving the selection with the keyboard previews the row once it has rested for
+ * {@value #PREVIEW_DELAY_MILLIS} ms, so holding an arrow key through thousands of rows loads one page, not
+ * thousands; Enter or a click on a row commits it at once (the further clicks of a double-click are ignored).
  */
 public final class MasterList extends JPanel {
   /** How long the selection must rest before the row is previewed. */
@@ -140,7 +140,8 @@ public final class MasterList extends JPanel {
     list.addMouseListener(new MouseAdapter() {
       @Override
       public void mouseClicked(MouseEvent e) {
-        if (SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 2) {
+        // one click commits; the second click of a double-click is the same row again, so it is ignored
+        if (SwingUtilities.isLeftMouseButton(e) && e.getClickCount() == 1) {
           int row = rowAt(e.getPoint());
           if (row >= 0) {
             list.setSelectedIndex(row);
@@ -162,7 +163,10 @@ public final class MasterList extends JPanel {
     onPreview = Objects.requireNonNull(listener, "listener");
   }
 
-  /** Called with the row Enter or a double-click commits; replaces any earlier listener. */
+  /**
+   * Called with the row Enter or a single click commits, the pending preview dropped; replaces any earlier
+   * listener.
+   */
   public void onCommit(Consumer<ListEntry> listener) {
     onCommit = Objects.requireNonNull(listener, "listener");
   }

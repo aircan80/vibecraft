@@ -38,7 +38,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Arrowing through the list previews rows: the first preview after a navigation takes a new history slot and
  * later ones reuse it ({@link NavigationHistory#replaceCurrent}), so twenty rows previewed are one back step. A
- * commit (Enter, double-click) or any other navigation keeps that slot, and the next preview takes a new one.
+ * commit (Enter, a click) or any other navigation keeps that slot, and the next preview takes a new one. A row
+ * already on screen is neither previewed nor committed again: its history slot is kept and nothing reloads.
  */
 public final class AppController implements Navigator {
   /** Most search hits shown; item class lists show every item. */
@@ -116,10 +117,14 @@ public final class AppController implements Navigator {
 
   /**
    * Shows {@code ref} in the detail area, leaving the list as it is; the history slot of an earlier preview is
-   * reused, otherwise the preview takes a new one.
+   * reused, otherwise the preview takes a new one. Nothing happens when {@code ref} is already the current page
+   * (say, opened through a link), so the next preview cannot overwrite a page the user opened on purpose.
    */
   public void preview(EntityRef ref) {
     ViewTarget t = new ViewTarget.Entity(ref);
+    if (isCurrent(t)) {
+      return;
+    }
     if (previewSlot) {
       history.replaceCurrent(t);
     } else {
@@ -131,7 +136,8 @@ public final class AppController implements Navigator {
 
   /**
    * Opens a list row for good: it takes the slot of a pending preview (or a new one) and stays in the history.
-   * A zone row of a zone picker lists that zone's NPCs or quests instead.
+   * A row already on screen (previewed, or clicked twice) is only kept in the history, not loaded again. A zone
+   * row of a zone picker lists that zone's NPCs or quests instead.
    */
   public void commit(EntityRef ref) {
     if (zonePicker != null && ref.kind() == EntityKind.ZONE) {
@@ -139,6 +145,10 @@ public final class AppController implements Navigator {
       return;
     }
     ViewTarget t = new ViewTarget.Entity(ref);
+    if (isCurrent(t)) {
+      previewSlot = false;
+      return;
+    }
     if (previewSlot) {
       history.replaceCurrent(t);
     } else {
@@ -146,6 +156,10 @@ public final class AppController implements Navigator {
     }
     previewSlot = false;
     show(t);
+  }
+
+  private boolean isCurrent(ViewTarget t) {
+    return history.current().filter(t::equals).isPresent();
   }
 
   /** Re-shows the previous target, if any. */
@@ -357,7 +371,7 @@ public final class AppController implements Navigator {
     String build = meta.get("build_id");
     return placeholder("<html><h2>WoW Forever Item &amp; Drop Browser</h2>"
         + "<p>Search with the box above (Ctrl+F) or browse with the icons on the left.</p>"
-        + "<p>Arrow through the list to preview a row here; Enter or a double-click opens it.<br>"
+        + "<p>Arrow through the list to preview a row here; Enter or a click opens it.<br>"
         + "Ctrl+B hides or shows the list. Alt+Left and Alt+Right go back and forward.</p>"
         + (build == null ? "" : "<p>Database build " + build + "</p>") + "</html>");
   }

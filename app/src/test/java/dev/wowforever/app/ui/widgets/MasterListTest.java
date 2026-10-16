@@ -69,17 +69,44 @@ class MasterListTest {
     assertThat(previews).isEmpty();
   }
 
+  private void click(int row, int clickCount, int y) {
+    JList<ListEntry> jlist = list.jlist();
+    Rectangle cell = jlist.getCellBounds(row, row);
+    jlist.dispatchEvent(new MouseEvent(jlist, MouseEvent.MOUSE_CLICKED, 0, InputEvent.BUTTON1_DOWN_MASK,
+        cell.x + 5, y < 0 ? cell.y + 5 : y, clickCount, false, MouseEvent.BUTTON1));
+  }
+
   @Test
-  void doubleClickCommitsTheClickedRow() {
+  void singleClickCommits() {
     List<ListEntry> rows = entries(5);
     list.setEntries(rows);
-    JList<ListEntry> jlist = list.jlist();
-    jlist.setSize(300, 600);
-    Rectangle cell = jlist.getCellBounds(3, 3);
-    jlist.dispatchEvent(new MouseEvent(jlist, MouseEvent.MOUSE_CLICKED, 0, InputEvent.BUTTON1_DOWN_MASK,
-        cell.x + 5, cell.y + 5, 2, false, MouseEvent.BUTTON1));
+    list.jlist().setSize(300, 600);
+    list.selectIndex(3); // the press selects the row and schedules its preview
+    click(3, 1, -1);
     assertThat(commits).containsExactly(rows.get(3));
     assertThat(delay.pending()).isZero();
+    delay.fire();
+    assertThat(previews).isEmpty();
+  }
+
+  @Test
+  void theSecondClickOfADoubleClickIsIgnored() {
+    List<ListEntry> rows = entries(5);
+    list.setEntries(rows);
+    list.jlist().setSize(300, 600);
+    click(2, 1, -1);
+    click(2, 2, -1);
+    assertThat(commits).containsExactly(rows.get(2));
+  }
+
+  @Test
+  void clickBelowTheLastRowCommitsNothing() {
+    list.setEntries(entries(2));
+    JList<ListEntry> jlist = list.jlist();
+    jlist.setSize(300, 600);
+    Rectangle last = jlist.getCellBounds(1, 1);
+    click(1, 1, last.y + last.height + 20);
+    assertThat(commits).isEmpty();
   }
 
   @Test

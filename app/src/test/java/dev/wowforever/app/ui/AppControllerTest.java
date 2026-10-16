@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.swing.JLabel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -239,6 +240,67 @@ class AppControllerTest {
     previewRow(1);
     previewRow(2);
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(2)));
+    c.back();
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(0)));
+    c.back();
+    assertThat(c.current()).isEqualTo(new ViewTarget.ItemClass(4, 1));
+  }
+
+  @Test
+  void committingThePreviewedRowDoesNotLoadItAgain() {
+    AtomicInteger loads = new AtomicInteger();
+    AppController c = new AppController(repos, view, r -> {
+      loads.incrementAndGet();
+      r.run();
+    });
+    c.open(new ViewTarget.ItemClass(4, 1));
+    List<EntityRef> rows = refs();
+    previewRow(0);
+    int afterPreview = loads.get();
+    var page = view.detail;
+    list().commitSelected();
+    assertThat(loads.get()).isEqualTo(afterPreview);
+    assertThat(view.detail).isSameAs(page);
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(0)));
+    previewRow(1); // the commit pinned row 0: this preview takes a new slot
+    c.back();
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(0)));
+  }
+
+  @Test
+  void clickingTheSameRowTwiceKeepsOneHistoryEntryAndOneLoad() {
+    AtomicInteger loads = new AtomicInteger();
+    AppController c = new AppController(repos, view, r -> {
+      loads.incrementAndGet();
+      r.run();
+    });
+    c.open(new ViewTarget.ItemClass(4, 1));
+    List<EntityRef> rows = refs();
+    list().selectIndex(0);
+    list().commitSelected();
+    int afterFirst = loads.get();
+    list().commitSelected(); // a second click on the committed row
+    assertThat(loads.get()).isEqualTo(afterFirst);
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(0)));
+    c.back();
+    assertThat(c.current()).isEqualTo(new ViewTarget.ItemClass(4, 1));
+  }
+
+  @Test
+  void previewingThePageOpenedByALinkKeepsItsSlot() {
+    AtomicInteger loads = new AtomicInteger();
+    AppController c = new AppController(repos, view, r -> {
+      loads.incrementAndGet();
+      r.run();
+    });
+    c.open(new ViewTarget.ItemClass(4, 1));
+    List<EntityRef> rows = refs();
+    c.open(new ViewTarget.Entity(rows.get(0))); // opened on purpose, e.g. through a link
+    int afterOpen = loads.get();
+    previewRow(0); // the same entity: no new slot, no reload
+    assertThat(loads.get()).isEqualTo(afterOpen);
+    previewRow(1); // must push, not overwrite the page opened on purpose
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(1)));
     c.back();
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(0)));
     c.back();
