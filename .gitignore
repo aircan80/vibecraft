@@ -5,3 +5,4 @@ target/
 .DS_Store
 importer/import-report.txt
 .superpowers/
+packaging/dist/

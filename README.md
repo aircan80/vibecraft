@@ -80,6 +80,10 @@ To skip the checks against the shipped database, which extract the 26 MB resourc
 - **importer.** Source loading, QuestieDB and AtlasLoot parsing, correction layers, drop and zone derivation, and the SQLite schema, mostly against fixtures.
 - **app.** The repositories and database installer against a fixture database, the Swing panels and navigation, and the `shipped-data` sanity tests (row counts, orphan limits, known drops) against the real committed database.
 
+## Packaging
+
+Native installers (MSI, DMG, DEB) can be built with `jpackage`; see [packaging/README.md](packaging/README.md).
+
 ## Data sources & licensing
 
 - [QuestieDB](https://github.com/Questie/QuestieDB), commit `49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4`. It publishes no license file, so the data is used with attribution.
