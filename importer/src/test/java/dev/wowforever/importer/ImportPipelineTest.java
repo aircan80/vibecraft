@@ -3,6 +3,7 @@ package dev.wowforever.importer;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.importer.clientdata.ClientDataOptions;
+import dev.wowforever.importer.clientdata.ClientDataStage;
 import dev.wowforever.importer.report.ImportReport;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
@@ -114,7 +115,7 @@ class ImportPipelineTest {
   void endToEndWithClientDataFixture(@TempDir Path tmp) throws Exception {
     ImportOptions o = new ImportOptions(tmp.resolve("out.sqlite"), tmp.resolve("cache"),
         Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), true,
-        ClientDataOptions.of(Fixtures.clientDataRoot()));
+        ImportOptions.defaultBuildIdOut(tmp.resolve("out.sqlite")), ClientDataOptions.of(Fixtures.clientDataRoot()), 80);
     ImportReport r = ImportPipeline.run(o, QUIET);
     try (Connection c = open(o.out())) {
       for (String table : CLIENT_TABLES) {
@@ -137,10 +138,13 @@ class ImportPipelineTest {
     }
     long named = r.get("clientdata.items.named");
     assertThat(named).isPositive();
-    assertThat(r.counters()).containsEntry("clientdata.coverage.pct", r.get("clientdata.items.matched") * 100 / named);
-    assertThat(r.get("clientdata.coverage.pct")).isGreaterThanOrEqualTo(85);
-    assertThat(r.get("clientdata.items.named.matched")).isPositive().isLessThanOrEqualTo(named)
-        .isLessThanOrEqualTo(r.get("clientdata.items.matched"));
+    long namedMatched = r.get("clientdata.items.named.matched");
+    assertThat(namedMatched).isPositive().isLessThanOrEqualTo(named);
+    assertThat(r.counters()).containsEntry("clientdata.coverage.pct", namedMatched * 100 / named);
+    assertThat(r.get("clientdata.coverage.pct")).as("12 of 15 named items").isEqualTo(80);
+    assertThat(r.get("clientdata.items.matched")).as("nameless stubs match too").isGreaterThan(namedMatched);
+    assertThat(ClientDataStage.coverageTooLow(r, o.coverageMinPct())).isFalse();
+    assertThat(ClientDataStage.coverageTooLow(r, ClientDataStage.DEFAULT_MIN_COVERAGE_PCT)).isTrue();
     assertThat(r.get("clientdata.skipped")).isZero();
     assertThat(r.get("clientdata.icons")).isPositive();
     assertThat(r.get("clientdata.maps")).isPositive();

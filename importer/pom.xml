@@ -14,6 +14,8 @@
     <clientdata.dir>${user.home}/.cache/wowforever-clientdata/out/current</clientdata.dir>
     <!-- import-data profile: the client-data argument; -Dclientdata.skip=true replaces it with skip-client-data -->
     <clientdata.args>--client-data-dir "${clientdata.dir}"</clientdata.args>
+    <!-- import-data profile: the coverage gate's minimum percentage of named items with client data -->
+    <clientdata.coverageMin>85</clientdata.coverageMin>
   </properties>
 
   <dependencies>
@@ -105,7 +107,8 @@
   <profiles>
     <!-- mvn -pl importer -am -Pimport-data verify: rebuilds app/src/main/resources/data/wowforever.sqlite with the
          client data in -Dclientdata.dir (default ~/.cache/wowforever-clientdata/out/current), or without client data
-         with -Dclientdata.skip=true -->
+         with -Dclientdata.skip=true; -Dclientdata.coverageMin=<pct> sets the coverage gate (default 85). The arguments
+         are one commandlineArgs string, so -Dexec.args would replace all of them. -->
     <profile>
       <id>import-data</id>
       <build>
@@ -122,7 +125,7 @@
                 </goals>
                 <configuration>
                   <mainClass>dev.wowforever.importer.Main</mainClass>
-                  <commandlineArgs>--out "${project.basedir}/../app/src/main/resources/data/wowforever.sqlite" --fail-on-unsupported ${clientdata.args}</commandlineArgs>
+                  <commandlineArgs>--out "${project.basedir}/../app/src/main/resources/data/wowforever.sqlite" --fail-on-unsupported --coverage-min ${clientdata.coverageMin} ${clientdata.args}</commandlineArgs>
                   <systemProperties>
                     <systemProperty>
                       <key>wowforever.importer.noExit</key>

@@ -12,8 +12,8 @@ import java.util.Optional;
 /**
  * Command-line entry point. Exit codes: 0 success, 1 bad arguments or a failed import, 2 when
  * {@code --fail-on-unsupported} is given and a skip, a missing field or an unresolved value lost data the UI
- * shows (see {@link #unsupportedCounters}), or when client data was imported but fewer than 85 % of the named items
- * matched an ItemSparse row ({@link ClientDataStage#coverageTooLow}).
+ * shows (see {@link #unsupportedCounters}), or when client data was imported but fewer than {@code --coverage-min}
+ * percent (default 85) of the named items matched an ItemSparse row ({@link ClientDataStage#coverageTooLow}).
  */
 public final class Main {
   /**
@@ -47,7 +47,7 @@ public final class Main {
       ImportReport report = ImportPipeline.run(options, out);
       long uiSkips = report.skipsOnUiFields();
       long unsupported = unsupportedCounters(report);
-      boolean lowCoverage = ClientDataStage.coverageTooLow(report);
+      boolean lowCoverage = ClientDataStage.coverageTooLow(report, options.coverageMinPct());
       int code = exitCode(options.failOnUnsupported(), uiSkips + unsupported + (lowCoverage ? 1 : 0));
       if (code != 0) {
         if (uiSkips + unsupported > 0) {
@@ -55,10 +55,10 @@ public final class Main {
               + " shown in the UI; failing because of --fail-on-unsupported");
         }
         if (lowCoverage) {
-          err.println("client data covers " + report.get(ClientDataStage.MATCHED) + " of "
+          err.println("client data covers " + report.get(ClientDataStage.NAMED_MATCHED) + " of "
               + report.get(ClientDataStage.NAMED) + " named items (" + report.get(ClientDataStage.COVERAGE_PCT)
-              + " %), below " + ClientDataStage.MIN_COVERAGE_PCT + " %; see the clientdata.unmatched.ranges note;"
-              + " failing because of --fail-on-unsupported");
+              + " %), below --coverage-min " + options.coverageMinPct() + " %; see the clientdata.unmatched.ranges"
+              + " note; failing because of --fail-on-unsupported");
         }
       }
       return code;

@@ -20,11 +20,10 @@ import java.util.Objects;
  * tables empty, sets no {@code has_client_data} and writes no {@code client_*} meta keys) and counts
  * {@code clientdata.skipped}.
  *
- * <p>Besides the loaders' own counters it counts {@code clientdata.items.named} (items with a name after corrections)
- * and {@code clientdata.coverage.pct}, {@code clientdata.items.matched} as a whole percentage of the named items,
- * rounded down; the coverage gate ({@link #coverageTooLow}) compares the exact ratio. {@code clientdata.items.matched}
- * also counts nameless items, so {@code clientdata.items.named.matched} (named items with an ItemSparse row) is
- * reported beside it for information.
+ * <p>Besides the loaders' own counters it counts {@code clientdata.items.named} (items with a name after corrections),
+ * {@code clientdata.items.named.matched} (those with an ItemSparse row; {@code clientdata.items.matched} also counts
+ * nameless items) and {@code clientdata.coverage.pct}, the named matched items as a whole percentage of the named
+ * items, rounded down. The coverage gate ({@link #coverageTooLow}) compares the exact ratio.
  */
 public final class ClientDataStage {
   public static final String SKIPPED = "clientdata.skipped";
@@ -32,8 +31,11 @@ public final class ClientDataStage {
   public static final String NAMED = "clientdata.items.named";
   public static final String NAMED_MATCHED = "clientdata.items.named.matched";
   public static final String COVERAGE_PCT = "clientdata.coverage.pct";
-  /** {@code --fail-on-unsupported} fails when fewer named items than this percentage have an ItemSparse row. */
-  public static final int MIN_COVERAGE_PCT = 85;
+  /**
+   * The default of {@code --coverage-min}: {@code --fail-on-unsupported} fails when fewer named items than this
+   * percentage have an ItemSparse row.
+   */
+  public static final int DEFAULT_MIN_COVERAGE_PCT = 85;
 
   private ClientDataStage() {}
 
@@ -59,10 +61,11 @@ public final class ClientDataStage {
     Map<Long, String> names = itemNames(tables.get(EntityKind.ITEM));
     Map<Long, ClientItem> clientItems =
         ItemSparseLoader.load(source, tables.get(EntityKind.ITEM).rows().keySet(), report);
+    long namedMatched = names.keySet().stream()
+        .filter(id -> clientItems.containsKey(id) && clientItems.get(id).hasSparse()).count();
     report.count(NAMED, names.size());
-    report.count(NAMED_MATCHED, names.keySet().stream()
-        .filter(id -> clientItems.containsKey(id) && clientItems.get(id).hasSparse()).count());
-    report.count(COVERAGE_PCT, names.isEmpty() ? 100 : report.get(MATCHED) * 100 / names.size());
+    report.count(NAMED_MATCHED, namedMatched);
+    report.count(COVERAGE_PCT, names.isEmpty() ? 100 : namedMatched * 100 / names.size());
 
     ItemClassNames classNames = ItemClassNames.load(source);
     Map<Long, ItemValues> values = ItemValues.compute(clientItems, ScalingTables.load(source), report);
@@ -73,15 +76,18 @@ public final class ClientDataStage {
   }
 
   /**
-   * True when client data was imported and {@code clientdata.items.matched} is below {@link #MIN_COVERAGE_PCT} percent
-   * of {@code clientdata.items.named}; false after {@code --skip-client-data} or without named items.
+   * True when client data was imported and {@code clientdata.items.named.matched} is below {@code minPct} percent of
+   * {@code clientdata.items.named} (exact ratio, not the rounded {@code clientdata.coverage.pct}); false after
+   * {@code --skip-client-data} or without named items.
+   *
+   * @param minPct the {@code --coverage-min} threshold, 0 to 100
    */
-  public static boolean coverageTooLow(ImportReport report) {
+  public static boolean coverageTooLow(ImportReport report, int minPct) {
     long named = report.get(NAMED);
     if (report.get(SKIPPED) > 0 || named == 0) {
       return false;
     }
-    return report.get(MATCHED) * 100 < MIN_COVERAGE_PCT * named;
+    return report.get(NAMED_MATCHED) * 100 < (long) minPct * named;
   }
 
   /** Item names by id, as the writer will store them: a string {@code name}; nil and unresolved values are absent. */

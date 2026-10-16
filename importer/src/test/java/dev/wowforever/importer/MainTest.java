@@ -33,11 +33,11 @@ class MainTest {
     int code = Main.run(new String[] {
         "--out", tmp.resolve("o.sqlite").toString(), "--fail-on-unsupported",
         "--questiedb-dir", Fixtures.questieDbRoot().toString(), "--atlasloot-dir", Fixtures.atlasLootRoot().toString(),
-        "--client-data-dir", Fixtures.clientDataRoot().toString()},
+        "--client-data-dir", Fixtures.clientDataRoot().toString(), "--coverage-min", "80"},
         print(out), print(err));
     assertThat(code).as(err.toString(StandardCharsets.UTF_8)).isEqualTo(0);
     assertThat(out.toString(StandardCharsets.UTF_8)).contains("== Counters ==").contains("table.item = ")
-        .contains("clientdata.coverage.pct = ").contains("table.item_tooltip_line = ");
+        .contains("clientdata.coverage.pct = 80").contains("table.item_tooltip_line = ");
   }
 
   @Test
@@ -79,13 +79,33 @@ class MainTest {
     ByteArrayOutputStream err = new ByteArrayOutputStream();
     int code = Main.run(append(base, "--fail-on-unsupported"), print(out), print(err));
     assertThat(code).isEqualTo(2);
-    assertThat(err.toString(StandardCharsets.UTF_8)).contains("named items (0 %), below 85 %")
+    assertThat(err.toString(StandardCharsets.UTF_8)).contains("named items (0 %), below --coverage-min 85 %")
         .contains("clientdata.unmatched.ranges").doesNotContain("missingField/unresolved");
     assertThat(out.toString(StandardCharsets.UTF_8)).contains("clientdata.coverage.pct = 0")
         .contains("clientdata.unmatched.ranges: ");
 
     assertThat(Main.run(base, print(new ByteArrayOutputStream()), print(new ByteArrayOutputStream())))
         .as("without --fail-on-unsupported").isEqualTo(0);
+  }
+
+  /**
+   * The fixture matches 12 of its 15 named items (80 %); three nameless correction stubs also match, which must not
+   * count, so the default 85 % gate fails.
+   */
+  @Test
+  void fixtureFailsTheDefaultCoverageGateOnNamedItems(@TempDir Path tmp) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    ByteArrayOutputStream err = new ByteArrayOutputStream();
+    int code = Main.run(new String[] {
+        "--out", tmp.resolve("o.sqlite").toString(), "--fail-on-unsupported",
+        "--questiedb-dir", Fixtures.questieDbRoot().toString(), "--atlasloot-dir", Fixtures.atlasLootRoot().toString(),
+        "--client-data-dir", Fixtures.clientDataRoot().toString()},
+        print(out), print(err));
+    assertThat(code).isEqualTo(2);
+    assertThat(err.toString(StandardCharsets.UTF_8))
+        .contains("client data covers 12 of 15 named items (80 %), below --coverage-min 85 %");
+    assertThat(out.toString(StandardCharsets.UTF_8)).contains("clientdata.items.matched = 15")
+        .contains("clientdata.items.named.matched = 12").contains("clientdata.coverage.pct = 80");
   }
 
   @Test
@@ -99,16 +119,21 @@ class MainTest {
   }
 
   @Test
-  void coverageGateComparesMatchedWithNamedItems() {
+  void coverageGateComparesNamedMatchedWithNamedItems() {
     ImportReport r = new ImportReport();
-    assertThat(ClientDataStage.coverageTooLow(r)).as("no client stage counters").isFalse();
+    assertThat(ClientDataStage.coverageTooLow(r, 85)).as("no client stage counters").isFalse();
     r.count(ClientDataStage.NAMED, 100);
-    r.count(ClientDataStage.MATCHED, 85);
-    assertThat(ClientDataStage.coverageTooLow(r)).as("exactly 85 %").isFalse();
+    r.count(ClientDataStage.MATCHED, 100);
+    assertThat(ClientDataStage.coverageTooLow(r, 85)).as("matches of nameless items do not count").isTrue();
+    r.count(ClientDataStage.NAMED_MATCHED, 85);
+    assertThat(ClientDataStage.coverageTooLow(r, 85)).as("exactly 85 %").isFalse();
     r.count(ClientDataStage.NAMED, 1);
-    assertThat(ClientDataStage.coverageTooLow(r)).as("85 of 101").isTrue();
+    assertThat(ClientDataStage.coverageTooLow(r, 85)).as("85 of 101").isTrue();
+    assertThat(ClientDataStage.coverageTooLow(r, 84)).as("85 of 101 against 84 %").isFalse();
+    assertThat(ClientDataStage.coverageTooLow(r, 0)).as("0 % never fails").isFalse();
+    assertThat(ClientDataStage.coverageTooLow(r, 100)).isTrue();
     r.count(ClientDataStage.SKIPPED, 1);
-    assertThat(ClientDataStage.coverageTooLow(r)).as("skipped").isFalse();
+    assertThat(ClientDataStage.coverageTooLow(r, 100)).as("skipped").isFalse();
   }
 
   @Test
