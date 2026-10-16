@@ -13,15 +13,17 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 /**
- * An item's tooltip lines as stored, one label per line on a dark tooltip background in either theme (the stored
- * colours are the game's, made for a dark background). A tab in a line splits it into left and right text.
- * Hidden when there are no lines.
+ * An item's tooltip lines as stored, one label per line, on a dark tooltip card in both themes: the card is a WoW
+ * tooltip, not a themed panel, so the stored game colours and the default white text stay readable on the light
+ * theme too. A tab in a line splits it into left and right text. Hidden when there are no lines.
  */
 public final class TooltipLinesPanel extends JPanel {
   /** The colour of a line without one (or with one that is not {@code #rrggbb}). */
   public static final Color DEFAULT_TEXT = Color.WHITE;
-  /** The tooltip background. */
-  public static final Color BACKGROUND = new Color(0x10, 0x12, 0x1C);
+  /** The card background (UI review token {@code card.bg}), the same in both themes. */
+  public static final Color BACKGROUND = new Color(0x0C1424);
+  /** The card border (UI review token {@code card.border}), the same in both themes. */
+  public static final Color BORDER = new Color(0x46587A);
 
   private final List<JLabel> labels = new ArrayList<>();
 
@@ -29,7 +31,8 @@ public final class TooltipLinesPanel extends JPanel {
     setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
     setOpaque(true);
     setBackground(BACKGROUND);
-    setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+    setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER),
+        BorderFactory.createEmptyBorder(6, 8, 6, 8)));
     setMinimumSize(new Dimension(0, 0)); // long lines truncate instead of widening the detail area
     for (TooltipLine line : lines) {
       add(row(line));

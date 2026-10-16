@@ -6,6 +6,9 @@ import dev.wowforever.app.model.TooltipLine;
 import java.awt.Color;
 import java.util.List;
 import javax.swing.JLabel;
+import javax.swing.SwingUtilities;
+import javax.swing.border.CompoundBorder;
+import javax.swing.border.LineBorder;
 import org.junit.jupiter.api.Test;
 
 class TooltipLinesPanelTest {
@@ -41,5 +44,21 @@ class TooltipLinesPanelTest {
   @Test
   void noLinesNoLabels() {
     assertThat(new TooltipLinesPanel(List.of()).labels()).isEmpty();
+  }
+
+  @Test
+  void cardUsesTheDarkCardTokensOnEitherTheme() {
+    var p = new TooltipLinesPanel(List.of(new TooltipLine("name", "Eye of Sulfuras", "#ff8000")));
+    assertThat(TooltipLinesPanel.BACKGROUND).isEqualTo(new Color(0x0C1424));
+    assertThat(TooltipLinesPanel.BORDER).isEqualTo(new Color(0x46587A));
+    for (int pass = 0; pass < 2; pass++) { // a theme switch re-installs UI defaults; the card keeps its tokens
+      assertThat(p.isOpaque()).isTrue();
+      assertThat(p.getBackground()).isEqualTo(TooltipLinesPanel.BACKGROUND);
+      assertThat(p.getBorder()).isInstanceOfSatisfying(CompoundBorder.class,
+          b -> assertThat(b.getOutsideBorder()).isInstanceOfSatisfying(LineBorder.class,
+              line -> assertThat(line.getLineColor()).isEqualTo(TooltipLinesPanel.BORDER)));
+      assertThat(p.labels().get(0).getForeground()).isEqualTo(new Color(0xFF8000));
+      SwingUtilities.updateComponentTreeUI(p);
+    }
   }
 }
