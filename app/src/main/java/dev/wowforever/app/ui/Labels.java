@@ -1,7 +1,10 @@
 package dev.wowforever.app.ui;
 
 import dev.wowforever.app.model.EntityKind;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.StringJoiner;
 
 /**
@@ -126,6 +129,39 @@ public final class Labels {
     };
   }
 
+  /**
+   * The part of an instance's AtlasLoot {@code key} its {@code name} does not already say: the key split at
+   * CamelCase and punctuation, without the words that make up the name (also run together, as in {@code Ruinsof})
+   * and without "the" and "of". {@code ScarletMonasteryLibrary} of Scarlet Monastery → Library,
+   * {@code LowerBlackrockSpire} of Blackrock Spire → Lower; null when nothing is left or the key is blank.
+   */
+  public static String instanceWing(String name, String key) {
+    if (isBlank(key)) {
+      return null;
+    }
+    Set<String> nameWords = new HashSet<>(List.of("the", "of"));
+    if (name != null) {
+      for (String word : name.toLowerCase(Locale.ROOT).split("[^\\p{L}\\p{N}]+")) {
+        if (!word.isEmpty()) {
+          nameWords.add(word);
+        }
+      }
+    }
+    StringJoiner wing = new StringJoiner(" ");
+    for (String word : key.strip().split("(?<=[\\p{Ll}\\p{N}])(?=\\p{Lu})|[^\\p{L}\\p{N}]+")) {
+      if (!word.isEmpty() && !madeOf(word.toLowerCase(Locale.ROOT), nameWords)) {
+        wing.add(word);
+      }
+    }
+    return wing.length() == 0 ? null : wing.toString();
+  }
+
+  /** {@code "Scarlet Monastery › Library"}: the name with its {@link #instanceWing}, or the name alone. */
+  public static String instanceTitle(String name, String key) {
+    String wing = instanceWing(name, key);
+    return wing == null ? name : name + " › " + wing;
+  }
+
   /** {@code subtitle} with {@code " · ×4"} appended when {@code count} is above 1. */
   public static String withCount(String subtitle, int count) {
     return count > 1 ? join(subtitle, "×" + count) : subtitle;
@@ -148,6 +184,19 @@ public final class Labels {
     if (!isBlank(part)) {
       s.add(part.strip());
     }
+  }
+
+  /** Whether {@code word} is one or more of {@code words} run together. */
+  private static boolean madeOf(String word, Set<String> words) {
+    if (word.isEmpty()) {
+      return true;
+    }
+    for (String w : words) {
+      if (word.startsWith(w) && madeOf(word.substring(w.length()), words)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static boolean isBlank(String s) {

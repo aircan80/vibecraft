@@ -134,6 +134,23 @@ class AppControllerTest {
   }
 
   @Test
+  void instanceListNamesTheWingsOfSameNamedInstances(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement s = conn.createStatement()) {
+      s.executeUpdate("insert into instance(id, key, name, content_type, zone_id) values "
+          + "(95001, 'LowerBlackrockSpire', 'Blackrock Spire', 'DUNGEON', 46), "
+          + "(95002, 'UpperBlackrockSpire', 'Blackrock Spire', 'DUNGEON', 46)");
+    }
+    try (Database db = Database.open(copy)) {
+      AppController c = new AppController(Repositories.of(db), view, Runnable::run);
+      c.open(new ViewTarget.List(INSTANCE));
+      assertThat(list().entries()).extracting(ListEntry::title)
+          .contains("Blackrock Spire › Lower", "Blackrock Spire › Upper", "Molten Core");
+    }
+  }
+
+  @Test
   void itemClassListsEveryItemOfTheClass() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(new ViewTarget.ItemClass(4, -1));

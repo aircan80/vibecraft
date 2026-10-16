@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -312,7 +313,7 @@ public final class AppController implements Navigator {
   private Listing list(EntityKind kind) {
     return switch (kind) {
       case ZONE -> new Listing("Zones", entries(repos.zones().all(), AppController::entry));
-      case INSTANCE -> new Listing("Dungeons & Raids", entries(repos.instances().all(), AppController::entry));
+      case INSTANCE -> new Listing("Dungeons & Raids", instanceEntries(repos.instances().all()));
       case NPC, QUEST -> new Listing((kind == EntityKind.NPC ? "NPCs" : "Quests") + ": pick a zone",
           entries(repos.zones().all(), AppController::entry), 0, kind);
       default -> throw new IllegalArgumentException("There is no list of " + kind.label() + " entities");
@@ -366,10 +367,18 @@ public final class AppController implements Navigator {
     return new ListEntry(z.ref(), z.displayName(), Labels.zoneSubtitle(z.kind(), z.parentName()), null, null);
   }
 
-  private static ListEntry entry(InstanceSummary i) {
+  /** Instance entries; an instance whose name another one in {@code instances} shares is titled with its wing. */
+  static List<ListEntry> instanceEntries(List<InstanceSummary> instances) {
+    Map<String, Long> perName = instances.stream().filter(i -> i.name() != null)
+        .collect(Collectors.groupingBy(InstanceSummary::name, Collectors.counting()));
+    return instances.stream().map(i -> entry(i, perName.getOrDefault(i.name(), 0L) > 1)).toList();
+  }
+
+  private static ListEntry entry(InstanceSummary i, boolean sharedName) {
     // an instance's own zone usually carries its name; repeating it says nothing
     String zone = Objects.equals(i.zoneName(), i.name()) ? null : i.zoneName();
-    return new ListEntry(i.ref(), i.displayName(),
+    String title = sharedName ? Labels.instanceTitle(i.displayName(), i.key()) : i.displayName();
+    return new ListEntry(i.ref(), title,
         Labels.instanceSubtitle(i.contentType(), i.levelMin(), i.levelMax(), zone), null, null);
   }
 

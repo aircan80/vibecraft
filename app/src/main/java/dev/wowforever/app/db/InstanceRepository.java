@@ -17,7 +17,7 @@ public final class InstanceRepository {
   public static final String BOSS_LOOT_ORIGIN = "atlasloot";
   /** The {@link #summary} columns of {@code instance i} with its zone's name; append WHERE and ORDER BY. */
   static final String SUMMARY_SELECT = """
-      SELECT i.id, i.name, i.content_type, i.level_min, i.level_max, i.zone_id, z.name AS zone_name
+      SELECT i.id, i.name, i.content_type, i.level_min, i.level_max, i.zone_id, z.name AS zone_name, i.key
       FROM instance i LEFT JOIN zone z ON z.id = i.zone_id""";
 
   private final Database db;
@@ -67,6 +67,6 @@ public final class InstanceRepository {
   static InstanceSummary summary(ResultSet rs) throws SQLException {
     return new InstanceSummary(rs.getLong("id"), rs.getString("name"), rs.getString("content_type"),
         Sql.integer(rs, "level_min"), Sql.integer(rs, "level_max"), Sql.longValue(rs, "zone_id"),
-        rs.getString("zone_name"));
+        rs.getString("zone_name"), rs.getString("key"));
   }
 }

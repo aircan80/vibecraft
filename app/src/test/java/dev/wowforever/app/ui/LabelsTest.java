@@ -106,6 +106,26 @@ class LabelsTest {
   }
 
   @Test
+  void instanceWingFromKey() {
+    assertThat(Labels.instanceWing("Scarlet Monastery", "ScarletMonasteryLibrary")).isEqualTo("Library");
+    assertThat(Labels.instanceWing("Blackrock Spire", "LowerBlackrockSpire")).isEqualTo("Lower");
+    assertThat(Labels.instanceWing("Blackrock Spire", "UpperBlackrockSpire")).isEqualTo("Upper");
+    assertThat(Labels.instanceWing("Dire Maul", "DireMaulNorth")).isEqualTo("North");
+    assertThat(Labels.instanceWing("Molten Core", "MoltenCore")).isNull();
+    assertThat(Labels.instanceWing("Zul'Farrak", "Zul'Farrak")).isNull();
+    assertThat(Labels.instanceWing("Onyxia's Lair", "Onyxia")).isNull();
+    assertThat(Labels.instanceWing("Ruins of Ahn'Qiraj", "TheRuinsofAhnQiraj")).isNull();
+    assertThat(Labels.instanceWing("Scarlet Monastery", null)).isNull();
+    assertThat(Labels.instanceWing(null, "ScarletMonasteryLibrary")).isEqualTo("Scarlet Monastery Library");
+  }
+
+  @Test
+  void instanceTitle() {
+    assertThat(Labels.instanceTitle("Scarlet Monastery", "ScarletMonasteryArmory")).isEqualTo("Scarlet Monastery › Armory");
+    assertThat(Labels.instanceTitle("Molten Core", "MoltenCore")).isEqualTo("Molten Core");
+  }
+
+  @Test
   void countSuffix() {
     assertThat(Labels.withCount("Object · Westfall", 4)).isEqualTo("Object · Westfall · ×4");
     assertThat(Labels.withCount("Object · Westfall", 1)).isEqualTo("Object · Westfall");

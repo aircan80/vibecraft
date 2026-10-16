@@ -172,6 +172,44 @@ class SearchRankingTest {
     assertThat(hits.get(0).count()).isEqualTo(1);
   }
 
+  /** The four Scarlet Monastery wings: separate instances in the fixture's Scarlet Monastery zone, sharing a name. */
+  private static String[] scarletMonasteryWings() {
+    return new String[] {
+        "update zone set parent_id = 85, kind = 'dungeon' where id = 796",
+        "insert into instance(id, key, name, content_type, level_min, level_max, zone_id) values "
+            + "(95001, 'ScarletMonasteryGraveyard', 'Scarlet Monastery', 'DUNGEON', 26, 36, 796), "
+            + "(95002, 'ScarletMonasteryLibrary', 'Scarlet Monastery', 'DUNGEON', 29, 39, 796), "
+            + "(95003, 'ScarletMonasteryArmory', 'Scarlet Monastery', 'DUNGEON', 32, 42, 796), "
+            + "(95004, 'ScarletMonasteryCathedral', 'Scarlet Monastery', 'DUNGEON', 35, 45, 796)",
+        index("instance", 95001, "Scarlet Monastery"), index("instance", 95002, "Scarlet Monastery"),
+        index("instance", 95003, "Scarlet Monastery"), index("instance", 95004, "Scarlet Monastery")};
+  }
+
+  @Test
+  void sameNamedInstancesStaySeparateHitsNamedByWing() throws Exception {
+    List<SearchHit> hits = searchCopy("scarlet monastery", 10, scarletMonasteryWings());
+    // the zone has four instances, so it stays a zone hit after them
+    assertThat(hits).extracting(SearchHit::ref).startsWith(
+        new EntityRef(INSTANCE, 95001), new EntityRef(INSTANCE, 95002), new EntityRef(INSTANCE, 95003),
+        new EntityRef(INSTANCE, 95004), new EntityRef(ZONE, 796));
+    assertThat(hits).extracting(SearchHit::displayName).startsWith(
+        "Scarlet Monastery › Graveyard", "Scarlet Monastery › Library", "Scarlet Monastery › Armory",
+        "Scarlet Monastery › Cathedral", "Scarlet Monastery");
+    assertThat(hits).allSatisfy(h -> assertThat(h.count()).isEqualTo(1));
+    assertThat(hits.get(1).subtitle()).isEqualTo("Dungeon · Level 29–39 · Tirisfal Glades");
+  }
+
+  @Test
+  void sameNamedZonesStaySeparateHits() throws Exception {
+    List<SearchHit> hits = searchCopy("gloomhold", 10,
+        index("zone", 96001, "Gloomhold"), index("zone", 96002, "Gloomhold"),
+        "insert into zone(id, name, parent_id, kind) values (96001, 'Gloomhold', 40, 'subzone'), "
+            + "(96002, 'Gloomhold', 12, 'subzone')");
+    assertThat(hits).extracting(SearchHit::ref)
+        .containsExactly(new EntityRef(ZONE, 96001), new EntityRef(ZONE, 96002));
+    assertThat(hits).extracting(SearchHit::subtitle).containsExactly("Sub-zone · Westfall", "Sub-zone · Elwynn Forest");
+  }
+
   @Test
   void limitAppliesAfterCollapsing() throws Exception {
     List<SearchHit> hits = searchCopy("westfall", 2,

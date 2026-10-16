@@ -21,7 +21,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Full-text search over item, NPC, object, quest, zone and instance names, ranked by exact name match, then kind
- * (instance, zone, boss or rare NPC, item, quest, NPC, object), then bm25, then name.
+ * (instance, zone, boss or rare NPC, item, quest, NPC, object), then bm25, then name. Items, NPCs, objects and quests
+ * of the same name collapse into one hit with a count; instances and zones never do, and an instance whose name
+ * another instance shares is titled with its wing ("Scarlet Monastery › Library").
  */
 public final class SearchRepository {
   private static final Logger LOG = LoggerFactory.getLogger(SearchRepository.class);
@@ -47,7 +49,8 @@ public final class SearchRepository {
              oz.name AS object_zone,
              q.quest_level, qz.name AS quest_zone,
              z.kind AS zone_kind, zp.name AS zone_parent,
-             inst.content_type, inst.level_min, inst.level_max,
+             inst.content_type, inst.level_min, inst.level_max, inst.key AS instance_key,
+             EXISTS (SELECT 1 FROM instance twin WHERE twin.name = inst.name AND twin.id <> inst.id) AS shared_name,
              CASE WHEN iz.name = inst.name THEN izp.name ELSE iz.name END AS instance_zone
       FROM s
       LEFT JOIN instance sole ON ? = 1 AND s.kind = 'zone'
@@ -88,8 +91,9 @@ public final class SearchRepository {
    * Hits whose name contains every whitespace-separated term of {@code text} as a word prefix, best first: a name
    * equal to the text (ignoring case and repeated spaces) first, then by kind, bm25 and name. Without a kind
    * filter, a zone that is the zone of exactly one instance stands for that instance (once, if the instance matched
-   * too). Hits of the same kind and name collapse into the first, which carries their count. Blank text (or text
-   * without any letter or digit) gives no hits; no input makes this throw.
+   * too). Item, NPC, object and quest hits of the same kind and name collapse into the first, which carries their
+   * count; every instance and zone stays its own hit, an instance whose name another instance shares titled with
+   * its wing. Blank text (or text without any letter or digit) gives no hits; no input makes this throw.
    */
   public List<SearchHit> search(String text, Optional<EntityKind> kind, int limit) {
     String match = matchExpression(text);
@@ -139,8 +143,9 @@ public final class SearchRepository {
   }
 
   /**
-   * {@code rows} in order without repeated refs (a merged zone and its instance), hits of the same kind and name
-   * folded into the first with their count, cut to {@code limit}.
+   * {@code rows} in order without repeated refs (a merged zone and its instance), item, NPC, object and quest hits
+   * of the same kind and name folded into the first with their count, cut to {@code limit}. Instances and zones
+   * that share a name are different places, so they are never folded.
    */
   static List<SearchHit> collapse(List<SearchHit> rows, int limit) {
     Set<EntityRef> seen = new HashSet<>();
@@ -151,10 +156,13 @@ public final class SearchRepository {
       if (!seen.add(row.ref())) {
         continue;
       }
-      String key = row.ref().kind() + "\u0000" + row.name();
-      Integer index = groupIndex.get(key);
+      EntityKind kind = row.ref().kind();
+      String key = kind == EntityKind.INSTANCE || kind == EntityKind.ZONE ? null : kind + "\u0000" + row.name();
+      Integer index = key == null ? null : groupIndex.get(key);
       if (index == null) {
-        groupIndex.put(key, firsts.size());
+        if (key != null) {
+          groupIndex.put(key, firsts.size());
+        }
         firsts.add(row);
         counts.add(1);
       } else {
@@ -173,8 +181,8 @@ public final class SearchRepository {
     Long soleId = Sql.longValue(rs, "sole_id");
     if (soleId != null) {
       String name = rs.getString("sole_name");
-      return new SearchHit(new EntityRef(EntityKind.INSTANCE, soleId), name != null ? name : rs.getString("name"),
-          instanceSubtitle(rs));
+      return new SearchHit(new EntityRef(EntityKind.INSTANCE, soleId),
+          instanceTitle(rs, name != null ? name : rs.getString("name")), instanceSubtitle(rs));
     }
     Optional<EntityKind> kind = EntityKind.fromDbKind(rs.getString("kind"));
     if (kind.isEmpty()) {
@@ -191,8 +199,14 @@ public final class SearchRepository {
       case INSTANCE -> instanceSubtitle(rs);
       case BOSS -> "";
     };
-    return new SearchHit(new EntityRef(kind.get(), rs.getLong("id")), rs.getString("name"),
-        Labels.withKind(kind.get(), facts));
+    String name = kind.get() == EntityKind.INSTANCE ? instanceTitle(rs, rs.getString("name")) : rs.getString("name");
+    return new SearchHit(new EntityRef(kind.get(), rs.getLong("id")), name, Labels.withKind(kind.get(), facts));
+  }
+
+  /** {@code name} with the instance's wing when another instance has the same name. */
+  private static String instanceTitle(ResultSet rs, String name) throws SQLException {
+    return name != null && rs.getInt("shared_name") != 0 ? Labels.instanceTitle(name, rs.getString("instance_key"))
+        : name;
   }
 
   private static String instanceSubtitle(ResultSet rs) throws SQLException {
