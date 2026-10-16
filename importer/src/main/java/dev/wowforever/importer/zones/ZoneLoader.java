@@ -44,7 +44,10 @@ public final class ZoneLoader {
     return zones;
   }
 
-  /** Entries are {@code [areaId] = {name, altAreaIds|nil, parentZoneId, locations}}. Returns the ids seen. */
+  /**
+   * Entries are {@code [areaId] = {name, altAreaIds|nil, parentZoneId, locations}}. Alternative area ids
+   * not yet known become sub-zones of the dungeon, named after it. Returns the dungeon ids seen.
+   */
   private static Set<Long> applyDungeons(
       Path root, Map<Long, Zone> zones, Set<Long> raidAreaIds, ProblemCollector problems) {
     Set<Long> seen = new java.util.HashSet<>();
@@ -67,6 +70,7 @@ public final class ZoneLoader {
     if (!(table instanceof LuaTable t)) {
       return seen;
     }
+    Map<Long, LuaTable> altAreas = new LinkedHashMap<>();
     for (Map.Entry<LuaValue, LuaValue> e : t.entries()) {
       var id = LuaValues.asLong(e.getKey());
       if (id.isEmpty() || !(e.getValue() instanceof LuaTable entry)) {
@@ -79,7 +83,19 @@ public final class ZoneLoader {
       String displayName = name.orElse(existing != null ? existing.name() : "Zone #" + areaId);
       zones.put(areaId, new Zone(areaId, displayName, parent, raidAreaIds.contains(areaId) ? "raid" : "dungeon"));
       seen.add(areaId);
+      if (entry.get(2) instanceof LuaTable altIds) {
+        altAreas.put(areaId, altIds);
+      }
     }
+    // NPC spawns reference the alternative area ids; ids the zone enum already names keep their entry.
+    altAreas.forEach((areaId, altIds) -> {
+      for (LuaValue alt : altIds.array()) {
+        var altId = LuaValues.asLong(alt);
+        if (altId.isPresent() && !zones.containsKey(altId.getAsLong())) {
+          zones.put(altId.getAsLong(), new Zone(altId.getAsLong(), zones.get(areaId).name(), areaId, "subzone"));
+        }
+      }
+    });
     return seen;
   }
 

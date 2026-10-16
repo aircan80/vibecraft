@@ -64,6 +64,35 @@ class ZoneLoaderTest {
   }
 
   @Test
+  void dungeonAltAreaIdsBecomeSubzonesUnlessAlreadyPresent(@TempDir Path tmp) throws Exception {
+    Path zonesDir = Files.createDirectories(tmp.resolve("support/Forever/Zones"));
+    Files.writeString(zonesDir.resolve("dungeons.lua"),
+        """
+        local dungeons = {
+          [1581] = {"The Deadmines",{10, 99001, 99002},40,{{40, 42.5, 71.7}}},
+          [718] = {"Wailing Caverns",nil,17,{{17, 46, 36.5}}},
+        }
+        """);
+    Files.copy(Fixtures.questieDbRoot().resolve("support/Forever/Zones/subZoneToParentZone.lua"),
+        zonesDir.resolve("subZoneToParentZone.lua"));
+    ProblemCollector problems = new ProblemCollector();
+    Map<Long, Zone> z = ZoneLoader.load(tmp, constants(), Set.of(), problems);
+    assertThat(z.get(99001L)).isEqualTo(new Zone(99001, "The Deadmines", 1581L, "subzone"));
+    assertThat(z.get(99002L)).isEqualTo(new Zone(99002, "The Deadmines", 1581L, "subzone"));
+    assertThat(z.get(10L)).isEqualTo(new Zone(10, "Duskwood", null, "zone"));
+    assertThat(problems.problems()).isEmpty();
+  }
+
+  @Test
+  void fixtureAltAreaIdsAlreadyInTheZoneEnumKeepTheirEnumEntry() {
+    Map<Long, Zone> withAlts = ZoneLoader.load(Fixtures.questieDbRoot(), constants(), Set.of(), new ProblemCollector());
+    // 10029 (Deadmines) and 10014..10019 (Shadowfang Keep) are zoneIDs symbols, so they are not re-added
+    assertThat(withAlts.get(10029L).kind()).isEqualTo("zone");
+    assertThat(withAlts.get(10029L).name()).isNotEqualTo("The Deadmines");
+    assertThat(withAlts.get(10014L).kind()).isEqualTo("zone");
+  }
+
+  @Test
   void dungeonOutsideRaidSetIsDungeonWithParent() {
     Map<Long, Zone> z = ZoneLoader.load(Fixtures.questieDbRoot(), constants(), Set.of(), new ProblemCollector());
     assertThat(z.get(2717L).kind()).isEqualTo("dungeon");

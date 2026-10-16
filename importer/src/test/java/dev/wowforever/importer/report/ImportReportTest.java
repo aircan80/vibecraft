@@ -58,6 +58,21 @@ class ImportReportTest {
   }
 
   @Test
+  void rendersNotesLastAndOnlyWhenPresent() {
+    ImportReport r = new ImportReport();
+    r.count("a", 1);
+    assertThat(r.render()).doesNotContain("== Notes ==");
+    r.note("problems.zones: dungeons.lua:3 something");
+    r.note("second");
+    assertThat(r.notes()).containsExactly("problems.zones: dungeons.lua:3 something", "second");
+    assertThat(r.render()).endsWith("""
+        == Notes ==
+        problems.zones: dungeons.lua:3 something
+        second
+        """);
+  }
+
+  @Test
   void writesTheRenderedReportAsUtf8(@TempDir Path dir) throws Exception {
     ImportReport r = new ImportReport();
     r.skip(new Skip("l", ITEM, 1, "name", "Avelina's Heart — ü"));

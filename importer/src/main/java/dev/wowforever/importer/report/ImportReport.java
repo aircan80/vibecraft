@@ -19,6 +19,7 @@ public final class ImportReport {
 
   private final Map<String, Long> counters = new TreeMap<>();
   private final List<Skip> skips = new ArrayList<>();
+  private final List<String> notes = new ArrayList<>();
 
   public void count(String counter, long delta) {
     counters.merge(counter, delta, Long::sum);
@@ -38,6 +39,16 @@ public final class ImportReport {
     return Collections.unmodifiableList(skips);
   }
 
+  /** Adds a free-text line to the report's notes section. */
+  public void note(String text) {
+    notes.add(text);
+  }
+
+  /** Every note, in the order added. */
+  public List<String> notes() {
+    return Collections.unmodifiableList(notes);
+  }
+
   /** How many skips lost a field the UI shows; see {@link UiFields}. */
   public long skipsOnUiFields() {
     return skips.stream().filter(s -> UiFields.isUiField(s.kind(), s.field())).count();
@@ -45,7 +56,7 @@ public final class ImportReport {
 
   /**
    * The report text: counters sorted by name, skips grouped by layer and field with the largest groups
-   * first, then the first {@value #RAW_SKIPS_SHOWN} skips as recorded.
+   * first, then the first {@value #RAW_SKIPS_SHOWN} skips as recorded, then the notes if there are any.
    */
   public String render() {
     StringBuilder sb = new StringBuilder("== Counters ==\n");
@@ -62,6 +73,10 @@ public final class ImportReport {
 
     sb.append("== First ").append(RAW_SKIPS_SHOWN).append(" skips ==\n");
     skips.stream().limit(RAW_SKIPS_SHOWN).forEach(s -> sb.append(s).append('\n'));
+    if (!notes.isEmpty()) {
+      sb.append("== Notes ==\n");
+      notes.forEach(n -> sb.append(n).append('\n'));
+    }
     return sb.toString();
   }
 
