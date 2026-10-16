@@ -4,6 +4,7 @@ import static dev.wowforever.lua.TokenType.*;
 
 import dev.wowforever.lua.ast.Expr;
 import dev.wowforever.lua.ast.Expr.*;
+import dev.wowforever.lua.ast.Stmt;
 import dev.wowforever.lua.ast.TableEntry;
 import java.util.ArrayList;
 import java.util.List;
@@ -59,6 +60,40 @@ public final class Parser {
   LuaSyntaxException error(Token found, String expected) {
     String f = found.type() == EOF ? "end of input" : found.type() + " \"" + found.text() + "\"";
     return new LuaSyntaxException(fileName, found.line(), "expected " + expected + " but found " + f);
+  }
+
+  // ---- statements ----
+
+  /** Parses statements until end of input. */
+  public List<Stmt> parseChunk() {
+    return new StatementParser(this).parseChunk();
+  }
+
+  /**
+   * Skips tokens until the block opened with {@code depth} unclosed openers is closed. {@code if},
+   * {@code function}, {@code do} and {@code repeat} open a block; {@code end} and {@code until} close
+   * one. {@code for} and {@code while} open through their {@code do}.
+   */
+  void skipBlock(int depth) {
+    int open = depth;
+    boolean started = depth > 0;
+    while (!atEnd()) {
+      TokenType type = advance().type();
+      switch (type) {
+        case IF, FUNCTION, DO, REPEAT -> {
+          open++;
+          started = true;
+        }
+        case END, UNTIL -> {
+          open--;
+          if (started && open == 0) {
+            return;
+          }
+        }
+        default -> { }
+      }
+    }
+    throw error(peek(), "end");
   }
 
   // ---- expressions ----
@@ -220,6 +255,11 @@ public final class Parser {
       case NAME -> {
         advance();
         return new Name(t.text(), t.line());
+      }
+      case FUNCTION -> {
+        advance();
+        skipBlock(1);
+        return new Literal(new LuaUnresolved("function expression", t.line()), t.line());
       }
       case ELLIPSIS -> {
         advance();
