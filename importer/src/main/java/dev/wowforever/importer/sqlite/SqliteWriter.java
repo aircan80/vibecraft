@@ -1,5 +1,7 @@
 package dev.wowforever.importer.sqlite;
 
+import dev.wowforever.importer.clientdata.ClientItem;
+import dev.wowforever.importer.clientdata.ItemClassNames;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
 import dev.wowforever.importer.report.ImportReport;
@@ -67,18 +69,30 @@ public final class SqliteWriter {
 
   /** Writes the model, counting data oddities (nameless rows, unresolved values, unknown ids) into {@code report}. */
   public static void write(Path out, ImportModel model, ImportReport report) throws IOException, SQLException {
+    write(out, model, report, Map.of(), null);
+  }
+
+  /**
+   * Writes the model with client data: {@code clientItems} (by item id, from
+   * {@link dev.wowforever.importer.clientdata.ItemSparseLoader}) are merged into the item rows, and
+   * {@code classNames}, when not null, replace the static {@link ItemClasses} names. An empty map and null names
+   * write exactly what {@link #write(Path, ImportModel, ImportReport)} writes.
+   */
+  public static void write(Path out, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
+      ItemClassNames classNames) throws IOException, SQLException {
     Path file = out.toAbsolutePath();
     Files.deleteIfExists(file);
     Files.createDirectories(file.getParent());
     try {
-      writeFile(file, model, report);
+      writeFile(file, model, report, clientItems, classNames);
     } catch (SQLException | RuntimeException e) {
       Files.deleteIfExists(file);
       throw e;
     }
   }
 
-  private static void writeFile(Path file, ImportModel model, ImportReport report) throws SQLException {
+  private static void writeFile(Path file, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
+      ItemClassNames classNames) throws SQLException {
     String schema = schemaSql();
     Matcher m = INDEX_MARKER.matcher(schema);
     if (!m.find()) {
@@ -91,12 +105,12 @@ public final class SqliteWriter {
       c.setAutoCommit(false);
 
       writeMeta(c, model.meta());
-      writeItemClasses(c);
+      writeItemClasses(c, classNames);
       LuaColumns columns = new LuaColumns(report);
       EntityWriter entities = new EntityWriter(c, columns, report);
       NpcDrops drops = new NpcDrops();
       Map<Long, Long> spawnZones = new HashMap<>();
-      entities.items(table(model, EntityKind.ITEM), drops);
+      entities.items(table(model, EntityKind.ITEM), drops, clientItems);
       entities.npcs(table(model, EntityKind.NPC), spawnZones);
       entities.objects(table(model, EntityKind.OBJECT), spawnZones);
       entities.quests(table(model, EntityKind.QUEST));
@@ -127,13 +141,16 @@ public final class SqliteWriter {
     }
   }
 
-  private static void writeItemClasses(Connection c) throws SQLException {
+  /** The client's class names when given, else the static cmangos table. */
+  private static void writeItemClasses(Connection c, ItemClassNames names) throws SQLException {
+    Map<Integer, String> classNames = names != null ? names.classes() : ItemClasses.classes();
+    Map<Integer, Map<Integer, String>> subclassNames = names != null ? names.subclasses() : ItemClasses.subclasses();
     try (Batch classes = new Batch(c, "INSERT INTO item_class(id, name) VALUES (?, ?)");
         Batch subclasses = new Batch(c, "INSERT INTO item_subclass(class_id, id, name) VALUES (?, ?, ?)")) {
-      for (Map.Entry<Integer, String> e : ItemClasses.classes().entrySet()) {
+      for (Map.Entry<Integer, String> e : classNames.entrySet()) {
         classes.add(e.getKey(), e.getValue());
       }
-      for (Map.Entry<Integer, Map<Integer, String>> cls : ItemClasses.subclasses().entrySet()) {
+      for (Map.Entry<Integer, Map<Integer, String>> cls : subclassNames.entrySet()) {
         for (Map.Entry<Integer, String> sub : cls.getValue().entrySet()) {
           subclasses.add(cls.getKey(), sub.getKey(), sub.getValue());
         }

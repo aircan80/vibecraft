@@ -16,7 +16,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * A converted client-data directory as written by {@code tools/clientdata/convert.py}:
  *
  * <pre>
- *   csv/{Table}.csv        DB2 tables as CSV
+ *   csv/{Table}.csv        DB2 tables as CSV (csv/ItemSparse.era.csv: the optional Era fallback, ruling 17)
  *   icons/{fdid}.png       item icons, icons/0.png the fallback
  *   maps/{uiMapId}.jpg     composed zone maps
  *   maps.json              [{ui_map_id, name, width, height, tiles, overlays, missing_tiles}]
@@ -69,6 +69,11 @@ public final class ClientDataSource {
       }
       return CsvTable.read(p);
     });
+  }
+
+  /** The table {@code csv/{name}.csv} when the file exists (read once, like {@link #table}), else empty. */
+  public Optional<CsvTable> optionalTable(String name) {
+    return hasTable(name) ? Optional.of(table(name)) : Optional.empty();
   }
 
   /** {@code icons/{fdid}.png} when present ({@code icon(0)} is the fallback icon). */

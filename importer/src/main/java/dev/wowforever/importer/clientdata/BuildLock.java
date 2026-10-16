@@ -14,9 +14,13 @@ import java.util.Objects;
  * The file also carries {@code file_count} and {@code missing_count}; they describe the last fetch run only and
  * are not kept.
  *
- * @param tableSha SHA-256 (lower-case hex) of each fetched table's CSV, by table name
+ * @param tableSha SHA-256 (lower-case hex) of each fetched table's CSV, by table name ({@code ItemSparse.era}
+ *     for the fallback table)
+ * @param fallbackProduct the product whose ItemSparse was fetched as {@code ItemSparse.era} (ruling 17), or null
+ * @param fallbackBuild that product's build, or null
  */
-public record BuildLock(String product, String build, String fetchedAt, String baseUrl, Map<String, String> tableSha) {
+public record BuildLock(String product, String build, String fetchedAt, String baseUrl, Map<String, String> tableSha,
+    String fallbackProduct, String fallbackBuild) {
 
   public BuildLock {
     Objects.requireNonNull(product, "product");
@@ -24,6 +28,11 @@ public record BuildLock(String product, String build, String fetchedAt, String b
     Objects.requireNonNull(fetchedAt, "fetchedAt");
     Objects.requireNonNull(baseUrl, "baseUrl");
     tableSha = Map.copyOf(tableSha);
+  }
+
+  /** A lock without a fallback product. */
+  public BuildLock(String product, String build, String fetchedAt, String baseUrl, Map<String, String> tableSha) {
+    this(product, build, fetchedAt, baseUrl, tableSha, null, null);
   }
 
   /**
@@ -53,7 +62,7 @@ public record BuildLock(String product, String build, String fetchedAt, String b
         throw new IllegalArgumentException("missing object field tables");
       }
       return new BuildLock(str(root, "product"), str(root, "build"), str(root, "fetched_at"),
-          str(root, "base_url"), tables);
+          str(root, "base_url"), tables, optionalStr(root, "fallback_product"), optionalStr(root, "fallback_build"));
     } catch (IllegalArgumentException e) {
       throw new IllegalStateException(file + ": " + e.getMessage(), e);
     }
@@ -64,5 +73,13 @@ public record BuildLock(String product, String build, String fetchedAt, String b
       return s;
     }
     throw new IllegalArgumentException("missing string field " + field);
+  }
+
+  private static String optionalStr(Map<?, ?> root, String field) {
+    Object v = root.get(field);
+    if (v == null || v instanceof String) {
+      return (String) v;
+    }
+    throw new IllegalArgumentException("field " + field + " is not a string");
   }
 }

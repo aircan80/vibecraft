@@ -115,4 +115,38 @@ class ClientDataSourceTest {
     // Until the client-data stage is wired (phase 2A Task 9) neither flag is required.
     assertThat(ImportOptions.parse(new String[] {"--out", "o.sqlite"}).clientData()).isEmpty();
   }
+
+  @Test
+  void optionalTableIsEmptyWhenTheFileIsAbsent() {
+    ClientDataSource src = new ClientDataSource(Fixtures.clientDataRoot());
+    assertThat(src.optionalTable("ItemSparse.era")).hasValueSatisfying(t -> {
+      assertThat(t.indexByLong("ID")).containsKey(16800L);
+      assertThat(t).isSameAs(src.table("ItemSparse.era"));
+    });
+    assertThat(src.optionalTable("NoSuchTable")).isEmpty();
+  }
+
+  @Test
+  void buildLockFallbackFieldsAreOptional() throws IOException {
+    assertThat(new ClientDataSource(Fixtures.clientDataRoot()).lock().fallbackProduct()).isNull();
+    assertThat(new ClientDataSource(Fixtures.clientDataRoot()).lock().fallbackBuild()).isNull();
+
+    Path p = tmp.resolve("build.lock");
+    Files.writeString(p, """
+        {"product": "wow_classic_beta", "build": "1.60.1.70425", "fetched_at": "2026-10-16T20:21:06Z",
+         "base_url": "https://wago.tools", "tables": {"ItemSparse.era": "cc"},
+         "fallback_product": "wow_classic_era", "fallback_build": "1.15.9.70003"}
+        """, StandardCharsets.UTF_8);
+    BuildLock lock = BuildLock.read(p);
+    assertThat(lock.fallbackProduct()).isEqualTo("wow_classic_era");
+    assertThat(lock.fallbackBuild()).isEqualTo("1.15.9.70003");
+    assertThat(lock.tableSha()).containsEntry("ItemSparse.era", "cc");
+
+    Files.writeString(p, """
+        {"product": "p", "build": "b", "fetched_at": "f", "base_url": "u", "tables": {}, "fallback_build": 7}
+        """, StandardCharsets.UTF_8);
+    assertThatThrownBy(() -> BuildLock.read(p))
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("fallback_build");
+  }
 }
