@@ -11,6 +11,7 @@ import dev.wowforever.app.ui.detail.CompactColumns;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.pages.quest.ChainStepper;
+import dev.wowforever.app.ui.pages.quest.ChainPanel;
 import dev.wowforever.app.ui.pages.quest.GiverSections;
 import dev.wowforever.app.ui.pages.quest.QuestHeader;
 import dev.wowforever.app.ui.pages.quest.QuestMapPanel;
@@ -33,7 +34,8 @@ public final class QuestPage extends SourcesPage {
   private final ChainStepper stepper;
   private final QuestMapPanel mapPanel;
   private final JPanel objectivesPanel = new JPanel(new BorderLayout());
-  private final JPanel chainPanel = new JPanel(new BorderLayout());
+  private final ChainPanel chainPanel;
+  private final SourceSection chainSection;
   private final Body body = new Body();
   private final JTextArea objectives = new JTextArea();
   private final SourceSection objectiveSection;
@@ -42,6 +44,7 @@ public final class QuestPage extends SourcesPage {
     super(nav);
     header = QuestHeader.create(data, nav);
     stepper = new ChainStepper(data.chain(), nav);
+    chainPanel = new ChainPanel(data.chain(), nav);
     mapPanel = new QuestMapPanel(data, maps, nav, clipboard);
     content.add(header);
     content.add(stepper);
@@ -67,11 +70,8 @@ public final class QuestPage extends SourcesPage {
     if (!data.ends().isEmpty()) {
       addSection(GiverSections.create("Turned in to", data.ends(), nav));
     }
-    chainPanel.setOpaque(false);
-    if (data.chain().standalone()) {
-      chainPanel.add(new JLabel("Standalone quest — no prerequisites or follow-ups."));
-    }
-    addSection(panelSection("Quest chain", chainPanel));
+    chainSection = panelSection("Quest chain", chainPanel);
+    addSection(chainSection);
     addLootSection("Rewards", data.detail().rewards());
     addSection("Related items", data.detail().relatedItems().size(), Columns.itemSources(), data.detail().relatedItems());
     SourceSection related = section("Related items");
@@ -115,6 +115,10 @@ public final class QuestPage extends SourcesPage {
     if (section("Related items") != null) {
       section("Related items").setCollapsible(true);
     }
+    boolean compact = CompactColumns.within(this);
+    chainSection.setCollapsible(false); // the chain owns its compact disclosure control
+    chainSection.heading().setVisible(!compact);
+    chainSection.setVisible(!compact || chainPanel.isVisible());
     super.doLayout();
   }
 
@@ -123,6 +127,7 @@ public final class QuestPage extends SourcesPage {
   public QuestMapPanel mapPanel() { return mapPanel; }
   public JPanel objectivesPanel() { return objectivesPanel; }
   public JPanel chainPanel() { return chainPanel; }
+  public ChainPanel chainView() { return chainPanel; }
   public JPanel body() { return body; }
   public JTextArea objectives() { return objectives; }
   public boolean isSideBySide() { return getWidth() >= SIDE_BY_SIDE_PX && !CompactColumns.within(this); }

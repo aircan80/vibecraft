@@ -93,7 +93,9 @@ public record QuestChain(List<Step> steps, int currentIndex, List<Step> spine, b
     EXCLUSIVE("Choose one (exclusive):"),
     /** A breadcrumb that leads to the quest but is not required. */
     LEAD_IN("Optional lead-in:"),
-    /** A quest that follows: it requires this one, is its next quest, its child or the target of its breadcrumb. */
+    /** The optional breadcrumb target; stronger than a nextQuestInChain hint. */
+    LEADS_TO("Leads to:"),
+    /** A quest that follows: it requires this one, is its next quest or its child. */
     UNLOCKS("Unlocks:"),
     /** The parent quest this one is done during. */
     DURING("During:");

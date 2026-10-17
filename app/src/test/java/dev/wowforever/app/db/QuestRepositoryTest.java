@@ -248,7 +248,7 @@ class QuestRepositoryTest {
 
   @Test
   void pamelaQuestsAreExclusiveLeadInsToTheDoll() {
-    assertThat(rows(repos.quests().chain(5142))).containsExactly("5142:-:0", "5601:EXCLUSIVE:0", "5149:UNLOCKS:1");
+    assertThat(rows(repos.quests().chain(5142))).containsExactly("5142:-:0", "5601:EXCLUSIVE:0", "5149:LEADS_TO:1");
     assertThat(rows(repos.quests().chain(5149))).containsExactly("5142:LEAD_IN:-1", "5601:LEAD_IN:-1", "5149:-:0");
   }
 
