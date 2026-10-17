@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.LevelBand;
 import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.QuestRef;
 import dev.wowforever.app.model.Spawn;
@@ -12,9 +13,15 @@ import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
 import dev.wowforever.app.model.ZoneSummary;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(FixtureDb.class)
 class ZoneRepositoryTest {
@@ -36,6 +43,40 @@ class ZoneRepositoryTest {
     ZoneDetail z = repos.zones().detail(40).get();
     assertThat(z.instances()).extracting(i -> i.name()).contains("The Deadmines");
     assertThat(z.subzones()).extracting(ZoneSummary::id).contains(1581L);
+  }
+
+  @Test
+  void theLevelBandWeighsHostileNpcsByTheirSpawnsAndLeavesOutBossesFriendsAndInstanceNpcs(@TempDir Path tmp)
+      throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      StringBuilder npcs = new StringBuilder("insert into npc(id, name, min_level, max_level, rank, zone_id,"
+          + " friendly_to) values (97001, 'Gnoll', 11, 12, 0, 40, null), (97002, 'Harvest Golem', 14, 16, 0, 40, null),"
+          + " (97003, 'Defias Pillager', 18, 19, 0, 40, null), (97004, 'Guard', 55, 55, 1, 40, 'A'),"
+          + " (97005, 'Chicken', 1, 1, 0, 40, 'AH'), (97006, 'Overlord', 60, 60, 3, 40, null),"
+          + " (97007, 'Miner', 25, 25, 0, 40, null)");
+      st.executeUpdate(npcs.toString());
+      StringBuilder spawns = new StringBuilder("insert into npc_spawn(npc_id, zone_id, x, y) values ");
+      for (int i = 0; i < 20; i++) {
+        spawns.append(i == 0 ? "" : ", ").append("(97001, 40, 50, 50), (97002, 40, 50, 50), (97003, 40, 50, 50),")
+            .append(" (97004, 40, 50, 50), (97005, 40, 50, 50)");
+      }
+      spawns.append(", (97006, 40, 50, 50), (97007, 40, -1, -1)");
+      st.executeUpdate(spawns.toString());
+    }
+    try (Database db = Database.open(copy)) {
+      ZoneDetail westfall = Repositories.of(db).zones().detail(40).orElseThrow();
+      // the guards (friendly, 55), the chickens (friendly, 1) and the boss (60) are left out; so is the miner,
+      // met only inside an instance (-1, -1): the gnolls to the Defias, 11.5 to 18.5, read 10–20
+      assertThat(westfall.levelBand()).contains(new LevelBand(10, 20));
+      assertThat(westfall.npcs()).extracting(n -> n.id()).contains(97001L, 97004L).doesNotContain(97007L);
+      assertThat(westfall.npcs()).filteredOn(n -> n.id() == 97004L).singleElement()
+          .satisfies(n -> assertThat(n.friendlyTo()).isEqualTo("A"));
+      ZoneDetail deadmines = Repositories.of(db).zones().detail(1581).orElseThrow();
+      assertThat(deadmines.npcs()).as("a dungeon keeps the NPCs met inside").extracting(n -> n.id()).contains(639L);
+      assertThat(deadmines.levelBand()).as("none met on a map").isEmpty();
+    }
   }
 
   @Test

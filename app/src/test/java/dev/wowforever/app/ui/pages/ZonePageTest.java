@@ -15,6 +15,8 @@ import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.db.SpawnFixtureDb;
 import dev.wowforever.app.db.ZoneRepository;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.InstanceSummary;
+import dev.wowforever.app.model.LevelBand;
 import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.ObjectSummary;
 import dev.wowforever.app.model.QuestPin;
@@ -36,6 +38,7 @@ import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import javax.swing.JButton;
 import javax.swing.JMenuItem;
@@ -61,9 +64,27 @@ class ZonePageTest {
   void levelRangeSpansTheZoneNpcsIgnoringUnknownLevels() {
     var p = new ZonePage(zone(List.of(npc(1, "A", null, null, 0), npc(2, "B", 5, 7, 0), npc(3, "C", 12, null, 0),
         npc(4, "D", 0, 0, 0), npc(5, "E", null, 9, 0)), List.of()), t -> {});
-    assertThat(p.header().subtitle()).isEqualTo("Zone #12 · Zone · Level 5–12");
+    // no level band from the repository: the range of the NPCs; a plain zone does not say "Zone" twice
+    assertThat(p.header().subtitle()).isEqualTo("Zone #12 · Level 5–12");
     var none = new ZonePage(zone(List.of(npc(1, "A", null, null, 0)), List.of()), t -> {});
-    assertThat(none.header().subtitle()).isEqualTo("Zone #12 · Zone");
+    assertThat(none.header().subtitle()).isEqualTo("Zone #12");
+  }
+
+  @Test
+  void theLevelBandLeadsTheHeader() {
+    var d = new ZoneDetail(ELWYNN, List.of(npc(1, "Guard", 30, 30, 0), npc(2, "Wolf", 2, 3, 0)), List.of(),
+        List.of(), List.of(), List.of(), Optional.empty(), Optional.of(new LevelBand(1, 10)));
+    assertThat(new ZonePage(d, t -> {}).header().subtitle()).isEqualTo("Zone #12 · Level 1–10");
+  }
+
+  @Test
+  void friendlyNpcsComeLastAndSayToWhom() {
+    var p = new ZonePage(zone(List.of(new NpcSummary(1, "Guard Thomas", null, 25, 25, 1, "Elwynn Forest", 12L, "A"),
+        npc(2, "Wolf", 5, 5, 0), new NpcSummary(3, "Kitten", null, 1, 1, 0, "Elwynn Forest", 12L, "AH"),
+        npc(4, "Hogger", 11, 11, 1)), List.of()), t -> {});
+    var npcs = p.section("NPCs").table().table();
+    assertThat(column(npcs, 0)).containsExactly("Hogger", "Wolf", "Guard Thomas", "Kitten");
+    assertThat(column(npcs, columnNames(npcs).indexOf("Friendly to"))).containsExactly(null, null, "Alliance", "Both");
   }
 
   @Test
@@ -89,11 +110,16 @@ class ZonePageTest {
     List<ViewTarget> opened = new ArrayList<>();
     var p = new ZonePage(repos.zones().detail(40).get(), opened::add);
     assertThat(p.instanceLinks()).extracting(JButton::getText).containsExactly("The Deadmines");
-    assertThat(p.subzoneLinks()).extracting(JButton::getText).containsExactly("The Deadmines");
+    assertThat(p.subzoneLinks()).as("the dungeon's own zone is not listed twice").isEmpty();
     p.instanceLinks().get(0).doClick();
-    p.subzoneLinks().get(0).doClick();
-    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(INSTANCE, 2)),
-        new ViewTarget.Entity(new EntityRef(ZONE, 1581)));
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(INSTANCE, 2)));
+    var gloomvale = new ZonePage(new ZoneDetail(ELWYNN, List.of(), List.of(), List.of(), List.of(new InstanceSummary(
+        9, "Gloom Crypt", "DUNGEON", 20, 25, 95001L, "Crypt", "GloomCrypt")), List.of(
+        new ZoneSummary(95001, "Crypt", "dungeon", 12L, "Elwynn Forest"),
+        new ZoneSummary(95002, "Gloom Crypt", "subzone", 12L, "Elwynn Forest"),
+        new ZoneSummary(95003, "Brackwell Pumpkin Patch", "subzone", 12L, "Elwynn Forest"))), opened::add);
+    assertThat(gloomvale.subzoneLinks()).as("by zone or by name").extracting(JButton::getText)
+        .containsExactly("Brackwell Pumpkin Patch");
     assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Quests");
   }
 
@@ -177,6 +203,8 @@ class ZonePageTest {
         .satisfies(pin -> assertThat(pin.x()).isEqualTo(61.2));
     assertThat(map.bossesAndRaresOnly()).isTrue();
     ZoneMapPanel panel = p.mapPanel();
+    assertThat(panel.legend().getParent()).as("a legend under the map").isSameAs(panel);
+    assertThat(panel.legend().texts()).startsWith("Boss", "Rare", "NPC", "Object");
     assertThat(List.of(panel.bossesToggle(), panel.allNpcsToggle(), panel.objectsToggle()))
         .extracting(JToggleButton::getText)
         .containsExactly("Bosses & rares", "All NPCs", "Objects");
@@ -267,7 +295,7 @@ class ZonePageTest {
     var p = new ZonePage(new ZoneDetail(new ZoneSummary(5, null, null, 77L, null), List.of(), List.of(), List.of(),
         List.of(), List.of()), t -> {});
     assertThat(p.header().title()).isEqualTo("Unknown zone #5");
-    assertThat(p.header().subtitle()).isEqualTo("Zone #5 · Zone · Unknown zone #77");
+    assertThat(p.header().subtitle()).isEqualTo("Zone #5 · Unknown zone #77");
     assertThat(p.sections()).isEmpty();
     assertThat(p.instanceLinks()).isEmpty();
     assertThat(p.subzoneLinks()).isEmpty();

@@ -134,6 +134,8 @@ public final class Columns {
   public static final String DISAGREES = " ≠";
   /** The title of the loot tables' class restriction column ({@link Labels#classes}). */
   public static final String CLASSES = "Classes";
+  /** The title of the NPC tables' reaction column ({@link #friendlyText}). */
+  public static final String FRIENDLY_TO = "Friendly to";
   /** The title of the loot tables' AtlasLoot entry order column (not an equipment slot). */
   public static final String LOOT_ORDER = "#";
 
@@ -161,6 +163,7 @@ public final class Columns {
         plain("Title", String.class, NpcSummary::subName),
         plain("Level", Levels.class, n -> new Levels(n.minLevel(), n.maxLevel())),
         plain("Rank", String.class, n -> rankText(n.rank())),
+        plain(FRIENDLY_TO, String.class, n -> friendlyText(n.friendlyTo())),
         link("Zone", NpcSummary::zoneName, n -> zoneRef(n.zoneId())));
   }
 
@@ -332,6 +335,17 @@ public final class Columns {
       case "end" -> "Ends";
       default -> role;
     };
+  }
+
+  /** The factions an NPC is friendly to: A Alliance, H Horde, AH Both; null for a hostile NPC. */
+  public static String friendlyText(String friendlyTo) {
+    if (friendlyTo == null || friendlyTo.isBlank()) {
+      return null;
+    }
+    String f = friendlyTo.strip().toUpperCase(Locale.ROOT);
+    boolean alliance = f.contains("A");
+    boolean horde = f.contains("H");
+    return alliance && horde ? "Both" : alliance ? "Alliance" : horde ? "Horde" : friendlyTo.strip();
   }
 
   /** NPC rank text: 0 Normal, 1 Elite, 2 Rare Elite, 3 Boss, 4 Rare; null when unknown. */

@@ -84,7 +84,18 @@ public final class NpcRepository {
 
   /** NPCs whose zone is {@code zoneId}, by name, at most {@code limit} (negative: all). */
   static List<NpcSummary> byZone(Connection c, long zoneId, int limit) throws SQLException {
-    return Sql.list(c, SUMMARY + " WHERE n.zone_id = ? ORDER BY n.name IS NULL, n.name COLLATE NOCASE, n.id LIMIT ?",
+    return byZone(c, zoneId, limit, false);
+  }
+
+  /**
+   * {@link #byZone(Connection, long, int)}; with {@code outdoorsOnly}, NPCs whose every spawn point is an instance
+   * placeholder (inside a dungeon of the zone, not on its map) are left out.
+   */
+  static List<NpcSummary> byZone(Connection c, long zoneId, int limit, boolean outdoorsOnly) throws SQLException {
+    String outdoors = !outdoorsOnly ? "" : " AND (NOT EXISTS (SELECT 1 FROM npc_spawn s WHERE s.npc_id = n.id)"
+        + " OR EXISTS (SELECT 1 FROM npc_spawn s WHERE s.npc_id = n.id AND s.x >= 0 AND s.y >= 0))";
+    return Sql.list(c, SUMMARY + " WHERE n.zone_id = ?" + outdoors
+            + " ORDER BY n.name IS NULL, n.name COLLATE NOCASE, n.id LIMIT ?",
         NpcRepository::summary, zoneId, limit);
   }
 
@@ -163,6 +174,6 @@ public final class NpcRepository {
   private static NpcSummary summary(ResultSet rs) throws SQLException {
     return new NpcSummary(rs.getLong("id"), rs.getString("name"), rs.getString("sub_name"),
         Sql.integer(rs, "min_level"), Sql.integer(rs, "max_level"), Sql.integer(rs, "rank"),
-        rs.getString("zone_name"), Sql.longValue(rs, "zone_id"));
+        rs.getString("zone_name"), Sql.longValue(rs, "zone_id"), rs.getString("friendly_to"));
   }
 }

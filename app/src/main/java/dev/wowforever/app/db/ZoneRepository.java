@@ -2,6 +2,7 @@ package dev.wowforever.app.db;
 
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.LevelBand;
 import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.QuestRef;
@@ -18,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -50,6 +52,9 @@ public final class ZoneRepository {
       SELECT z.id, z.name, z.kind, z.parent_id, p.name AS parent_name
       FROM zone z LEFT JOIN zone p ON p.id = z.parent_id""";
 
+  /** The zone kinds of dungeons and raids, whose NPCs are all met inside. */
+  private static final Set<String> INSTANCE_KINDS = Set.of("dungeon", "raid");
+
   /** Maximum spawn points of each spawn query. */
   public static final int PIN_CAP = 20_000;
   /**
@@ -71,7 +76,9 @@ public final class ZoneRepository {
 
   /**
    * The zone page, or empty when there is no such zone. Instances are those in this zone or in one of its
-   * direct subzones; every list holds at most {@link #DETAIL_LIST_CAP} rows. The map is the zone's {@link #map}.
+   * direct subzones; every list holds at most {@link #DETAIL_LIST_CAP} rows. The map is the zone's {@link #map}, the
+   * level band its {@link #levelBand}. A zone that is not itself a dungeon or raid leaves out the NPCs met only
+   * inside its instances.
    */
   public Optional<ZoneDetail> detail(long id) {
     return db.read(c -> {
@@ -80,8 +87,9 @@ public final class ZoneRepository {
       if (zone.isEmpty()) {
         return Optional.empty();
       }
+      boolean instanceZone = INSTANCE_KINDS.contains(zone.get().kind());
       return Optional.of(new ZoneDetail(zone.get(),
-          NpcRepository.byZone(c, id, DETAIL_LIST_CAP),
+          NpcRepository.byZone(c, id, DETAIL_LIST_CAP, !instanceZone),
           ObjectRepository.byZone(c, id, DETAIL_LIST_CAP),
           QuestRepository.byZone(c, id, DETAIL_LIST_CAP),
           Sql.list(c, InstanceRepository.SUMMARY_SELECT + """
@@ -94,8 +102,40 @@ public final class ZoneRepository {
               WHERE z.parent_id = ?
               ORDER BY z.name IS NULL, z.name COLLATE NOCASE, z.id LIMIT ?""",
               ZoneRepository::summary, id, DETAIL_LIST_CAP),
-          map(c, id)));
+          map(c, id), levelBand(c, id)));
     });
+  }
+
+  /**
+   * The level band of zone {@code zoneId} ({@link LevelBand#of}) over its hostile NPCs, each weighted by its spawn
+   * points on the zone's map (an NPC without any spawn point counts once, one met only elsewhere, inside an
+   * instance say, not at all) and bosses ({@link NpcRepository#RANK} 3) and unknown levels left out; over every
+   * NPC when no hostile one counts. Empty when none does.
+   */
+  static Optional<LevelBand> levelBand(Connection c, long zoneId) throws SQLException {
+    record Npc(LevelBand.Weighted level, boolean friendly) {}
+    List<Npc> npcs = Sql.list(c, "SELECT n.min_level, n.max_level, n.friendly_to,"
+            + " (SELECT count(*) FROM npc_spawn s WHERE s.npc_id = n.id AND s.zone_id = n.zone_id" + ON_MAP
+            + ") AS on_map, EXISTS (SELECT 1 FROM npc_spawn s WHERE s.npc_id = n.id) AS spawns"
+            + " FROM npc n WHERE n.zone_id = ? AND " + NpcRepository.RANK + " IS NOT 3",
+        rs -> {
+          Integer min = positive(Sql.integer(rs, "min_level"));
+          Integer max = positive(Sql.integer(rs, "max_level"));
+          Integer low = min != null ? min : max;
+          Integer high = max != null ? max : min;
+          if (low == null || high >= InstanceRepository.SKULL_LEVEL) {
+            return null;
+          }
+          int weight = rs.getInt("spawns") != 0 ? rs.getInt("on_map") : 1;
+          String friendly = rs.getString("friendly_to");
+          return new Npc(new LevelBand.Weighted((low + high) / 2.0, weight), friendly != null && !friendly.isBlank());
+        }, zoneId).stream().filter(Objects::nonNull).toList();
+    Optional<LevelBand> hostile = LevelBand.of(npcs.stream().filter(n -> !n.friendly()).map(Npc::level).toList());
+    return hostile.isPresent() ? hostile : LevelBand.of(npcs.stream().map(Npc::level).toList());
+  }
+
+  private static Integer positive(Integer level) {
+    return level != null && level > 0 ? level : null;
   }
 
   /** The map of zone {@code zoneId} (the zone_map of its UiMap), or empty when it has none. */

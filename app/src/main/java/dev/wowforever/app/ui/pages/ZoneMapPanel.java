@@ -10,6 +10,7 @@ import dev.wowforever.app.ui.StatusSink;
 import dev.wowforever.app.ui.detail.CompactColumns;
 import dev.wowforever.app.ui.widgets.MapView;
 import dev.wowforever.app.ui.widgets.MapView.Pin;
+import dev.wowforever.app.ui.widgets.PinLegend;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -39,8 +40,8 @@ import javax.swing.JToggleButton;
  * {@code "Loading pins…"} meanwhile. Pins already loading are not asked for again: a toggle changed while a load is
  * in flight loads only what is neither loaded nor loading, and every load's pins are kept when it finishes; the pin
  * count is reported once nothing is loading any more. A load that fails is reported to the {@link StatusSink} and
- * its toggles go back to what the map shows. In the compact window the toggles
- * collapse into a "Pins ▾" menu.
+ * its toggles go back to what the map shows. A legend under the map tells the pin kinds ({@link PinLegend}). In the
+ * compact window the toggles collapse into a "Pins ▾" menu.
  */
 public final class ZoneMapPanel extends JPanel {
   /** The status shown while pins load. */
@@ -99,6 +100,7 @@ public final class ZoneMapPanel extends JPanel {
   private final JToggleButton questsToggle = new JToggleButton("Quests");
   private final JButton pinsMenuButton = new JButton("Pins ▾");
   private final JPopupMenu pinsMenu = new JPopupMenu();
+  private final PinLegend legend = new PinLegend();
   private final List<Pin> defaultPins;
   private List<Pin> allNpcPins;
   private List<Pin> objectPins;
@@ -169,6 +171,7 @@ public final class ZoneMapPanel extends JPanel {
     setBorder(BorderFactory.createEmptyBorder(8, 12, 2, 12));
     add(controls, BorderLayout.NORTH);
     add(mapView, BorderLayout.CENTER);
+    add(legend, BorderLayout.SOUTH);
     addHierarchyListener(e -> {
       if ((e.getChangeFlags() & HierarchyEvent.PARENT_CHANGED) != 0) {
         boolean compact = CompactColumns.within(this);
@@ -304,6 +307,11 @@ public final class ZoneMapPanel extends JPanel {
   /** "Quests": adds the quest givers' pins. */
   public JToggleButton questsToggle() {
     return questsToggle;
+  }
+
+  /** The row under the map that tells what its pins are. */
+  public PinLegend legend() {
+    return legend;
   }
 
   /** The compact window's "Pins ▾" button, shown in place of the toggles. */

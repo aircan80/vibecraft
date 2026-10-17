@@ -65,7 +65,7 @@ public final class MapView extends JComponent {
   private static final int RADIUS = 4;
   private static final int SELF_RADIUS = 6;
   private static final int BOSS_RADIUS = 5;
-  private static final Color OUTLINE = new Color(0x0C0E12);
+  static final Color OUTLINE = new Color(0x0C0E12);
   private static final Color SILVER = new Color(0xC9CED6);
   private static final Color HOVER = new Color(0xFFFFFF);
 
@@ -665,7 +665,7 @@ public final class MapView extends JComponent {
   }
 
   /** Boss and the page's own pins gold, rares silver, objects the link accent, other NPCs muted. */
-  private static Color colour(PinKind kind) {
+  static Color colour(PinKind kind) {
     Theme t = Theme.current();
     return switch (kind) {
       case SELF, BOSS -> t.accentGold();

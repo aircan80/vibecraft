@@ -25,10 +25,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 /**
- * The zone page, one scrolling page: the header (kind, the level range of the zone's NPCs, a parent link), its
- * dungeons and raids and its sub-zones as compact rows of links, the zone map with spawn pins ({@link ZoneMapPanel},
- * when the zone has a map), then the sections NPCs (bosses and rares first), Objects and Quests (by level). Sections
- * without rows are left out.
+ * The zone page, one scrolling page: the header (the kind unless it is a plain zone, the zone's level band, a parent
+ * link), its dungeons and raids and its sub-zones (those that are not one of the dungeons) as compact rows of links,
+ * the zone map with spawn pins ({@link ZoneMapPanel}, when the zone has a map), then the sections NPCs (hostile ones
+ * first, bosses and rares leading; then the friendly ones), Objects and Quests (by level). Sections without rows are
+ * left out.
  */
 public final class ZonePage extends SourcesPage {
   private final HeaderPanel header;
@@ -46,8 +47,8 @@ public final class ZonePage extends SourcesPage {
     super(nav);
     this.mapPanel = mapPanel;
     ZoneSummary s = d.summary();
-    header = new HeaderPanel(s.displayName(), Labels.join("Zone #" + s.id(), Labels.zoneSubtitle(s.kind(), null),
-        levelRange(d.npcs())));
+    header = new HeaderPanel(s.displayName(), Labels.join("Zone #" + s.id(), kindWord(s.kind()),
+        d.levelBand().map(b -> Labels.levels(b.min(), b.max())).orElseGet(() -> levelRange(d.npcs()))));
     header.setAlignmentX(LEFT_ALIGNMENT);
     if (s.parentId() != null) {
       EntityRef parent = new EntityRef(EntityKind.ZONE, s.parentId());
@@ -56,11 +57,13 @@ public final class ZonePage extends SourcesPage {
     content.add(header);
     addLinkRow("Dungeons & raids", d.instances(), i -> Labels.instanceTitle(i.displayName(), i.key()),
         InstanceSummary::ref, instanceLinks);
-    addLinkRow("Sub-zones", d.subzones(), ZoneSummary::displayName, ZoneSummary::ref, subzoneLinks);
+    addLinkRow("Sub-zones", d.subzones().stream().filter(z -> !isInstance(z, d.instances())).toList(),
+        ZoneSummary::displayName, ZoneSummary::ref, subzoneLinks);
     if (mapPanel != null) {
       content.add(mapPanel);
     }
-    List<NpcSummary> npcs = d.npcs().stream().sorted(Comparator.comparingInt((NpcSummary n) -> rankOrder(n.rank()))
+    List<NpcSummary> npcs = d.npcs().stream().sorted(Comparator.comparing(NpcSummary::friendly)
+        .thenComparingInt((NpcSummary n) -> rankOrder(n.rank()))
         .thenComparing(NpcSummary::displayName, String.CASE_INSENSITIVE_ORDER)
         .thenComparingLong(NpcSummary::id)).toList();
     addSection("NPCs", npcs.size(), VisibleColumns.of(Columns.npcs(), npcs, s.name()), npcs);
@@ -74,9 +77,22 @@ public final class ZonePage extends SourcesPage {
     bindJumpKeys();
   }
 
+  /** The zone kind in words for the header; null for a plain zone, which "Zone #id" already says. */
+  private static String kindWord(String kind) {
+    String words = Labels.zoneKind(kind);
+    return words == null || words.equals(EntityKind.ZONE.label()) ? null : words;
+  }
+
+  /** Whether {@code subzone} is the zone of one of {@code instances}, or shares its name with one. */
+  private static boolean isInstance(ZoneSummary subzone, List<InstanceSummary> instances) {
+    return instances.stream().anyMatch(i -> Objects.equals(i.zoneId(), subzone.id())
+        || (subzone.name() != null && subzone.name().equals(i.name())));
+  }
+
   /**
-   * {@code "Level 5–12"}: the lowest and highest level of the zone's NPCs, levels of 0 and below and unknown ones
-   * left out (an NPC with one known level counts it as both); null when no NPC has a level.
+   * {@code "Level 5–12"}, for a zone without a level band: the lowest and highest level of the zone's NPCs, levels
+   * of 0 and below and unknown ones left out (an NPC with one known level counts it as both); null when no NPC has a
+   * level.
    */
   static String levelRange(List<NpcSummary> npcs) {
     Integer low = null;
