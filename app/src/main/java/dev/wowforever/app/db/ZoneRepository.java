@@ -2,6 +2,7 @@ package dev.wowforever.app.db;
 
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
@@ -43,10 +44,11 @@ public final class ZoneRepository {
 
   /** Maximum spawn points of each spawn query. */
   public static final int PIN_CAP = 20_000;
-  /** Keeps spawn points ({@code s}) on the map: instance placeholders (-1, -1) and missing coordinates drop out. */
-  private static final String ON_MAP = """
-
-        AND s.x BETWEEN 0 AND 100 AND s.y BETWEEN 0 AND 100""";
+  /**
+   * Keeps spawn points ({@code s}) {@linkplain MapCoordinates#onMap on the map}: instance placeholders (-1, -1),
+   * points past the edge and missing coordinates drop out.
+   */
+  private static final String ON_MAP = "\n" + MapCoordinates.sqlOnMap("s");
 
   private final Database db;
 
@@ -94,9 +96,9 @@ public final class ZoneRepository {
   }
 
   /**
-   * The NPC spawn points in zone {@code zoneId} that lie on its map (coordinates 0 to 100), each with the NPC's name
-   * and rank, in import order and at most {@link #PIN_CAP}; with {@code bossesAndRaresOnly} only those of bosses,
-   * rare elites and rares (ranks 3, 2 and 4).
+   * The NPC spawn points in zone {@code zoneId} that lie on its map ({@link MapCoordinates#onMap}), each with the
+   * NPC's name and rank, in import order and at most {@link #PIN_CAP}; with {@code bossesAndRaresOnly} only those
+   * of bosses, rare elites and rares (ranks 3, 2 and 4).
    */
   public List<SpawnPin> npcSpawnsInZone(long zoneId, boolean bossesAndRaresOnly) {
     return db.read(c -> Sql.list(c, """

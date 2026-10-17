@@ -21,6 +21,7 @@ import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneSummary;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.StatusSink;
 import dev.wowforever.app.ui.detail.CompactColumns;
 import dev.wowforever.app.ui.widgets.Images;
 import dev.wowforever.app.ui.widgets.MapView;
@@ -101,13 +102,11 @@ class ZonePageTest {
     assertThat(p.header().subtitle()).isEqualTo("Zone #1581 · Dungeon · Level 21 · Westfall");
     p.header().links().get(0).doClick();
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(ZONE, 40)));
-    assertThat(p.mapView()).isNull();
-    assertThat(p.mapArea()).isNull();
-    assertThat(p.bossesToggle()).isNull();
+    assertThat(p.mapPanel()).isNull();
   }
 
   /** A pin source over the fixture with Westfall spawns that records each call. */
-  private static final class FakePins implements ZonePage.PinSource {
+  private static final class FakePins implements ZoneMapPanel.PinSource {
     final ZoneRepository zones = SpawnFixtureDb.repositories().zones();
     final List<String> calls = new ArrayList<>();
 
@@ -128,8 +127,27 @@ class ZonePageTest {
   private final ZoneDetail westfall = spawnZones.detail(40).orElseThrow();
   private final BufferedImage westfallMap = Images.decode(westfall.map().orElseThrow().jpeg()).orElseThrow();
 
-  private ZonePage westfallPage(FakePins pins, Executor worker, List<ViewTarget> opened) {
-    return new ZonePage(westfall, westfallMap, spawnZones.npcSpawnsInZone(40, true), pins, worker, opened::add);
+  /** The status messages and failures a page reports. */
+  private static final class Status implements StatusSink {
+    final List<String> messages = new ArrayList<>();
+    final List<Exception> failures = new ArrayList<>();
+
+    @Override
+    public void message(String text) {
+      messages.add(text);
+    }
+
+    @Override
+    public void fail(Exception e) {
+      failures.add(e);
+    }
+  }
+
+  private final Status status = new Status();
+
+  private ZonePage westfallPage(ZoneMapPanel.PinSource pins, Executor worker, List<ViewTarget> opened) {
+    return new ZonePage(westfall, new ZoneMapPanel(40, westfallMap, spawnZones.npcSpawnsInZone(40, true), pins,
+        worker, status, opened::add), opened::add);
   }
 
   @Test
@@ -137,11 +155,11 @@ class ZonePageTest {
     var pins = new FakePins();
     List<ViewTarget> opened = new ArrayList<>();
     var p = westfallPage(pins, Runnable::run, opened);
-    MapView map = p.mapView();
+    MapView map = p.mapPanel().mapView();
     assertThat(map.image()).isSameAs(westfallMap);
     // the map replaces the reserved area: below the header and link rows, above the sections
-    List<Component> top = List.of(p.mapArea().getParent().getComponents());
-    assertThat(top.indexOf(p.mapArea())).isGreaterThan(top.indexOf(p.header()))
+    List<Component> top = List.of(p.mapPanel().getParent().getComponents());
+    assertThat(top.indexOf(p.mapPanel())).isGreaterThan(top.indexOf(p.header()))
         .isLessThan(top.indexOf(p.sections().get(0)));
     // by default the bosses and rares, loaded with the page
     assertThat(map.pins()).extracting(Pin::name, Pin::kind).containsExactlyInAnyOrder(
@@ -149,28 +167,31 @@ class ZonePageTest {
     assertThat(map.pins()).filteredOn(pin -> pin.name().equals("Vultros")).singleElement()
         .satisfies(pin -> assertThat(pin.x()).isEqualTo(61.2));
     assertThat(map.bossesAndRaresOnly()).isTrue();
-    assertThat(List.of(p.bossesToggle(), p.allNpcsToggle(), p.objectsToggle())).extracting(JToggleButton::getText)
+    ZoneMapPanel panel = p.mapPanel();
+    assertThat(List.of(panel.bossesToggle(), panel.allNpcsToggle(), panel.objectsToggle()))
+        .extracting(JToggleButton::getText)
         .containsExactly("Bosses & rares", "All NPCs", "Objects");
-    assertThat(p.bossesToggle().isSelected()).isTrue();
+    assertThat(p.mapPanel().bossesToggle().isSelected()).isTrue();
     assertThat(pins.calls).isEmpty();
 
-    p.allNpcsToggle().doClick();
+    p.mapPanel().allNpcsToggle().doClick();
     assertThat(pins.calls).containsExactly("npcs 40 false");
-    assertThat(p.bossesToggle().isSelected()).isFalse();
+    assertThat(status.messages).containsExactly(ZoneMapPanel.LOADING, "4 pins on the map");
+    assertThat(p.mapPanel().bossesToggle().isSelected()).isFalse();
     assertThat(map.bossesAndRaresOnly()).isFalse();
     assertThat(map.visiblePins()).extracting(Pin::name)
         .containsExactlyInAnyOrder("Foe Reaper 4000", "Vultros", "Test Boss", "Thor");
 
-    p.bossesToggle().doClick(); // filters the NPCs already loaded
+    p.mapPanel().bossesToggle().doClick(); // filters the NPCs already loaded
     assertThat(map.visiblePins()).extracting(Pin::name).doesNotContain("Thor").hasSize(3);
     assertThat(pins.calls).hasSize(1);
 
-    p.objectsToggle().doClick();
+    p.mapPanel().objectsToggle().doClick();
     assertThat(pins.calls).containsExactly("npcs 40 false", "objects 40");
     assertThat(map.visiblePins()).extracting(Pin::name, Pin::kind).contains(tuple("Chest", PinKind.OBJECT));
-    p.objectsToggle().doClick();
+    p.mapPanel().objectsToggle().doClick();
     assertThat(map.visiblePins()).extracting(Pin::kind).doesNotContain(PinKind.OBJECT);
-    p.objectsToggle().doClick();
+    p.mapPanel().objectsToggle().doClick();
     assertThat(pins.calls).as("loaded once").hasSize(2);
 
     // a click on a pin opens its NPC: Vultros is drawn at 61.2 %, 65.9 % of the map
@@ -184,43 +205,43 @@ class ZonePageTest {
     var pins = new FakePins();
     List<Runnable> queued = new ArrayList<>();
     var p = westfallPage(pins, queued::add, new ArrayList<>());
-    p.allNpcsToggle().doClick();
-    p.objectsToggle().doClick();
+    p.mapPanel().allNpcsToggle().doClick();
+    p.mapPanel().objectsToggle().doClick();
     assertThat(pins.calls).as("nothing runs on the calling thread").isEmpty();
     assertThat(queued).hasSize(2);
-    assertThat(p.mapView().pins()).hasSize(3);
+    assertThat(p.mapPanel().mapView().pins()).hasSize(3);
     queued.get(0).run(); // superseded by the second load: dropped
-    assertThat(p.mapView().pins()).hasSize(3);
+    assertThat(p.mapPanel().mapView().pins()).hasSize(3);
     queued.get(1).run(); // loads both what the first would have and the objects
     assertThat(pins.calls).containsExactly("npcs 40 false", "npcs 40 false", "objects 40");
-    assertThat(p.mapView().visiblePins()).extracting(Pin::name).contains("Thor", "Chest");
+    assertThat(p.mapPanel().mapView().visiblePins()).extracting(Pin::name).contains("Thor", "Chest");
   }
 
   @Test
   void theCompactWindowCollapsesTheTogglesIntoAPinsMenu() {
     var pins = new FakePins();
     var p = westfallPage(pins, Runnable::run, new ArrayList<>());
-    assertThat(p.bossesToggle().getParent().isVisible()).isTrue();
-    assertThat(p.pinsMenuButton().isVisible()).isFalse();
+    assertThat(p.mapPanel().bossesToggle().getParent().isVisible()).isTrue();
+    assertThat(p.mapPanel().pinsMenuButton().isVisible()).isFalse();
     JPanel compact = new JPanel();
     compact.putClientProperty(CompactColumns.KEY, Boolean.TRUE);
     compact.add(p);
-    assertThat(p.mapView()).isNotNull();
-    assertThat(p.bossesToggle().getParent().isVisible()).isFalse();
-    assertThat(p.pinsMenuButton().isVisible()).isTrue();
-    assertThat(p.pinsMenuButton().getText()).isEqualTo("Pins \u25BE");
-    assertThat(p.pinsMenu().getComponents()).extracting(c -> ((JMenuItem) c).getText())
+    assertThat(p.mapPanel().mapView()).isNotNull();
+    assertThat(p.mapPanel().bossesToggle().getParent().isVisible()).isFalse();
+    assertThat(p.mapPanel().pinsMenuButton().isVisible()).isTrue();
+    assertThat(p.mapPanel().pinsMenuButton().getText()).isEqualTo("Pins \u25BE");
+    assertThat(p.mapPanel().pinsMenu().getComponents()).extracting(c -> ((JMenuItem) c).getText())
         .containsExactly("Bosses & rares", "All NPCs", "Objects");
-    ((JMenuItem) p.pinsMenu().getComponent(1)).doClick();
-    assertThat(p.allNpcsToggle().isSelected()).isTrue();
-    assertThat(((JMenuItem) p.pinsMenu().getComponent(0)).isSelected()).isFalse();
+    ((JMenuItem) p.mapPanel().pinsMenu().getComponent(1)).doClick();
+    assertThat(p.mapPanel().allNpcsToggle().isSelected()).isTrue();
+    assertThat(((JMenuItem) p.mapPanel().pinsMenu().getComponent(0)).isSelected()).isFalse();
     assertThat(pins.calls).containsExactly("npcs 40 false");
-    ((JMenuItem) p.pinsMenu().getComponent(2)).doClick();
-    assertThat(p.objectsToggle().isSelected()).isTrue();
-    assertThat(p.mapView().visiblePins()).extracting(Pin::name).contains("Thor", "Chest");
+    ((JMenuItem) p.mapPanel().pinsMenu().getComponent(2)).doClick();
+    assertThat(p.mapPanel().objectsToggle().isSelected()).isTrue();
+    assertThat(p.mapPanel().mapView().visiblePins()).extracting(Pin::name).contains("Thor", "Chest");
     compact.remove(p);
-    assertThat(p.bossesToggle().getParent().isVisible()).isTrue();
-    assertThat(p.pinsMenuButton().isVisible()).isFalse();
+    assertThat(p.mapPanel().bossesToggle().getParent().isVisible()).isTrue();
+    assertThat(p.mapPanel().pinsMenuButton().isVisible()).isFalse();
   }
 
   @Test
@@ -241,5 +262,46 @@ class ZonePageTest {
     var p = new ZonePage(d, t -> {});
     assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Objects");
     assertThat(columnNames(p.section("Objects").table().table())).containsExactly("Name");
+  }
+
+  @Test
+  void aFailedLoadIsReportedAndItsToggleGoesBack() {
+    var failing = new ZoneMapPanel.PinSource() {
+      @Override
+      public List<SpawnPin> npcs(long zoneId, boolean bossesAndRaresOnly) {
+        throw new IllegalStateException("database is locked");
+      }
+
+      @Override
+      public List<SpawnPin> objects(long zoneId) {
+        throw new IllegalStateException("no objects");
+      }
+    };
+    List<Runnable> queued = new ArrayList<>();
+    var p = westfallPage(failing, queued::add, new ArrayList<>());
+    ZoneMapPanel panel = p.mapPanel();
+    panel.allNpcsToggle().doClick();
+    assertThat(status.messages).containsExactly(ZoneMapPanel.LOADING);
+    assertThat(panel.allNpcsToggle().isSelected()).as("on while loading").isTrue();
+    queued.remove(0).run();
+    assertThat(status.failures).singleElement().satisfies(e -> assertThat(e).hasMessage("database is locked"));
+    assertThat(panel.allNpcsToggle().isSelected()).isFalse();
+    assertThat(panel.bossesToggle().isSelected()).isTrue();
+    assertThat(panel.mapView().bossesAndRaresOnly()).isTrue();
+    assertThat(panel.mapView().pins()).hasSize(3);
+    assertThat(queued).as("going back loads nothing").isEmpty();
+
+    panel.objectsToggle().doClick();
+    queued.remove(0).run();
+    assertThat(status.failures).hasSize(2);
+    assertThat(panel.objectsToggle().isSelected()).isFalse();
+    assertThat(panel.mapView().pins()).hasSize(3);
+
+    // the same on the calling thread (the failure arrives while the toggle is still changing)
+    var inline = westfallPage(failing, Runnable::run, new ArrayList<>()).mapPanel();
+    inline.allNpcsToggle().doClick();
+    assertThat(inline.bossesToggle().isSelected()).isTrue();
+    assertThat(inline.mapView().bossesAndRaresOnly()).isTrue();
+    assertThat(status.failures).hasSize(3);
   }
 }

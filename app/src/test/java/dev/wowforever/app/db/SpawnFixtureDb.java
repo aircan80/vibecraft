@@ -14,7 +14,7 @@ import java.sql.Statement;
  * The {@link FixtureDb} with Westfall (zone 40) spawns added, since the importer fixture has no NPC spawning in a
  * zone with a map except Hogger (an elite): Foe Reaper 4000 (900001, rare elite) at 51.8, 49.6, Vultros (900002,
  * rare) at 61.2, 65.9, a boss (900003) at 30.0, 30.0 and Thor (900004, the Sentinel Hill flight master, normal) at
- * 56.6, 52.6. Built once per JVM into a copy of the fixture file; {@link #repositories()} reads it.
+ * 56.6, 52.6, plus two points of his off the map (-1, -1 and 100.5, 50). Built once per JVM into a copy of the fixture file; {@link #repositories()} reads it.
  */
 public final class SpawnFixtureDb {
   private SpawnFixtureDb() {}
@@ -42,7 +42,7 @@ public final class SpawnFixtureDb {
           s.executeUpdate("""
               INSERT INTO npc_spawn(npc_id, zone_id, x, y) VALUES
                 (900001, 40, 51.8, 49.6), (900002, 40, 61.2, 65.9), (900003, 40, 30.0, 30.0),
-                (900004, 40, 56.6, 52.6), (900004, 40, -1, -1)""");
+                (900004, 40, 56.6, 52.6), (900004, 40, -1, -1), (900004, 40, 100.5, 50)""");
         }
         Database db = Database.open(copy);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

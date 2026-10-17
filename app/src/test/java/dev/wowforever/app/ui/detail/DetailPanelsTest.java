@@ -20,12 +20,18 @@ import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.NpcPage;
 import dev.wowforever.app.ui.pages.ObjectPage;
 import dev.wowforever.app.ui.pages.QuestPage;
+import dev.wowforever.app.ui.StatusSink;
+import dev.wowforever.app.ui.pages.ZoneMapPanel;
 import dev.wowforever.app.ui.pages.ZonePage;
+import dev.wowforever.app.ui.widgets.MapView.Pin;
 import dev.wowforever.app.db.AssetRepository;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Images;
+import dev.wowforever.app.ui.widgets.MapCache;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import org.junit.jupiter.api.Test;
@@ -172,7 +178,7 @@ class DetailPanelsTest {
     assertThat(loaded.pins()).extracting(SpawnPin::name)
         .containsExactlyInAnyOrder("Foe Reaper 4000", "Vultros", "Test Boss");
     assertThat(DetailPanels.render(loaded, spawns, t -> {}))
-        .isInstanceOfSatisfying(ZonePage.class, p -> assertThat(p.mapView().pins()).hasSize(3));
+        .isInstanceOfSatisfying(ZonePage.class, p -> assertThat(p.mapPanel().mapView().pins()).hasSize(3));
   }
 
   @Test
@@ -201,5 +207,36 @@ class DetailPanelsTest {
     assertThat(loaded.map()).isNotNull();
     assertThat(((ObjectPage) DetailPanels.render(loaded, repos, t -> {})).spawnMap().pins()).hasSize(1);
     assertThat(DetailPanels.name(loaded)).isEqualTo("Library Book");
+  }
+
+  @Test
+  void aMapShownAgainIsNotDecodedAgain() {
+    var first = (DetailPanels.LoadedZone) DetailPanels.load(new EntityRef(ZONE, 40), repos).orElseThrow();
+    assertThat(MapCache.shared().contains(1436)).isTrue();
+    var again = (DetailPanels.LoadedZone) DetailPanels.load(new EntityRef(ZONE, 40), repos).orElseThrow();
+    assertThat(again.map()).isSameAs(first.map());
+    // Hogger and the Library Book both spawn in Elwynn Forest: one decoded map for both pages
+    var hogger = (DetailPanels.LoadedNpc) DetailPanels.load(new EntityRef(NPC, 448), repos).orElseThrow();
+    var book = (DetailPanels.LoadedObject) DetailPanels.load(new EntityRef(OBJECT, 386759), repos).orElseThrow();
+    assertThat(book.map()).isSameAs(hogger.map());
+  }
+
+  @Test
+  void renderReportsAZoneMapsLoadsToTheStatusSink() {
+    List<String> messages = new ArrayList<>();
+    StatusSink status = new StatusSink() {
+      @Override
+      public void message(String text) {
+        messages.add(text);
+      }
+
+      @Override
+      public void fail(Exception e) {}
+    };
+    Object loaded = DetailPanels.load(new EntityRef(ZONE, 12), repos).orElseThrow();
+    var page = (ZonePage) DetailPanels.render(loaded, repos, t -> {}, Runnable::run, status);
+    page.mapPanel().allNpcsToggle().doClick();
+    assertThat(messages).containsExactly(ZoneMapPanel.LOADING, "5 pins on the map");
+    assertThat(page.mapPanel().mapView().visiblePins()).extracting(Pin::name).containsOnly("Hogger");
   }
 }

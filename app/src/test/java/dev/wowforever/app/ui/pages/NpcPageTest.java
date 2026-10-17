@@ -244,8 +244,10 @@ class NpcPageTest {
   void onlyTheSpawnsInTheMappedZoneArePinnedAndWithoutAMapTheTableStandsAlone() {
     BufferedImage elwynn = Images.decode(repos.zones().map(12).orElseThrow().jpeg()).orElseThrow();
     var d = npc(HOGGER, List.of(), List.of(), List.of(new Spawn(12, "Elwynn Forest", 10, 20),
-        new Spawn(40, "Westfall", 30, 40), new Spawn(12, "Elwynn Forest", -1, -1), new Spawn(12, "Elwynn Forest", 50, 60)));
+        new Spawn(40, "Westfall", 30, 40), new Spawn(12, "Elwynn Forest", -1, -1),
+        new Spawn(12, "Elwynn Forest", 100.5, 60), new Spawn(12, "Elwynn Forest", 50, 60)));
     var p = new NpcPage(d, 12L, elwynn, t -> {}, text -> {});
+    // other zones and points off the map (-1, -1 and 100.5, 60) are not pinned
     assertThat(p.spawnMap().pins()).extracting(Pin::x).containsExactly(10.0, 50.0);
     var plain = new NpcPage(d, t -> {}, text -> {});
     assertThat(plain.spawnMap()).isNull();

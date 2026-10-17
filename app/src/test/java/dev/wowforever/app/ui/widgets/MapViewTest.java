@@ -201,4 +201,25 @@ class MapViewTest {
     v.dispatchEvent(mouse(v, MouseEvent.MOUSE_CLICKED, 200, 134));
     assertThat(opened).hasSize(1);
   }
+
+  @Test
+  void aMarkersBoundsHoldItsDotRingAndBadgeOnly() {
+    List<Pin> twelve = new ArrayList<>();
+    for (int i = 0; i < 12; i++) {
+      twelve.add(pin(i, "P" + i, 50 + i * 0.01, 50, PinKind.NPC));
+    }
+    var v = natural(twelve);
+    Cluster c = v.clusters().get(0);
+    assertThat(c.count()).isEqualTo(12);
+    var b = v.markerBounds(c);
+    int x = (int) c.position().x;
+    int y = (int) c.position().y;
+    assertThat(b.contains(x, y)).isTrue();
+    assertThat(b.contains(x - 7, y + 7)).as("the hover ring").isTrue();
+    assertThat(b.contains(x + 15, y - 12)).as("the badge").isTrue();
+    assertThat(b.width).isLessThan(60);
+    assertThat(b.height).isLessThan(40);
+    var single = v.markerBounds(new Cluster(List.of(twelve.get(0)), c.position()));
+    assertThat(b.contains(single)).isTrue();
+  }
 }

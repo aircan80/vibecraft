@@ -6,6 +6,7 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.LootRow;
+import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
@@ -15,19 +16,22 @@ import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Async;
-import dev.wowforever.app.ui.Columns;
+import dev.wowforever.app.ui.StatusSink;
 import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.NpcPage;
 import dev.wowforever.app.ui.pages.ObjectPage;
 import dev.wowforever.app.ui.pages.QuestPage;
+import dev.wowforever.app.ui.pages.ZoneMapPanel;
 import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Images;
+import dev.wowforever.app.ui.widgets.MapCache;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.Executor;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -69,7 +73,8 @@ public final class DetailPanels {
    * The detail record of {@code ref} ({@link LoadedItem}, {@link LoadedNpc}, {@link LoadedZone}, ...), or empty when
    * there is no such entity. Bosses have no page of their own (they are shown inside their instance), so they load
    * empty. An item's icon (or the question-mark fallback), a zone's map and the pins of its bosses and rares, and
-   * the map of an NPC's or object's first spawn zone are read and decoded here, off the EDT.
+   * the map of an NPC's or object's first spawn zone are read and decoded here, off the EDT (maps through the
+   * {@linkplain MapCache#shared shared map cache}, so a map shown again is not decoded again).
    * The icon id is the summary's, which an item with only an {@code Item} row (no tooltip card) has too. The item
    * icons the page's tables show first are loaded into the {@linkplain IconCache#shared shared cache} here too:
    * an NPC's drops and wares, an object's contents, a quest's item givers and rewards, an instance's first boss's
@@ -99,18 +104,19 @@ public final class DetailPanels {
 
   /** The zone with its decoded map and, when it has one, the pins of its bosses and rares. */
   private static LoadedZone loadedZone(ZoneDetail d, Repositories repos) {
-    BufferedImage map = d.map().flatMap(m -> Images.decode(m.jpeg())).orElse(null);
+    BufferedImage map = d.map().flatMap(MapCache.shared()::decoded).orElse(null);
     return new LoadedZone(d, map, map == null ? List.of() : repos.zones().npcSpawnsInZone(d.summary().id(), true));
   }
 
-  /** The zone of the first spawn point with coordinates; null when none has any. */
+  /** The zone of the first spawn point {@linkplain MapCoordinates#onMap on the map}; null when none is. */
   private static Long mapZone(List<Spawn> spawns) {
-    return spawns.stream().filter(Columns::hasCoordinates).findFirst().map(Spawn::zoneId).orElse(null);
+    return spawns.stream().filter(s -> MapCoordinates.onMap(s.x(), s.y())).findFirst().map(Spawn::zoneId)
+        .orElse(null);
   }
 
   /** The decoded map of zone {@code zoneId}; null for a null id, a zone without a map or one that does not decode. */
   private static BufferedImage zoneMap(Long zoneId, Repositories repos) {
-    return zoneId == null ? null : repos.zones().map(zoneId).flatMap(m -> Images.decode(m.jpeg())).orElse(null);
+    return zoneId == null ? null : repos.zones().map(zoneId).flatMap(MapCache.shared()::decoded).orElse(null);
   }
 
   /** {@code detail}, once the {@value IconCache#ROW} px icons of the items in {@code lists} are cached. */
@@ -149,15 +155,25 @@ public final class DetailPanels {
     return summary != null ? summary : d.card().iconId();
   }
 
-  /** The page for a record from {@link #load}. */
+  /** The page for a record from {@link #load}; a zone map loads more pins in a SwingWorker and reports nothing. */
   public static JComponent render(Object detail, Repositories repos, Navigator nav) {
+    return render(detail, repos, nav, Async.SWING_WORKER, StatusSink.NONE);
+  }
+
+  /**
+   * The page for a record from {@link #load}. Work a page does once shown (a zone map loading more pins) runs on
+   * {@code worker} and reports to {@code status}.
+   */
+  public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
+      StatusSink status) {
     return switch (detail) {
       case LoadedItem p -> new ItemPage(p.detail(), p.icon(), nav);
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
       case QuestDetail d -> new QuestPage(d, nav);
-      case LoadedZone p -> new ZonePage(p.detail(), p.map(), p.pins(), ZonePage.PinSource.of(repos.zones()),
-          Async.SWING_WORKER, nav);
+      case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
+          : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
+              worker, status, nav), nav);
       case InstanceDetail d -> new InstancePage(d, repos, nav);
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };

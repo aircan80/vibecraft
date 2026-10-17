@@ -310,7 +310,7 @@ public final class AppController implements Navigator {
     Async.run(worker, () -> DetailPanels.load(ref, repos), detail -> {
       if (generation == detailGeneration) {
         if (detail.isPresent()) {
-          view.setDetail(DetailPanels.render(detail.get(), repos, this));
+          view.setDetail(DetailPanels.render(detail.get(), repos, this, worker, pageStatus));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
         } else {
           view.setDetail(DetailPanels.notFound(ref));
@@ -421,6 +421,19 @@ public final class AppController implements Navigator {
   private void showCount(int n) {
     view.status().setMessage(n == 1 ? "1 result" : String.format(Locale.ROOT, "%,d results", n));
   }
+
+  /** What pages report once shown (a zone map loading pins): to the status bar, failures as {@link #fail}. */
+  private final StatusSink pageStatus = new StatusSink() {
+    @Override
+    public void message(String text) {
+      view.status().setMessage(text);
+    }
+
+    @Override
+    public void fail(Exception e) {
+      AppController.this.fail(e);
+    }
+  };
 
   private void fail(Exception e) {
     LOG.warn("Loading failed", e);

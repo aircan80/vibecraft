@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui.pages;
 
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
@@ -37,7 +38,8 @@ final class SpawnSection {
 
   /**
    * The section of the spawn points of {@code self} (named {@code selfName}), with {@code map}, the map of zone
-   * {@code mapZoneId}, above the table; no map when {@code map} is null or none of the points lies in that zone.
+   * {@code mapZoneId}, above the table, pinning the points in that zone {@linkplain MapCoordinates#onMap on the map};
+   * no map when {@code map} is null or none of the points is.
    */
   SpawnSection(List<Spawn> spawns, String pageZone, EntityRef self, String selfName, Long mapZoneId,
       BufferedImage map, Navigator nav, ClipboardPort clipboard) {
@@ -61,7 +63,7 @@ final class SpawnSection {
     buttons.add(copy);
     section.add(buttons, BorderLayout.SOUTH);
     List<MapView.Pin> pins = map == null || mapZoneId == null ? List.of() : spawns.stream()
-        .filter(s -> s.zoneId() == mapZoneId && Columns.hasCoordinates(s))
+        .filter(s -> s.zoneId() == mapZoneId && MapCoordinates.onMap(s.x(), s.y()))
         .map(s -> new MapView.Pin(self, self.displayName(selfName), s.x(), s.y(), MapView.PinKind.SELF))
         .toList();
     if (pins.isEmpty()) {

@@ -15,7 +15,9 @@ import java.awt.Font;
 import java.awt.FontMetrics;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Rectangle;
 import java.awt.RenderingHints;
+import java.awt.Stroke;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.awt.event.MouseAdapter;
@@ -148,6 +150,8 @@ public final class MapView extends JComponent {
   private List<Cluster> clusters;
   private int clustersWidth = -1;
   private Cluster hovered;
+  private Font badgeBase;
+  private Font badgeFont;
 
   public MapView(BufferedImage image, Navigator nav) {
     this.image = Objects.requireNonNull(image, "image");
@@ -370,13 +374,58 @@ public final class MapView extends JComponent {
     }
   }
 
+  /** Moves the hover ring, repainting only the markers it leaves and enters. */
   private void setHovered(Cluster c) {
     if (c != hovered) {
+      if (hovered != null) {
+        repaint(markerBounds(hovered));
+      }
       hovered = c;
+      if (c != null) {
+        repaint(markerBounds(c));
+      }
       boolean opens = c != null && (c.entities().size() > 1 || c.kind() != PinKind.SELF);
       setCursor(opens ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : null);
-      repaint();
     }
+  }
+
+  /** The area marker {@code c} paints in: its dot, the hover ring and the count badge, with a pixel to spare. */
+  Rectangle markerBounds(Cluster c) {
+    double ring = radius(c.kind()) + UIScale.scale(2) + UIScale.scale(1.5f);
+    double x = c.position().x;
+    double y = c.position().y;
+    double right = x + ring;
+    double top = y - ring;
+    if (c.count() > 1) {
+      FontMetrics fm = getFontMetrics(badgeFont());
+      double h = fm.getAscent() + UIScale.scale(1);
+      double w = Math.max(fm.stringWidth(String.valueOf(c.count())) + 2 * UIScale.scale(3), h);
+      double badgeX = x + radius(c.kind()) * 0.6;
+      double badgeY = y - radius(c.kind()) * 0.6;
+      right = Math.max(right, badgeX + w + UIScale.scale(1));
+      top = Math.min(top, badgeY - h - UIScale.scale(1));
+    }
+    int x0 = (int) Math.floor(x - ring) - 1;
+    int y0 = (int) Math.floor(top) - 1;
+    return new Rectangle(x0, y0, (int) Math.ceil(right) + 1 - x0, (int) Math.ceil(y + ring) + 1 - y0);
+  }
+
+  private static double radius(PinKind kind) {
+    return UIScale.scale(switch (kind) {
+      case SELF -> SELF_RADIUS;
+      case BOSS -> BOSS_RADIUS;
+      default -> RADIUS;
+    });
+  }
+
+  /** The badge font, derived from the component's font once per font. */
+  private Font badgeFont() {
+    Font base = getFont() != null ? getFont() : new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    if (base != badgeBase) {
+      badgeBase = base;
+      badgeFont = base.deriveFont(Font.BOLD, base.getSize2D() * 0.75f);
+    }
+    return badgeFont;
   }
 
   private void invalidateClusters() {
@@ -406,46 +455,44 @@ public final class MapView extends JComponent {
       g2.drawImage(image, 0, 0, p.drawnWidth(), p.drawnHeight(), null);
       g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
       g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+      Stroke outline = new BasicStroke(UIScale.scale(1f));
+      Stroke ring = new BasicStroke(UIScale.scale(1.5f));
+      g2.setFont(badgeFont());
+      FontMetrics fm = g2.getFontMetrics();
       List<Cluster> all = clusters();
       for (int i = all.size() - 1; i >= 0; i--) { // the most important on top
-        paintCluster(g2, all.get(i));
+        paintCluster(g2, all.get(i), outline, ring, fm);
       }
     } finally {
       g2.dispose();
     }
   }
 
-  private void paintCluster(Graphics2D g2, Cluster c) {
-    double r = UIScale.scale(switch (c.kind()) {
-      case SELF -> SELF_RADIUS;
-      case BOSS -> BOSS_RADIUS;
-      default -> RADIUS;
-    });
+  private void paintCluster(Graphics2D g2, Cluster c, Stroke outline, Stroke ring, FontMetrics fm) {
+    double r = radius(c.kind());
     double x = c.position().x;
     double y = c.position().y;
     Ellipse2D.Double dot = new Ellipse2D.Double(x - r, y - r, 2 * r, 2 * r);
     Color fill = colour(c.kind());
     g2.setColor(fill);
     g2.fill(dot);
-    g2.setStroke(new BasicStroke(UIScale.scale(1f)));
+    g2.setStroke(outline);
     g2.setColor(OUTLINE);
     g2.draw(dot);
     if (c == hovered) {
       double h = r + UIScale.scale(2);
       g2.setColor(HOVER);
-      g2.setStroke(new BasicStroke(UIScale.scale(1.5f)));
+      g2.setStroke(ring);
       g2.draw(new Ellipse2D.Double(x - h, y - h, 2 * h, 2 * h));
     }
     if (c.count() > 1) {
-      paintBadge(g2, String.valueOf(c.count()), x + r * 0.6, y - r * 0.6, fill);
+      g2.setStroke(outline);
+      paintBadge(g2, fm, String.valueOf(c.count()), x + r * 0.6, y - r * 0.6, fill);
     }
   }
 
   /** The count badge: a small dark pill outlined in the marker's colour, its lower left corner at {@code x, y}. */
-  private void paintBadge(Graphics2D g2, String text, double x, double y, Color edge) {
-    Font font = getFont() != null ? getFont() : new Font(Font.SANS_SERIF, Font.PLAIN, 12);
-    g2.setFont(font.deriveFont(Font.BOLD, font.getSize2D() * 0.75f));
-    FontMetrics fm = g2.getFontMetrics();
+  private static void paintBadge(Graphics2D g2, FontMetrics fm, String text, double x, double y, Color edge) {
     double padX = UIScale.scale(3);
     double w = fm.stringWidth(text) + 2 * padX;
     double h = fm.getAscent() + UIScale.scale(1);
@@ -453,7 +500,6 @@ public final class MapView extends JComponent {
     g2.setColor(OUTLINE);
     g2.fill(pill);
     g2.setColor(edge);
-    g2.setStroke(new BasicStroke(UIScale.scale(1f)));
     g2.draw(pill);
     g2.setColor(HOVER);
     g2.drawString(text, (float) (x + (pill.width - fm.stringWidth(text)) / 2),

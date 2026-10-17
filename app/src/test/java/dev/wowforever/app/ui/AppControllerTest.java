@@ -704,4 +704,23 @@ class AppControllerTest {
     assertThat(view.canBack).isTrue();
     assertThat(view.canForward).isFalse();
   }
+
+  @Test
+  void aZoneMapReportsItsPinLoadsInTheStatusBar(@TempDir Path tmp) throws Exception {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.Entity(new EntityRef(ZONE, 12)));
+    ((ZonePage) view.detail).mapPanel().allNpcsToggle().doClick();
+    assertThat(view.status().message()).isEqualTo("5 pins on the map");
+    // a load that fails shows the error, and the toggle goes back
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    Database db = Database.open(copy);
+    AppController failing = new AppController(Repositories.of(db), view, Runnable::run);
+    failing.open(new ViewTarget.Entity(new EntityRef(ZONE, 12)));
+    ZonePage page = (ZonePage) view.detail;
+    db.close();
+    page.mapPanel().objectsToggle().doClick();
+    assertThat(view.status().message()).startsWith("Error: ");
+    assertThat(page.mapPanel().objectsToggle().isSelected()).isFalse();
+  }
 }
