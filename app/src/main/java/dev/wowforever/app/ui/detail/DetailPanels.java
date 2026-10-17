@@ -33,12 +33,13 @@ public final class DetailPanels {
    * The detail record of {@code ref} ({@link ItemPage}, {@link NpcDetail}, {@link ZonePage}, ...), or empty when
    * there is no such entity. Bosses have no page of their own (they are shown inside their instance), so they load
    * empty. An item's icon (or the question-mark fallback) and a zone's map are read and decoded here, off the EDT.
+   * The icon id is the summary's, which an item with only an {@code Item} row (no tooltip card) has too.
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
     Optional<?> detail = switch (ref.kind()) {
       case ITEM -> repos.items().detail(id).map(d -> new ItemPage(d,
-          repos.assets().iconOrFallback(d.card().iconId()).flatMap(Images::decode).orElse(null)));
+          repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode).orElse(null)));
       case NPC -> repos.npcs().detail(id);
       case OBJECT -> repos.objects().detail(id);
       case QUEST -> repos.quests().detail(id);
@@ -48,6 +49,12 @@ public final class DetailPanels {
       case BOSS -> Optional.empty();
     };
     return detail.map(Object.class::cast);
+  }
+
+  /** The summary's icon id, else the card's (null when neither has one). */
+  private static Long iconId(ItemDetail d) {
+    Long summary = d.summary().iconId();
+    return summary != null ? summary : d.card().iconId();
   }
 
   /** The page for a record from {@link #load}. */

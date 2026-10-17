@@ -33,11 +33,11 @@ class MainTest {
     int code = Main.run(new String[] {
         "--out", tmp.resolve("o.sqlite").toString(), "--fail-on-unsupported",
         "--questiedb-dir", Fixtures.questieDbRoot().toString(), "--atlasloot-dir", Fixtures.atlasLootRoot().toString(),
-        "--client-data-dir", Fixtures.clientDataRoot().toString(), "--coverage-min", "80"},
+        "--client-data-dir", Fixtures.clientDataRoot().toString(), "--coverage-min", "75"},
         print(out), print(err));
     assertThat(code).as(err.toString(StandardCharsets.UTF_8)).isEqualTo(0);
     assertThat(out.toString(StandardCharsets.UTF_8)).contains("== Counters ==").contains("table.item = ")
-        .contains("clientdata.coverage.pct = 80").contains("table.item_tooltip_line = ");
+        .contains("clientdata.coverage.pct = 75").contains("table.item_tooltip_line = ");
   }
 
   @Test
@@ -89,7 +89,7 @@ class MainTest {
   }
 
   /**
-   * The fixture matches 12 of its 15 named items (80 %); three nameless correction stubs also match, which must not
+   * The fixture matches 12 of its 16 named items (75 %); three nameless correction stubs also match, which must not
    * count, so the default 85 % gate fails.
    */
   @Test
@@ -103,9 +103,9 @@ class MainTest {
         print(out), print(err));
     assertThat(code).isEqualTo(2);
     assertThat(err.toString(StandardCharsets.UTF_8))
-        .contains("client data covers 12 of 15 named items (80 %), below --coverage-min 85 %");
+        .contains("client data covers 12 of 16 named items (75 %), below --coverage-min 85 %");
     assertThat(out.toString(StandardCharsets.UTF_8)).contains("clientdata.items.matched = 15")
-        .contains("clientdata.items.named.matched = 12").contains("clientdata.coverage.pct = 80");
+        .contains("clientdata.items.named.matched = 12").contains("clientdata.coverage.pct = 75");
   }
 
   @Test

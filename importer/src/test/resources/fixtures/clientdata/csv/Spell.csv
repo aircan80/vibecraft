@@ -13,6 +13,7 @@ Movement speed slowed by $s1%."
 9160,,"When struck by a melee attacker, that attacker has a 5% chance of being put to sleep for $9159d.  Only affects enemies level 50 and below.",
 9796,,"Diseases a target for $s1 Nature damage and an additional $o2 damage over $d.","Diseased.  $s2 nature damage every $t2 seconds."
 12022,,"Gives $M1 additional stamina to party members within $a1 yards.","Stamina increased by $s1."
+3366,,,
 13439,,"Launches a bolt of frost at the enemy causing $s2 Frost damage and slowing movement speed by $s1% for $d.","Movement slowed by $s1%."
 14134,,"Purifies the friendly target, removing $m1 disease $leffect:effects; and $m2 poison $leffect:effects;.",
 15279,,"A crystal shield surrounds the friendly target, doing $s1 damage to anyone who hits $ghim:her;.  Lasts $d.","Causes $s1 nature damage to attackers."

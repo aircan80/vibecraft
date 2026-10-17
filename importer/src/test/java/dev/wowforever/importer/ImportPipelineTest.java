@@ -115,7 +115,7 @@ class ImportPipelineTest {
   void endToEndWithClientDataFixture(@TempDir Path tmp) throws Exception {
     ImportOptions o = new ImportOptions(tmp.resolve("out.sqlite"), tmp.resolve("cache"),
         Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), true,
-        ImportOptions.defaultBuildIdOut(tmp.resolve("out.sqlite")), ClientDataOptions.of(Fixtures.clientDataRoot()), 80);
+        ImportOptions.defaultBuildIdOut(tmp.resolve("out.sqlite")), ClientDataOptions.of(Fixtures.clientDataRoot()), 75);
     ImportReport r = ImportPipeline.run(o, QUIET);
     try (Connection c = open(o.out())) {
       for (String table : CLIENT_TABLES) {
@@ -134,14 +134,19 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select value from meta where key = 'client_item_count'"))
           .isEqualTo(String.valueOf(scalar(c, "select count(*) from item where has_client_data = 1")));
       assertThat(((Number) scalar(c, "select count(*) from item where has_client_data = 1")).longValue())
-          .isEqualTo(r.get("clientdata.items.matched") + r.get("clientdata.items.iconOnly"));
+          .as("an ItemSparse row, either build").isEqualTo(r.get("clientdata.items.matched"));
+      // Illari's Key: an Item row only, so its icon but no client data
+      assertThat(r.get("clientdata.items.iconOnly")).isEqualTo(1);
+      assertThat(scalar(c, "select has_client_data from item where id = 212347")).isEqualTo(0);
+      assertThat(scalar(c, "select icon_id from item where id = 212347")).isEqualTo(134236);
+      assertThat(scalar(c, "select count(*) from icon where id = 134236")).isEqualTo(1);
     }
     long named = r.get("clientdata.items.named");
     assertThat(named).isPositive();
     long namedMatched = r.get("clientdata.items.named.matched");
     assertThat(namedMatched).isPositive().isLessThanOrEqualTo(named);
     assertThat(r.counters()).containsEntry("clientdata.coverage.pct", namedMatched * 100 / named);
-    assertThat(r.get("clientdata.coverage.pct")).as("12 of 15 named items").isEqualTo(80);
+    assertThat(r.get("clientdata.coverage.pct")).as("12 of 16 named items").isEqualTo(75);
     assertThat(r.get("clientdata.items.matched")).as("nameless stubs match too").isGreaterThan(namedMatched);
     assertThat(ClientDataStage.coverageTooLow(r, o.coverageMinPct())).isFalse();
     assertThat(ClientDataStage.coverageTooLow(r, ClientDataStage.DEFAULT_MIN_COVERAGE_PCT)).isTrue();

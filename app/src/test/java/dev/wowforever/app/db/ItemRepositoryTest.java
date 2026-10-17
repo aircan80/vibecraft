@@ -128,6 +128,17 @@ class ItemRepositoryTest {
   }
 
   @Test
+  void iconOnlyItemCarriesItsIconOnTheSummaryButHasNoCard() {
+    // Illari's Key: a Forever Item row (icon 134236) but no ItemSparse row in either build
+    ItemDetail d = repos.items().detail(212347).get();
+    assertThat(d.summary().name()).isEqualTo("Illari's Key");
+    assertThat(d.summary().quality()).isNull();
+    assertThat(d.summary().iconId()).isEqualTo(134236L);
+    assertThat(d.card()).isEqualTo(ItemCard.none());
+    assertThat(repos.assets().icon(134236L)).isPresent();
+  }
+
+  @Test
   void listCarriesQualityAndIcon() {
     List<ItemSummary> all = repos.items().list(null, null, null, 0);
     assertThat(all).filteredOn(i -> i.id() == 19682).singleElement().satisfies(i -> {

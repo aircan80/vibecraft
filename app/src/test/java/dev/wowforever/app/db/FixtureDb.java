@@ -24,8 +24,8 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  * {@link Fixtures#clientDataRoot()} from the importer test-jar. {@link #repositories()} is a shared read-only {@link Repositories} over it.
  */
 public final class FixtureDb implements BeforeAllCallback {
-  /** The client-data fixture covers exactly 80 % of its named items, so the options ask for no more. */
-  private static final int FIXTURE_COVERAGE_MIN_PCT = 80;
+  /** The client-data fixture covers exactly 75 % (12 of 16) of its named items, so the options ask for no more. */
+  private static final int FIXTURE_COVERAGE_MIN_PCT = 75;
 
   @Override
   public void beforeAll(ExtensionContext context) {
