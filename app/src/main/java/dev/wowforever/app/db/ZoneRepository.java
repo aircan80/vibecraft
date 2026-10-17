@@ -149,7 +149,7 @@ public final class ZoneRepository {
    * database predates the npc_waypoint table.
    */
   public List<Route> routesInZone(long zoneId) {
-    return db.read(c -> NpcRepository.routes(c, "zone_id", zoneId));
+    return db.read(c -> NpcRepository.routes(c, NpcRepository.RouteKey.ZONE, zoneId));
   }
 
   /**

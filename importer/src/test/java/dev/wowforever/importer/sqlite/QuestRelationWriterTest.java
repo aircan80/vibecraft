@@ -116,6 +116,21 @@ class QuestRelationWriterTest {
     assertThat(report.get("badValue.quest.childQuests")).isEqualTo(1);
   }
 
+  @Test
+  void aNegativeScalarRelationIdIsCountedNotWritten() throws Exception {
+    Map<EntityKind, EntityTable> tables = corrected();
+    tables.get(EntityKind.QUEST).set(176, "nextQuestInChain", LuaNumber.of(-136));
+    tables.get(EntityKind.QUEST).set(176, "parentQuest", LuaNumber.of(-2));
+    tables.get(EntityKind.QUEST).set(176, "breadcrumbForQuestId", LuaNumber.of(136));
+    try (Connection c = write(tables)) {
+      assertThat(relations(c, 176)).containsExactly("breadcrumb_for:136");
+      assertThat(scalar(c, "select count(*) from quest_relation where related_id <= 0")).isZero();
+    }
+    assertThat(report.get("badValue.quest.nextQuestInChain")).isEqualTo(1);
+    assertThat(report.get("badValue.quest.parentQuest")).isEqualTo(1);
+    assertThat(report.get("badValue.quest.breadcrumbForQuestId")).isZero();
+  }
+
   // ---------------------------------------------------------------------------------------------
 
   private Connection write(Map<EntityKind, EntityTable> tables) throws Exception {

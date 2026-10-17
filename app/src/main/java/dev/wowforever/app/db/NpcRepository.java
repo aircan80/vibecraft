@@ -111,19 +111,30 @@ public final class NpcRepository {
    * database predates the npc_waypoint table.
    */
   public List<Route> routes(long npcId) {
-    return db.read(c -> routes(c, "npc_id", npcId));
+    return db.read(c -> routes(c, RouteKey.NPC, npcId));
+  }
+
+  /** The npc_waypoint column {@link #routes(Connection, RouteKey, long)} selects routes by. */
+  enum RouteKey {
+    NPC("npc_id"), ZONE("zone_id");
+
+    private final String column;
+
+    RouteKey(String column) {
+      this.column = column;
+    }
   }
 
   /**
-   * The routes whose {@code column} (npc_id or zone_id) is {@code id}, ordered by NPC, zone, route and point; empty
-   * on a database without the npc_waypoint table.
+   * The routes whose {@code key} column (npc_id or zone_id) is {@code id}, ordered by NPC, zone, route and point;
+   * empty on a database without the npc_waypoint table.
    */
-  static List<Route> routes(Connection c, String column, long id) throws SQLException {
+  static List<Route> routes(Connection c, RouteKey key, long id) throws SQLException {
     if (!Sql.hasTable(c, "npc_waypoint")) {
       return List.of();
     }
     record Row(long npc, long zone, int route, Point point) {}
-    List<Row> rows = Sql.list(c, "SELECT npc_id, zone_id, route, x, y FROM npc_waypoint WHERE " + column + " = ?"
+    List<Row> rows = Sql.list(c, "SELECT npc_id, zone_id, route, x, y FROM npc_waypoint WHERE " + key.column + " = ?"
             + " AND x IS NOT NULL AND y IS NOT NULL ORDER BY npc_id, zone_id, route, ordinal",
         rs -> new Row(rs.getLong("npc_id"), rs.getLong("zone_id"), rs.getInt("route"),
             new Point(rs.getDouble("x"), rs.getDouble("y"))),
