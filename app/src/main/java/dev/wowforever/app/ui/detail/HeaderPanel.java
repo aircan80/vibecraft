@@ -4,10 +4,10 @@ import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.theme.Fonts;
 import dev.wowforever.app.ui.widgets.LinkButton;
 import java.awt.Color;
 import java.awt.FlowLayout;
-import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -21,12 +21,15 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 /**
- * The top of a detail page: the entity name in large type, optionally followed by badges such as a rank chip,
- * over a subtitle line that may end in links. The title may be coloured (an item's quality colour, say).
+ * The top of a detail page: the entity name in {@value #TITLE_SIZE} pt Marcellus ({@link Fonts#heading}, at the
+ * current scale, so it follows the text size), optionally followed by badges such as a rank chip, over a subtitle
+ * line that may end in links. The title may be coloured (an item's quality colour, say).
  */
 public final class HeaderPanel extends JPanel {
   private static final String SEPARATOR = " · ";
   private static final int BADGE_GAP = 8;
+  /** The title's size in points at 100 % text size (Marcellus, {@link Fonts#heading}). */
+  static final float TITLE_SIZE = 20f;
 
   private final JLabel title;
   private final JPanel titleRow = new JPanel();
@@ -42,11 +45,16 @@ public final class HeaderPanel extends JPanel {
         Supplier<Color> colour = titleColor;
         return colour != null ? colour.get() : super.getForeground();
       }
+
+      @Override
+      public void updateUI() { // the font again at the new scale, so it follows the text size
+        super.updateUI();
+        setFont(Fonts.heading(UIScale.scale(TITLE_SIZE)));
+      }
     };
     this.subtitle = Objects.requireNonNull(subtitle, "subtitle");
     setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
     setBorder(BorderFactory.createEmptyBorder(10, 12, 8, 12));
-    this.title.setFont(this.title.getFont().deriveFont(Font.BOLD, this.title.getFont().getSize2D() * 1.5f));
     this.title.setAlignmentY(CENTER_ALIGNMENT);
     titleRow.setLayout(new BoxLayout(titleRow, BoxLayout.LINE_AXIS));
     titleRow.setAlignmentX(LEFT_ALIGNMENT);

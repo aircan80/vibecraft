@@ -12,6 +12,7 @@ import dev.wowforever.app.ui.detail.CompactColumns;
 import dev.wowforever.app.ui.widgets.MapView;
 import dev.wowforever.app.ui.widgets.MapView.Pin;
 import dev.wowforever.app.ui.widgets.PinLegend;
+import dev.wowforever.app.ui.widgets.RaisedBorder;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -174,7 +175,8 @@ public final class ZoneMapPanel extends JPanel {
     controls.add(pinsMenuButton);
     setOpaque(false);
     setAlignmentX(LEFT_ALIGNMENT);
-    setBorder(BorderFactory.createEmptyBorder(8, 12, 2, 12));
+    setBorder(BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(8, 12, 2, 12), // a raised panel
+        BorderFactory.createCompoundBorder(RaisedBorder.create(), BorderFactory.createEmptyBorder(6, 6, 4, 6))));
     add(controls, BorderLayout.NORTH);
     add(mapView, BorderLayout.CENTER);
     JPanel below = new JPanel(new BorderLayout());

@@ -251,16 +251,16 @@ class ListPageTest {
     ListPage p = reloading(new ViewTarget.List(ITEM));
     int all = p.results().rowCount();
     assertThat(all).isEqualTo(repos.items().list(ItemFilter.ALL).size());
-    assertThat(p.section().heading().getText()).isEqualTo("Results (" + all + ")");
+    assertThat(p.section().heading().text()).isEqualTo("Results (" + all + ")");
     select(p.filterBar().classes(), 4);
     assertThat(p.results().rowCount()).isLessThan(all).isPositive();
-    assertThat(p.section().heading().getText()).isEqualTo("Results (" + p.results().rowCount() + ")");
+    assertThat(p.section().heading().text()).isEqualTo("Results (" + p.results().rowCount() + ")");
     assertThat(p.target()).isEqualTo(new ViewTarget.List(ITEM, new ItemFilter(4, null, null, null, null)));
     assertThat(p.emptyNote().isVisible()).isFalse();
     p.filterBar().minLevel().setValue(90);
     levels.fire();
     assertThat(p.results().rowCount()).isZero();
-    assertThat(p.section().heading().getText()).isEqualTo("Results (0)");
+    assertThat(p.section().heading().text()).isEqualTo("Results (0)");
     assertThat(p.emptyNote().isVisible()).isTrue();
   }
 
@@ -336,7 +336,7 @@ class ListPageTest {
     ListPage p = page(new ViewTarget.List(INSTANCE));
     assertThat(p.filterBar()).isNull();
     assertThat(p.results()).isNull();
-    assertThat(p.sections()).extracting(s -> s.heading().getText())
+    assertThat(p.sections()).extracting(s -> s.heading().text())
         .containsExactly("Levels 1–20 (2)", "Level unknown (1)");
     SourceSection low = p.sections().get(0);
     assertThat(column(low.table().table(), 0)).containsExactly("Ragefire Chasm", "The Deadmines");

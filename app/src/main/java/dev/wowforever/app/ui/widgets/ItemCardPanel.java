@@ -5,6 +5,7 @@ import dev.wowforever.app.model.ItemCard;
 import dev.wowforever.app.model.TooltipLine;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.theme.QualityColors;
+import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
@@ -33,7 +34,7 @@ import javax.swing.border.AbstractBorder;
 public final class ItemCardPanel extends JPanel {
   /** The card background (UI review token {@code card.bg}). */
   public static final Color BACKGROUND = TooltipLinesPanel.BACKGROUND;
-  /** The card border (UI review token {@code card.border}). */
+  /** The card border (UI review token {@code card.border}); the line is painted in {@link Theme#cardBorder()}. */
   public static final Color BORDER = TooltipLinesPanel.BORDER;
   /** The corner radius, in pixels. */
   public static final int RADIUS = 4;
@@ -188,7 +189,7 @@ public final class ItemCardPanel extends JPanel {
       try {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
-        g2.setColor(BORDER);
+        g2.setColor(Theme.current().cardBorder()); // card.border: the same navy line in both themes
         g2.draw(new RoundRectangle2D.Float(x + 0.5f, y + 0.5f, width - 1, height - 1, 2 * RADIUS, 2 * RADIUS));
       } finally {
         g2.dispose();

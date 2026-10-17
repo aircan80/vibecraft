@@ -123,6 +123,18 @@ public final class MainFrame extends JFrame implements MainView {
         detailHolder, status), uiState, layoutWindow(), this::rerender);
     layout.start();
     textSize.applySaved();
+    wireStatusToggles();
+  }
+
+  /**
+   * The status line's toggles: Dark is selected while the dark theme is on and switches it as the View menu's
+   * Dark theme item does; Compact is selected in the compact layout and switches layouts as F10 does.
+   */
+  private void wireStatusToggles() {
+    status.themeToggle().setModel(new WindowMenus.LiveToggle(ThemeManager::isDark));
+    status.themeToggle().addActionListener(e -> ThemeManager.toggle(this));
+    status.layoutToggle().setModel(new WindowMenus.LiveToggle(layout::isCompact));
+    status.layoutToggle().addActionListener(e -> toggleCompactMode());
   }
 
   /** The top bar: {@code back}, {@code forward}, then {@code search}. */

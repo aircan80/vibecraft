@@ -19,13 +19,13 @@ import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.widgets.Chip;
 import dev.wowforever.app.ui.widgets.Images;
 import dev.wowforever.app.ui.widgets.Keys;
 import dev.wowforever.app.ui.widgets.MapView;
 import dev.wowforever.app.ui.widgets.MapView.Pin;
 import dev.wowforever.app.ui.widgets.MapView.PinKind;
 import dev.wowforever.app.ui.widgets.OriginChip;
-import dev.wowforever.app.ui.widgets.RankChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.Rectangle;
@@ -96,18 +96,18 @@ class NpcPageTest {
   @Test
   void theSourceFilterHidesDropsFromTheHiddenSourceAlone() {
     var all = filtered(SourceFilter.ALL);
-    assertThat(all.section("Drops").heading().getText()).isEqualTo("Drops (4)");
+    assertThat(all.section("Drops").heading().text()).isEqualTo("Drops (4)");
     assertThat(all.section("Drops").note()).isNull();
     assertThat(headings(all)).containsExactly("Gear (3)", "Trade goods (1)");
 
     var noAtlas = filtered(SourceFilter.HIDE_ATLASLOOT_ONLY);
-    assertThat(noAtlas.section("Drops").heading().getText()).isEqualTo("Drops (2)");
+    assertThat(noAtlas.section("Drops").heading().text()).isEqualTo("Drops (2)");
     assertThat(itemNames(noAtlas)).containsExactlyInAnyOrder("Both Sword", "Questie Helm");
     assertThat(headings(noAtlas)).as("the group counts follow, an emptied group goes").containsExactly("Gear (2)");
     assertThat(noAtlas.section("Drops").note().getText()).isEqualTo("2 rows hidden by the source filter");
 
     var noQuestie = filtered(SourceFilter.HIDE_QUESTIE_ONLY);
-    assertThat(noQuestie.section("Drops").heading().getText()).isEqualTo("Drops (3)");
+    assertThat(noQuestie.section("Drops").heading().text()).isEqualTo("Drops (3)");
     assertThat(itemNames(noQuestie)).containsExactlyInAnyOrder("Both Sword", "Atlas Dust", "Atlas Axe");
     assertThat(headings(noQuestie)).containsExactly("Gear (2)", "Trade goods (1)");
     assertThat(noQuestie.section("Drops").note().getText()).isEqualTo("1 row hidden by the source filter");
@@ -117,7 +117,7 @@ class NpcPageTest {
   void dropsAllHiddenLeaveTheSectionWithItsNote() {
     var d = npc(HOGGER, List.of(loot(3, "Atlas Ring", 2.0, "atlasloot", "Armor")), List.of(), List.of());
     var p = new NpcPage(d, null, null, Map.of(), SourceFilter.HIDE_ATLASLOOT_ONLY, t -> {}, text -> {});
-    assertThat(p.section("Drops").heading().getText()).isEqualTo("Drops (0)");
+    assertThat(p.section("Drops").heading().text()).isEqualTo("Drops (0)");
     assertThat(p.section("Drops").note().getText()).isEqualTo("1 row hidden by the source filter");
     assertThat(p.drops().isVisible()).isFalse();
   }
@@ -145,7 +145,7 @@ class NpcPageTest {
     JTable t = p.drops().table();
     assertThat(column(t, 0)).containsExactly("Gear (1)", "Cruel Barb", "Quest items (1)", "An Unsent Letter",
         "Other (3)", "Unknown item #5202", "Unknown item #5193", "Unknown item #10399");
-    assertThat(p.section("Drops").heading().getText()).isEqualTo("Drops (5)");
+    assertThat(p.section("Drops").heading().text()).isEqualTo("Drops (5)");
     // group headings are dividers: muted, linking nowhere, not selectable, and the order is fixed
     assertThat(p.drops().model().refAt(0, 0)).isEmpty();
     assertThat(p.drops().model().refAt(1, 0)).contains(new EntityRef(ITEM, 5191));
@@ -187,7 +187,7 @@ class NpcPageTest {
     JTable t = p.drops().table();
     assertThat(column(t, 0)).containsExactly("Quest items (2)", "Huge Gnoll Claw", "Gold Pickup Schedule",
         "Consumables (1)", "Rare Find", "World drops (2) ▸");
-    assertThat(p.section("Drops").heading().getText()).as("the heading counts every drop").isEqualTo("Drops (5)");
+    assertThat(p.section("Drops").heading().text()).as("the heading counts every drop").isEqualTo("Drops (5)");
     Rectangle heading = t.getCellRect(5, 1, true);
     t.dispatchEvent(new MouseEvent(t, MouseEvent.MOUSE_CLICKED, 0L, 0, heading.x + 2, heading.y + 2, 1, false,
         MouseEvent.BUTTON1));
@@ -327,7 +327,7 @@ class NpcPageTest {
     var p = new NpcPage(vanCleef(), t -> {}, text -> {});
     // Questie calls him rare elite; he is an AtlasLoot encounter, so a boss
     assertThat(p.rankChip().getText()).isEqualTo("Boss");
-    assertThat(p.rankChip().style()).isEqualTo(RankChip.Style.GOLD_FILL);
+    assertThat(p.rankChip().style()).isEqualTo(Chip.Style.BOSS);
     assertThat(p.rankChip().isVisible()).isTrue();
   }
 
@@ -364,7 +364,7 @@ class NpcPageTest {
     assertThat(p.header().title()).isEqualTo("Unknown NPC #5");
     assertThat(p.header().subtitle()).isEqualTo("NPC #5");
     assertThat(p.header().links()).isEmpty();
-    assertThat(p.rankChip().isVisible()).isFalse();
+    assertThat(p.rankChip()).as("a normal NPC has no rank chip").isNull();
     assertThat(p.sections()).isEmpty();
   }
 

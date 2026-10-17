@@ -268,7 +268,7 @@ class AppControllerTest {
         }
       }
       assertThat(names).contains("Blackrock Spire › Lower", "Blackrock Spire › Upper", "Molten Core");
-      assertThat(listPage().sections()).extracting(s -> s.heading().getText()).contains("Levels 41–59 (2)");
+      assertThat(listPage().sections()).extracting(s -> s.heading().text()).contains("Levels 41–59 (2)");
     }
   }
 

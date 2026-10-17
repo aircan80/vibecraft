@@ -10,9 +10,9 @@ import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.widgets.Chip;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.widgets.MapView;
-import dev.wowforever.app.ui.widgets.RankChip;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
@@ -33,7 +33,7 @@ import java.util.Set;
  */
 public final class NpcPage extends SourcesPage {
   private final HeaderPanel header;
-  private final RankChip rankChip;
+  private final Chip rankChip;
   private final LinkTable<GroupedRows.Row<LootRow>> drops;
   private final SpawnSection spawns;
 
@@ -57,8 +57,10 @@ public final class NpcPage extends SourcesPage {
     NpcSummary s = d.summary();
     header = zoneHeader(title(s), Labels.join("NPC #" + s.id(), Labels.levels(s.minLevel(), s.maxLevel())),
         s.zoneId(), s.zoneName());
-    rankChip = new RankChip(s.rank());
-    header.addBadge(rankChip);
+    rankChip = Chip.rank(s.rank()).orElse(null);
+    if (rankChip != null) {
+      header.addBadge(rankChip);
+    }
     content.add(header);
     SourceFilters.Filtered<LootRow> shown = SourceFilters.apply(d.drops(), LootRow::origin, filter);
     if (d.drops().isEmpty()) {
@@ -93,7 +95,8 @@ public final class NpcPage extends SourcesPage {
     return header;
   }
 
-  public RankChip rankChip() {
+  /** The rank chip beside the name; null for a normal NPC or an unknown rank. */
+  public Chip rankChip() {
     return rankChip;
   }
 

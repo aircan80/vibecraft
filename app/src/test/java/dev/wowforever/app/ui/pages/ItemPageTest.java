@@ -100,7 +100,7 @@ class ItemPageTest {
   @Test
   void onlyNonEmptySectionsInOrderWithCounts() {
     var p = new ItemPage(repos.items().detail(14149).get(), t -> {});
-    assertThat(p.sections()).extracting(s -> s.heading().getText())
+    assertThat(p.sections()).extracting(s -> s.heading().text())
         .containsExactly("Dropped by (1)", "In instance loot (1)");
     assertThat(p.section("Sold by")).isNull();
     assertThat(p.section("Dropped by").table()).isSameAs(p.droppedBy());
@@ -111,7 +111,7 @@ class ItemPageTest {
     var p = new ItemPage(everything(), t -> {});
     assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Dropped by", "In instance loot",
         "Contained in", "Sold by", "Quest reward", "Related quests");
-    assertThat(p.sections()).extracting(s -> s.heading().getText()).containsExactly("Dropped by (3)",
+    assertThat(p.sections()).extracting(s -> s.heading().text()).containsExactly("Dropped by (3)",
         "In instance loot (2)", "Contained in (2)", "Sold by (1)", "Quest reward (1)", "Related quests (2)");
     JTable contained = p.section("Contained in").table().table();
     assertThat(contained.getColumnName(1)).isEqualTo("Kind");
@@ -145,7 +145,7 @@ class ItemPageTest {
   @Test
   void everySourceShowsByDefaultWithoutANote() {
     var p = filtered(mixedOrigins(), SourceFilter.ALL);
-    assertThat(p.section("Dropped by").heading().getText()).isEqualTo("Dropped by (4)");
+    assertThat(p.section("Dropped by").heading().text()).isEqualTo("Dropped by (4)");
     assertThat(p.section("Dropped by").note()).isNull();
     assertThat(p.section("In instance loot").note()).isNull();
     assertThat(new ItemPage(mixedOrigins(), t -> {}).droppedBy().rowCount()).isEqualTo(5); // with the divider
@@ -155,14 +155,14 @@ class ItemPageTest {
   void hidingAtlasLootOnlyDropsKeepsQuestieAndBothAndNeverTouchesTheLootLists() {
     var p = filtered(mixedOrigins(), SourceFilter.HIDE_ATLASLOOT_ONLY);
     SourceSection dropped = p.section("Dropped by");
-    assertThat(dropped.heading().getText()).isEqualTo("Dropped by (3)");
+    assertThat(dropped.heading().text()).isEqualTo("Dropped by (3)");
     assertThat(column(p.droppedBy().table(), 0)).contains("Edwin VanCleef", "Defias Pirate", "Defias Squallshaper")
         .doesNotContain("Atlas Only");
     assertThat(dropped.note().getText()).isEqualTo("1 row hidden by the source filter");
     assertThat(dropped.note().getForeground()).isEqualTo(Theme.current().textMuted());
     // the filter is for NPC drops: the instance loot lists stay as they are
     SourceSection loot = p.section("In instance loot");
-    assertThat(loot.heading().getText()).isEqualTo("In instance loot (1)");
+    assertThat(loot.heading().text()).isEqualTo("In instance loot (1)");
     assertThat(loot.note()).isNull();
     assertThat(loot.table().rowCount()).isEqualTo(1);
     assertThat(p.summary()).as("the NPCs shown, every loot list")
@@ -187,17 +187,17 @@ class ItemPageTest {
   @Test
   void hidingQuestieOnlyRowsKeepsAtlasLootAndBoth() {
     var p = filtered(mixedOrigins(), SourceFilter.HIDE_QUESTIE_ONLY);
-    assertThat(p.section("Dropped by").heading().getText()).isEqualTo("Dropped by (2)");
+    assertThat(p.section("Dropped by").heading().text()).isEqualTo("Dropped by (2)");
     assertThat(column(p.droppedBy().table(), 0)).containsExactly("Edwin VanCleef", "Atlas Only");
     assertThat(p.section("Dropped by").note().getText()).isEqualTo("2 rows hidden by the source filter");
-    assertThat(p.section("In instance loot").heading().getText()).isEqualTo("In instance loot (1)");
+    assertThat(p.section("In instance loot").heading().text()).isEqualTo("In instance loot (1)");
     assertThat(p.section("In instance loot").note()).isNull();
   }
 
   @Test
   void aFilterThatHidesNothingAddsNoNote() {
     var p = filtered(drops(drop(639, "Edwin VanCleef", 60.0, "both")), SourceFilter.HIDE_QUESTIE_ONLY);
-    assertThat(p.section("Dropped by").heading().getText()).isEqualTo("Dropped by (1)");
+    assertThat(p.section("Dropped by").heading().text()).isEqualTo("Dropped by (1)");
     assertThat(p.section("Dropped by").note()).isNull();
   }
 
@@ -243,7 +243,7 @@ class ItemPageTest {
     LinkTable<DropRow> d = p.droppedBy();
     JTable t = d.table();
     assertThat(column(t, 0)).containsExactly("Edwin VanCleef", "Bea", "Low", "Rate unknown (2)", "Abe", "Zed");
-    assertThat(p.section("Dropped by").heading().getText()).isEqualTo("Dropped by (5)");
+    assertThat(p.section("Dropped by").heading().text()).isEqualTo("Dropped by (5)");
     // the divider is muted, links nowhere, and cannot be selected
     assertThat(d.model().rowAt(3)).isInstanceOf(DropRow.Divider.class);
     assertThat(d.model().refAt(3, 0)).isEmpty();

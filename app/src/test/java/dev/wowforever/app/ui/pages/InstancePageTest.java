@@ -104,7 +104,7 @@ class InstancePageTest {
     assertThat(rfc.lootTable().model().refAt(1, 0)).contains(new EntityRef(ITEM, 14145));
     assertThat(rfc.lootTable().model().refAt(3, 0)).contains(new EntityRef(ITEM, 14149));
     assertThat(rfc.lootTable().model().refAt(4, 0)).contains(new EntityRef(ITEM, 14148));
-    assertThat(rfc.lootSection().heading().getText()).isEqualTo("Loot (3)");
+    assertThat(rfc.lootSection().heading().text()).isEqualTo("Loot (3)");
   }
 
   @Test
@@ -128,7 +128,7 @@ class InstancePageTest {
     assertThat(p.encounters().isSelectionEmpty()).isTrue();
     assertThat(p.extraLists().getSelectedIndex()).isEqualTo(1);
     assertThat(p.bossHeader().title()).isEqualTo("Trash Mobs");
-    assertThat(p.lootSection().heading().getText()).isEqualTo("Loot (1)");
+    assertThat(p.lootSection().heading().text()).isEqualTo("Loot (1)");
     p.selectBoss(0);
     assertThat(p.extraLists().isSelectionEmpty()).isTrue();
     assertThat(p.bossHeader().title()).isEqualTo("Rhahk'Zor");

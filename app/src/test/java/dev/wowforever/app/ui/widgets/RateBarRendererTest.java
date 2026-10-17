@@ -41,36 +41,58 @@ class RateBarRendererTest {
   }
 
   @Test
-  void barTakesTheBandColour() {
-    assertThat(render(30.0).barColor()).isEqualTo(new Color(0x7FBF6A));
-    assertThat(render(10.0).barColor()).isEqualTo(new Color(0xC9B458));
-    assertThat(render(3.0).barColor()).isEqualTo(new Color(0xC98A4E));
-    assertThat(render(0.5).barColor()).isEqualTo(new Color(0xB3625A));
-  }
-
-  @Test
   void unknownRateIsAMutedDashWithoutABar() {
     RateBarRenderer r = render(null);
     assertThat(r.getText()).isEqualTo("—");
-    assertThat(r.barColor()).isNull();
+    assertThat(r.barPaint()).as("no bar").isNull();
     assertThat(r.getForeground()).isEqualTo(Theme.current().textMuted());
   }
 
   @Test
-  void paintsTheBarInTheBandColourRightOfTheNumber() {
-    RateBarRenderer r = render(30.0);
+  void barIsSixPxGradientWithTicks() {
+    RateBarRenderer r = render(50.0);
     int w = UIScale.scale(140);
     int h = UIScale.scale(20);
     r.setSize(w, h);
     Rectangle track = r.barTrack();
+    assertThat(RateBarRenderer.BAR_HEIGHT).isEqualTo(6);
+    assertThat(track.height).isEqualTo(UIScale.scale(6));
     assertThat(track.width).isEqualTo(UIScale.scale(48));
-    assertThat(track.height).isEqualTo(UIScale.scale(10));
     assertThat(track.x + track.width).isLessThanOrEqualTo(w);
-    BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+    assertThat(r.barPaint()).isNotNull();
+    assertThat(r.getText()).as("the number is unchanged").isEqualTo("50.00 %");
+    BufferedImage img = paint(r, w, h);
+    int mid = track.y + track.height / 2;
+    int fillEnd = track.x + track.width / 2 - 1;
+    Color left = new Color(img.getRGB(track.x + 1, mid));
+    Color right = new Color(img.getRGB(fillEnd - 1, mid));
+    assertThat(left).as("a gradient: the fill's left end").isNotEqualTo(right);
+    Theme t = Theme.current();
+    assertThat(distance(left, t.barStart())).as("starts dark gold").isLessThan(distance(left, t.barEnd()));
+
+    RateBarRenderer low = render(5.0); // the 10 % tick sits on the empty track
+    low.setSize(w, h);
+    low.setOpaque(false);
+    BufferedImage lowImg = paint(low, w, h);
+    int tick = track.x + Math.round(track.width * 0.1f);
+    int tickPixel = lowImg.getRGB(tick, mid);
+    assertThat(tickPixel >>> 24).as("a tick at 10 %").isPositive();
+    assertThat(new Color(tickPixel)).as("the tick differs from the plain track")
+        .isNotEqualTo(new Color(lowImg.getRGB(tick + 2, mid)));
+    assertThat(new Color(lowImg.getRGB(tick + 2, mid))).isEqualTo(t.bgRaised());
+  }
+
+  @Test
+  void numberTextIsUnchanged() {
+    assertThat(render(60.0).getText()).isEqualTo("60.00 %");
+  }
+
+  private static BufferedImage paint(RateBarRenderer r, int w, int h) {
+    BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
     Graphics2D g = img.createGraphics();
     r.paint(g);
     g.dispose();
-    assertThat(new Color(img.getRGB(track.x + 2, track.y + track.height / 2))).isEqualTo(new Color(0x7FBF6A));
+    return img;
   }
 
   /** A one-row table of {@code row} over the loot columns, with the rate column given {@code renderer}. */

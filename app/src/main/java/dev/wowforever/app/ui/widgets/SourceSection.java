@@ -7,10 +7,8 @@ import java.awt.Color;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Insets;
 import java.awt.LayoutManager;
-import java.util.Locale;
 import java.util.Objects;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
@@ -18,16 +16,16 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 /**
- * One kind of source on a page that scrolls as a whole: a gold heading with the count ({@code "Dropped by (3)"})
- * over an {@linkplain LinkTable#inline inline} link table, as tall as all its rows, and optionally a muted note under
- * the table ({@link #setNote}). The section never stretches taller than that, so a vertical box of sections stacks
- * them tightly.
+ * One kind of source on a page that scrolls as a whole: a {@link SectionHeading} with the count
+ * ({@code "Dropped by (3)"}) over an {@linkplain LinkTable#inline inline} link table, as tall as all its rows, and
+ * optionally a muted note under the table ({@link #setNote}). The section never stretches taller than that, so a
+ * vertical box of sections stacks them tightly.
  */
 public final class SourceSection extends JPanel {
   /** The gap between a lead and the table under it, in pixels. */
   static final int LEAD_GAP = 6;
   private final String title;
-  private final JLabel heading;
+  private final SectionHeading heading;
   private final LinkTable<?> table;
   private JLabel note;
 
@@ -38,14 +36,7 @@ public final class SourceSection extends JPanel {
     if (!table.isInline()) {
       throw new IllegalArgumentException("A source section needs an inline link table: " + title);
     }
-    heading = new JLabel(headingText(title, count)) {
-      @Override
-      public Color getForeground() { // looked up per paint, so theme changes apply
-        return Theme.current().goldText();
-      }
-    };
-    heading.setFont(heading.getFont().deriveFont(Font.BOLD));
-    heading.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0));
+    heading = new SectionHeading(title, count);
     table.table().getAccessibleContext().setAccessibleName(title); // a screen reader names the table
     setOpaque(false);
     setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
@@ -148,11 +139,7 @@ public final class SourceSection extends JPanel {
 
   /** Shows {@code count} in the heading, for a section whose table was given new rows. */
   public void setCount(int count) {
-    heading.setText(headingText(title, count));
-  }
-
-  private static String headingText(String title, int count) {
-    return String.format(Locale.ROOT, "%s (%,d)", title, count);
+    heading.setCount(count);
   }
 
   /** The kind of source, without the count: {@code "Dropped by"}. */
@@ -160,7 +147,8 @@ public final class SourceSection extends JPanel {
     return title;
   }
 
-  public JLabel heading() {
+  /** The heading: title and count, an optional icon and trailing control. */
+  public SectionHeading heading() {
     return heading;
   }
 

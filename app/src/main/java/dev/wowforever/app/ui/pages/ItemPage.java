@@ -21,6 +21,7 @@ import dev.wowforever.app.ui.widgets.DividerRows;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.ItemCardPanel;
 import dev.wowforever.app.ui.widgets.OriginChip;
+import dev.wowforever.app.ui.widgets.RaisedBorder;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import java.awt.Dimension;
 import java.awt.Insets;
@@ -145,8 +146,8 @@ public final class ItemPage extends SourcesPage {
   }
 
   /**
-   * Holds the card inside the page's margins: as wide as the card wants, at most the page width, and as tall as the
-   * card is at that width.
+   * Holds the card inside the page's margins, framed as a raised panel ({@link RaisedBorder}): as wide as the card
+   * wants, at most the page width, and as tall as the card is at that width.
    */
   private static final class CardHolder extends JPanel {
     private final ItemCardPanel card;
@@ -155,7 +156,8 @@ public final class ItemPage extends SourcesPage {
       super(null);
       this.card = card;
       setOpaque(false);
-      setBorder(BorderFactory.createEmptyBorder(10, 12, 2, 12));
+      setBorder(BorderFactory.createCompoundBorder(BorderFactory.createEmptyBorder(10, 12, 2, 12),
+          BorderFactory.createCompoundBorder(RaisedBorder.create(), BorderFactory.createEmptyBorder(5, 5, 5, 5))));
       setAlignmentX(LEFT_ALIGNMENT);
       add(card);
     }

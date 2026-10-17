@@ -72,7 +72,7 @@ final class WindowMenus {
    * A check box model whose selection is {@code selected}'s, read on every query: clicking still fires the item's
    * action, which changes what {@code selected} reports.
    */
-  private static final class LiveToggle extends JToggleButton.ToggleButtonModel {
+  static final class LiveToggle extends JToggleButton.ToggleButtonModel {
     private final BooleanSupplier selected;
 
     LiveToggle(BooleanSupplier selected) {

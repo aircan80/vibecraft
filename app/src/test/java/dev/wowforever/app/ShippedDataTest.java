@@ -108,7 +108,7 @@ class ShippedDataTest extends ShippedDataSupport {
     new AppController(repos, view, Runnable::run).open(ViewTarget.List.itemClass(4, -1));
     ListPage page = (ListPage) detail[0];
     assertThat((long) page.results().rowCount()).isEqualTo(armor);
-    assertThat(page.section().heading().getText()).isEqualTo(String.format(Locale.ROOT, "Results (%,d)", armor));
+    assertThat(page.section().heading().text()).isEqualTo(String.format(Locale.ROOT, "Results (%,d)", armor));
   }
 
   @Test

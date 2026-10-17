@@ -5,14 +5,15 @@ import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.ResultsTableModel;
-import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.FontMetrics;
+import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Insets;
+import java.awt.Paint;
 import java.awt.Rectangle;
 import java.util.List;
 import java.util.Objects;
@@ -25,8 +26,9 @@ import javax.swing.table.TableColumn;
 
 /**
  * Renders a drop rate (a {@link Number}, in percent) as its number, right-aligned ({@code "60.00 %"}), followed
- * by a {@value #BAR_WIDTH} × {@value #BAR_HEIGHT} px bar filled in proportion and coloured by
- * {@link QualityColors#rateBand}. An unknown (null) rate prints a muted {@code "—"} without a bar; the bar's
+ * by a {@value #BAR_WIDTH} × {@value #BAR_HEIGHT} px bar on {@code bg.raised}, filled in proportion with the
+ * theme's dark-gold to gold gradient ({@link #barPaint}) and marked by faint ticks every 10 %. The number carries
+ * the rate; the bar only shows it. An unknown (null) rate prints a muted {@code "—"} without a bar; the bar's
  * space is kept so numbers line up. A rate whose sources disagree (a {@link ResultsTableModel} rate column's
  * {@linkplain ResultsTableModel#disagreesAt flag}) is followed by {@link Columns#DISAGREES}, the marker alone painted
  * in the theme's {@linkplain Theme#warn() warning amber} (the glyph stays, so colour is never the only sign).
@@ -36,7 +38,10 @@ import javax.swing.table.TableColumn;
  */
 public final class RateBarRenderer extends DefaultTableCellRenderer {
   static final int BAR_WIDTH = 48;
-  static final int BAR_HEIGHT = 10;
+  /** The bar's height, in logical pixels. */
+  public static final int BAR_HEIGHT = 6;
+  /** The alpha of the 10 % ticks, drawn in {@code text.muted}. */
+  private static final int TICK_ALPHA = 80;
   private static final int GAP = 8;
   private static final int PAD = 6;
   /** Preferred width of a rate column: the number, the gap and the bar. */
@@ -151,9 +156,18 @@ public final class RateBarRenderer extends DefaultTableCellRenderer {
     return new Rectangle(getWidth() - in.right - w, 0, w, getHeight());
   }
 
-  /** The bar's colour for the last rendered rate; null when the rate is unknown (no bar). */
-  Color barColor() {
-    return pct == null ? null : QualityColors.rateBand(pct);
+  /**
+   * The fill of the last rendered rate's bar: a gradient from {@link Theme#barStart()} at the track's left end to
+   * {@link Theme#barEnd()} at its right end, so a fuller bar reaches a brighter gold; null when the rate is unknown
+   * (no bar).
+   */
+  public Paint barPaint() {
+    if (pct == null) {
+      return null;
+    }
+    Theme t = Theme.current();
+    Rectangle track = barTrack();
+    return new GradientPaint(track.x, 0, t.barStart(), track.x + track.width, 0, t.barEnd());
   }
 
   /** Where the bar's track sits: right of the number, vertically centred. */
@@ -203,11 +217,17 @@ public final class RateBarRenderer extends DefaultTableCellRenderer {
     Rectangle track = barTrack();
     Graphics2D g2 = (Graphics2D) g.create();
     try {
-      g2.setColor(Theme.current().bgRaised());
+      Theme t = Theme.current();
+      g2.setColor(t.bgRaised());
       g2.fillRect(track.x, track.y, track.width, track.height);
       int fill = pct <= 0 ? 0 : Math.max(2, (int) Math.round(track.width * Math.min(pct, 100.0) / 100.0));
-      g2.setColor(barColor());
+      g2.setPaint(barPaint());
       g2.fillRect(track.x, track.y, fill, track.height);
+      Color muted = t.textMuted();
+      g2.setColor(new Color(muted.getRed(), muted.getGreen(), muted.getBlue(), TICK_ALPHA));
+      for (int tenth = 1; tenth < 10; tenth++) {
+        g2.fillRect(track.x + Math.round(track.width * tenth / 10f), track.y, 1, track.height);
+      }
     } finally {
       g2.dispose();
     }

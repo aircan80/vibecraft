@@ -69,14 +69,14 @@ class WindowMenusTest {
     AppController c = new AppController(FixtureDb.repositories(), view, Runnable::run);
     c.open(new ViewTarget.Entity(new EntityRef(NPC, 639)));
     var before = (NpcPage) view.detail;
-    assertThat(before.section("Drops").heading().getText()).isEqualTo("Drops (5)");
+    assertThat(before.section("Drops").heading().text()).isEqualTo("Drops (5)");
     JMenu menu = WindowMenus.sourceFilterMenu(state, c::rerender);
 
     item(menu, "Hide AtlasLoot-only rows").doClick();
     assertThat(new UiState(node).sourceFilter()).as("saved").isEqualTo(SourceFilter.HIDE_ATLASLOOT_ONLY);
     var after = (NpcPage) view.detail;
     assertThat(after).as("shown again").isNotSameAs(before);
-    assertThat(after.section("Drops").heading().getText()).isEqualTo("Drops (2)");
+    assertThat(after.section("Drops").heading().text()).isEqualTo("Drops (2)");
     assertThat(after.section("Drops").note().getText()).isEqualTo("3 rows hidden by the source filter");
     assertThat(c.history().canBack()).as("no history entry").isFalse();
 

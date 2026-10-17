@@ -102,7 +102,10 @@ public final class AppController implements Navigator {
     this(repos, view, worker, Map.of());
   }
 
-  /** {@code meta} is the database's meta table (build id, source commits); the build shows on home and below. */
+  /**
+   * {@code meta} is the database's meta table (build id, client build, source commits); the build shows on home and
+   * in the status line, which also shows where the data comes from ({@link StatusBar#setProvenance}).
+   */
   public AppController(Repositories repos, MainView view, Executor worker, Map<String, String> meta) {
     this.repos = Objects.requireNonNull(repos, "repos");
     this.view = Objects.requireNonNull(view, "view");
@@ -110,6 +113,7 @@ public final class AppController implements Navigator {
     this.meta = Map.copyOf(meta);
     String buildId = meta.get("build_id");
     view.status().setBuild(buildId);
+    view.status().setProvenance(this.meta);
     view.masterList().onPreview(e -> preview(e.ref()));
     view.masterList().onCommit(e -> commit(e.ref()));
   }

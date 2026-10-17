@@ -191,15 +191,15 @@ class DetailPanelsTest {
   void renderAppliesTheSourceFilterToItemAndNpcPages() {
     Object vanCleef = DetailPanels.load(new EntityRef(NPC, 639), repos).orElseThrow();
     var all = (NpcPage) TestPages.render(vanCleef, repos, t -> {});
-    assertThat(all.section("Drops").heading().getText()).isEqualTo("Drops (5)");
+    assertThat(all.section("Drops").heading().text()).isEqualTo("Drops (5)");
     var filtered = (NpcPage) TestPages.render(vanCleef, repos, t -> {}, Runnable::run, StatusSink.NONE,
         SourceFilter.HIDE_ATLASLOOT_ONLY);
-    assertThat(filtered.section("Drops").heading().getText()).isEqualTo("Drops (2)");
+    assertThat(filtered.section("Drops").heading().text()).isEqualTo("Drops (2)");
     assertThat(filtered.section("Drops").note().getText()).isEqualTo("3 rows hidden by the source filter");
     Object atlasOnly = DetailPanels.load(new EntityRef(ITEM, 16800), repos).orElseThrow();
     var item = (ItemPage) TestPages.render(atlasOnly, repos, t -> {}, Runnable::run, StatusSink.NONE,
         SourceFilter.HIDE_ATLASLOOT_ONLY);
-    assertThat(item.section("Dropped by").heading().getText()).isEqualTo("Dropped by (0)");
+    assertThat(item.section("Dropped by").heading().text()).isEqualTo("Dropped by (0)");
   }
 
   /** The tooltip a pointer resting in the middle of view cell ({@code row}, {@code col}) shows. */

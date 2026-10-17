@@ -36,7 +36,7 @@ class SourceSectionTest {
   void headingNamesTitleAndCountInGold() {
     SourceSection s = section(3);
     assertThat(s.title()).isEqualTo("Sold by");
-    assertThat(s.heading().getText()).isEqualTo("Sold by (3)");
+    assertThat(s.heading().text()).isEqualTo("Sold by (3)");
     Theme saved = Theme.current();
     try {
       Theme.setCurrent(Tokens.LIGHT);
