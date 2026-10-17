@@ -202,6 +202,18 @@ class ShippedDataTest extends ShippedDataSupport {
     }
     assertThat(rows).last().asString().startsWith("World drops (").endsWith(")" + " ▸");
     assertThat(rows).contains("Huge Gnoll Claw").hasSizeLessThan(8);
+    // every pool drop of Hogger's is below 10 % (Tough Jerky 6.09 %): Quest items (2), then World drops (23)
+    assertThat(rows).hasSize(4).first().isEqualTo("Quest items (2)");
+    assertThat(rows).last().isEqualTo("World drops (23) ▸");
+    // a high-rate shared drop is what the NPC is farmed for: Murloc Tidehunter (NPC 127) drops Murloc Eye at
+    // 50.0 % (questie-wowhead, 36 droppers), so it stays in Trade goods and not in the world drops
+    var tidehunter = (NpcPage) TestPages.build(new EntityRef(NPC, 127), repos, t -> {});
+    List<Object> tidehunterRows = new ArrayList<>();
+    for (int r = 0; r < tidehunter.drops().table().getRowCount(); r++) {
+      tidehunterRows.add(tidehunter.drops().table().getValueAt(r, 0));
+    }
+    assertThat(tidehunterRows).containsSequence("Trade goods (3)", "Murloc Eye");
+    assertThat(tidehunterRows).last().asString().startsWith("World drops (");
     // a quest item 22 NPCs drop at an unknown rate stays in the table, not in the world drops
     var horror = (NpcPage) TestPages.build(new EntityRef(NPC, 3642), repos, t -> {});
     List<Object> horrorRows = new ArrayList<>();

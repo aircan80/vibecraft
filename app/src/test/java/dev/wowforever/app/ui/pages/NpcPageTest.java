@@ -219,14 +219,17 @@ class NpcPageTest {
 
   @Test
   void aRatedPoolDropManyNpcsShareIsStillAWorldDrop() {
-    // VMaNGOS rates most of the generic pool from its shared reference tables: a rate does not make it Hogger's own
+    // VMaNGOS rates most of the generic pool from its shared reference tables: a low rate does not make it Hogger's
+    // own, but a high rate (a creature's own loot table, a farming drop) keeps the item in its class group
     int many = ItemCategories.WORLD_DROP_NPCS + 5;
     var p = new NpcPage(npc(HOGGER, List.of(drop(1, "Huge Gnoll Claw", 84.0, "Quest", 1, null),
         drop(2, "Tough Jerky", 6.1, "Consumable", 161, null), drop(3, "Tigerseye", 2.96, "Trade Goods", many, null),
-        drop(4, "Malachite", 0.64, "Trade Goods", ItemCategories.WORLD_DROP_NPCS - 1, null)), List.of(), List.of()),
-        t -> {}, text -> {});
+        drop(4, "Malachite", 0.64, "Trade Goods", ItemCategories.WORLD_DROP_NPCS - 1, null),
+        drop(5, "Murloc Eye", 40.0, "Trade Goods", many, null),
+        drop(6, "Chunk of Boar Meat", ItemCategories.WORLD_DROP_MAX_PCT, "Trade Goods", many, null)), List.of(),
+        List.of()), t -> {}, text -> {});
     assertThat(column(p.drops().table(), 0)).containsExactly("Quest items (1)", "Huge Gnoll Claw",
-        "Trade goods (1)", "Malachite", "World drops (2)" + GroupedRows.COLLAPSED);
+        "Trade goods (3)", "Murloc Eye", "Chunk of Boar Meat", "Malachite", "World drops (2)" + GroupedRows.COLLAPSED);
   }
 
   @Test
