@@ -5,7 +5,7 @@
 The importer reads the SQLite file directly (``--server-db-dir``), so nothing is exported here; this script only
 shows what the release holds. For each table it prints the total row count and, for the loot tables, the rows valid
 at patch 1.12 (VMaNGOS patch index 10, ``patch_min <= 10 <= patch_max``), which are the rows the importer uses.
-Standard library only; the file is opened read-only.
+Standard library only; the file is opened read-only and immutable.
 """
 import argparse
 import contextlib
@@ -28,7 +28,8 @@ def default_db():
 
 
 def connect(path):
-    return sqlite3.connect("file:%s?mode=ro" % Path(path).resolve().as_posix(), uri=True)
+    """Read-only and immutable (no locks, no journal); the path is percent-encoded into the URI."""
+    return sqlite3.connect(Path(path).resolve().as_uri() + "?mode=ro&immutable=1", uri=True)
 
 
 def row_counts(path):

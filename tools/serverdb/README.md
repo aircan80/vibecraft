@@ -34,27 +34,33 @@ None of these files are committed.
 
 ## How the importer uses it
 
-The importer opens `mangos.sqlite` read-only and queries it directly (`--server-db-dir <dir>`, or `-Dserverdb.dir`
-in the `import-data` Maven profile). Exporting CSV files first would add a step and a format without a benefit, so
-`extract.py` only inspects the database. Without the option, or when the directory has no `mangos.sqlite`, the
-import skips the community rates (`serverdb.skipped = 1`).
+The importer opens `mangos.sqlite` read-only and immutable and queries it directly (`--server-db-dir <dir>`, or
+`-Dserverdb.dir` in the `import-data` Maven profile). Exporting CSV files first would add a step and a format
+without a benefit, so `extract.py` only inspects the database. Without the option, or when the directory has no
+`mangos.sqlite`, the import skips the community rates (`serverdb.skipped = 1`).
 
-Rates are computed as the server would roll them at patch 1.12 (VMaNGOS patch index 10, rows with
-`patch_min <= 10 <= patch_max`):
+Rates are computed as the server's loot code (`src/game/LootMgr.cpp`) would roll them at patch 1.12 (VMaNGOS
+patch index 10, rows with `patch_min <= 10 <= patch_max`, without the items `forbidden_items` bans at that patch):
 
 - A creature reaches its `creature_loot_template` entry through `creature_template.loot_id`, read from its newest
-  row at or before patch 10. Creature entries are the Classic NPC ids Questie uses.
-- `ChanceOrQuestChance` is the drop percentage, capped at 100. A negative value is a quest-only drop, and its
-  absolute value is used.
-- Rows in group 0 roll independently. A group (`groupid > 0`) drops at most one of its rows. Rows with chance 0
-  in a group share equally what the group's explicit chances leave of 100 %.
-- A row with `mincountOrRef < 0` references `reference_loot_template` entry `-mincountOrRef`. Its chance is rolled
-  once and the reference `maxcount` times. References nest up to five levels deep.
-- An item reached by several rows combines as independent rolls.
+  row at or before patch 10. Several creatures can share one table. Creature entries are the Classic NPC ids
+  Questie uses.
+- A template holds groups and ungrouped entries. A group is the rows with `groupid > 0` and `mincountOrRef > 0`.
+  Every other row is an ungrouped entry: items of group 0 and every reference, whatever its `groupid`.
+- An ungrouped item rolls on its own with `|ChanceOrQuestChance|` percent, capped at 100. A negative value marks a
+  quest-only item. A 0-chance item outside a group never drops.
+- A reference (`mincountOrRef < 0`) rolls its own chance. A negative chance there is a plain chance, and a 0-chance
+  reference is skipped. On a hit, `reference_loot_template` entry `-mincountOrRef` is processed `maxcount` times.
+  With the reference's `groupid` g above 0 only group g of that template rolls; with 0 the whole template does.
+  References nest up to five levels deep.
+- A group rolls once and yields at most one item. Explicit chances are taken in row order, each limited to what is
+  left of 100 %, and a row of 100 % or more takes all that is left. The 0-chance rows share the rest equally. An
+  item listed twice in one group adds its two shares.
+- Separate entries and groups roll independently, so an item reached several ways combines as `1 - prod(1 - p)`.
 
-Every (NPC, item) pair that Questie or AtlasLoot lists as a drop gets a `drop_rate_source` row with
-`source = 'vmangos'`. VMaNGOS-only pairs add no drop rows, because its reference tables carry the world-drop pools
-and world drops are never a mob's own loot.
+VMaNGOS-only pairs add no drop rows, because its reference tables carry the world-drop pools and world drops are
+never a mob's own loot. Of the (NPC, item) pairs Questie or AtlasLoot list as drops, the ones VMaNGOS also rates
+get a `drop_rate_source` row with `source = 'vmangos'`.
 
 VMaNGOS rates are a vanilla emulator's configured chances, and Forever's loot is reworked, so observed and curated
 data outranks them. The merged `item_npc_drop.drop_pct` takes the first of:
@@ -66,17 +72,21 @@ data outranks them. The merged `item_npc_drop.drop_pct` takes the first of:
 5. the AtlasLoot drop table
 6. VMaNGOS quest-only rows
 
-A quest-only rate is the chance while the looter is on the quest, not per kill. An item is quest-only when every row
-that reaches it has a negative chance. Such a rate headlines only when no other source rates the pair, and its
-`drop_rate_source` row has `quest_only = 1`. It still counts in `source_count` and may set `disagrees`.
+A quest-only rate is the chance while the looter is on the quest, not per kill. An item is quest-only when every way
+to it ends in an item row with a negative chance; a reference never makes a rate quest-only. Such a rate headlines
+only when no other source rates the pair, and its `drop_rate_source` row has `quest_only = 1`. It still counts in
+`source_count` and may set `disagrees`.
 
-Report counters: `serverdb.loot.rows`, `serverdb.reference.rows`, `serverdb.creatures`, `serverdb.unmatched.npcs`
-(creatures with loot that are not in the NPC table), `serverdb.rates`, `serverdb.rates.questOnlyPairs`, `serverdb.rates.questOnly` (rows),
-`serverdb.zeroChance.ungrouped`, `serverdb.references.depthCapped`, `serverdb.references.missing` and
+Report counters: `serverdb.loot.rows`, `serverdb.reference.rows`, `serverdb.loot.forbidden`, `serverdb.creatures`,
+`serverdb.unmatched.npcs` (creatures with loot that are not in the NPC table), `serverdb.rates`,
+`serverdb.rates.questOnlyPairs`, `serverdb.rates.questOnly` (rows), `serverdb.zeroChance.ungrouped`,
+`serverdb.references.zeroChance`, `serverdb.references.depthCapped`, `serverdb.references.missing` and
 `serverdb.skipped`; `provenance.sources.vmangos` counts the rows written.
 
 ## Tests
 
-    tools/clientdata/.venv/Scripts/python -m pytest tools/serverdb      # Windows; any Python with pytest works
+    tools/clientdata/.venv/Scripts/python -m pytest tools/serverdb
+
+That is the Windows path of the clientdata virtual environment; any Python with pytest works.
 
 The tests build a fake archive and a tiny world database; they need no network.

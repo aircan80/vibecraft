@@ -38,8 +38,14 @@ CHUNK = 1 << 20
 
 
 class FetchError(Exception):
-    def __init__(self, url, status):
-        super().__init__("GET %s failed with HTTP %s" % (url, status))
+    """A failed download (``status`` is the HTTP status, or None with a ``reason``) or an unusable archive."""
+
+    def __init__(self, url, status=None, reason=None):
+        if status is not None:
+            message = "GET %s failed with HTTP %s" % (url, status)
+        else:
+            message = "%s: %s" % (url, reason)
+        super().__init__(message)
         self.url = url
         self.status = status
 
@@ -81,8 +87,18 @@ def license_url(lock):
     return "https://raw.githubusercontent.com/%s/%s/%s" % (lock["repo"], lock["commit"], lock["license"]["path"])
 
 
+def _remove(*paths):
+    for path in paths:
+        if Path(path).exists():
+            Path(path).unlink()
+
+
 def download(url, dest, opener=urllib.request.urlopen, sleep=time.sleep, retry_delays=None):
-    """Streams ``url`` into ``dest`` (through ``dest.part``); an HTTP 5xx is retried after each delay, else raises."""
+    """Streams ``url`` into ``dest`` (through ``dest.part``); an HTTP 5xx is retried after each delay.
+
+    Any other HTTP status, a network error (``URLError``) or a local I/O error (``OSError``) removes the partial file
+    and raises FetchError.
+    """
     delays = iter(RETRY_DELAYS if retry_delays is None else retry_delays)
     dest = Path(dest)
     part = dest.with_name(dest.name + ".part")
@@ -96,10 +112,12 @@ def download(url, dest, opener=urllib.request.urlopen, sleep=time.sleep, retry_d
         except urllib.error.HTTPError as e:
             delay = next(delays, None) if 500 <= e.code < 600 else None
             if delay is None:
-                if part.exists():
-                    part.unlink()
+                _remove(part)
                 raise FetchError(url, e.code) from e
             sleep(delay)
+        except (urllib.error.URLError, OSError) as e:
+            _remove(part)
+            raise FetchError(url, reason=getattr(e, "reason", None) or e) from e
 
 
 def sha256_file(path):
@@ -130,7 +148,7 @@ def extract_member(archive, member, dest):
         try:
             info = z.getinfo(member)
         except KeyError:
-            raise FetchError("%s!%s" % (archive, member), "missing member") from None
+            raise FetchError("%s!%s" % (archive, member), reason="the archive has no such member") from None
         with z.open(info) as src, open(part, "wb") as out:
             shutil.copyfileobj(src, out, CHUNK)
     os.replace(part, dest)
@@ -149,12 +167,13 @@ def fetch(lock_path=LOCK, cache_root=DEFAULT_CACHE_ROOT, opener=urllib.request.u
         log("downloading %s" % asset_url(lock))
         download(asset_url(lock), archive, opener=opener, sleep=sleep)
         downloaded = True
+    world = cache / WORLD_DB
+    derived = (world, cache / LOCK_COPY)  # never left beside an archive or licence that failed its pin
     try:
         pinned = verify_or_pin(lock, archive)
     except ChecksumError:
-        archive.unlink()
+        _remove(archive, *derived)
         raise
-    world = cache / WORLD_DB
     if downloaded or not world.exists():
         log("extracting %s" % lock["world_db"])
         extract_member(archive, lock["world_db"], world)
@@ -164,7 +183,7 @@ def fetch(lock_path=LOCK, cache_root=DEFAULT_CACHE_ROOT, opener=urllib.request.u
     try:
         pinned = verify_or_pin(lock["license"], licence) or pinned
     except ChecksumError:
-        licence.unlink()
+        _remove(licence, *derived)
         raise
     if pinned:
         write_lock(lock_path, lock)

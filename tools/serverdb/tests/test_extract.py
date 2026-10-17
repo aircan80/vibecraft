@@ -43,7 +43,16 @@ def test_main_prints_one_line_per_table(tmp_path, capsys):
 
 
 def test_the_database_is_opened_read_only(tmp_path):
-    db = world_db(tmp_path / "mangos.sqlite")
+    (tmp_path / "a dir #1").mkdir()
+    db = world_db(tmp_path / "a dir #1" / "mangos.sqlite")
+    assert extract.row_counts(db)["npc_vendor"] == (1, None), "a path with spaces and # is encoded"
+    writer = sqlite3.connect(db)
+    writer.execute("BEGIN EXCLUSIVE")
+    try:
+        assert extract.row_counts(db)["npc_vendor"] == (1, None), "immutable: another writer's lock does not block"
+    finally:
+        writer.rollback()
+        writer.close()
     with extract.connect(db) as c, pytest.raises(sqlite3.OperationalError):
         c.execute("DELETE FROM npc_vendor")
 

@@ -97,6 +97,13 @@ class ServerDropRatesTest {
   }
 
   @Test
+  void aNegativeChanceOnAReferenceIsAPlainChance() throws Exception {
+    load(new ServerDbFixture().creature(100, 100).lootRef(100, 500, -40, 0, 1).ref(500, 1, 100, 0, 1, 1));
+    assertThat(rates.get(100, 1).orElseThrow()).isEqualTo(new DropRate(40, "vmangos", false));
+    assertThat(report.get("serverdb.rates.questOnly")).isZero();
+  }
+
+  @Test
   void creaturesReachTheirLootThroughLootIdAtTheNewestPatch() throws Exception {
     load(new ServerDbFixture()
         .creature(100, 100).loot(100, 1, 10, 0, 1, 1)
@@ -132,17 +139,100 @@ class ServerDropRatesTest {
         .ref(501, 20, 40, 1, 1, 1)
         .ref(501, 21, 0, 1, 1, 1)
         .ref(501, 22, 0, 1, 1, 1)
-        // a group of the creature's own table, with a reference in it
+        // a group of the creature's own table, only equal-chanced rows
         .loot(100, 30, 0, 2, 1, 1)
         .loot(100, 31, 0, 2, 1, 1)
         .loot(100, 32, 0, 2, 1, 1)
-        .lootRef(100, 502, 70, 2, 1)
+        .lootRef(100, 502, 70, 0, 1)
         .ref(502, 40, 100, 0, 1, 1));
     assertThat(pct(100, 20)).isCloseTo(40.0, within(1e-9));
     assertThat(pct(100, 21)).isCloseTo(30.0, within(1e-9));
     assertThat(pct(100, 22)).isCloseTo(30.0, within(1e-9));
-    assertThat(pct(100, 30)).isCloseTo(10.0, within(1e-9));
+    assertThat(pct(100, 30)).isCloseTo(100.0 / 3, within(1e-6));
     assertThat(pct(100, 40)).isCloseTo(70.0, within(1e-9));
+  }
+
+  @Test
+  void aReferenceIsNeverAGroupMemberAndRollsWithItsOwnChance() throws Exception {
+    // the reference row carries groupid 1, but stays outside the creature's group 1, which it would otherwise share
+    load(new ServerDbFixture().creature(100, 100)
+        .loot(100, 1, 80, 1, 1, 1)
+        .lootRef(100, 600, 50, 1, 1)
+        .ref(600, 2, 100, 1, 1, 1));
+    assertThat(pct(100, 1)).isEqualTo(80.0);
+    assertThat(pct(100, 2)).isEqualTo(50.0);
+  }
+
+  @Test
+  void aReferenceWithAGroupIdPullsOnlyThatGroupOfTheReferencedTemplate() throws Exception {
+    load(new ServerDbFixture().creature(100, 100)
+        .lootRef(100, 600, 50, 2, 1)
+        .creature(200, 200).lootRef(200, 600, 100, 2, 2)
+        .ref(600, 1, 100, 0, 1, 1) // ungrouped: not processed through a group selector
+        .ref(600, 2, 100, 1, 1, 1) // another group
+        .ref(600, 3, 0, 2, 1, 1)
+        .ref(600, 4, 0, 2, 1, 1)
+        .refRef(600, 601, 100, 0, 1) // a nested reference is an ungrouped entry too
+        .ref(601, 5, 100, 0, 1, 1));
+    assertThat(pct(100, 3)).isCloseTo(25.0, within(1e-9));
+    assertThat(pct(100, 4)).isCloseTo(25.0, within(1e-9));
+    assertThat(rates.get(100, 1)).isEmpty();
+    assertThat(rates.get(100, 2)).isEmpty();
+    assertThat(rates.get(100, 5)).isEmpty();
+    assertThat(pct(200, 3)).as("two group rolls").isCloseTo(75.0, within(1e-9));
+  }
+
+  @Test
+  void aReferenceListedTwiceRollsTwice() throws Exception {
+    load(new ServerDbFixture().creature(100, 100)
+        .lootRefAs(100, 700, 700, 50, 0, 1)
+        .lootRefAs(100, 701, 700, 50, 0, 1)
+        .ref(700, 5, 100, 1, 1, 1));
+    assertThat(pct(100, 5)).isCloseTo(75.0, within(1e-9));
+  }
+
+  @Test
+  void aDuplicateItemInOneGroupAddsItsChances() throws Exception {
+    load(new ServerDbFixture().creature(100, 100)
+        .lootPatchedGrouped(100, 1, 30, 1, 0, 10).lootPatchedGrouped(100, 1, 30, 1, 5, 10)
+        .loot(100, 2, 30, 0, 1, 1).lootPatched(100, 2, 30, 5, 10)); // ungrouped duplicates roll independently
+    assertThat(pct(100, 1)).isCloseTo(60.0, within(1e-9));
+    assertThat(pct(100, 2)).isCloseTo(51.0, within(1e-9));
+  }
+
+  @Test
+  void explicitChancesAboveAHundredAreTruncatedInRowOrder() throws Exception {
+    load(new ServerDbFixture().creature(100, 100)
+        .loot(100, 1, 60, 1, 1, 1).loot(100, 2, 30, 1, 1, 1).loot(100, 3, 30, 1, 1, 1).loot(100, 4, 0, 1, 1, 1)
+        .loot(100, 6, 40, 2, 1, 1).loot(100, 7, 100, 2, 1, 1).loot(100, 8, 10, 2, 1, 1));
+    assertThat(pct(100, 1)).isCloseTo(60.0, within(1e-9));
+    assertThat(pct(100, 2)).isCloseTo(30.0, within(1e-9));
+    assertThat(pct(100, 3)).isCloseTo(10.0, within(1e-9));
+    assertThat(rates.get(100, 4)).isEmpty();
+    assertThat(pct(100, 6)).isCloseTo(40.0, within(1e-9));
+    assertThat(pct(100, 7)).as("a 100 % row takes what is left").isCloseTo(60.0, within(1e-9));
+    assertThat(rates.get(100, 8)).isEmpty();
+  }
+
+  @Test
+  void aZeroChanceReferenceIsSkippedAndCounted() throws Exception {
+    load(new ServerDbFixture().creature(100, 100).lootRef(100, 800, 0, 0, 1).ref(800, 1, 100, 0, 1, 1)
+        .loot(100, 2, 10, 0, 1, 1));
+    assertThat(rates.get(100, 1)).isEmpty();
+    assertThat(pct(100, 2)).isEqualTo(10.0);
+    assertThat(report.get("serverdb.references.zeroChance")).isEqualTo(1);
+  }
+
+  @Test
+  void itemsTheServerForbidsAtThePatchAreLeftOut() throws Exception {
+    load(new ServerDbFixture().creature(100, 100)
+        .loot(100, 1, 10, 0, 1, 1).loot(100, 2, 10, 0, 1, 1).loot(100, 3, 10, 0, 1, 1)
+        .forbidden(1, 7, 0) // gone from patch 7 on
+        .forbidden(2, 3, 1) // only until patch 3
+        .forbidden(3, 10, 1)); // until patch 10, so still forbidden at 10
+    assertThat(rates.get(100, 1)).isEmpty();
+    assertThat(pct(100, 2)).isEqualTo(10.0);
+    assertThat(rates.get(100, 3)).isEmpty();
   }
 
   @Test

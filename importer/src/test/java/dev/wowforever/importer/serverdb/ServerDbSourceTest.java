@@ -42,6 +42,18 @@ class ServerDbSourceTest {
   }
 
   @Test
+  void theWorldDatabaseIsOpenedImmutableSoAnotherWritersLockDoesNotBlockIt() throws Exception {
+    Path dir = new ServerDbFixture().creature(1, 7).loot(7, 100, 5, 0, 1, 1).write(tmp.resolve("a dir with spaces"));
+    try (Connection writer = DriverManager.getConnection("jdbc:sqlite:" + dir.resolve("mangos.sqlite"))) {
+      writer.createStatement().execute("BEGIN EXCLUSIVE");
+      try (ServerDbSource db = ServerDbSource.open(dir).orElseThrow()) {
+        assertThat(db.creatureLootIds(10)).containsEntry(1L, 7L);
+      }
+      writer.createStatement().execute("ROLLBACK");
+    }
+  }
+
+  @Test
   void theWorldDatabaseIsOpenedReadOnly() throws Exception {
     Path dir = new ServerDbFixture().creature(1, 1).write(tmp.resolve("db"));
     try (ServerDbSource db = ServerDbSource.open(dir).orElseThrow()) {

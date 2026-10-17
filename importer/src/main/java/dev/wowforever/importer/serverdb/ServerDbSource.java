@@ -9,15 +9,19 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.sqlite.SQLiteConfig;
+import org.sqlite.SQLiteOpenMode;
 
 /**
  * The VMaNGOS world database ({@code mangos.sqlite} from the official {@code db-sqlite-<commit>.zip} release, which
- * {@code tools/serverdb/fetch.py} extracts), opened read-only in place: the importer reads its loot tables with SQL
- * instead of an intermediate CSV export.
+ * {@code tools/serverdb/fetch.py} extracts), opened read-only and immutable in place: the importer reads its loot
+ * tables with SQL instead of an intermediate CSV export. Like the server's loader ({@code LootStore::LoadLootTable}),
+ * item rows whose item {@code forbidden_items} bans at the patch are left out.
  */
 public final class ServerDbSource implements AutoCloseable {
   /** The world database's file name inside the server-database directory. */
@@ -31,6 +35,7 @@ public final class ServerDbSource implements AutoCloseable {
 
   private final Path file;
   private final Connection connection;
+  private int forbiddenRows;
 
   private ServerDbSource(Path file, Connection connection) {
     this.file = file;
@@ -38,7 +43,9 @@ public final class ServerDbSource implements AutoCloseable {
   }
 
   /**
-   * Opens {@code dir/mangos.sqlite} read-only; empty when the directory or the file does not exist.
+   * Opens {@code dir/mangos.sqlite} read-only and immutable ({@code ?immutable=1}: no locks, no journal, so a file
+   * shared with another reader or a stray writer is read as it is); empty when the directory or the file does not
+   * exist.
    *
    * @throws IllegalStateException when the file lacks one of the loot tables the importer reads
    */
@@ -49,7 +56,9 @@ public final class ServerDbSource implements AutoCloseable {
     }
     SQLiteConfig config = new SQLiteConfig();
     config.setReadOnly(true);
-    Connection c = DriverManager.getConnection("jdbc:sqlite:" + file.toAbsolutePath(), config.toProperties());
+    config.setOpenMode(SQLiteOpenMode.OPEN_URI);
+    Connection c = DriverManager.getConnection(
+        "jdbc:sqlite:" + file.toAbsolutePath().toUri() + "?immutable=1", config.toProperties());
     try {
       for (String table : REQUIRED_TABLES) {
         try (PreparedStatement s = c.prepareStatement(
@@ -73,9 +82,14 @@ public final class ServerDbSource implements AutoCloseable {
     return file;
   }
 
-  /** The read-only connection, for inspection. */
-  public Connection connection() {
+  /** The read-only connection, for tests. */
+  Connection connection() {
     return connection;
+  }
+
+  /** Item rows left out so far because {@code forbidden_items} bans their item at the patch read. */
+  public int forbiddenRows() {
+    return forbiddenRows;
   }
 
   /**
@@ -109,18 +123,49 @@ public final class ServerDbSource implements AutoCloseable {
   }
 
   private Map<Long, List<LootRow>> rows(String table, int patch) throws SQLException {
+    Set<Long> forbidden = forbiddenItems(patch);
     Map<Long, List<LootRow>> rows = new HashMap<>();
     try (PreparedStatement s = connection.prepareStatement(String.format(ROWS, table))) {
       s.setInt(1, patch);
       s.setInt(2, patch);
       try (ResultSet rs = s.executeQuery()) {
         while (rs.next()) {
-          rows.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>()).add(new LootRow(
-              rs.getLong(2), rs.getDouble(3), rs.getInt(4), rs.getInt(5), rs.getInt(6)));
+          LootRow row = new LootRow(rs.getLong(2), rs.getDouble(3), rs.getInt(4), rs.getInt(5), rs.getInt(6));
+          if (!row.isReference() && forbidden.contains(row.item())) {
+            forbiddenRows++;
+            continue;
+          }
+          rows.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>()).add(row);
         }
       }
     }
     return rows;
+  }
+
+  /**
+   * Items {@code forbidden_items} bans at {@code patch}: {@code after_or_before = 0} from its patch on,
+   * {@code 1} up to its patch, as in the server's loot loader. Empty when the table does not exist.
+   */
+  private Set<Long> forbiddenItems(int patch) throws SQLException {
+    Set<Long> items = new HashSet<>();
+    try (PreparedStatement exists = connection.prepareStatement(
+        "SELECT count(*) FROM sqlite_master WHERE type = 'table' AND name = 'forbidden_items'");
+        ResultSet rs = exists.executeQuery()) {
+      if (!rs.next() || rs.getInt(1) == 0) {
+        return items;
+      }
+    }
+    try (PreparedStatement s = connection.prepareStatement("SELECT entry FROM forbidden_items"
+        + " WHERE (after_or_before = 0 AND patch <= ?) OR (after_or_before = 1 AND patch >= ?)")) {
+      s.setInt(1, patch);
+      s.setInt(2, patch);
+      try (ResultSet rs = s.executeQuery()) {
+        while (rs.next()) {
+          items.add(rs.getLong(1));
+        }
+      }
+    }
+    return items;
   }
 
   @Override

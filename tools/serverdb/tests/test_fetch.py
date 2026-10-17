@@ -90,20 +90,46 @@ def test_a_later_run_verifies_the_cache_against_the_lock_without_downloading(tmp
 
 
 def test_an_archive_that_differs_from_the_pin_is_refused_and_removed(tmp_path):
-    lock = write_lock(tmp_path / "serverdb.lock", sha="0" * 64)
+    lock = write_lock(tmp_path / "serverdb.lock")
+    fetch.fetch(lock, tmp_path / "cache", opener=web(), log=lambda m: None)  # a good cache from an earlier run
+    write_lock(lock, sha="0" * 64)
     with pytest.raises(fetch.ChecksumError, match="the lock pins 0000"):
-        fetch.fetch(lock, tmp_path / "cache", opener=web(), log=lambda m: None)
+        fetch.fetch(lock, tmp_path / "cache", opener=no_web, log=lambda m: None)
     cache = tmp_path / "cache" / "4641790"
     assert not (cache / "db-sqlite-4641790.zip").exists()
     assert not (cache / "mangos.sqlite").exists()
+    assert not (cache / "serverdb.lock").exists()
     assert json.loads(lock.read_text(encoding="utf-8"))["sha256"] == "0" * 64
 
 
 def test_a_licence_that_differs_from_the_pin_is_refused(tmp_path):
-    lock = write_lock(tmp_path / "serverdb.lock", licence_sha="f" * 64)
+    lock = write_lock(tmp_path / "serverdb.lock")
+    fetch.fetch(lock, tmp_path / "cache", opener=web(), log=lambda m: None)
+    pinned = json.loads(lock.read_text(encoding="utf-8"))
+    write_lock(lock, sha=pinned["sha256"], licence_sha="f" * 64)
     with pytest.raises(fetch.ChecksumError):
-        fetch.fetch(lock, tmp_path / "cache", opener=web(), log=lambda m: None)
-    assert not (tmp_path / "cache" / "4641790" / "LICENSE").exists()
+        fetch.fetch(lock, tmp_path / "cache", opener=no_web, log=lambda m: None)
+    cache = tmp_path / "cache" / "4641790"
+    assert not (cache / "LICENSE").exists()
+    assert not (cache / "mangos.sqlite").exists()
+    assert not (cache / "serverdb.lock").exists()
+
+
+def test_network_and_disk_errors_remove_the_partial_file(tmp_path):
+    def refused(request, timeout=None):
+        raise urllib.error.URLError(ConnectionRefusedError("refused"))
+
+    with pytest.raises(fetch.FetchError, match="refused"):
+        fetch.download("https://x/a", tmp_path / "a", opener=refused, sleep=lambda s: None)
+
+    class Broken(io.BytesIO):
+        def read(self, *args):
+            (tmp_path / "b.part").write_bytes(b"half")  # what was written before the failure
+            raise OSError("disk full")
+
+    with pytest.raises(fetch.FetchError, match="disk full"):
+        fetch.download("https://x/b", tmp_path / "b", opener=lambda r, timeout=None: Broken(), sleep=lambda s: None)
+    assert sorted(p.name for p in tmp_path.iterdir()) == []
 
 
 def test_server_errors_are_retried_and_other_errors_fail(tmp_path):

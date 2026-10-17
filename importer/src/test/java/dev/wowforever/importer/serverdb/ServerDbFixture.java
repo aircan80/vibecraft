@@ -29,6 +29,7 @@ public final class ServerDbFixture {
       "CREATE TABLE `reference_loot_template` " + LOOT_COLUMNS);
 
   private final List<String> rows = new ArrayList<>();
+  private boolean forbiddenTable;
 
   /** A creature (patch 0) whose loot table is {@code lootId}; 0 means no loot. */
   public ServerDbFixture creature(long entry, long lootId) {
@@ -49,6 +50,27 @@ public final class ServerDbFixture {
   /** A creature_loot_template row referencing {@code reference} at {@code chance}, rolled {@code times} times. */
   public ServerDbFixture lootRef(long entry, long reference, double chance, int group, int times) {
     return loot(entry, reference, chance, group, (int) -reference, times);
+  }
+
+  public ServerDbFixture lootPatchedGrouped(long entry, long item, double chance, int group, int patchMin,
+      int patchMax) {
+    return row("creature_loot_template", entry, item, chance, group, 1, 1, patchMin, patchMax);
+  }
+
+  /** A reference row whose {@code item} column is {@code item} (VMaNGOS ignores it on references). */
+  public ServerDbFixture lootRefAs(long entry, long item, long reference, double chance, int group, int times) {
+    return loot(entry, item, chance, group, (int) -reference, times);
+  }
+
+  /**
+   * A {@code forbidden_items} row: the item is left out of the loot from {@code patch} on ({@code afterOrBefore = 0})
+   * or up to {@code patch} ({@code afterOrBefore = 1}). Without a call the table does not exist.
+   */
+  public ServerDbFixture forbidden(long item, int patch, int afterOrBefore) {
+    forbiddenTable = true;
+    rows.add(String.format(Locale.ROOT, "INSERT INTO forbidden_items(entry, patch, after_or_before)"
+        + " VALUES (%d, %d, %d)", item, patch, afterOrBefore));
+    return this;
   }
 
   public ServerDbFixture lootPatched(long entry, long item, double chance, int patchMin, int patchMax) {
@@ -81,6 +103,11 @@ public final class ServerDbFixture {
         Statement s = c.createStatement()) {
       for (String sql : SCHEMA) {
         s.execute(sql);
+      }
+      if (forbiddenTable) {
+        s.execute("CREATE TABLE `forbidden_items` (`entry` integer NOT NULL DEFAULT '0', `patch` integer NOT NULL"
+            + " DEFAULT '0', `after_or_before` integer NOT NULL DEFAULT '0',"
+            + " PRIMARY KEY (`entry`, `after_or_before`))");
       }
       for (String sql : rows) {
         s.execute(sql);
