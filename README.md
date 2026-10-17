@@ -142,7 +142,7 @@ This project is licensed under GPL-2.0-or-later, see `LICENSE`. Full credits are
 - Per-character (dynamic) corrections are not applied.
 - Drop percentages exist for about 11,000 of the 164,447 drop rows.
 - 325 drop rows reference NPCs that are missing upstream.
-- 249 stub items have no name.
+- 242 stub items have no name.
 - Some Forever-only zone names are unconfirmed.
 
 ## Project layout
