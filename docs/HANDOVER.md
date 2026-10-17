@@ -27,7 +27,7 @@ bundled database merely because the new tooling supports them.
 
 Open data gates remain Task 19's AtlasLoot Forever archive/hotfix regeneration and Task 20b's collector import and
 real observation acceptance. Do not tag v0.3.0 or claim the data refresh shipped. BUG-CSB-001 records the missing
-Cozy Sleeping Bag chain relationships; the owner deferred that investigation to a later data review.
+Cozy Sleeping Bag chain relationships; a later authorized audit confirmed omissions in the selected Forever source. SoD records and a Forever community walkthrough support a candidate route; exact Forever eligibility remains unverified.
 
 Public progress dashboard: https://wow-forever-progress.happystoat6.chatgpt.site . Its separate source checkout is
 `../dashboard`; publish updates through Sites. Completed work identifies Claude or Codex accurately.

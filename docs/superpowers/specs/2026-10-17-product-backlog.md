@@ -74,6 +74,15 @@ Each one is a v0.3.0 ship blocker if Task 14 leaves it open.
   or establish applicability to every Forever client build. Community walkthroughs are corroboration,
   not the sole evidence for a hardcoded prerequisite.
 
+  **Additional Forever-specific community evidence (checked 2026-10-17):**
+  [RampageWow's Mobalytics guide, updated 2026-10-09](https://mobalytics.gg/wow-forever/profile/rampagewow-1zhvs5/quests/how-to-get-the-cozy-sleeping-bag-in-wow-forever)
+  describes the faction-specific opening locations and the later handoffs, including completing Eagle's Fist
+  before accepting This Must Be The Place. It includes screenshots and a linked video. This supports an
+  attributed **reported route**, separately from a verified prerequisite rule. Warcraft Tavern also indexes a
+  [Forever walkthrough](https://www.warcrafttavern.com/forever/guides/cozy-sleeping-bag), but direct retrieval was
+  blocked during this check; do not claim independently inspected details from that page. An eventual reported
+  chain must retain its source and evidence status visibly rather than upgrading it to authoritative eligibility.
+
   **Next acceptance:** obtain direct Forever quest-availability observations or a reviewed, attributable
   upstream Forever correction confirming the candidate relationships and faction alternatives. Preserve
   that evidence as a versioned source input; rebuild app tables through projection, without modifying

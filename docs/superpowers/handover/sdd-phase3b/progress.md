@@ -118,3 +118,12 @@ and a running app for review. This supersedes the historical Windows stop instru
   dataset provenance. Full source-record explorer UI deferred; detailed fact lineage and native-format adapters
   remain follow-ups. Design: docs/superpowers/specs/2026-10-17-versioned-source-data.md.
 - Dashboard lives in ../dashboard and publishes to https://wow-forever-progress.happystoat6.chatgpt.site .
+
+
+Source extension integration: commit aa49c02 passed full Maven verification with 1,629 tests,6 skipped,0 failures/errors.
+CSV/Lua/JSON/lock records support versioned extraction and field comparisons; the main app shows exact completed
+projection execution history and inputs. Real-source offline smoke preserved the old four-column history row,
+added schema/build/validation metadata for execution 2 and marked that exact execution active. The shipped
+Windows database remains unchanged and correctly displays legacy metadata without claiming archived originals.
+Dashboard cleanup published with roadmap, measured code/test lines, snapshot-aware test and visual evidence,
+and Claude/Codex attribution. Sleeping Bag community evidence now recorded as reported route evidence only.
