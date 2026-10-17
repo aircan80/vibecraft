@@ -8,8 +8,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,25 +23,48 @@ import org.sqlite.SQLiteOpenMode;
  * The VMaNGOS world database ({@code mangos.sqlite} from the official {@code db-sqlite-<commit>.zip} release, which
  * {@code tools/serverdb/fetch.py} extracts), opened read-only and immutable in place: the importer reads its loot
  * tables with SQL instead of an intermediate CSV export. Like the server's loader ({@code LootStore::LoadLootTable}),
- * item rows whose item {@code forbidden_items} bans at the patch are left out.
+ * item rows whose item {@code forbidden_items} bans at the patch are left out, and so are the rows its validity check
+ * ({@code LootStoreItem::IsValid}) rejects, each counted under one rule ({@link #validityCounts()}), first rule
+ * first:
+ * <ul>
+ *   <li>{@value #INVALID_MINCOUNT_ZERO}: {@code mincountOrRef = 0}, neither an item nor a reference;</li>
+ *   <li>{@value #INVALID_UNKNOWN_ITEM}: an item row whose item has no {@code item_template} row at the patch;</li>
+ *   <li>{@value #INVALID_LOW_CHANCE}: an item row whose {@code |ChanceOrQuestChance|} is above 0 and below
+ *       {@value #MIN_CHANCE} (a reference is not checked);</li>
+ *   <li>{@value #INVALID_MAXCOUNT_BELOW_MIN}: an item row with {@code maxcount < mincountOrRef}.</li>
+ * </ul>
+ * A reference rolled {@code maxcount = 0} times is kept (it rolls once) and counted as
+ * {@value #REFERENCES_MAXCOUNT_ZERO}.
  */
 public final class ServerDbSource implements AutoCloseable {
   /** The world database's file name inside the server-database directory. */
   public static final String WORLD_DB = "mangos.sqlite";
   /** The lock file {@code fetch.py} copies beside the world database (asset name, commit, sha256). */
   public static final String LOCK = "serverdb.lock";
+  public static final String INVALID_MINCOUNT_ZERO = "serverdb.invalid.mincountZero";
+  public static final String INVALID_UNKNOWN_ITEM = "serverdb.invalid.unknownItem";
+  public static final String INVALID_LOW_CHANCE = "serverdb.invalid.lowChance";
+  public static final String INVALID_MAXCOUNT_BELOW_MIN = "serverdb.invalid.maxcountBelowMin";
+  public static final String REFERENCES_MAXCOUNT_ZERO = "serverdb.references.maxcountZero";
+  /** The lowest non-zero chance, in percent, the server keeps on an item row ({@code 0.000001f}). */
+  public static final double MIN_CHANCE = 0.000001;
   private static final List<String> REQUIRED_TABLES =
-      List.of("creature_template", "creature_loot_template", "reference_loot_template");
+      List.of("creature_template", "creature_loot_template", "reference_loot_template", "item_template");
   private static final String ROWS = "SELECT entry, item, ChanceOrQuestChance, groupid, mincountOrRef, maxcount"
       + " FROM %s WHERE patch_min <= ? AND patch_max >= ? ORDER BY entry, groupid, item";
 
   private final Path file;
   private final Connection connection;
   private int forbiddenRows;
+  private final Map<String, Integer> validityCounts = new LinkedHashMap<>();
 
   private ServerDbSource(Path file, Connection connection) {
     this.file = file;
     this.connection = connection;
+    for (String counter : List.of(INVALID_MINCOUNT_ZERO, INVALID_UNKNOWN_ITEM, INVALID_LOW_CHANCE,
+        INVALID_MAXCOUNT_BELOW_MIN, REFERENCES_MAXCOUNT_ZERO)) {
+      validityCounts.put(counter, 0);
+    }
   }
 
   /**
@@ -93,6 +118,14 @@ public final class ServerDbSource implements AutoCloseable {
   }
 
   /**
+   * The rows skipped so far by each validity rule, and the references kept with {@code maxcount = 0}, by report
+   * counter, in rule order; 0 for a rule no row broke.
+   */
+  public Map<String, Integer> validityCounts() {
+    return Collections.unmodifiableMap(new LinkedHashMap<>(validityCounts));
+  }
+
+  /**
    * Creature entry to {@code loot_id} (its {@code creature_loot_template} entry), from each creature's newest
    * {@code creature_template} row at or before {@code patch}; creatures without loot ({@code loot_id = 0}) are left
    * out.
@@ -124,6 +157,7 @@ public final class ServerDbSource implements AutoCloseable {
 
   private Map<Long, List<LootRow>> rows(String table, int patch) throws SQLException {
     Set<Long> forbidden = forbiddenItems(patch);
+    Set<Long> known = knownItems(patch);
     Map<Long, List<LootRow>> rows = new HashMap<>();
     try (PreparedStatement s = connection.prepareStatement(String.format(ROWS, table))) {
       s.setInt(1, patch);
@@ -135,11 +169,55 @@ public final class ServerDbSource implements AutoCloseable {
             forbiddenRows++;
             continue;
           }
+          String invalid = invalid(row, known);
+          if (invalid != null) {
+            validityCounts.merge(invalid, 1, Integer::sum);
+            continue;
+          }
+          if (row.isReference() && row.maxcount() == 0) {
+            validityCounts.merge(REFERENCES_MAXCOUNT_ZERO, 1, Integer::sum);
+          }
           rows.computeIfAbsent(rs.getLong(1), k -> new ArrayList<>()).add(row);
         }
       }
     }
     return rows;
+  }
+
+  /** The counter of the first {@code LootStoreItem::IsValid} rule {@code row} breaks, or null when it is valid. */
+  private static String invalid(LootRow row, Set<Long> known) {
+    if (row.mincountOrRef() == 0) {
+      return INVALID_MINCOUNT_ZERO;
+    }
+    if (row.isReference()) {
+      return null; // a zero-chance reference is skipped where the template is processed
+    }
+    if (!known.contains(row.item())) {
+      return INVALID_UNKNOWN_ITEM;
+    }
+    double chance = Math.abs(row.chance());
+    if (chance != 0 && chance < MIN_CHANCE) {
+      return INVALID_LOW_CHANCE;
+    }
+    if (row.maxcount() < row.mincountOrRef()) {
+      return INVALID_MAXCOUNT_BELOW_MIN;
+    }
+    return null;
+  }
+
+  /** The items {@code item_template} defines at {@code patch} (a row at that patch or an earlier one). */
+  private Set<Long> knownItems(int patch) throws SQLException {
+    Set<Long> items = new HashSet<>();
+    try (PreparedStatement s =
+        connection.prepareStatement("SELECT DISTINCT entry FROM item_template WHERE patch <= ?")) {
+      s.setInt(1, patch);
+      try (ResultSet rs = s.executeQuery()) {
+        while (rs.next()) {
+          items.add(rs.getLong(1));
+        }
+      }
+    }
+    return items;
   }
 
   /**

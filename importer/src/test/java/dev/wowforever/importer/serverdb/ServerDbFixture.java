@@ -8,12 +8,16 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Builds a tiny VMaNGOS world database ({@code mangos.sqlite}) with the columns the importer reads, laid out like the
- * official SQLite release (creature_template, creature_loot_template, reference_loot_template).
+ * official SQLite release (creature_template, creature_loot_template, reference_loot_template, item_template). Every
+ * item a loot row names gets an {@code item_template} row at patch 0, unless {@link #unknownItem} says otherwise.
  */
 public final class ServerDbFixture {
   private static final String LOOT_COLUMNS = "(`entry` integer NOT NULL DEFAULT '0', `item` integer NOT NULL DEFAULT"
@@ -26,10 +30,14 @@ public final class ServerDbFixture {
           + " '0', `name` char(100) NOT NULL DEFAULT '0', `loot_id` integer NOT NULL DEFAULT '0',"
           + " PRIMARY KEY (`entry`, `patch`))",
       "CREATE TABLE `creature_loot_template` " + LOOT_COLUMNS,
-      "CREATE TABLE `reference_loot_template` " + LOOT_COLUMNS);
+      "CREATE TABLE `reference_loot_template` " + LOOT_COLUMNS,
+      "CREATE TABLE `item_template` (`entry` integer NOT NULL DEFAULT '0', `patch` integer NOT NULL DEFAULT '0',"
+          + " `name` varchar(255) NOT NULL DEFAULT '', PRIMARY KEY (`entry`, `patch`))");
 
   private final List<String> rows = new ArrayList<>();
   private boolean forbiddenTable;
+  private final Set<Long> items = new TreeSet<>();
+  private final Set<Long> unknownItems = new HashSet<>();
 
   /** A creature (patch 0) whose loot table is {@code lootId}; 0 means no loot. */
   public ServerDbFixture creature(long entry, long lootId) {
@@ -73,6 +81,12 @@ public final class ServerDbFixture {
     return this;
   }
 
+  /** Leaves {@code item} out of {@code item_template}, as an item the server does not know. */
+  public ServerDbFixture unknownItem(long item) {
+    unknownItems.add(item);
+    return this;
+  }
+
   public ServerDbFixture lootPatched(long entry, long item, double chance, int patchMin, int patchMax) {
     return row("creature_loot_template", entry, item, chance, 0, 1, 1, patchMin, patchMax);
   }
@@ -88,6 +102,9 @@ public final class ServerDbFixture {
 
   private ServerDbFixture row(String table, long entry, long item, double chance, int group, int mincountOrRef,
       int maxcount, int patchMin, int patchMax) {
+    if (mincountOrRef >= 0) {
+      items.add(item);
+    }
     rows.add(String.format(Locale.ROOT, "INSERT INTO %s(entry, item, ChanceOrQuestChance, groupid, mincountOrRef,"
         + " maxcount, patch_min, patch_max) VALUES (%d, %d, %s, %d, %d, %d, %d, %d)", table, entry, item,
         Double.toString(chance), group, mincountOrRef, maxcount, patchMin, patchMax));
@@ -111,6 +128,12 @@ public final class ServerDbFixture {
       }
       for (String sql : rows) {
         s.execute(sql);
+      }
+      for (long item : items) {
+        if (!unknownItems.contains(item)) {
+          s.execute(String.format(Locale.ROOT, "INSERT INTO item_template(entry, patch, name) VALUES (%d, 0,"
+              + " 'item %d')", item, item));
+        }
       }
     }
     return dir;

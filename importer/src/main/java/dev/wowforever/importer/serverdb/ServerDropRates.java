@@ -28,11 +28,12 @@ import java.util.function.LongPredicate;
  *   <li>Each ungrouped reference ({@code mincountOrRef < 0}) rolls its own chance, with a negative value read as a
  *       plain chance ({@code LootStoreItem::IsValid}); a 0-chance reference is skipped
  *       ({@code serverdb.references.zeroChance}). On a hit the referenced template is processed {@code maxcount}
- *       times: with the reference's groupid {@code g > 0} only its group {@code g} rolls, with {@code g = 0} the
- *       whole template. An item one such pass drops with probability {@code q} drops with
- *       {@code chance * (1 - (1 - q)^maxcount)}. References nest (only through whole-template passes); the fifth
- *       level is the last one followed ({@value #MAX_REFERENCE_DEPTH}), deeper ones count as
- *       {@code serverdb.references.depthCapped}, unknown ones as {@code serverdb.references.missing}.</li>
+ *       times (once for 0, {@code serverdb.references.maxcountZero}): with the reference's groupid {@code g > 0}
+ *       only its group {@code g} rolls, with {@code g = 0} the whole template. An item one such pass drops with
+ *       probability {@code q} drops with {@code chance * (1 - (1 - q)^maxcount)}. References nest (only through
+ *       whole-template passes); the fifth level is the last one followed ({@value #MAX_REFERENCE_DEPTH}), deeper
+ *       ones count as {@code serverdb.references.depthCapped}, unknown ones as
+ *       {@code serverdb.references.missing}.</li>
  *   <li>Each group rolls once and yields at most one item ({@code LootGroup::Roll}): one roll of 0 to 100 is checked
  *       against the explicit-chance rows in row order (by item id), each taking {@code min(chance, what is left)},
  *       and a row of 100 % or more takes all that is left; when no explicit row hits, one 0-chance row is picked
@@ -89,7 +90,9 @@ public final class ServerDropRates {
   /**
    * Computes the rates of every creature {@code knownNpc} accepts and puts them into {@code rates}. Counters:
    * {@code serverdb.loot.rows} and {@code serverdb.reference.rows} (rows read at {@value #PATCH}),
-   * {@code serverdb.loot.forbidden} (item rows {@code forbidden_items} removed), {@code serverdb.creatures}
+   * {@code serverdb.loot.forbidden} (item rows {@code forbidden_items} removed), the validity counters of
+   * {@link ServerDbSource} ({@code serverdb.invalid.*}, {@code serverdb.references.maxcountZero}),
+   * {@code serverdb.creatures}
    * (creatures with a loot table), {@code serverdb.unmatched.npcs} (of those, the ones {@code knownNpc} rejects),
    * {@code serverdb.rates} ((npc, item) pairs put), {@code serverdb.rates.questOnlyPairs} (of those, the quest-only
    * ones) and the rule counters above, which count rows once per computed template pass.
@@ -103,6 +106,7 @@ public final class ServerDropRates {
     report.count("serverdb.loot.rows", loot.values().stream().mapToLong(List::size).sum());
     report.count("serverdb.reference.rows", references.values().stream().mapToLong(List::size).sum());
     report.count("serverdb.loot.forbidden", db.forbiddenRows());
+    db.validityCounts().forEach(report::count);
     for (String counter : List.of("serverdb.creatures", "serverdb.unmatched.npcs", "serverdb.rates",
         "serverdb.rates.questOnly", "serverdb.rates.questOnlyPairs", "serverdb.zeroChance.ungrouped",
         "serverdb.references.zeroChance", "serverdb.references.depthCapped", "serverdb.references.missing")) {

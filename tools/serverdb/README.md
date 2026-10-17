@@ -83,6 +83,12 @@ Report counters: `serverdb.loot.rows`, `serverdb.reference.rows`, `serverdb.loot
 `serverdb.references.zeroChance`, `serverdb.references.depthCapped`, `serverdb.references.missing` and
 `serverdb.skipped`; `provenance.sources.vmangos` counts the rows written.
 
+Rows the server's validity check (`LootStoreItem::IsValid`) rejects are skipped, one counter per rule, first rule
+first: `serverdb.invalid.mincountZero` (`mincountOrRef = 0`), `serverdb.invalid.unknownItem` (an item row whose item
+is not in `item_template`), `serverdb.invalid.lowChance` (an item row with a chance above 0 and below 0.000001) and
+`serverdb.invalid.maxcountBelowMin` (an item row with `maxcount < mincountOrRef`). A reference with `maxcount = 0`
+is kept, rolls once and counts as `serverdb.references.maxcountZero`. All five are 0 in the pinned database.
+
 ## Tests
 
     tools/clientdata/.venv/Scripts/python -m pytest tools/serverdb

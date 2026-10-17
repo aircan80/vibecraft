@@ -1,6 +1,7 @@
 package dev.wowforever.importer.serverdb;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.Assertions.within;
 
 import dev.wowforever.importer.Fixtures;
@@ -244,6 +245,36 @@ class ServerDropRatesTest {
     assertThat(rates.get(100, 3)).isEmpty();
     assertThat(rates.get(100, 4)).isEmpty();
     assertThat(report.get("serverdb.zeroChance.ungrouped")).isEqualTo(1);
+  }
+
+  @Test
+  void rowsTheServersValidityCheckRejectsNeverDropAndAreReportedOneCounterPerRule() throws Exception {
+    load(new ServerDbFixture().creature(100, 100)
+        .loot(100, 1, 50, 0, 1, 1).unknownItem(1) // not in item_template
+        .loot(100, 2, 5e-7, 0, 1, 1) // chance below 1e-6
+        .loot(100, 3, 50, 0, 2, 1) // maxcount below mincount
+        .loot(100, 5, 0, 1, 1, 1).loot(100, 6, 0, 1, 0, 1) // mincountOrRef = 0 does not join the group
+        .lootRef(100, 500, 100, 0, 0).ref(500, 10, 50, 0, 1, 1)); // maxcount 0: rolled once
+    assertThat(rates.get(100, 1)).isEmpty();
+    assertThat(rates.get(100, 2)).isEmpty();
+    assertThat(rates.get(100, 3)).isEmpty();
+    assertThat(rates.get(100, 6)).isEmpty();
+    assertThat(pct(100, 5)).as("the group's only valid row takes all of it").isEqualTo(100.0);
+    assertThat(pct(100, 10)).isEqualTo(50.0);
+    assertThat(report.get("serverdb.invalid.mincountZero")).isEqualTo(1);
+    assertThat(report.get("serverdb.invalid.unknownItem")).isEqualTo(1);
+    assertThat(report.get("serverdb.invalid.lowChance")).isEqualTo(1);
+    assertThat(report.get("serverdb.invalid.maxcountBelowMin")).isEqualTo(1);
+    assertThat(report.get("serverdb.references.maxcountZero")).isEqualTo(1);
+    assertThat(report.get("serverdb.loot.rows")).as("rows kept").isEqualTo(2);
+  }
+
+  @Test
+  void theValidityCountersAreReportedAtZeroWhenNoRowBreaksARule() throws Exception {
+    load(new ServerDbFixture().creature(100, 100).loot(100, 1, 25, 0, 1, 1));
+    assertThat(report.counters()).contains(entry("serverdb.invalid.mincountZero", 0L),
+        entry("serverdb.invalid.unknownItem", 0L), entry("serverdb.invalid.lowChance", 0L),
+        entry("serverdb.invalid.maxcountBelowMin", 0L), entry("serverdb.references.maxcountZero", 0L));
   }
 
   @Test
