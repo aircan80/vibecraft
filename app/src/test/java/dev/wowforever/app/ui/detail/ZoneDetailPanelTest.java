@@ -10,8 +10,10 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneSummary;
 import dev.wowforever.app.nav.ViewTarget;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -62,5 +64,33 @@ class ZoneDetailPanelTest {
     p.instances().activateRow(0);
     assertThat(opened).singleElement().isInstanceOfSatisfying(ViewTarget.Entity.class,
         e -> assertThat(e.ref().kind()).isEqualTo(INSTANCE));
+  }
+
+  @Test
+  void mapShownWhenPresent() {
+    Object loaded = DetailPanels.load(new EntityRef(ZONE, 40), repos).orElseThrow();
+    assertThat(loaded).isInstanceOfSatisfying(DetailPanels.ZonePage.class, page -> {
+      assertThat(page.map()).as("decoded in load, off the EDT").isNotNull();
+      assertThat(page.map().getWidth()).isEqualTo(1002);
+    });
+    var p = (ZoneDetailPanel) DetailPanels.render(loaded, repos, t -> {});
+    assertThat(p.map()).hasValueSatisfying(m -> {
+      assertThat(m.image()).isSameAs(((DetailPanels.ZonePage) loaded).map());
+      assertThat(SwingUtilities.isDescendingFrom(m, p)).isTrue();
+    });
+  }
+
+  @Test
+  void noMapWithoutOne() {
+    Object loaded = DetailPanels.load(new EntityRef(ZONE, 2437), repos).orElseThrow();
+    assertThat(((DetailPanels.ZonePage) loaded).map()).isNull();
+    assertThat(((ZoneDetailPanel) DetailPanels.render(loaded, repos, t -> {})).map()).isEmpty();
+  }
+
+  @Test
+  void aMapThatDidNotDecodeShowsNothing() {
+    ZoneDetail d = repos.zones().detail(40).get(); // has map bytes, but the decoded image is missing
+    assertThat(new ZoneDetailPanel(d, (BufferedImage) null, t -> {}).map()).isEmpty();
+    assertThat(new ZoneDetailPanel(d, t -> {}).map()).as("the two-argument page has no map image").isEmpty();
   }
 }

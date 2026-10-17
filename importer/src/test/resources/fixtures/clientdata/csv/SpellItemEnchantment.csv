@@ -1,0 +1,2 @@
+ID,Name_lang,HordeName_lang,Duration,Charges,Effect_0,Effect_1,Effect_2,EffectPointsMin_0,EffectPointsMin_1,EffectPointsMin_2,EffectArg_0,EffectArg_1,EffectArg_2,Flags,EffectScalingPoints_0,EffectScalingPoints_1,EffectScalingPoints_2,ScalingClass,ScalingClassRestricted,Condition_ID,RequiredSkillID,RequiredSkillRank,MinLevel,MaxLevel,IconFileDataID,ItemLevelMin,ItemLevelMax,TransmogUseConditionID,TransmogCost,ItemSquishEraID,ItemVisual,ItemLevel
+7210,Dismantle,,0,0,3,3,0,0,0,0,435467,442206,0,0,0,0,0,0,0,0,0,0,0,0,135913,0,0,0,0,0,644,1

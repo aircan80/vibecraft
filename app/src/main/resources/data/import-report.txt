@@ -1,13 +1,60 @@
 == Counters ==
 atlas.unknownItem = 1
+clientdata.alt.class_id = 426
+clientdata.alt.item_level = 510
+clientdata.alt.name = 172
+clientdata.alt.required_level = 590
+clientdata.alt.subclass_id = 967
+clientdata.armor.items = 7603
+clientdata.coverage.pct = 96
+clientdata.damage.items = 2359
+clientdata.damage.secondaryDropped = 11
+clientdata.disputed = 1
+clientdata.effects = 6734
+clientdata.effects.otherTrigger = 32
+clientdata.era.effectUnresolved = 1
+clientdata.icons = 2925
+clientdata.icons.missing = 1
+clientdata.items.iconOnly = 791
+clientdata.items.matched = 20492
+clientdata.items.matched.era = 4813
+clientdata.items.matched.forever = 15679
+clientdata.items.named = 21294
+clientdata.items.named.matched = 20485
+clientdata.items.unmatched = 260
+clientdata.maps = 57
+clientdata.maps.missingTiles = 0
+clientdata.sets = 200
+clientdata.stats.items = 7067
+clientdata.stats.unknownId = 8
+clientdata.tooltip.items = 20492
+clientdata.tooltip.lines = 161815
+clientdata.tooltip.missingKind.durability = 1
+clientdata.unformatted = 171
+clientdata.unverified.armor = 0
+clientdata.unverified.block = 186
+clientdata.unverified.damage = 114
+clientdata.unverified.stats = 0
+clientdata.zones.explicitNoMap = 3
+clientdata.zones.mapped.assignment = 54
+clientdata.zones.mapped.override = 3
+clientdata.zones.mapped.parent = 66
+clientdata.zones.missingArt = 72
+clientdata.zones.unmapped = 401
 created.ITEM = 6654
 created.NPC = 3273
 created.OBJECT = 388
 created.QUEST = 988
 deleted = 2315
-nameless.item = 249
+nameless.item = 242
 nameless.object = 1
 ops = 3492
+provenance.disagreeing = 201
+provenance.pairs = 11339
+provenance.sources.atlasloot = 2135
+provenance.sources.atlasloot-override = 19
+provenance.sources.questie-correction = 106
+provenance.sources.questie-wowhead = 9436
 raw.item = 14889
 raw.npc = 10119
 raw.object = 6645
@@ -34,25 +81,100 @@ rows.traces/foreverQuestTraces = 727
 spawn.unknownZone = 0
 table.boss = 356
 table.boss_loot = 2886
+table.drop_rate_source = 11696
 table.game_object = 7033
+table.icon = 2925
 table.instance = 33
 table.item = 21543
-table.item_class = 16
+table.item_alt_value = 2665
+table.item_armor = 7603
+table.item_class = 17
 table.item_container_drop = 4095
+table.item_damage = 2359
+table.item_effect = 6734
 table.item_npc_drop = 164447
 table.item_object_drop = 26334
 table.item_related_quest = 690
-table.item_subclass = 71
+table.item_set = 200
+table.item_set_bonus = 571
+table.item_set_item = 1119
+table.item_stat = 18471
+table.item_subclass = 100
+table.item_tooltip_line = 161815
 table.item_vendor = 15455
-table.meta = 5
+table.meta = 13
 table.npc = 13392
 table.npc_spawn = 124486
 table.object_spawn = 53600
 table.quest = 5232
 table.quest_giver = 10287
 table.quest_reward_item = 3360
-table.search_index = 47579
+table.search_index = 47584
 table.zone = 596
+table.zone_map = 57
 zone.placeholders = 0
 == Skips by layer/field ==
 == First 50 skips ==
+== Conflicts ==
+3236 15852 questie-correction=100.0 questie-wowhead=1.9969 |Δ|=98.00
+92 4627 questie-correction=100.0 questie-wowhead=4.8365 |Δ|=95.16
+949 7267 questie-correction=100.0 questie-wowhead=5.4436 |Δ|=94.56
+10184 21108 questie-correction=100.0 questie-wowhead=6.0491 |Δ|=93.95
+4539 5801 questie-correction=100.0 questie-wowhead=8.309 |Δ|=91.69
+14460 11829 questie-correction=100.0 questie-wowhead=8.8118 |Δ|=91.19
+4538 5801 questie-correction=100.0 questie-wowhead=9.0373 |Δ|=90.96
+11502 21110 questie-correction=100.0 questie-wowhead=9.2437 |Δ|=90.76
+3455 5078 questie-correction=100.0 questie-wowhead=15.559 |Δ|=84.44
+6521 11829 questie-correction=100.0 questie-wowhead=17.6823 |Δ|=82.32
+6520 11829 questie-correction=100.0 questie-wowhead=18.4312 |Δ|=81.57
+8520 17309 questie-correction=100.0 questie-wowhead=23.6331 |Δ|=76.37
+8519 17309 questie-correction=100.0 questie-wowhead=24.237 |Δ|=75.76
+1988 10639 questie-correction=80.0 questie-wowhead=5.1832 |Δ|=74.82
+3271 5026 questie-correction=75.0 questie-wowhead=0.5465 |Δ|=74.45
+3267 5026 questie-correction=75.0 questie-wowhead=0.9434 |Δ|=74.06
+3268 5026 questie-correction=75.0 questie-wowhead=0.981 |Δ|=74.02
+3269 5026 questie-correction=75.0 questie-wowhead=1.4893 |Δ|=73.51
+3393 5078 questie-correction=100.0 questie-wowhead=28.6486 |Δ|=71.35
+3234 15852 questie-correction=100.0 questie-wowhead=28.9256 |Δ|=71.07
+3454 5078 questie-correction=100.0 questie-wowhead=29.0984 |Δ|=70.90
+5760 6252 questie-correction=100.0 questie-wowhead=31.1981 |Δ|=68.80
+3386 5078 questie-correction=100.0 questie-wowhead=31.9952 |Δ|=68.00
+4668 7291 questie-correction=100.0 questie-wowhead=35.4319 |Δ|=64.57
+14226 6252 questie-correction=100.0 questie-wowhead=36.6071 |Δ|=63.39
+7104 11503 questie-correction=100.0 questie-wowhead=41.018 |Δ|=58.98
+7997 9369 questie-correction=95.0 questie-wowhead=40.4715 |Δ|=54.53
+3385 5078 questie-correction=100.0 questie-wowhead=45.796 |Δ|=54.20
+5278 9369 questie-correction=95.0 questie-wowhead=41.4581 |Δ|=53.54
+8522 17309 questie-correction=100.0 questie-wowhead=46.9499 |Δ|=53.05
+8521 17309 questie-correction=100.0 questie-wowhead=47.825 |Δ|=52.18
+7454 12524 questie-correction=50.0 questie-wowhead=1.1822 |Δ|=48.82
+7453 12524 questie-correction=50.0 questie-wowhead=1.4614 |Δ|=48.54
+7452 12524 questie-correction=50.0 questie-wowhead=2.2072 |Δ|=47.79
+8337 10551 questie-correction=50.0 questie-wowhead=4.7038 |Δ|=45.30
+832 5669 questie-correction=50.0 questie-wowhead=5.7764 |Δ|=44.22
+8637 10551 questie-correction=50.0 questie-wowhead=6.8003 |Δ|=43.20
+5839 10551 questie-correction=50.0 questie-wowhead=7.2874 |Δ|=42.71
+3199 6652 questie-correction=75.0 questie-wowhead=32.3766 |Δ|=42.62
+8504 10551 questie-correction=50.0 questie-wowhead=7.3862 |Δ|=42.61
+8566 10551 questie-correction=50.0 questie-wowhead=10.0009 |Δ|=40.00
+5846 10551 questie-correction=50.0 questie-wowhead=10.4031 |Δ|=39.60
+5844 10551 questie-correction=50.0 questie-wowhead=10.4162 |Δ|=39.58
+5840 10551 questie-correction=50.0 questie-wowhead=12.5478 |Δ|=37.45
+4684 6251 questie-correction=100.0 questie-wowhead=66.0595 |Δ|=33.94
+15341 20885 questie-wowhead=38.3748 atlasloot=71.6 |Δ|=33.23
+6146 11405 questie-correction=100.0 questie-wowhead=67.0385 |Δ|=32.96
+15340 20890 questie-wowhead=37.9711 atlasloot=70.17 |Δ|=32.20
+2635 4105 questie-correction=100.0 questie-wowhead=68.5388 |Δ|=31.46
+9568 12337 questie-correction=10.0 questie-wowhead=40.5074 atlasloot=40.53 |Δ|=30.53
+atlasloot-override vs atlasloot: 0 disagreeing of 17 shared
+atlasloot-override vs questie-wowhead: 2 disagreeing of 4 shared
+questie-correction vs atlasloot: 3 disagreeing of 3 shared
+questie-correction vs questie-wowhead: 94 disagreeing of 98 shared
+questie-wowhead vs atlasloot: 107 disagreeing of 242 shared
+== Notes ==
+clientdata.unmatched.ranges: 10000-19999 (5), 20000-29999 (57), 30000-39999 (71), 40000-49999 (52), 50000-59999 (24), 60000-69999 (30), 70000-79999 (17), 250000-259999 (4)
+clientdata.stats.unknownIds: 83, 92, 98, 114, 115, 132
+clientdata.disputed: 19019 (Thunderfury, Blessed Blade of the Windseeker: damage 82 - 153 from Forever's item level 80 one-hand table (the Era row agrees and adds 16 - 30 Nature), Wowhead's Forever tooltip shows 44 - 115)
+clientdata.unformatted: 171 spells; first 50: 2006 ($q1), 2823 ($2818u), 2824 ($2819u), 2833 ($ec2 $ec1 $ecim), 7771 ($ec1), 8690 ($z), 10344 ($ec2 $ec1 $ecim), 11355 ($11353u), 11356 ($11354u), 11790 ($a1), 12766 ($a1), 13219 ($13218u), 13225 ($13222u), 13226 ($13223u), 13227 ($13224u), 13421 ($ec1), 13532 ($i), 13622 ($ec1), 13635 ($ec1), 13746 ($ec1), 16620 ($proccooldown), 17196 ($a1), 17315 ($u), 19057 ($ec2 $ec1 $ecim), 20015 ($ec1), 20707 ($3026q1), 20762 ($20758q1), 20763 ($20759q1), 20764 ($20760q1), 20765 ($20761q1), 21951 ($s2), 22725 ($ec1 $ecim), 25351 ($25349u), 27778 ($proccooldown), 27780 ($proccooldown), 27867 ($proccooldown), 370347 ($370877u), 398117 ($s2), 427020 ($q2), 428837 ($q2), 428838 ($q2), 428840 ($q2), 428842 ($q2), 428843 ($q2), 428844 ($q2), 428845 ($q2), 428846 ($q2), 428847 ($q2), 428848 ($q2), 428849 ($q2)
+clientdata.unformatted.tokens: $qN 100, $ecN 18, $<id>u 12, $proccooldown 12, $ecim 11, $<id>qN 5, $aN 4, ${...} 4, $<id>sN 3, $r 3, $<id>r 2, $sN 2, $U 1, $i 1, $n 1, $tN 1, $u 1, $v 1, $z 1
+clientdata.icons.missing: 4559256

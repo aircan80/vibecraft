@@ -37,12 +37,13 @@ public final class NpcRepository {
       }
       NpcDetail h = head.get();
       List<LootRow> drops = Sql.list(c, """
-          SELECT d.item_id, i.name, i.item_level, d.drop_pct, d.origin
+          SELECT d.item_id, i.name, i.item_level, d.drop_pct, d.origin, d.disagrees, d.source_count
           FROM item_npc_drop d LEFT JOIN item i ON i.id = d.item_id
           WHERE d.npc_id = ?
           ORDER BY d.drop_pct IS NULL, d.drop_pct DESC, i.name IS NULL, i.name COLLATE NOCASE, d.item_id""",
           rs -> new LootRow(new EntityRef(EntityKind.ITEM, rs.getLong("item_id")), rs.getString("name"),
-              Sql.integer(rs, "item_level"), Sql.doubleValue(rs, "drop_pct"), rs.getString("origin"), null),
+              Sql.integer(rs, "item_level"), Sql.doubleValue(rs, "drop_pct"), rs.getString("origin"), null,
+              rs.getInt("disagrees") != 0, rs.getInt("source_count")),
           id);
       List<LootRow> sells = Sql.list(c, """
           SELECT v.item_id, i.name, i.item_level

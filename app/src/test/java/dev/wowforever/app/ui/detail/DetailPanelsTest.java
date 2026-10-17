@@ -14,6 +14,8 @@ import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.QuestDetail;
+import java.awt.image.BufferedImage;
+import java.util.Arrays;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import org.junit.jupiter.api.Test;
@@ -44,6 +46,28 @@ class DetailPanelsTest {
         .isEqualTo("Subterranean Cape");
     assertThat(DetailPanels.name(DetailPanels.load(new EntityRef(ZONE, 40), repos).orElseThrow()))
         .isEqualTo("Westfall");
+  }
+
+  @Test
+  void anIconOnlyItemLoadsItsOwnIconNotTheFallback() {
+    // Illari's Key has an Item row (icon 134236) but no ItemSparse row, so its card is empty
+    var keyPage = (DetailPanels.ItemPage) DetailPanels.load(new EntityRef(ITEM, 212347), repos).orElseThrow();
+    assertThat(keyPage.detail().card().iconId()).isNull();
+    assertThat(samePixels(keyPage.icon(), decoded(134236L))).as("Illari's Key shows icon 134236").isTrue();
+    // an item without any client data still gets the question-mark fallback
+    var saltsPage = (DetailPanels.ItemPage) DetailPanels.load(new EntityRef(ITEM, 1176), repos).orElseThrow();
+    assertThat(samePixels(saltsPage.icon(), decoded(0L))).as("Smelling Salts shows the fallback").isTrue();
+  }
+
+  private BufferedImage decoded(long iconId) {
+    return Images.decode(repos.assets().icon(iconId).orElseThrow()).orElseThrow();
+  }
+
+  private static boolean samePixels(BufferedImage a, BufferedImage b) {
+    assertThat(a).isNotNull();
+    return a.getWidth() == b.getWidth() && a.getHeight() == b.getHeight()
+        && Arrays.equals(a.getRGB(0, 0, a.getWidth(), a.getHeight(), null, 0, a.getWidth()),
+            b.getRGB(0, 0, b.getWidth(), b.getHeight(), null, 0, b.getWidth()));
   }
 
   @Test

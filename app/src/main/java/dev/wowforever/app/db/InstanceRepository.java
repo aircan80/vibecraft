@@ -55,12 +55,13 @@ public final class InstanceRepository {
   /** The loot table of a boss in slot order. */
   public List<LootRow> bossLoot(long bossId) {
     return db.read(c -> Sql.list(c, """
-        SELECT bl.item_id, i.name, i.item_level, bl.drop_pct, bl.slot
+        SELECT bl.item_id, i.name, i.item_level, bl.drop_pct, bl.slot, bl.disagrees, bl.source_count
         FROM boss_loot bl LEFT JOIN item i ON i.id = bl.item_id
         WHERE bl.boss_id = ?
         ORDER BY bl.slot IS NULL, bl.slot, bl.difficulty, bl.item_id""",
         rs -> new LootRow(new EntityRef(EntityKind.ITEM, rs.getLong("item_id")), rs.getString("name"),
-            Sql.integer(rs, "item_level"), Sql.doubleValue(rs, "drop_pct"), BOSS_LOOT_ORIGIN, Sql.integer(rs, "slot")),
+            Sql.integer(rs, "item_level"), Sql.doubleValue(rs, "drop_pct"), BOSS_LOOT_ORIGIN, Sql.integer(rs, "slot"),
+            rs.getInt("disagrees") != 0, rs.getInt("source_count")),
         bossId));
   }
 

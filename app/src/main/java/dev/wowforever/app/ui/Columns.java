@@ -29,19 +29,31 @@ public final class Columns {
   /**
    * One table column: its title, value class (drives sorting and alignment), cell value and, for link
    * columns, the entity a cell points at. {@code link} is null for plain columns; {@code order} sorts the cell
-   * values and is null for the sorter's default order of {@code type}.
+   * values and is null for the sorter's default order of {@code type}. {@code quality} gives the item quality
+   * a cell's text is coloured by (null, or a null quality, for the usual colour).
    */
   public record Column<T>(String title, Class<?> type, Function<T, Object> value,
-      Function<T, Optional<EntityRef>> link, Comparator<?> order) {
+      Function<T, Optional<EntityRef>> link, Comparator<?> order, Function<T, Integer> quality) {
     public Column {
       Objects.requireNonNull(title, "title");
       Objects.requireNonNull(type, "type");
       Objects.requireNonNull(value, "value");
     }
 
+    /** A column without quality colours. */
+    public Column(String title, Class<?> type, Function<T, Object> value, Function<T, Optional<EntityRef>> link,
+        Comparator<?> order) {
+      this(title, type, value, link, order, null);
+    }
+
     /** A column sorted in the default order of {@code type}. */
     public Column(String title, Class<?> type, Function<T, Object> value, Function<T, Optional<EntityRef>> link) {
       this(title, type, value, link, null);
+    }
+
+    /** The item quality the cell of {@code row} is coloured by; null for the usual colour. */
+    public Integer qualityFor(T row) {
+      return quality == null ? null : quality.apply(row);
     }
 
     /** Whether the cells of this column link to an entity. */
@@ -85,6 +97,8 @@ public final class Columns {
 
   /** Shown for a missing percentage or coordinate. */
   public static final String NONE = "—";
+  /** Appended to a drop rate whose sources disagree. */
+  public static final String DISAGREES = " ≠";
 
   /**
    * Orders formatted numbers ({@code "5.00 %"}, {@code "45.3"}) by their leading number; text without one
@@ -95,7 +109,7 @@ public final class Columns {
 
   public static List<Column<ItemSummary>> items() {
     return List.of(
-        link("Name", ItemSummary::displayName, i -> Optional.of(i.ref())),
+        qualityLink("Name", ItemSummary::displayName, i -> Optional.of(i.ref()), ItemSummary::quality),
         plain("Item level", Integer.class, ItemSummary::itemLevel),
         plain("Required level", Integer.class, ItemSummary::requiredLevel),
         plain("Class", String.class, ItemSummary::className),
@@ -142,7 +156,7 @@ public final class Columns {
 
   public static List<Column<SearchHit>> searchHits() {
     return List.of(
-        link("Name", SearchHit::displayName, h -> Optional.of(h.ref())),
+        qualityLink("Name", SearchHit::displayName, h -> Optional.of(h.ref()), SearchHit::quality),
         plain("Details", String.class, SearchHit::subtitle));
   }
 
@@ -152,7 +166,7 @@ public final class Columns {
         link("Source", DropSource::displayName, d -> Optional.of(d.ref())),
         plain("Level", Levels.class, d -> new Levels(d.levelMin(), d.levelMax())),
         link("Zone", DropSource::zoneName, d -> zoneRef(d.zoneId())),
-        numeric("Drop %", d -> percentText(d.dropPct())),
+        numeric("Drop %", d -> rateText(d.dropPct(), d.disagrees())),
         plain("Origin", String.class, DropSource::origin));
   }
 
@@ -162,7 +176,7 @@ public final class Columns {
         link("Instance", InstanceLoot::instanceDisplayName, l -> Optional.of(l.instance())),
         link("Boss", InstanceLoot::bossDisplayName, InstanceLoot::bossNpc),
         plain("Slot", Integer.class, InstanceLoot::slot),
-        numeric("Drop %", l -> percentText(l.dropPct())));
+        numeric("Drop %", l -> rateText(l.dropPct(), l.disagrees())));
   }
 
   /** Objects, containers, vendors and quests linked to an item. */
@@ -177,7 +191,7 @@ public final class Columns {
     return List.of(
         link("Item", LootRow::displayName, l -> Optional.of(l.item())),
         plain("Item level", Integer.class, LootRow::itemLevel),
-        numeric("Drop %", l -> percentText(l.dropPct())),
+        numeric("Drop %", l -> rateText(l.dropPct(), l.disagrees())),
         plain("Origin", String.class, LootRow::origin),
         plain("Slot", Integer.class, LootRow::slot));
   }
@@ -188,7 +202,7 @@ public final class Columns {
         link("Item", LootRow::displayName, l -> Optional.of(l.item())),
         plain("Item level", Integer.class, LootRow::itemLevel),
         plain("Slot", Integer.class, LootRow::slot),
-        numeric("Drop %", l -> percentText(l.dropPct())),
+        numeric("Drop %", l -> rateText(l.dropPct(), l.disagrees())),
         plain("Origin", String.class, LootRow::origin));
   }
 
@@ -212,6 +226,11 @@ public final class Columns {
   /** A drop chance as {@code "56.07 %"}, or {@link #NONE} when unknown. */
   public static String percentText(Double pct) {
     return pct == null ? NONE : String.format(Locale.ROOT, "%.2f %%", pct);
+  }
+
+  /** {@link #percentText} followed by {@link #DISAGREES} when the rate's sources disagree. */
+  public static String rateText(Double pct, boolean disagrees) {
+    return disagrees ? percentText(pct) + DISAGREES : percentText(pct);
   }
 
   /** {@link ItemSource} kind for display. */
@@ -298,5 +317,11 @@ public final class Columns {
 
   private static <T> Column<T> link(String title, Function<T, Object> value, Function<T, Optional<EntityRef>> link) {
     return new Column<>(title, String.class, value, link);
+  }
+
+  /** A link column whose text is coloured by the row's item quality. */
+  private static <T> Column<T> qualityLink(String title, Function<T, Object> value,
+      Function<T, Optional<EntityRef>> link, Function<T, Integer> quality) {
+    return new Column<>(title, String.class, value, link, null, quality);
   }
 }

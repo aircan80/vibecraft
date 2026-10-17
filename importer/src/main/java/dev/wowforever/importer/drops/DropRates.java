@@ -1,6 +1,9 @@
 package dev.wowforever.importer.drops;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -13,11 +16,19 @@ public final class DropRates {
 
   private record Pair(long npcId, long itemId) {}
 
-  private final Map<Pair, Entry> pairs = new HashMap<>();
+  private final Map<Pair, List<Entry>> pairs = new HashMap<>();
   private final Map<Long, Entry> items = new HashMap<>();
 
   public void put(long npcId, long itemId, DropRate rate, int precedence) {
-    pairs.merge(new Pair(npcId, itemId), new Entry(rate, precedence), DropRates::best);
+    List<Entry> entries = pairs.computeIfAbsent(new Pair(npcId, itemId), k -> new ArrayList<>());
+    Entry candidate = new Entry(rate, precedence);
+    for (int i = 0; i < entries.size(); i++) {
+      if (entries.get(i).precedence() == precedence) {
+        entries.set(i, best(entries.get(i), candidate));
+        return;
+      }
+    }
+    entries.add(candidate);
   }
 
   /** Records a rate for an item that applies to every npc dropping it. */
@@ -26,18 +37,25 @@ public final class DropRates {
   }
 
   public Optional<DropRate> get(long npcId, long itemId) {
-    Entry pair = pairs.get(new Pair(npcId, itemId));
+    return all(npcId, itemId).stream().findFirst().map(Entry::rate);
+  }
+
+  /**
+   * Every source's rate for the pair: the per-pair entries plus the item-level override when present,
+   * ordered by precedence (the winner first).
+   */
+  public List<DropRate> allSources(long npcId, long itemId) {
+    return all(npcId, itemId).stream().map(Entry::rate).toList();
+  }
+
+  private List<Entry> all(long npcId, long itemId) {
+    List<Entry> result = new ArrayList<>(pairs.getOrDefault(new Pair(npcId, itemId), List.of()));
     Entry item = items.get(itemId);
-    if (pair == null && item == null) {
-      return Optional.empty();
+    if (item != null) {
+      result.add(item);
     }
-    if (pair == null) {
-      return Optional.of(item.rate());
-    }
-    if (item == null) {
-      return Optional.of(pair.rate());
-    }
-    return Optional.of((item.precedence() < pair.precedence() ? item : pair).rate());
+    result.sort(Comparator.comparingInt(Entry::precedence));
+    return result;
   }
 
   /** Number of explicit (npc, item) entries; item-level overrides are not counted. */

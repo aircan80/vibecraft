@@ -1,5 +1,6 @@
 package dev.wowforever.importer.sqlite;
 
+import dev.wowforever.importer.clientdata.ClientItem;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
 import dev.wowforever.importer.report.ImportReport;
@@ -34,10 +35,14 @@ final class EntityWriter {
     this.report = report;
   }
 
-  /** Items, their object/container/vendor/quest relations; {@code npcDrops} go to {@code drops}. */
-  void items(EntityTable t, NpcDrops drops) throws SQLException {
-    try (Batch items = new Batch(c, "INSERT INTO item(id, name, item_level, required_level, class_id, subclass_id,"
-            + " flags, food_type, ammo_type, start_quest_id, teaches_spell_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+  /**
+   * Items merged with their client data (see {@link ClientItemWriter}; an empty {@code client} map writes
+   * Questie's values only), and their object/container/vendor/quest relations; {@code npcDrops} go to
+   * {@code drops}.
+   */
+  void items(EntityTable t, NpcDrops drops, Map<Long, ClientItem> client) throws SQLException {
+    try (Batch items = new Batch(c, ClientItemWriter.ITEM_INSERT);
+        ClientItemWriter merge = new ClientItemWriter(c, client, report);
         Batch objectDrops = new Batch(c, "INSERT INTO item_object_drop(item_id, object_id) VALUES (?, ?)");
         Batch containers = new Batch(c, "INSERT INTO item_container_drop(item_id, container_item_id) VALUES (?, ?)");
         Batch vendors = new Batch(c, "INSERT INTO item_vendor(item_id, npc_id) VALUES (?, ?)");
@@ -46,9 +51,13 @@ final class EntityWriter {
       for (Map.Entry<Long, LuaValue[]> e : t.rows().entrySet()) {
         Row r = new Row(t, e.getValue());
         long id = e.getKey();
-        items.add(id, r.name(), r.scalar("itemLevel"), r.scalar("requiredLevel"), r.scalar("class"),
-            r.scalar("subClass"), r.scalar("flags"), r.scalar("foodType"), r.scalar("ammoType"),
+        Object[] row = merge.row(id, r.string("name"), r.scalar("itemLevel"), r.scalar("requiredLevel"),
+            r.scalar("class"), r.scalar("subClass"), r.scalar("flags"), r.scalar("foodType"), r.scalar("ammoType"),
             r.scalar("startQuest"), r.scalar("teachesSpell"));
+        if (row[1] == null) {
+          report.count("nameless.item", 1);
+        }
+        items.add(row);
         for (long npc : r.ids("npcDrops")) {
           drops.add(id, npc, NpcDrops.QUESTIE);
         }

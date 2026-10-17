@@ -3,6 +3,7 @@ package dev.wowforever.app.db;
 import dev.wowforever.importer.Fixtures;
 import dev.wowforever.importer.ImportOptions;
 import dev.wowforever.importer.ImportPipeline;
+import dev.wowforever.importer.clientdata.ClientDataOptions;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -19,10 +20,12 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
  * JUnit extension (and static helper) that builds the importer fixture database once per JVM into a
- * static temporary directory, using {@link ImportPipeline} on {@link Fixtures#roots()} from the
- * importer test-jar. {@link #repositories()} is a shared read-only {@link Repositories} over it.
+ * static temporary directory, using {@link ImportPipeline} on {@link Fixtures#roots()} and
+ * {@link Fixtures#clientDataRoot()} from the importer test-jar. {@link #repositories()} is a shared read-only {@link Repositories} over it.
  */
 public final class FixtureDb implements BeforeAllCallback {
+  /** The client-data fixture covers exactly 75 % (12 of 16) of its named items, so the options ask for no more. */
+  private static final int FIXTURE_COVERAGE_MIN_PCT = 75;
 
   @Override
   public void beforeAll(ExtensionContext context) {
@@ -84,7 +87,8 @@ public final class FixtureDb implements BeforeAllCallback {
         Path out = dir.resolve("wowforever.sqlite");
         Path buildIdOut = dir.resolve("build-id.txt");
         ImportOptions opts = new ImportOptions(out, dir.resolve("cache"),
-            Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), false, buildIdOut);
+            Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), false, buildIdOut,
+            ClientDataOptions.of(Fixtures.clientDataRoot()), FIXTURE_COVERAGE_MIN_PCT);
         ImportPipeline.run(opts, new PrintStream(OutputStream.nullOutputStream()));
         return new Built(out, Files.readString(buildIdOut, StandardCharsets.UTF_8).trim());
       } catch (IOException e) {

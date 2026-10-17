@@ -8,17 +8,30 @@ import dev.wowforever.app.model.ZoneSummary;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import java.awt.BorderLayout;
+import java.awt.image.BufferedImage;
 import java.util.Locale;
+import java.util.Optional;
+import javax.swing.BorderFactory;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
 
-/** The zone page: name, kind and parent zone, then the NPCs, objects, quests, instances and sub-zones in it. */
+/**
+ * The zone page: name, kind and parent zone, the zone map when there is one, then the NPCs, objects, quests,
+ * instances and sub-zones in it.
+ */
 public final class ZoneDetailPanel extends JPanel {
   private final HeaderPanel header;
+  private final MapImagePanel map;
   private final JTabbedPane tabs = new JTabbedPane();
   private final LinkTable<InstanceSummary> instances;
 
+  /** The zone page without a map image. */
   public ZoneDetailPanel(ZoneDetail d, Navigator nav) {
+    this(d, null, nav);
+  }
+
+  /** The zone page with {@code mapImage}, the decoded zone map (null: no map is shown). */
+  public ZoneDetailPanel(ZoneDetail d, BufferedImage mapImage, Navigator nav) {
     super(new BorderLayout());
     ZoneSummary s = d.summary();
     header = new HeaderPanel(s.displayName(), HeaderPanel.join("Zone #" + s.id(), kindText(s.kind())));
@@ -32,7 +45,16 @@ public final class ZoneDetailPanel extends JPanel {
     instances = LinkTable.addTab(tabs, "Dungeons & Raids", Columns.instances(), d.instances(), nav);
     LinkTable.addTab(tabs, "Sub-zones", Columns.zones(), d.subzones(), nav);
     LinkTable.selectFirstEnabled(tabs);
-    add(header, BorderLayout.NORTH);
+    map = mapImage == null ? null : new MapImagePanel(mapImage);
+    JPanel top = new JPanel(new BorderLayout());
+    top.add(header, BorderLayout.NORTH);
+    if (map != null) {
+      JPanel mapRow = new JPanel(new BorderLayout());
+      mapRow.setBorder(BorderFactory.createEmptyBorder(0, 12, 8, 12));
+      mapRow.add(map, BorderLayout.CENTER);
+      top.add(mapRow, BorderLayout.CENTER);
+    }
+    add(top, BorderLayout.NORTH);
     add(tabs, BorderLayout.CENTER);
   }
 
@@ -50,6 +72,11 @@ public final class ZoneDetailPanel extends JPanel {
 
   public JTabbedPane tabs() {
     return tabs;
+  }
+
+  /** The zone map, when the zone has one. */
+  public Optional<MapImagePanel> map() {
+    return Optional.ofNullable(map);
   }
 
   public LinkTable<InstanceSummary> instances() {

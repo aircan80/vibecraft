@@ -2,6 +2,8 @@ package dev.wowforever.importer;
 
 import dev.wowforever.importer.atlasloot.AtlasInstance;
 import dev.wowforever.importer.atlasloot.AtlasLootLoader;
+import dev.wowforever.importer.clientdata.ClientDataBundle;
+import dev.wowforever.importer.clientdata.ClientDataStage;
 import dev.wowforever.importer.corrections.CorrectionApplier;
 import dev.wowforever.importer.corrections.CorrectionLayer;
 import dev.wowforever.importer.corrections.CorrectionLayers;
@@ -51,7 +53,9 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-/** Runs the whole import: sources, entities, corrections, drop rates, zones, AtlasLoot, SQLite, report. */
+/**
+ * Runs the whole import: sources, entities, corrections, drop rates, zones, AtlasLoot, client data, SQLite, report.
+ */
 public final class ImportPipeline {
   public static final String IMPORTER_VERSION = "0.1.0";
   private static final Set<String> RAID_CONTENT = Set.of("RAID20", "RAID40");
@@ -110,8 +114,10 @@ public final class ImportPipeline {
         .collect(Collectors.toSet());
     Map<Long, Zone> zones = ZoneLoader.load(questieDb, constants, raidAreaIds, stage(problems, "zones"));
 
+    ClientDataBundle client = ClientDataStage.run(opts.clientData(), tables, zones, questieDb, report);
+
     Map<String, String> meta = meta(questieSpec.commit(), atlasSpec.commit(), Instant.now());
-    SqliteWriter.write(opts.out(), new ImportModel(tables, rates, zones, instances, meta), report);
+    SqliteWriter.write(opts.out(), new ImportModel(tables, rates, zones, instances, meta), report, client);
     countRows(opts.out(), report);
     summariseProblems(problems, report);
 
@@ -156,7 +162,10 @@ public final class ImportPipeline {
     }
   }
 
-  /** {@code table.<table>} row counts for every table, the search index included. */
+  /**
+   * {@code table.<table>} row counts for every table, the search index and the client-data tables included (those
+   * are counted, as 0, after {@code --skip-client-data} too).
+   */
   private static void countRows(Path db, ImportReport report) throws SQLException {
     try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + db.toAbsolutePath());
         Statement s = c.createStatement()) {
