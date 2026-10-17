@@ -23,6 +23,29 @@ public final class NavigationHistory {
     cursor++;
   }
 
+  /**
+   * Puts {@code t} in place of the current target without growing the history or touching what is forward of
+   * it (used for list previews); on an empty history it is {@link #push}.
+   */
+  public void replaceCurrent(ViewTarget t) {
+    Objects.requireNonNull(t, "t");
+    if (entries.isEmpty()) {
+      push(t);
+      return;
+    }
+    entries.set(cursor, t);
+  }
+
+  /**
+   * Puts {@code t} in place of the current target and clears the forward history, as a browser does when the page
+   * on screen changes (a list's filter): what was forward of the old page may not follow from the new one. On an
+   * empty history it is {@link #push}.
+   */
+  public void replaceCurrentDroppingForward(ViewTarget t) {
+    replaceCurrent(t);
+    entries.subList(cursor + 1, entries.size()).clear();
+  }
+
   /** Moves back and returns the new current target, or empty when already at the start. */
   public Optional<ViewTarget> back() {
     if (!canBack()) {
@@ -51,5 +74,10 @@ public final class NavigationHistory {
 
   public Optional<ViewTarget> current() {
     return cursor < 0 ? Optional.empty() : Optional.of(entries.get(cursor));
+  }
+
+  /** How many targets the history holds, back and forward of the current one included. */
+  public int size() {
+    return entries.size();
   }
 }

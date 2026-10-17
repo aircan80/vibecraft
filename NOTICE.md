@@ -14,3 +14,12 @@ Community drop rates (provenance source `vmangos`) are computed from the VMaNGOS
 Item quality, stats, tooltips, icons, zone maps and the navigation rail's UI icons are derived from World of Warcraft client data (product `wow_classic_beta`, build 1.60.1.70425, with the Classic Era `ItemSparse` and `ItemEffect` of build 1.15.9.70003 as a fallback). The tables and files were exported through wago.tools; `tools/clientdata/build.lock` records the build and a SHA-256 of every table.
 
 World of Warcraft® and Blizzard Entertainment® are trademarks or registered trademarks of Blizzard Entertainment, Inc. Icons, UI textures and map art are © Blizzard Entertainment and are included for reference; no affiliation.
+
+## Third-party libraries
+
+The application bundles these libraries:
+
+- FlatLaf and FlatLaf Extras (https://github.com/JFormDesigner/FlatLaf). Licensed under Apache-2.0.
+- JSVG (https://github.com/weisJ/jsvg), included through FlatLaf Extras. Licensed under MIT.
+- SQLite JDBC (https://github.com/xerial/sqlite-jdbc). Licensed under Apache-2.0.
+- SLF4J API and SLF4J Simple (https://www.slf4j.org). Licensed under MIT.

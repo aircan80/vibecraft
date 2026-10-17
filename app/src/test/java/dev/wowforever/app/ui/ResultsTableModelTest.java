@@ -100,8 +100,8 @@ class ResultsTableModelTest {
     assertThat(Columns.rankText(0)).isEqualTo("Normal");
     assertThat(Columns.rankText(3)).isEqualTo("Boss");
     assertThat(Columns.rankText(null)).isNull();
-    assertThat(Columns.contentTypeText("RAID40")).isEqualTo("Raid (40)");
-    assertThat(Columns.contentTypeText(null)).isNull();
+    assertThat(Labels.contentType("RAID40")).isEqualTo("Raid (40)");
+    assertThat(Labels.contentType(null)).isNull();
   }
 
   @Test

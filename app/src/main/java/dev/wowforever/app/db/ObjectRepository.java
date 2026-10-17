@@ -2,6 +2,7 @@ package dev.wowforever.app.db;
 
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.ObjectSummary;
+import dev.wowforever.app.model.Spawn;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -28,15 +29,20 @@ public final class ObjectRepository {
         return Optional.empty();
       }
       return Optional.of(new ObjectDetail(summary.get(),
-          Sql.list(c, """
-              SELECT d.item_id, i.name, i.item_level
-              FROM item_object_drop d LEFT JOIN item i ON i.id = d.item_id
+          Sql.list(c, "SELECT d.item_id, " + NpcRepository.ITEM_COLUMNS
+              + " FROM item_object_drop d " + NpcRepository.itemJoin("d") + """
+
               WHERE d.object_id = ?
               ORDER BY i.name IS NULL, i.name COLLATE NOCASE, d.item_id""",
               NpcRepository::plainLoot, id),
           QuestRepository.givenBy(c, "object", id, "start"), QuestRepository.givenBy(c, "object", id, "end"),
           NpcRepository.spawns(c, "object_spawn", "object_id", id)));
     });
+  }
+
+  /** The spawn points of object {@code objectId} with coordinates, in import order. */
+  public List<Spawn> spawnsOf(long objectId) {
+    return db.read(c -> NpcRepository.spawns(c, "object_spawn", "object_id", objectId));
   }
 
   /** Objects whose zone is {@code zoneId}, by name. */

@@ -4,7 +4,7 @@
 
 A desktop browser for World of Warcraft: Forever items and their sources. You search for an item, NPC, object, quest or zone, and cross-linked detail panels show where items drop, who sells them, which quests give them and where creatures spawn. Items show their in-game tooltip, quality colour and icon, and zones show their map. The data is built from QuestieDB's Forever flavour, AtlasLootClassic and the Blizzard client data of the Forever beta, and it ships inside the application as a SQLite database. Forever launches on 4 Nov 2026, and the upstream Forever data is still being completed by the community, so expect gaps and corrections in later builds.
 
-_Screenshot coming soon_
+![The home page: the rail, the search box over the results list, and the page](docs/screenshots/home.png)
 
 ## Requirements
 
@@ -25,6 +25,82 @@ On first start the embedded database is extracted to a per-user data directory, 
 | Linux and others | `$XDG_DATA_HOME/wowforever-browser`, or `~/.local/share/wowforever-browser` |
 
 `java -jar app/target/wow-forever-browser.jar --self-test` opens the database without showing a window and prints a line such as `items=21543 npcs=13392 instances=33 build_id=...`. CI uses it to check the packaged jar.
+
+## Using the app
+
+The window has a rail of section icons on the left, the search box and its results list beside it, and the page on the right. Back and forward work as in a browser, with the toolbar arrows, Alt+Left and Alt+Right or the mouse's side buttons.
+
+### Search
+
+Type in the search box (Ctrl+F) to find items, NPCs, objects, quests, zones and dungeons as you type. A dropdown shows the top hits in their quality colour and icon, and the kind chips beside the box (All, Items, NPCs and so on) narrow it and count the hits of each kind. Enter opens the selected or the top hit, and the results list fills with that search. Shift+Enter or "Show all" lists every hit instead. In the results list, Up and Down preview a row on the page, and Enter or a click opens it. The empty box shows your recent searches.
+
+Pasting a whole item link, an `item:19019` text, a Wowhead URL or a bare id over the box opens that page. Pasting `[Name]` searches for the name.
+
+![The search dropdown with its kind chips](docs/screenshots/search.png)
+
+### Rail and list pages
+
+The rail opens Home and the list pages: Items, NPCs, Quests, Zones, and Dungeons & Raids. A list page has a filter bar over a sortable table. Items filter by class, subclass, quality and item level, NPCs by zone, rank and level, quests by zone and level. Dungeons and raids are grouped by level band. A click on a name opens it, and Back returns to the list with its filters.
+
+### Item pages
+
+An item with client data opens with its tooltip card as the game shows it: the icon, the name in its quality colour, stats, effects and set bonuses. Set pieces on the card open their own pages. Below the card come the item's sources: Dropped by, ranked by drop rate, then In instance loot, Contained in, Sold by, Quest reward and Related quests. Ctrl+1 to Ctrl+6 jump to the first six sections.
+
+A rate bar shows each drop chance. A rate marked "≠" has sources that disagree, and its tooltip lists them. An origin chip reads "AtlasLoot" on a row only AtlasLoot gives and "Questie + AtlasLoot" on one both give; QuestieDB-only rows have none.
+
+![An item page with its tooltip card](docs/screenshots/item.png)
+
+### NPC, dungeon, object and quest pages
+
+An NPC page shows the NPC's rank chip, its drops grouped by kind (Gear, Recipes, Quest items, Trade goods and so on) and its spawn points on the zone map. Recipes show the skill they need. Items of unknown rate that many NPCs drop are folded into a "World drops" group at the end; click its heading, or select it and press Enter, to open it. "Copy /way" copies the selected spawn point as a `/way Westfall 42.3 67.4` command for a waypoint addon.
+
+![An NPC page with grouped drops](docs/screenshots/npc.png)
+
+A dungeon or raid page lists the numbered encounters, with AtlasLoot's extra lists under "Other loot lists", beside the loot of the selected one. The loot is grouped by Weapons, Armour, Jewellery and Recipes, and a muted Classes column names class-restricted items. A switch appears when the loot has more than one difficulty. "NPCs in" the instance's zone opens the NPC list of that zone.
+
+![A dungeon page](docs/screenshots/instance.png)
+
+An object page lists what the object contains and where it spawns. A quest page shows who gives the quest and who takes it back, on their zone maps, then its rewards and related items.
+
+![A quest page with its givers on the map](docs/screenshots/quest.png)
+
+### Zone maps and pins
+
+A zone page shows the zone's level band, its dungeons and sub-zones, and the zone map. By default the map pins the zone's bosses and rares. The toggles above it add every NPC, the objects and the quest givers. A quest giver shows Questie's yellow "!" where it starts a quest and a grey "?" where it only takes quests back. A legend under the map names each kind of pin.
+
+Hover a pin to see who or what it is, and click it to open its page; a quest giver's pin opens its quest. Pins close together merge into one marker with a count, and a click on it opens a menu of what is there.
+
+![A zone map with quest-giver pins](docs/screenshots/zone.png)
+
+### Drop sources filter
+
+View › Drop sources hides the NPC drop rows of one source: "Hide AtlasLoot-only rows" or "Hide Questie-only rows". It applies to Dropped by on item pages and Drops on NPC pages, and a note under the section says how many rows it hid. Instance loot is never filtered. The choice is remembered.
+
+### Compact mode
+
+F10 switches the window to a narrow layout for a second screen. The search box, the back and forward buttons and a pin button that keeps the window above others stay at the top, and the page fills the rest. Tables keep the name, rate and origin columns, and a row's tooltip tells the others. The map toggles fold into a "Pins ▾" menu. A right-click on the top bar opens the menu bar's items. Ctrl+Shift+T keeps the window above others in either layout, and F10 again returns to the full window.
+
+![Compact mode](docs/screenshots/compact.png)
+
+### Keyboard
+
+Help › Keyboard shortcuts shows the same table in the app.
+
+<!-- keymap:start -->
+| Keys | Action |
+|---|---|
+| Ctrl+F, Ctrl+L, / outside text fields | Focus search |
+| Esc | Close dropdown, then clear search, then focus list |
+| Alt+Left/Right, mouse 4/5 | Back / forward |
+| Up/Down, Enter | Preview, open |
+| Ctrl+1…6 | Jump to source section |
+| Ctrl+C / Ctrl+Shift+C on a row | Copy name / copy item:ID or /way |
+| Ctrl+B | Toggle results list |
+| F10, Ctrl+Shift+T | Compact mode, always on top |
+| Ctrl+= / Ctrl+- / Ctrl+0 | Text size |
+<!-- keymap:end -->
+
+The window remembers its size, layout, theme (View › Dark theme), text size and drop source filter between runs.
 
 ## Build
 
@@ -140,7 +216,7 @@ To skip the checks against the shipped database, which extract the 81 MB resourc
 
 - **lua-table.** The Lua lexer, parser and evaluator, and the table values they produce.
 - **importer.** Source loading, QuestieDB and AtlasLoot parsing, correction layers, drop and zone derivation, and the SQLite schema, mostly against fixtures.
-- **app.** The repositories and database installer against a fixture database, the Swing panels and navigation, and the `shipped-data` sanity tests against the real committed database: row counts, orphan limits, known drops, client data coverage, icons, zone maps, quest objectives and relations, the rail's UI icons, patrol routes, crafting, the VMaNGOS drop rates, and the importer's known-items oracle (`known-items.csv`) on the stored stats, damage, armour and tooltip lines.
+- **app.** The repositories and database installer against a fixture database, the Swing panels and navigation (headless), a check that this README's keyboard table matches the app's key map, and the `shipped-data` sanity tests against the real committed database: row counts, orphan limits, known drops, client data coverage, icons, zone maps, quest objectives and relations, the rail's UI icons, patrol routes, crafting, the VMaNGOS drop rates, the importer's known-items oracle (`known-items.csv`) on the stored stats, damage, armour and tooltip lines, and one page of every kind built, laid out and painted from it.
 - **tools.** `tools/clientdata` and `tools/serverdb` have their own pytest suites; their READMEs give the commands.
 
 ## Packaging
@@ -161,7 +237,7 @@ This project is licensed under GPL-2.0-or-later, see `LICENSE`. Full credits are
 - Item values come from the Forever beta client, not the live game. About 4,800 items use Classic Era rows for their stats and effects instead, and their tooltip says so.
 - 809 named items have no client data. 925 items with client data have no icon, and three more have an icon the converter cannot decode. All of them show a question mark.
 - 114 weapons show no damage (`clientdata.unverified.damage`): 98 caster weapons, whose damage the client data does not explain, 15 weapons without a speed and one Frying Pan without a damage table.
-- 171 spell descriptions keep placeholders the client data cannot fill, such as `$z` (your home inn).
+- 171 spell descriptions keep placeholders the client data cannot fill, such as `$z` (your home inn). The tooltip shows each one as `?`.
 - PvP and faction vendors are not imported. Crafting recipes and NPC patrol routes are in the database, but the browser does not show them yet.
 - English only.
 - Per-character (dynamic) corrections are not applied.

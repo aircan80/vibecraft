@@ -5,25 +5,49 @@ import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.DatabaseInstaller;
+import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.MainView;
-import dev.wowforever.app.ui.ResultsPanel;
 import dev.wowforever.app.ui.StatusBar;
+import dev.wowforever.app.ui.StatusSink;
+import dev.wowforever.app.ui.detail.CompactColumns;
+import dev.wowforever.app.ui.detail.DetailPanels;
+import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.detail.TestPages;
+import dev.wowforever.app.ui.pages.InstancePage;
+import dev.wowforever.app.ui.pages.ItemPage;
+import dev.wowforever.app.ui.pages.ListPage;
+import dev.wowforever.app.ui.pages.NpcPage;
+import dev.wowforever.app.ui.pages.ObjectPage;
+import dev.wowforever.app.ui.pages.QuestPage;
+import dev.wowforever.app.ui.pages.ZonePage;
+import dev.wowforever.app.ui.widgets.MasterList;
+import dev.wowforever.app.ui.widgets.RailTarget;
+import java.awt.BorderLayout;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTable;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -70,18 +94,21 @@ class ShippedDataTest extends ShippedDataSupport {
   void itemClassListsAreNotCapped() {
     long armor = scalar("select count(*) from item where class_id = 4");
     assertThat(armor).isGreaterThan(500);
-    ResultsPanel results = new ResultsPanel(t -> {});
+    MasterList results = new MasterList();
     StatusBar status = new StatusBar();
+    JComponent[] detail = new JComponent[1];
     MainView view = new MainView() {
-      @Override public ResultsPanel results() { return results; }
-      @Override public void setDetail(JComponent c) { }
+      @Override public MasterList masterList() { return results; }
+      @Override public void setDetail(JComponent c) { detail[0] = c; }
       @Override public void setHistoryState(boolean canBack, boolean canForward) { }
       @Override public StatusBar status() { return status; }
       @Override public void setTitleSuffix(String s) { }
+      @Override public void selectRail(RailTarget target) { }
     };
-    new AppController(repos, view, Runnable::run).open(new ViewTarget.ItemClass(4, -1));
-    assertThat((long) results.model().getRowCount()).isEqualTo(armor);
-    assertThat(results.title()).isEqualTo(String.format(Locale.ROOT, "Armor (%,d)", armor));
+    new AppController(repos, view, Runnable::run).open(ViewTarget.List.itemClass(4, -1));
+    ListPage page = (ListPage) detail[0];
+    assertThat((long) page.results().rowCount()).isEqualTo(armor);
+    assertThat(page.section().heading().getText()).isEqualTo(String.format(Locale.ROOT, "Results (%,d)", armor));
   }
 
   @Test
@@ -93,6 +120,101 @@ class ShippedDataTest extends ShippedDataSupport {
       long item = ((Number) id).longValue();
       assertThat(repos.items().detail(item).get().inInstanceLoot()).as("item %d", item).isNotEmpty();
     }
+  }
+
+  /** Lays {@code c} and everything in it out at its size, as a shown window would. */
+  private static void layOut(Container c) {
+    c.doLayout();
+    for (Component child : c.getComponents()) {
+      if (child instanceof Container sub) {
+        layOut(sub);
+      }
+    }
+  }
+
+  @Test
+  void theCompactSpawnTableKeepsItsWholeRowUnderTheMap() {
+    Object loaded = DetailPanels.load(new EntityRef(NPC, 448), repos).orElseThrow();
+    JPanel compact = new JPanel(new BorderLayout());
+    compact.putClientProperty(CompactColumns.KEY, Boolean.TRUE); // as the compact window's content does
+    var hogger = (NpcPage) TestPages.render(loaded, repos, t -> {}, Runnable::run, StatusSink.NONE);
+    compact.add(hogger);
+    compact.setSize(420, 900);
+    LinkTable<?> spawns = hogger.section("Spawns").table();
+    JTable table = spawns.table();
+    Set<Integer> mapWidths = new HashSet<>();
+    for (int pass = 1; pass <= 3; pass++) { // as the map's own revalidations lay the window out again
+      layOut(compact);
+      mapWidths.add(hogger.spawnMap().getWidth());
+      assertThat(table.getRowCount()).isEqualTo(1);
+      assertThat(table.getHeight()).as("pass %d", pass).isGreaterThanOrEqualTo(table.getRowHeight());
+      assertThat(spawns.getHeight()).as("pass %d", pass).isEqualTo(spawns.getPreferredSize().height);
+    }
+    // the page's scrollbar went between the first layouts, so the map was laid out at a width the Spawns section
+    // had not been measured at: what cut the coordinates row to half its height
+    assertThat(mapWidths).hasSizeGreaterThan(1);
+    assertThat(table.getValueAt(0, 0)).isEqualTo("25.0, 92.9");
+  }
+
+  @Test
+  void everyPageKindRendersFromTheShippedDatabase() {
+    long moltenCore = repos.instances().all().stream().filter(i -> "Molten Core".equals(i.name())).findFirst()
+        .orElseThrow().id();
+    Map<EntityRef, Class<?>> pages = new LinkedHashMap<>();
+    pages.put(new EntityRef(EntityKind.ITEM, 19019), ItemPage.class);
+    pages.put(new EntityRef(NPC, 448), NpcPage.class);
+    pages.put(new EntityRef(EntityKind.INSTANCE, moltenCore), InstancePage.class);
+    pages.put(new EntityRef(ZONE, 40), ZonePage.class);
+    pages.put(new EntityRef(EntityKind.OBJECT, 94), ObjectPage.class);
+    pages.put(new EntityRef(EntityKind.QUEST, 176), QuestPage.class);
+    pages.put(new EntityRef(EntityKind.QUEST, 7787), QuestPage.class); // Rise, Thunderfury!
+    BufferedImage canvas = new BufferedImage(1100, 900, BufferedImage.TYPE_INT_ARGB);
+    pages.forEach((ref, kind) -> {
+      Object loaded = DetailPanels.load(ref, repos).orElseThrow(() -> new AssertionError("no page for " + ref));
+      JComponent page = TestPages.render(loaded, repos, t -> {}, Runnable::run, StatusSink.NONE);
+      assertThat(page).as(ref.toString()).isInstanceOf(kind);
+      for (int width : new int[] {1100, 420}) { // the full window and the compact one
+        page.setSize(width, 900);
+        layOut(page);
+        Graphics2D g = canvas.createGraphics();
+        try {
+          page.paint(g);
+        } finally {
+          g.dispose();
+        }
+      }
+    });
+  }
+
+  @Test
+  void theShippedPagesReadAsReviewed() {
+    var thunderfury = (ItemPage) TestPages.build(new EntityRef(EntityKind.ITEM, 19019), repos, t -> {});
+    assertThat(thunderfury.card().name().getText()).isEqualTo("Thunderfury, Blessed Blade of the Windseeker");
+    assertThat(((ZonePage) TestPages.build(new EntityRef(ZONE, 12), repos, t -> {})).header().subtitle())
+        .isEqualTo("Zone #12 · Level 1–10");
+    assertThat(((ZonePage) TestPages.build(new EntityRef(ZONE, 40), repos, t -> {})).header().subtitle())
+        .startsWith("Zone #40 · Level 10–20");
+    // Hogger's drops: his claw and the quest note, then the generic pool hundreds of NPCs drop, collapsed
+    var hogger = (NpcPage) TestPages.build(new EntityRef(NPC, 448), repos, t -> {});
+    List<Object> rows = new ArrayList<>();
+    for (int r = 0; r < hogger.drops().table().getRowCount(); r++) {
+      rows.add(hogger.drops().table().getValueAt(r, 0));
+    }
+    assertThat(rows).last().asString().startsWith("World drops (").endsWith(")" + " ▸");
+    assertThat(rows).contains("Huge Gnoll Claw").hasSizeLessThan(8);
+    // a quest item 22 NPCs drop at an unknown rate stays in the table, not in the world drops
+    var horror = (NpcPage) TestPages.build(new EntityRef(NPC, 3642), repos, t -> {});
+    List<Object> horrorRows = new ArrayList<>();
+    for (int r = 0; r < horror.drops().table().getRowCount(); r++) {
+      horrorRows.add(horror.drops().table().getValueAt(r, 0));
+    }
+    assertThat(horrorRows).contains("Deviate Hide");
+    // Edwin VanCleef is a boss, whatever Questie's rank
+    assertThat(((NpcPage) TestPages.build(new EntityRef(NPC, 639), repos, t -> {})).rankChip().getText())
+        .isEqualTo("Boss");
+    // the Dire Maul floors (sub-zones named like their zone) are one zone hit
+    assertThat(repos.search().search("Dire Maul", Optional.of(ZONE), 50)).extracting(SearchHit::name)
+        .filteredOn("Dire Maul"::equals).hasSize(1);
   }
 
   @Test

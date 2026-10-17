@@ -2,12 +2,21 @@ package dev.wowforever.app.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.QuestChain;
 import dev.wowforever.app.model.QuestChain.Step;
+import dev.wowforever.app.model.QuestFilter;
+import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.QuestObjective;
 import dev.wowforever.app.model.QuestRelation;
 import dev.wowforever.app.model.QuestSourceItem;
+import dev.wowforever.app.model.QuestSummary;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -123,6 +132,39 @@ class QuestRepositoryTest {
   }
 
   @Test
+  void questListByZoneAndLevel() {
+    assertThat(repos.quests().list(new QuestFilter(40L, null, null))).extracting(QuestSummary::name)
+        .containsExactly("Captain Sander's Hidden Treasure");
+    assertThat(repos.quests().list(new QuestFilter(null, 15, 16))).extracting(QuestSummary::id)
+        .containsExactly(5691L, 5692L, 136L);
+    assertThat(repos.quests().list(new QuestFilter(40L, 20, null))).isEmpty();
+    assertThat(repos.quests().list(QuestFilter.ALL)).hasSize(10);
+    assertThat(repos.quests().list(new QuestFilter(40L, null, null))).isEqualTo(repos.quests().byZone(40));
+  }
+
+  @Test
+  void itemGiversCarryTheItemQualityAndIcon(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into quest_giver(quest_id, kind, entity_id, role) values (2, 'item', 17204, 'end')");
+    }
+    try (Database db = Database.open(copy)) {
+      List<QuestGiver> givers = Repositories.of(db).quests().detail(2).orElseThrow().givers();
+      assertThat(givers).filteredOn(g -> g.ref().id() == 17204).singleElement().satisfies(g -> {
+        assertThat(g.name()).isEqualTo("Eye of Sulfuras");
+        assertThat(g.quality()).isEqualTo(5);
+        assertThat(g.iconId()).isEqualTo(134124L);
+      });
+      assertThat(givers).filteredOn(g -> g.ref().kind() == EntityKind.NPC).isNotEmpty()
+          .allSatisfy(g -> {
+            assertThat(g.quality()).isNull();
+            assertThat(g.iconId()).isNull();
+          });
+    }
+  }
+
+  @Test
   void bloodsailChainRunsThroughTheMissingLastQuest() {
     // 595 -> 597 -> 599 -> 604; 604 is not in the fixture
     QuestChain chain = repos.quests().chain(599);
@@ -155,5 +197,40 @@ class QuestRepositoryTest {
         .map(s -> s.questId() + ":" + (s.connector() == null ? "-" : s.connector().name()) + ":" + s.depth()
             + (s.loop() ? ":loop" : ""))
         .toList();
+  }
+
+  @Test
+  void relatedItemsCarryTheItemQualityAndIcon(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into item_related_quest(item_id, quest_id) values (17204, 2), (1176, 2)");
+    }
+    try (Database db = Database.open(copy)) {
+      List<ItemSource> related = Repositories.of(db).quests().detail(2).orElseThrow().relatedItems();
+      assertThat(related).filteredOn(r -> r.ref().id() == 17204).singleElement().satisfies(r -> {
+        assertThat(r.quality()).isEqualTo(5);
+        assertThat(r.iconId()).isEqualTo(134124L);
+      });
+      assertThat(related).filteredOn(r -> r.ref().id() == 1176).singleElement()
+          .satisfies(r -> assertThat(r.quality()).as("no client data").isNull());
+    }
+  }
+
+  @Test
+  void questLevelsOfZeroAndBelowAreUnknown(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into quest(id, name, quest_level, zone_or_sort) values "
+          + "(97001, 'Scaling Quest', -1, 40), (97002, 'Level Zero Quest', 0, 40)");
+    }
+    try (Database db = Database.open(copy)) {
+      QuestRepository quests = Repositories.of(db).quests();
+      assertThat(quests.list(new QuestFilter(40L, null, null))).extracting(QuestSummary::id)
+          .contains(97001L, 97002L);
+      assertThat(quests.list(new QuestFilter(40L, null, 20))).extracting(QuestSummary::id).containsExactly(136L);
+      assertThat(quests.list(new QuestFilter(40L, 1, null))).extracting(QuestSummary::id).containsExactly(136L);
+    }
   }
 }
