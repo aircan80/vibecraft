@@ -119,6 +119,8 @@ public final class ArchiveWorkflow {
           statement.setString(1,ingestion);
           try (ResultSet rows = statement.executeQuery()) { while(rows.next()) selection.put(rows.getString(1), rows.getString(2)); }
           boolean legacy=selection.containsKey("legacy-app");
+          if (selection.containsKey("collector"))
+            throw new IllegalArgumentException("Collector ingestion is archive-only; observation projection is not implemented");
           if (!(legacy ? selection.keySet().containsAll(List.of("configuration","legacy-app","allthethings"))
               : selection.keySet().containsAll(List.of("configuration", "questiedb", "atlasloot"))))
             throw new IllegalArgumentException("Unknown or incomplete ingestion: " + ingestion);

@@ -179,3 +179,22 @@ informational 300 ms p95 target (maximum 96.42 ms). Additional source catalog an
 captures passed desktop/compact checks in both themes, loading data off the EDT and closing the database before render.
 Local evidence is under `.local/att-acceptance` in the primary checkout. This acceptance does not close Task 19
 or Task 20b and does not authorize a v0.3 release tag.
+
+
+## Collector archive ingestion (Codex, 2026-10-17)
+
+Implemented `ingest-collector --database FILE --collector-file FILE` for explicit schema-1
+Forever SavedVariables captures. Literal-only parsing never executes Lua. Immutable exact bytes,
+build/addon/locale metadata and unknown structured fields are retained; malformed UTF-8 is
+reported as a partial index. Repeated captures deduplicate. Aliases and symbolic input/output
+paths are refused. Existing application facts/build identity remain unchanged; collector
+projection is explicitly refused.
+
+Full `./mvnw -B -q verify` passed: 1,682 tests, six skipped, zero failures/errors
+(lua-table 61, importer 523, app 1,098). Five collector tests cover preservation/idempotence,
+invalid encodings, unsupported/executable inputs, aliases/symlinks and CLI behavior.
+Packaged CLI also captured the separate addon branch's synthetic sample successfully into
+`.local/collector-fixture.sqlite`; this is tooling evidence, not a real beta observation.
+The verified review app was reopened under `wowforever-browser.service`.
+Task 20 remains partial: observation projection and real beta-session acceptance remain open.
+The addon branch is still separate, and release gates 19/20 remain open.

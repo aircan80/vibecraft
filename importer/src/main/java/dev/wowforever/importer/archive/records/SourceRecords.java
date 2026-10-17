@@ -24,7 +24,9 @@ public final class SourceRecords {
   public static final int EXTRACTION_VERSION = 2;
   private SourceRecords() {}
 
-  public record SourceInput(String path, byte[] bytes) {}
+  public record SourceInput(String path, byte[] bytes, boolean lenientUtf8) {
+    public SourceInput(String path, byte[] bytes) { this(path, bytes, false); }
+  }
   public record Record(String path, String key, String format, String payload, String sha256) {}
   public record ParseStatus(String path, String status, String detail) {}
   public record Change(String path, String key, String kind) {}
@@ -188,7 +190,14 @@ public final class SourceRecords {
       if (!lower.endsWith(".csv") && !lower.endsWith(".lua") && !json) {
         return new Parsed(rows, "unsupported", "Original artifact retained; no structured extractor for this format");
       }
-      String text = StandardCharsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(input.bytes())).toString();
+      boolean replaced = false;
+      String text;
+      try { text = StandardCharsets.UTF_8.newDecoder().decode(java.nio.ByteBuffer.wrap(input.bytes())).toString(); }
+      catch (java.nio.charset.CharacterCodingException invalid) {
+        if (!input.lenientUtf8() || !lower.endsWith(".lua")) throw invalid;
+        text = new String(input.bytes(), StandardCharsets.UTF_8);
+        replaced = true;
+      }
       if (json) {
         add(rows, path, "@json", "json", ExactJson.encode(ExactJson.parse(text)));
         return new Parsed(rows, "complete", "All JSON fields/types and exact decimal values; lexical spelling remains in artifact");
@@ -210,8 +219,9 @@ public final class SourceRecords {
       if (lower.endsWith(".lua")) {
         boolean partial = lua(rows, path, "", LuaChunk.parse(text, path).statements());
         rows.sort(java.util.Comparator.comparing(Record::key));
-        return new Parsed(rows, partial ? "partial" : "complete",
-            "Lua syntax records without evaluation; comments/lexical spelling remain in artifact");
+        return new Parsed(rows, partial || replaced ? "partial" : "complete",
+            "Lua syntax records without evaluation; comments/lexical spelling remain in artifact"
+                + (replaced ? "; malformed UTF-8 replaced in index only; original bytes retained" : ""));
       }
       return new Parsed(rows, "unsupported", "Original artifact retained; no structured extractor for this format");
     } catch (Exception e) {

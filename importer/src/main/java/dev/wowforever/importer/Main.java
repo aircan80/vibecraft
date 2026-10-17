@@ -36,6 +36,17 @@ public final class Main {
   }
 
   static int run(String[] args, PrintStream out, PrintStream err) {
+    if (args.length > 0 && args[0].equals("ingest-collector")) {
+      if (args.length != 5 || !args[1].equals("--database") || !args[3].equals("--collector-file")) {
+        err.println("Usage: ingest-collector --database <file.sqlite> --collector-file <SavedVariables.lua>"); return 1;
+      }
+      try {
+        String id = CollectorArchiveWorkflow.ingest(java.nio.file.Path.of(args[2]),java.nio.file.Path.of(args[4]));
+        out.println("Captured archive-only collector ingestion: " + id);
+        out.println("No application facts projected; real-observation acceptance remains pending.");
+        return 0;
+      } catch (Exception failure) { err.println(failure.getMessage()); return 1; }
+    }
     if (args.length > 0 && args[0].equals("sources")) {
       if (args.length != 3 || !args[1].equals("--database")) {
         err.println("Usage: sources --database <file.sqlite>"); return 1;

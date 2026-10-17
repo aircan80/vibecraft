@@ -358,3 +358,21 @@ Issues and pull requests are welcome. Run `./mvnw -B verify` before opening one,
 ## License
 
 GPL-2.0-or-later, see `LICENSE`. Data credits are in `NOTICE.md`.
+
+### Archive collector observations
+
+Capture an explicitly selected schema-1 Forever SavedVariables file locally:
+
+```sh
+java -jar importer/target/importer.jar ingest-collector --database research.sqlite --collector-file /path/to/WowForeverCollector.lua
+```
+
+The importer accepts one literal `WowForeverCollectorDB` assignment and requires Forever 1.60 build,
+interface 16001, addon version and locale metadata. It never executes Lua. Exact original bytes,
+unknown fields and versioned structured records are retained; malformed UTF-8 is replaced only in
+the index and reported as partial. Identical captures are idempotent. Input/output aliases and
+symbolic paths are refused. Existing app facts and build identity remain unchanged.
+
+This command is archive-only: `project` explicitly refuses collector ingestions. Observation
+projection and acceptance using a real beta-session capture remain pending; synthetic fixtures
+verify tooling only. The addon remains on its separate `feature/collector-addon` branch.
