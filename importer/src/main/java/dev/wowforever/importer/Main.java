@@ -36,6 +36,41 @@ public final class Main {
   }
 
   static int run(String[] args, PrintStream out, PrintStream err) {
+    if (args.length > 0 && args[0].equals("sources")) {
+      if (args.length != 3 || !args[1].equals("--database")) {
+        err.println("Usage: sources --database <file.sqlite>"); return 1;
+      }
+      try (var c = archiveConnection(args[2])) {
+        for (var snapshot : dev.wowforever.importer.archive.SourceArchive.snapshots(c))
+          out.println(snapshot.id()+"\t"+snapshot.metadata().source()+"\t"+snapshot.metadata().version()+"\t"+snapshot.capturedAt());
+        return 0;
+      } catch (Exception e) { e.printStackTrace(err); return 1; }
+    }
+    if (args.length > 0 && args[0].equals("diff")) {
+      if (args.length != 7 || !args[1].equals("--database") || !args[3].equals("--before") || !args[5].equals("--after")) {
+        err.println("Usage: diff --database <file.sqlite> --before <snapshot-id> --after <snapshot-id>"); return 1;
+      }
+      try (var c = archiveConnection(args[2])) {
+        var before=dev.wowforever.importer.archive.SourceArchive.snapshot(c,args[4]);
+        var after=dev.wowforever.importer.archive.SourceArchive.snapshot(c,args[6]);
+        if (!before.metadata().source().equals(after.metadata().source()))
+          throw new IllegalArgumentException("Compare snapshots of the same source");
+        for (var change : dev.wowforever.importer.archive.SourceArchive.diff(c,args[4],args[6]))
+          out.println("file\t"+change.kind()+"\t"+change.path());
+        for (var change : dev.wowforever.importer.archive.records.SourceRecords.diff(c,args[4],args[6]))
+          out.println("record\t"+change.kind()+"\t"+change.path()+"\t"+change.key());
+        return 0;
+      } catch (Exception e) { e.printStackTrace(err); return 1; }
+    }
+    if (args.length > 0 && args[0].equals("project")) {
+      if (args.length != 5 || !args[1].equals("--database") || !args[3].equals("--ingestion")) {
+        err.println("Usage: project --database <file.sqlite> --ingestion <id>"); return 1;
+      }
+      try { return ArchiveWorkflow.project(java.nio.file.Path.of(args[2]), args[4], out, err); }
+      catch (Exception e) { e.printStackTrace(err); return 1; }
+    }
+    boolean captureOnly = args.length > 0 && args[0].equals("ingest");
+    if (captureOnly) args = Arrays.copyOfRange(args, 1, args.length);
     ImportOptions options;
     try {
       options = ImportOptions.parse(args);
@@ -44,28 +79,30 @@ public final class Main {
       return 1;
     }
     try {
-      ImportReport report = ImportPipeline.run(options, out);
-      long uiSkips = report.skipsOnUiFields();
-      long unsupported = unsupportedCounters(report);
-      boolean lowCoverage = ClientDataStage.coverageTooLow(report, options.coverageMinPct());
-      int code = exitCode(options.failOnUnsupported(), uiSkips + unsupported + (lowCoverage ? 1 : 0));
-      if (code != 0) {
-        if (uiSkips + unsupported > 0) {
-          err.println(uiSkips + " skip(s) and " + unsupported + " missingField/unresolved counter(s) lost data"
-              + " shown in the UI; failing because of --fail-on-unsupported");
-        }
-        if (lowCoverage) {
-          err.println("client data covers " + report.get(ClientDataStage.NAMED_MATCHED) + " of "
-              + report.get(ClientDataStage.NAMED) + " named items (" + report.get(ClientDataStage.COVERAGE_PCT)
-              + " %), below --coverage-min " + options.coverageMinPct() + " %; see the clientdata.unmatched.ranges"
-              + " note; failing because of --fail-on-unsupported");
+      String ingestion = ArchiveWorkflow.ingest(options);
+      out.println("Captured ingestion: " + ingestion);
+      if (captureOnly) return 0;
+      int result = ArchiveWorkflow.project(options.out(), ingestion, out, err);
+      if (result == 0 && !options.buildIdOut().toAbsolutePath().equals(ImportOptions.defaultBuildIdOut(options.out()))) {
+        try {
+          java.nio.file.Files.createDirectories(options.buildIdOut().toAbsolutePath().getParent());
+          java.nio.file.Files.copy(ImportOptions.defaultBuildIdOut(options.out()), options.buildIdOut(),
+              java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+        } catch (java.io.IOException failure) {
+          err.println("Database published successfully; could not export custom build ID: " + failure.getMessage());
         }
       }
-      return code;
+      return result;
     } catch (Exception e) {
       e.printStackTrace(err);
       return 1;
     }
+  }
+
+  private static java.sql.Connection archiveConnection(String file) throws java.sql.SQLException {
+    var config = new org.sqlite.SQLiteConfig();
+    config.setReadOnly(true);
+    return java.sql.DriverManager.getConnection("jdbc:sqlite:"+java.nio.file.Path.of(file).toAbsolutePath(), config.toProperties());
   }
 
   /**

@@ -250,6 +250,47 @@ To skip the checks against the shipped database, which extract the 81 MB resourc
 
 Native installers (MSI, DMG, DEB) can be built with `jpackage`; see [packaging/README.md](packaging/README.md).
 
+## Versioned source archive and offline rebuilds
+
+The importer now retains source inputs and generated app tables in **one SQLite database**. Normal imports
+capture the inputs first, then rebuild from those retained files. Earlier snapshots remain available; identical
+file bytes share content-addressed storage. A failed rebuild or validation preserves the previous app tables.
+
+To run the stages separately:
+
+```sh
+java -jar importer/target/importer.jar ingest --out research.sqlite --skip-client-data
+# Use the printed ingestion ID. Add --client-data-dir and --server-db-dir when available.
+java -jar importer/target/importer.jar project --database research.sqlite --ingestion INGESTION_ID
+java -jar importer/target/importer.jar sources --database research.sqlite
+java -jar importer/target/importer.jar diff --database research.sqlite --before SNAPSHOT_ID --after SNAPSHOT_ID
+```
+
+`ingest` accepts the existing import options. `project` uses archived source specifications, primary and baseline
+AtlasLoot inputs, and available client/server files without fetching or consulting an external cache. It records
+its input selection and a fingerprint of the importer and Lua parser implementation. App tables are built into
+a sibling candidate, validated and atomically published with all retained source history. SQLite is authoritative;
+sidecar export failures produce a warning after successful publication. Output database and sidecar paths must differ.
+
+The archive covers the selected Questie/AtlasLoot paths and every file supplied in client/server input directories.
+Locally missing selected files are explicitly recorded in `__capture__/missing-inputs.txt`. Local overrides are
+identified by their actual contents rather than represented as verified pristine upstream commits. Original bytes
+survive unknown fields and parser failures. Converted client inputs are preserved as supplied; raw BLP or hotfix
+files outside those input directories are not automatically acquired or archived.
+
+`source_archive_*` stores immutable snapshots, exact files, source URLs and hashes. `source_record` preserves generic
+CSV headers/cells and Lua syntax records before application corrections; `source_record_parse` records complete,
+partial, unsupported or failed extraction. Extraction generations are separate from source snapshot identity.
+Other formats, including the VMaNGOS SQLite file and binary assets, remain exact archived artifacts rather than
+fully expanded structured rows. Record comparisons avoid claiming removal after incomplete extraction. Lua
+syntax-record identities can change when earlier statements are inserted; they are not stable game-entity IDs.
+
+**View → Data sources** shows archived versions, files, source links, and the exact inputs of the current app
+projection. Existing bundled databases show their recorded legacy build metadata and links, explicitly labelled
+when original inputs were not archived. Dataset attribution does not claim field-level lineage. Full source-record
+browsing and detailed field-level explanations are planned separately. The desktop app remains offline until a
+source URL is deliberately opened. See [the design](docs/superpowers/specs/2026-10-17-versioned-source-data.md).
+
 ## Data sources & licensing
 
 - [QuestieDB](https://github.com/Questie/QuestieDB), commit `49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4`. It publishes no license file, so the data is used with attribution.

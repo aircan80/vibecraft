@@ -4,6 +4,38 @@ Written 2026-10-17 at the owner's request so that work can continue on another c
 person or by a different AI assistant. Everything a continuer needs is either in this repository
 or named here with its location. Read this file first, then `README.md`, then the files it points at.
 
+## Linux continuation — 2026-10-17
+
+Development resumed with the owner's authorization on Linux at
+`/home/aircan/Development/claud_java/claude_java`, still on `feature/phase3b-quest-ui`.
+The Windows state below is historical. Source `.local/env.sh` for the local Temurin 21 toolchain and Maven cache;
+run `./mvnw -B -q verify` before code commits. Python tools use `tools/clientdata/.venv`.
+
+Tasks 8–15 and18 are implemented and independently reviewed: objective map layers, patrols, quest page/loading,
+objective locations, chain display, merged quest involvement, keyboard/copy links and Forever dungeon presentation.
+Task 16 layout/search audit fixes and reusable 42-panel visual/performance tooling are integrated; final combined
+verification is tracked in the continuation ledger. Search completion preserves newer user edits. Layout checks
+cover actual giver rows and objective links, including compact fallback text and dungeon source-note wrapping.
+
+The owner additionally approved **one-database versioned source ingestion and separate offline projection**.
+See `docs/superpowers/specs/2026-10-17-versioned-source-data.md` and README's archive section. The implementation
+retains immutable original inputs, structured CSV/Lua evidence, snapshot comparisons and dataset-level provenance.
+The app has View→Data sources with explicit legacy metadata when the shipped database predates archiving.
+Full raw-record browsing is deferred by the owner; detailed field-level lineage and additional native-format
+extractors remain explicitly separate from dataset attribution. Do not claim archived inputs for the existing
+bundled database merely because the new tooling supports them.
+
+Open data gates remain Task 19's AtlasLoot Forever archive/hotfix regeneration and Task 20b's collector import and
+real observation acceptance. Do not tag v0.3.0 or claim the data refresh shipped. BUG-CSB-001 records the missing
+Cozy Sleeping Bag chain relationships; the owner deferred that investigation to a later data review.
+
+Public progress dashboard: https://wow-forever-progress.happystoat6.chatgpt.site . Its separate source checkout is
+`../dashboard`; publish updates through Sites. Completed work identifies Claude or Codex accurately.
+
+The app can be launched independently of the tool session with a user systemd unit (copy the built jar into
+`.local/running` first). Never overwrite the running jar while Maven rebuilds. The owner has repeatedly requested
+that it remain available for review while development continues.
+
 ## 1. What this project is
 
 A desktop research tool for World of Warcraft: Forever (Blizzard's Classic-era-based release, in

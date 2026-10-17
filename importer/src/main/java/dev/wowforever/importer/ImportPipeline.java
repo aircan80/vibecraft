@@ -79,11 +79,17 @@ public final class ImportPipeline {
 
   /** Runs the import and prints the rendered report to {@code console}. */
   public static ImportReport run(ImportOptions opts, PrintStream console) throws IOException, SQLException {
+    return runResolved(opts, console, SourceSpec.load(), null);
+  }
+
+  /** Runs from explicit archived source specifications; a supplied baseline avoids every network fallback. */
+  public static ImportReport runResolved(ImportOptions opts, PrintStream console, List<SourceSpec> specs,
+      Path baselineRoot) throws IOException, SQLException {
     ImportReport report = new ImportReport();
     Map<String, ProblemCollector> problems = new LinkedHashMap<>();
 
-    SourceSpec questieSpec = spec("questiedb");
-    SourceSpec atlasSpec = spec("atlasloot");
+    SourceSpec questieSpec = specs.stream().filter(s -> s.key().equals("questiedb")).findFirst().orElseThrow();
+    SourceSpec atlasSpec = specs.stream().filter(s -> s.key().equals("atlasloot")).findFirst().orElseThrow();
     SourceFetcher fetcher = new SourceFetcher(opts.cacheDir(), HttpClient.newBuilder()
         .followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(30)).build());
     SourceRoots roots = new SourceRoots(
@@ -121,7 +127,7 @@ public final class ImportPipeline {
     List<AtlasInstance> instances = AtlasLootLoader.load(roots.atlasLoot(), areaNames, stage(problems, "atlasloot"));
     if (atlasSpec.baseline() != null) {
       // the AtlasLoot pin replaced an earlier one (the Classic Forever fork, Hoizame's): keep the union (Task 19)
-      List<AtlasInstance> baseline = AtlasLootLoader.load(fetcher.resolve(atlasSpec.baseline(), Optional.empty()),
+      List<AtlasInstance> baseline = AtlasLootLoader.load(baselineRoot != null ? baselineRoot : fetcher.resolve(atlasSpec.baseline(), Optional.empty()),
           areaNames, stage(problems, "atlasloot.baseline"));
       EntityTable items = tables.get(EntityKind.ITEM);
       instances = AtlasLootBaseline.merge(instances, baseline,

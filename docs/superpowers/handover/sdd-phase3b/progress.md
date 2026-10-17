@@ -98,3 +98,23 @@ OWNER 2026-10-17 ~18:45Z: stop after Task 7 completes; no further dispatches; wr
 Task 7: fix round 1/5 (commit 5fccf8f; app 934) — scoped re-review dispatched (sonnet) on review-247e6ed..5fccf8f.diff. Open data point: Maws 15571 (AQ40, no zone, no boss row) gets no boss note — carried to the final review (data gap, not a UI bug).
 Task 7: complete (commits cc4d7c2 + 5fccf8f, re-review Approved, no open findings; app 934). Carried: Maws 15571 data gap.
 STOP POINT 2026-10-17 ~18:50Z (owner's request): 3B tasks 1–7, 17 and 19 (code half) complete; 20a complete on feature/collector-addon. Not started: 8–16, 18, 20b. Open: Task 19 data commit (fork zip), collector beta run. Handover: docs/HANDOVER.md + docs/superpowers/handover/ committed on feature/phase3b-quest-ui.
+
+
+## Linux continuation, 2026-10-17 (Codex)
+
+The owner subsequently authorized resuming development with parallel agents, a public dashboard, attribution,
+and a running app for review. This supersedes the historical Windows stop instruction above.
+
+- Tasks 8–15 and18: implemented, reviewed and integrated. Quest map/patrol/chain/objective and involvement views,
+  shortcuts/copy links, Forever dungeon metadata and honest missing-loot presentation are available.
+- Task 16: reviewed natural-height layout and search-edit preservation fixes integrated. Reusable headless
+  snapshot/performance tooling captures 42 panels and checks clipping. Final combined verification is pending.
+- Task 19 data and 20b remain open; no release tag/main merge. AtlasLoot Forever ZIP and real collector evidence
+  are not present on Linux. Current shipped DB stays unchanged pending the agreed data refresh/review.
+- BUG-CSB-001: Cozy Sleeping Bag reward quest 79976 and preceding quests exist but have no recorded relationships.
+  User deferred the data investigation. No guessed chain links were added.
+- New owner-approved architecture: one database with immutable versioned source archives, generic CSV/Lua source
+  records and extraction coverage, separate offline projection, retained history, source URLs and main-app
+  dataset provenance. Full source-record explorer UI deferred; detailed fact lineage and native-format adapters
+  remain follow-ups. Design: docs/superpowers/specs/2026-10-17-versioned-source-data.md.
+- Dashboard lives in ../dashboard and publishes to https://wow-forever-progress.happystoat6.chatgpt.site .

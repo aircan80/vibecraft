@@ -34,6 +34,9 @@ public record ImportOptions(
     Optional<Path> serverDbDir) {
 
   public static final String USAGE = """
+      Stages: ingest <normal options> captures versioned source data without changing app tables.
+              project --database <file.sqlite> --ingestion <id> rebuilds offline from retained inputs.
+              Normal options perform ingest followed by project.
       Usage: java -jar importer.jar --out <file.sqlite> (--client-data-dir <dir> | --skip-client-data) [options]
         --out <path>             SQLite file to write (required)
         --cache <dir>            download cache (default: ~/.cache/wowforever-importer)
