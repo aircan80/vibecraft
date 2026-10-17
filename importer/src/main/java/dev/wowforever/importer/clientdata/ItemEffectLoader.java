@@ -29,7 +29,8 @@ import java.util.stream.Stream;
  * its effects from the Era fallback's {@code ItemEffect.era} when present, by {@code ParentItemID} (Classic Era has no
  * {@code ItemXItemEffect}); Forever's rows win whenever the item has any. The spell text still comes from Forever's
  * spell tables: an Era effect whose spell has neither a Forever {@code Spell} nor {@code SpellName} row is dropped
- * and counted as {@value #ERA_UNRESOLVED}.
+ * and counted as {@value #ERA_UNRESOLVED}. An {@code ItemEffect.era} without {@code ParentItemID} (or another column
+ * read here) is not fatal: it is counted as {@value #ERA_TABLE_UNUSABLE}, noted, and no Era effects are used.
  *
  * <p>Counts {@value #EFFECTS}, the effects returned.
  */
@@ -37,6 +38,8 @@ public final class ItemEffectLoader {
   public static final String EFFECTS = "clientdata.effects";
   public static final String OTHER_TRIGGER = "clientdata.effects.otherTrigger";
   public static final String ERA_UNRESOLVED = "clientdata.era.effectUnresolved";
+  /** 1, with a note, when {@code ItemEffect.era} lacks a column read here; absent otherwise. */
+  public static final String ERA_TABLE_UNUSABLE = "clientdata.era.effectTableUnusable";
   /** The Era fallback's ItemEffect: Forever's columns plus {@code ParentItemID}, the item. */
   public static final String ERA_EFFECT = "ItemEffect" + ClientDataSource.ERA_SUFFIX;
   static final List<String> LINK_COLUMNS = List.of("ItemID", "ItemEffectID");
@@ -53,7 +56,7 @@ public final class ItemEffectLoader {
     Map<Long, List<CsvTable.Row>> links = require(src.table("ItemXItemEffect"), LINK_COLUMNS).groupByLong("ItemID");
     Map<Long, CsvTable.Row> effects = require(src.table("ItemEffect"), EFFECT_COLUMNS).indexByLong("ID");
     Map<Long, List<CsvTable.Row>> eraEffects = src.optionalTable(ERA_EFFECT)
-        .map(t -> require(t, ERA_EFFECT_COLUMNS).groupByLong("ParentItemID"))
+        .map(t -> eraEffectsByItem(t, report))
         .orElse(Map.of());
     Map<Long, List<ItemSpellEffect>> out = new LinkedHashMap<>();
     long total = 0;
@@ -124,6 +127,22 @@ public final class ItemEffectLoader {
     report.count(OTHER_TRIGGER, other);
     report.count(ERA_UNRESOLVED, eraUnresolved);
     return Collections.unmodifiableMap(out);
+  }
+
+  /**
+   * The Era effect rows by {@code ParentItemID}; empty, counted as {@value #ERA_TABLE_UNUSABLE} and noted, when the
+   * table lacks a column read here (another Era build may link effects differently), so the import goes on without
+   * Era effects.
+   */
+  private static Map<Long, List<CsvTable.Row>> eraEffectsByItem(CsvTable t, ImportReport report) {
+    List<String> missing = ERA_EFFECT_COLUMNS.stream().filter(c -> !t.hasColumn(c)).toList();
+    if (!missing.isEmpty()) {
+      report.count(ERA_TABLE_UNUSABLE, 1);
+      report.note(ERA_TABLE_UNUSABLE + ": " + ERA_EFFECT + " (" + t.source() + ") has no column "
+          + String.join(", ", missing) + "; Era-sourced items get no Era effects");
+      return Map.of();
+    }
+    return t.groupByLong("ParentItemID");
   }
 
   /** The Use effect of an item that teaches {@code learn}'s spell; charges and cooldown from {@code use}. */

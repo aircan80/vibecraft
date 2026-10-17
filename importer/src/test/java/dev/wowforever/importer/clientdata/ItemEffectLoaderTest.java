@@ -122,6 +122,30 @@ class ItemEffectLoaderTest {
     assertThat(report.get(ItemEffectLoader.ERA_UNRESOLVED)).isEqualTo(1);
   }
 
+  @Test
+  void anEraEffectTableWithoutParentItemIdIsReportedNotFatal(@TempDir Path tmp) throws IOException {
+    // another Era build could link effects through an ItemXItemEffect table instead of ItemEffect.ParentItemID
+    ClientDataSource src = fixtureCopy(tmp);
+    Files.writeString(tmp.resolve("csv/ItemEffect.era.csv"),
+        "ID,LegacySlotIndex,TriggerType,Charges,CoolDownMSec,CategoryCoolDownMSec,SpellCategoryID,SpellID\n"
+            + "102124,0,1,0,-1,-1,0,7597\n", StandardCharsets.UTF_8);
+    ImportReport report = new ImportReport();
+    Map<Long, List<ItemSpellEffect>> effects = load(src, report, 19137, 19019);
+
+    assertThat(effects).as("no Era effects, Forever ones intact").containsOnlyKeys(19019L);
+    assertThat(report.get(ItemEffectLoader.ERA_TABLE_UNUSABLE)).isEqualTo(1);
+    assertThat(report.notes()).anySatisfy(n -> assertThat(n)
+        .startsWith(ItemEffectLoader.ERA_TABLE_UNUSABLE + ": ItemEffect.era")
+        .contains("no column ParentItemID"));
+  }
+
+  @Test
+  void aUsableEraEffectTableReportsNoProblem() {
+    ImportReport report = new ImportReport();
+    load(report, 19137);
+    assertThat(report.counters()).doesNotContainKey(ItemEffectLoader.ERA_TABLE_UNUSABLE);
+  }
+
   private static Map<Long, List<ItemSpellEffect>> load(ClientDataSource src, ImportReport report, long... ids) {
     Map<Long, ClientItem> items = ItemSparseLoader.load(src,
         Arrays.stream(ids).boxed().collect(Collectors.toSet()), new ImportReport());
