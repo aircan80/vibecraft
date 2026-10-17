@@ -67,6 +67,8 @@ public final class AppController implements Navigator {
   /** The target of {@link #listPage}'s history entry, updated as soon as a filter changes. */
   private ViewTarget.List listTarget;
   private volatile ListOptions listOptions; // cached on the worker
+  /** The last target other than a search shown, whose page a full layout's detail area shows under a search. */
+  private ViewTarget lastPage;
 
   /** One list to show: its title and rows; {@code page} is the row limit of the query, 0 for none. */
   private record Listing(String title, List<ListEntry> entries, int page) {
@@ -179,10 +181,19 @@ public final class AppController implements Navigator {
 
   /**
    * Shows the current target again without touching the history, say after the window switched between its full
-   * and compact layouts; nothing happens before the first {@link #open}.
+   * and compact layouts; nothing happens before the first {@link #open}. A search shown where there is a master
+   * list leaves the detail area as a search does: the last page shown there comes back (the home page when there
+   * was none), and the search runs again into the list.
    */
   public void rerender() {
-    history.current().ifPresent(this::show);
+    ViewTarget t = current();
+    if (t == null) {
+      return;
+    }
+    if (t instanceof ViewTarget.Search && view.showsMasterList()) {
+      show(lastPage != null ? lastPage : new ViewTarget.Home());
+    }
+    show(t);
   }
 
   /** Re-shows the previous target, if any. */
@@ -226,6 +237,9 @@ public final class AppController implements Navigator {
   }
 
   private void show(ViewTarget t) {
+    if (!(t instanceof ViewTarget.Search)) {
+      lastPage = t;
+    }
     view.setHistoryState(history.canBack(), history.canForward());
     view.selectRail(railSection(t));
     switch (t) {
@@ -359,6 +373,7 @@ public final class AppController implements Navigator {
       history.push(t);
     }
     listTarget = t;
+    lastPage = t;
     previewSlot = false;
     view.setHistoryState(history.canBack(), history.canForward());
     int generation = ++detailGeneration;

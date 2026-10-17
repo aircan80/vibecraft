@@ -29,20 +29,26 @@ public final class DividerRows {
         && isDivider.test(links.model().rowAt(table.convertRowIndexToModel(viewRow)));
     for (int c = 0; c < table.getColumnModel().getColumnCount(); c++) {
       TableColumn column = table.getColumnModel().getColumn(c);
-      column.setCellRenderer(new Renderer(column.getCellRenderer(), divider));
+      column.setCellRenderer(new Renderer(column.getCellRenderer(), column.getModelIndex(), divider));
     }
     SkipDividers selection = new SkipDividers(divider, table);
     selection.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     table.setSelectionModel(selection);
   }
 
-  /** Paints dividers itself and hands every other row to the column's own renderer (or the table's default). */
+  /**
+   * Paints dividers itself and hands every other row to the column's own renderer (or the table's default). It
+   * knows its column by model index, as the column may be off screen (a compact table's tooltip renders hidden
+   * columns with no view index).
+   */
   private static final class Renderer extends DefaultTableCellRenderer {
     private final TableCellRenderer own;
+    private final int modelColumn;
     private final IntPredicate divider;
 
-    Renderer(TableCellRenderer own, IntPredicate divider) {
+    Renderer(TableCellRenderer own, int modelColumn, IntPredicate divider) {
       this.own = own;
+      this.modelColumn = modelColumn;
       this.divider = divider;
     }
 
@@ -50,10 +56,11 @@ public final class DividerRows {
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
         boolean hasFocus, int row, int column) {
       if (!divider.test(row)) {
-        TableCellRenderer r = own != null ? own : table.getDefaultRenderer(table.getColumnClass(column));
+        TableCellRenderer r =
+            own != null ? own : table.getDefaultRenderer(table.getModel().getColumnClass(modelColumn));
         return r.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
       }
-      boolean first = table.convertColumnIndexToModel(column) == 0;
+      boolean first = modelColumn == 0;
       super.getTableCellRendererComponent(table, first ? value : "", false, false, row, column);
       setForeground(Theme.current().textMuted());
       return this;

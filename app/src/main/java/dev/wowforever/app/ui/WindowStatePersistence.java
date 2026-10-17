@@ -43,13 +43,9 @@ final class WindowStatePersistence {
    */
   static WindowStatePersistence install(Frame frame, UiState state) {
     List<Rectangle> screens = screens();
-    if (state.compactMode()) {
-      frame.setBounds(state.compactWindowBounds(screens, screens.get(0)));
-    } else {
-      frame.setBounds(state.windowBounds(screens));
-      if (state.maximised()) {
-        frame.setExtendedState(frame.getExtendedState() | Frame.MAXIMIZED_BOTH);
-      }
+    frame.setBounds(LayoutSwitch.boundsFor(state.compactMode(), state, screens, screens.get(0)));
+    if (!state.compactMode() && state.maximised()) {
+      frame.setExtendedState(frame.getExtendedState() | Frame.MAXIMIZED_BOTH);
     }
     frame.setAlwaysOnTop(state.alwaysOnTop());
     WindowStatePersistence saver = new WindowStatePersistence(state, () -> snapshot(frame),

@@ -7,9 +7,9 @@ import dev.wowforever.app.ui.KeyMap;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.ResultsTableModel;
 import dev.wowforever.app.ui.TableLinks;
-import dev.wowforever.app.ui.pages.CompactColumns;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -18,10 +18,12 @@ import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 import javax.swing.table.TableColumnModel;
 
@@ -40,8 +42,7 @@ public final class LinkTable<T> extends JPanel {
   private final JTable table = new JTable() {
     @Override
     public String getToolTipText(MouseEvent e) {
-      String row = rowTooltip(rowAtPoint(e.getPoint()));
-      return row != null ? row : super.getToolTipText(e);
+      return CompactColumns.join(rowTooltip(rowAtPoint(e.getPoint())), super.getToolTipText(e));
     }
   };
   /** Every column in model order, so that compact mode can take some away and put them back. */
@@ -136,12 +137,35 @@ public final class LinkTable<T> extends JPanel {
     return compact;
   }
 
-  /** The tooltip of view row {@code viewRow} in compact mode ({@link CompactColumns#tooltip}); null otherwise. */
+  /**
+   * The tooltip of view row {@code viewRow} in compact mode: the hidden columns as their renderers show them
+   * ({@link CompactColumns#tooltip}); null otherwise.
+   */
   public String rowTooltip(int viewRow) {
     if (!compact || viewRow < 0 || viewRow >= table.getRowCount()) {
       return null;
     }
-    return CompactColumns.tooltip(model, table.convertRowIndexToModel(viewRow));
+    List<CompactColumns.Cell> hidden = new ArrayList<>();
+    for (TableColumn c : columns) {
+      if (!CompactColumns.kept(model, c.getModelIndex())) {
+        hidden.add(new CompactColumns.Cell(model.getColumnName(c.getModelIndex()), shownText(c, viewRow)));
+      }
+    }
+    return CompactColumns.tooltip(hidden);
+  }
+
+  /** The text the renderer of {@code column}, which is not on screen, would show in view row {@code viewRow}. */
+  private String shownText(TableColumn column, int viewRow) {
+    int col = column.getModelIndex();
+    Object value = model.getValueAt(table.convertRowIndexToModel(viewRow), col);
+    TableCellRenderer renderer = column.getCellRenderer() != null ? column.getCellRenderer()
+        : table.getDefaultRenderer(model.getColumnClass(col));
+    // the column has no view index while hidden: -1, as for a cell outside the table
+    Component shown = renderer.getTableCellRendererComponent(table, value, false, false, viewRow, -1);
+    if (shown instanceof JLabel label) {
+      return label.getText();
+    }
+    return value == null ? null : value.toString();
   }
 
   /** Where Ctrl+C and Ctrl+Shift+C copy to; the system clipboard unless set. */

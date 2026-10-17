@@ -1,11 +1,12 @@
 package dev.wowforever.app.ui;
 
 import dev.wowforever.app.nav.ViewTarget;
-import dev.wowforever.app.ui.widgets.Icons;
+import dev.wowforever.app.ui.widgets.HistoryButtons;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.Rail;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.Rectangle;
@@ -65,8 +66,8 @@ public final class MainFrame extends JFrame implements MainView {
   static final String CANNOT_PIN = "Only item, NPC, object, quest, zone and instance pages can be pinned";
   private static final String SHOWN_DIVIDER_SIZE = "wowforever.shownDividerSize";
 
-  private final JButton back = historyButton("arrow-left", "Back", "Back (Alt+Left, mouse button 4)");
-  private final JButton forward = historyButton("arrow-right", "Forward", "Forward (Alt+Right, mouse button 5)");
+  private final JButton back = HistoryButtons.back();
+  private final JButton forward = HistoryButtons.forward();
   private final SearchBar searchBar;
   private final Rail rail = new Rail();
   private final MasterList list = new MasterList();
@@ -82,8 +83,7 @@ public final class MainFrame extends JFrame implements MainView {
   private final CompactShell compactShell = new CompactShell(this::back, this::forward, this::toggleAlwaysOnTop);
   private final JMenuBar menuBar;
   private final WindowStatePersistence persistence;
-  /** Whether the compact layout is shown. */
-  private boolean compact;
+  private final LayoutSwitch layout;
   private AppController controller;
 
   public MainFrame() {
@@ -113,7 +113,13 @@ public final class MainFrame extends JFrame implements MainView {
     setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
     persistence = WindowStatePersistence.install(this, uiState);
     compactShell.setOnTop(isAlwaysOnTop());
-    showLayout(uiState.compactMode());
+    layout = new LayoutSwitch(new LayoutSwitch.Parts(toolbar, content, detailSlot, list, compactShell, searchBar,
+        detailHolder, status), uiState, layoutWindow(), () -> {
+          if (controller != null) {
+            controller.rerender();
+          }
+        });
+    layout.start();
     textSize.applySaved();
   }
 
@@ -219,15 +225,6 @@ public final class MainFrame extends JFrame implements MainView {
     }
   }
 
-  /** A toolbar button showing icon {@code icon}, named {@code name} for accessibility, with {@code tooltip}. */
-  static JButton historyButton(String icon, String name, String tooltip) {
-    JButton b = new JButton(Icons.icon(icon, 18));
-    b.getAccessibleContext().setAccessibleName(name);
-    b.setToolTipText(tooltip);
-    b.setFocusable(false);
-    return b;
-  }
-
   private Map<String, Runnable> handlers() {
     Action toggleList = content.getActionMap().get(TOGGLE_LIST);
     return Map.ofEntries(
@@ -238,7 +235,7 @@ public final class MainFrame extends JFrame implements MainView {
         Map.entry(KeyMap.PIN, () -> status.setMessage(togglePin(uiState, controller != null ? controller.current()
             : null))),
         Map.entry(KeyMap.TOGGLE_LIST, () -> {
-          if (!compact) { // the compact layout has no list
+          if (!layout.isCompact()) { // the compact layout has no list
             toggleList.actionPerformed(new ActionEvent(content, ActionEvent.ACTION_PERFORMED, KeyMap.TOGGLE_LIST));
           }
         }),
@@ -249,59 +246,70 @@ public final class MainFrame extends JFrame implements MainView {
         Map.entry(KeyMap.TEXT_RESET, () -> showTextSize(textSize.reset())));
   }
 
-  /** Esc: the search box closes its dropdown or clears its text; failing both, the list takes the focus. */
+  /**
+   * Esc: the search box closes its dropdown or clears its text; failing both, the list takes the focus (in the
+   * compact layout, the page's first table or list).
+   */
   private void escape() {
     if (!searchBar.escape()) {
-      list.jlist().requestFocusInWindow();
+      Component target = layout.escapeTarget();
+      if (target != null) {
+        target.requestFocusInWindow();
+      }
     }
   }
 
-  /**
-   * F10: switches between the full and the compact layout. The bounds of the layout left go to its own saved slot
-   * (the compact window never touches the full window's bounds or maximised state); the other layout comes back
-   * where it was saved, or (compact, the first time) at the top right of the current screen; the current page is
-   * shown again in it, the history untouched.
-   */
+  /** F10: the other layout ({@link LayoutSwitch#toggle}). */
   private void toggleCompactMode() {
-    boolean toCompact = !compact;
-    persistence.saveNow();
-    if (toCompact) {
-      setExtendedState(getExtendedState() & ~Frame.MAXIMIZED_BOTH);
-    }
-    uiState.setCompactMode(toCompact);
-    showLayout(toCompact);
-    List<Rectangle> screens = WindowStatePersistence.screens();
-    setBounds(toCompact ? uiState.compactWindowBounds(screens, getGraphicsConfiguration().getBounds())
-        : uiState.windowBounds(screens));
-    if (!toCompact && uiState.maximised()) {
-      setExtendedState(getExtendedState() | Frame.MAXIMIZED_BOTH);
-    }
-    if (controller != null) {
-      setDetail(new JPanel());
-      controller.rerender();
-    }
-    status.setMessage(toCompact ? "Compact window: F10 for the full one" : "Full window");
+    layout.toggle();
+    status.setMessage(layout.isCompact() ? "Compact window: F10 for the full one" : "Full window");
   }
 
   /**
-   * Shows the full or the compact layout: moves the shared search bar, page holder and status line into it, and
-   * brings it up to date with the theme and text size, which may have changed while it was off screen.
+   * The frame as {@link LayoutSwitch} drives it. A layout shown is brought up to date with the theme and text
+   * size, which may have changed while it was off screen.
    */
-  private void showLayout(boolean compactLayout) {
-    compact = compactLayout;
-    if (compactLayout) {
-      compactShell.claim(searchBar, detailHolder, status);
-    } else {
-      searchBar.setCompact(false);
-      toolbar.add(searchBar);
-      detailSlot.add(detailHolder, BorderLayout.CENTER);
-      content.add(status, BorderLayout.SOUTH);
-    }
-    setJMenuBar(compactLayout ? null : menuBar);
-    setContentPane(compactLayout ? compactShell : content);
-    SwingUtilities.updateComponentTreeUI(getRootPane());
-    getRootPane().revalidate();
-    repaint();
+  private LayoutSwitch.Window layoutWindow() {
+    return new LayoutSwitch.Window() {
+      @Override
+      public void saveBounds() {
+        persistence.saveNow();
+      }
+
+      @Override
+      public void clearMaximised() {
+        setExtendedState(getExtendedState() & ~Frame.MAXIMIZED_BOTH);
+      }
+
+      @Override
+      public void maximise() {
+        setExtendedState(getExtendedState() | Frame.MAXIMIZED_BOTH);
+      }
+
+      @Override
+      public void show(JPanel pane, boolean withMenuBar) {
+        setJMenuBar(withMenuBar ? menuBar : null);
+        setContentPane(pane);
+        SwingUtilities.updateComponentTreeUI(getRootPane());
+        getRootPane().revalidate();
+        repaint();
+      }
+
+      @Override
+      public void place(Rectangle bounds) {
+        setBounds(bounds);
+      }
+
+      @Override
+      public List<Rectangle> screens() {
+        return WindowStatePersistence.screens();
+      }
+
+      @Override
+      public Rectangle currentScreen() {
+        return getGraphicsConfiguration().getBounds();
+      }
+    };
   }
 
   /** Ctrl+Shift+T or the compact pin button: keeps the window above other windows, or stops; remembered. */
@@ -469,6 +477,6 @@ public final class MainFrame extends JFrame implements MainView {
 
   @Override
   public boolean showsMasterList() {
-    return !compact;
+    return !layout.isCompact();
   }
 }

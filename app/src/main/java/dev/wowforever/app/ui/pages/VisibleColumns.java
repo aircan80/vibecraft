@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.pages;
 
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.Columns.Column;
+import dev.wowforever.app.ui.detail.CompactColumns;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -13,7 +14,7 @@ import java.util.Set;
  * first (an instance spawn in the page's zone, without coordinates, still names the zone).
  */
 final class VisibleColumns {
-  static final String ORIGIN = "Origin";
+  static final String ORIGIN = CompactColumns.ORIGIN;
   static final String ROLE = "Role";
   static final String ZONE = "Zone";
   /** The columns hidden when every row has the same value. */

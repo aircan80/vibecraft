@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui;
 
-import dev.wowforever.app.ui.pages.CompactColumns;
+import dev.wowforever.app.ui.detail.CompactColumns;
+import dev.wowforever.app.ui.widgets.HistoryButtons;
 import dev.wowforever.app.ui.widgets.Icons;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
@@ -27,9 +28,8 @@ public final class CompactShell extends JPanel {
   /** The accessible name of the pin button, which shows only an icon. */
   public static final String PIN_NAME = "Always on top";
 
-  private final JButton back = MainFrame.historyButton("arrow-left", "Back", "Back (Alt+Left, mouse button 4)");
-  private final JButton forward =
-      MainFrame.historyButton("arrow-right", "Forward", "Forward (Alt+Right, mouse button 5)");
+  private final JButton back = HistoryButtons.back();
+  private final JButton forward = HistoryButtons.forward();
   private final JToggleButton pin = new JToggleButton(Icons.icon("pin", 18));
   private final JPanel topBar = new JPanel(new BorderLayout(4, 0));
   private final JPanel searchSlot = new JPanel(new BorderLayout());

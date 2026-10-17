@@ -34,11 +34,9 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
-/** {@link CompactShell}, built headless with a controller over a {@link StubView}. */
+/** {@link CompactShell}, built headless with a controller over a {@link StubView}; F10 is {@link LayoutSwitchTest}. */
 @ExtendWith(FixtureDb.class)
 class CompactShellTest {
-  /** An item NPCs drop in the fixture database. */
-  private static final ViewTarget ITEM_PAGE = new ViewTarget.Entity(new EntityRef(ITEM, 14149));
   private static final ItemSummary LETTER = new ItemSummary(2874, "An Unsent Letter", 16, 16, "Quest", "Quest", 1);
 
   private final Preferences node = UiStateTest.testNode();
@@ -111,36 +109,9 @@ class CompactShellTest {
   }
 
   @Test
-  void togglingKeepsTheTargetAndTheHistory() {
-    AppController c = new AppController(repos, view, Runnable::run);
-    c.start();
-    c.open(ITEM_PAGE);
-    int entries = c.history().size();
-    JComponent fullPage = view.detail;
-    assertThat(names(((ItemPage) fullPage).droppedBy())).hasSize(5);
-
-    shell.claim(search, view.holder, status); // F10: the detail moves into the compact shell, which re-renders
-    view.showsMasterList = false;
-    c.rerender();
-    assertThat(c.current()).isEqualTo(ITEM_PAGE);
-    assertThat(c.history().size()).isEqualTo(entries);
-    assertThat(view.canBack).isTrue();
-    assertThat(view.detail).isInstanceOf(ItemPage.class).isNotSameAs(fullPage);
-    assertThat(SwingUtilities.isDescendingFrom(view.detail, shell)).isTrue();
-    assertThat(names(((ItemPage) view.detail).droppedBy())).containsExactly("Source", "Rate", "Origin");
-
-    new JPanel(new BorderLayout()).add(view.holder); // F10 again: back to the full window
-    view.showsMasterList = true;
-    c.rerender();
-    assertThat(c.current()).isEqualTo(ITEM_PAGE);
-    assertThat(c.history().size()).isEqualTo(entries);
-    assertThat(names(((ItemPage) view.detail).droppedBy())).hasSize(5);
-  }
-
-  @Test
   void aFullSearchInCompactModeShowsItsResultsAsThePage() {
     AppController c = new AppController(repos, view, Runnable::run);
-    view.showsMasterList = false;
+    view.masterListShown = () -> false;
     ViewTarget.Search items = new ViewTarget.Search("c", Optional.of(ITEM));
     c.open(items);
     assertThat(view.detail).isInstanceOf(MasterList.class);

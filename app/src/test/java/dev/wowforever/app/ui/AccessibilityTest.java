@@ -6,6 +6,7 @@ import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.theme.Tokens;
 import dev.wowforever.app.ui.theme.WowForeverDarkLaf;
 import dev.wowforever.app.ui.widgets.FakeDropdownHost;
+import dev.wowforever.app.ui.widgets.HistoryButtons;
 import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.Rail;
@@ -59,8 +60,8 @@ class AccessibilityTest {
   private JPanel content() {
     SearchBar search = new SearchBar(t -> {}, state, new ManualDelay(), new SearchDropdown(new FakeDropdownHost()));
     search.textField().setText("hogger"); // the clear button shows only over text
-    return MainFrame.buildContent(MainFrame.toolbar(MainFrame.historyButton("arrow-left", "Back", "Back"),
-        MainFrame.historyButton("arrow-right", "Forward", "Forward"), search), new Rail(),
+    return MainFrame.buildContent(MainFrame.toolbar(HistoryButtons.back(), HistoryButtons.forward(), search),
+        new Rail(),
         new MasterList(new ManualDelay()), new JPanel(), new StatusBar(), state);
   }
 

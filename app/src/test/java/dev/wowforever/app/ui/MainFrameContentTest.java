@@ -2,6 +2,7 @@ package dev.wowforever.app.ui;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.ui.widgets.HistoryButtons;
 import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.Rail;
@@ -109,9 +110,8 @@ class MainFrameContentTest {
 
   @Test
   void historyButtonsHaveIconsNamesAndTooltips() {
-    javax.swing.JButton back = MainFrame.historyButton("arrow-left", "Back", "Back (Alt+Left, mouse button 4)");
-    javax.swing.JButton forward =
-        MainFrame.historyButton("arrow-right", "Forward", "Forward (Alt+Right, mouse button 5)");
+    javax.swing.JButton back = HistoryButtons.back();
+    javax.swing.JButton forward = HistoryButtons.forward();
     assertThat(back.getIcon()).isNotNull();
     assertThat(back.getIcon().getIconWidth()).isPositive();
     assertThat(forward.getIcon()).isNotNull();

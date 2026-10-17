@@ -4,6 +4,7 @@ import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.BorderLayout;
+import java.util.function.BooleanSupplier;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
@@ -23,7 +24,7 @@ final class StubView implements MainView {
   /** The rail section last selected; null for none. */
   RailTarget rail;
   /** What {@link #showsMasterList()} answers: false plays the compact window. */
-  boolean showsMasterList = true;
+  BooleanSupplier masterListShown = () -> true;
 
   @Override
   public MasterList masterList() {
@@ -60,6 +61,6 @@ final class StubView implements MainView {
 
   @Override
   public boolean showsMasterList() {
-    return showsMasterList;
+    return masterListShown.getAsBoolean();
   }
 }

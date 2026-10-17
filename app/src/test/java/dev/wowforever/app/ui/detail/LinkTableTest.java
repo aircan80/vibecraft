@@ -12,17 +12,18 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.DropRow;
 import dev.wowforever.app.ui.LinkRenderer;
-import dev.wowforever.app.ui.pages.CompactColumns;
 import dev.wowforever.app.ui.widgets.Keys;
+import java.awt.Component;
 import java.awt.Rectangle;
-import java.awt.event.MouseEvent;
 import java.awt.event.ActionEvent;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
+import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
@@ -236,5 +237,41 @@ class LinkTableTest {
     new JPanel().add(page);
     assertThat(t.isCompact()).isFalse();
     assertThat(names(t)).hasSize(5);
+  }
+
+  @Test
+  void compactTooltipsTellHiddenColumnsAsTheirRenderersShowThem() {
+    var t = new LinkTable<>(Columns.lootRated(), v -> {});
+    t.setRows(List.of(new LootRow(new EntityRef(ITEM, 1), "Sword", 21, 5.0, "questie", 7)));
+    t.table().getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+      @Override
+      protected void setValue(Object value) {
+        setText("#" + value);
+      }
+    });
+    t.setCompact(true);
+    assertThat(t.rowTooltip(0)).isEqualTo("Item level 21 · Slot: #7");
+  }
+
+  @Test
+  void compactCellsKeepTheirOwnTooltipBelowTheRowsOne() {
+    var t = new LinkTable<>(Columns.lootRated(), v -> {});
+    t.setRows(List.of(new LootRow(new EntityRef(ITEM, 1), "Sword", 21, 5.0, "questie", 7)));
+    t.table().getColumnModel().getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
+      @Override
+      public Component getTableCellRendererComponent(JTable table, Object value,
+          boolean isSelected, boolean hasFocus, int row, int column) {
+        super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+        setToolTipText("Sword of <Testing>");
+        return this;
+      }
+    });
+    t.setCompact(true);
+    Rectangle cell = t.table().getCellRect(0, 0, true);
+    MouseEvent over = new MouseEvent(t.table(), MouseEvent.MOUSE_MOVED, 0, 0, cell.x + 1, cell.y + 1, 0, false);
+    assertThat(t.table().getToolTipText(over))
+        .isEqualTo("<html>Item level 21 · Slot 7<br>Sword of &lt;Testing&gt;</html>");
+    t.setCompact(false);
+    assertThat(t.table().getToolTipText(over)).isEqualTo("Sword of <Testing>");
   }
 }
