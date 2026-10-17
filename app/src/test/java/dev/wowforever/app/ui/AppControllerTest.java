@@ -22,6 +22,7 @@ import dev.wowforever.app.ui.pages.FilterBar;
 import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.pages.NpcPage;
+import dev.wowforever.app.ui.pages.ZoneMapPanel;
 import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.ListEntry;
@@ -722,5 +723,22 @@ class AppControllerTest {
     page.mapPanel().objectsToggle().doClick();
     assertThat(view.status().message()).startsWith("Error: ");
     assertThat(page.mapPanel().objectsToggle().isSelected()).isFalse();
+  }
+
+  @Test
+  void aPinLoadThatFinishesAfterThePageWasLeftWritesNoStatus() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    c.open(new ViewTarget.Entity(new EntityRef(ZONE, 12)));
+    queued.remove(0).run();
+    ZonePage elwynn = (ZonePage) view.detail;
+    elwynn.mapPanel().allNpcsToggle().doClick(); // queues the pin load
+    assertThat(view.status().message()).isEqualTo(ZoneMapPanel.LOADING);
+    c.open(new ViewTarget.Entity(new EntityRef(NPC, 639)));
+    assertThat(view.status().message()).as("the left page's message goes").isEqualTo("Ready");
+    queued.remove(1).run(); // the NPC page loads first
+    queued.remove(0).run(); // then the pins of the page left
+    assertThat(view.status().message()).as("the page left reports nothing").isEqualTo("Ready");
+    assertThat(elwynn.mapPanel().mapView().pins()).as("its map still takes the pins").hasSize(5);
   }
 }

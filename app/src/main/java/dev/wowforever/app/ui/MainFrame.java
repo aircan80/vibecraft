@@ -44,10 +44,6 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
-import javax.swing.event.MenuEvent;
-import javax.swing.event.MenuListener;
-import javax.swing.event.PopupMenuEvent;
-import javax.swing.event.PopupMenuListener;
 
 /**
  * The main window: back/forward and search on top; the icon rail, the master list and the detail in the middle;
@@ -348,46 +344,24 @@ public final class MainFrame extends JFrame implements MainView {
     status.setMessage("Text size " + pct + " %");
   }
 
-  /** The Dark theme item, which reads the saved theme whenever its menu opens (either layout may switch it). */
-  private JCheckBoxMenuItem darkThemeItem() {
-    JCheckBoxMenuItem dark = new JCheckBoxMenuItem("Dark theme", ThemeManager.isDark());
-    dark.addActionListener(e -> ThemeManager.toggle(this));
-    return dark;
+  /** What the menu items both layouts share do ({@link WindowMenus}). */
+  private WindowMenus.Actions menuActions() {
+    return new WindowMenus.Actions(ThemeManager::isDark, () -> ThemeManager.toggle(this), this::rerender,
+        this::showShortcuts, this::showAbout);
   }
 
   /** The compact layout's context menu: what its missing menu bar would offer, and the way back. */
   private JPopupMenu compactMenu() {
     JMenuItem full = new JMenuItem("Full window (F10)"); // no accelerator: F10 is the window's own key
     full.addActionListener(e -> toggleCompactMode());
-    JCheckBoxMenuItem dark = darkThemeItem();
-    JMenuItem shortcuts = new JMenuItem("Keyboard shortcuts");
-    shortcuts.addActionListener(e -> showShortcuts());
-    JMenuItem about = new JMenuItem("About");
-    about.addActionListener(e -> showAbout());
     JPopupMenu menu = new JPopupMenu();
     menu.add(full);
-    menu.add(dark);
-    menu.add(WindowMenus.sourceFilterMenu(uiState, this::rerender));
-    menu.addSeparator();
-    menu.add(shortcuts);
-    menu.add(about);
-    menu.addPopupMenuListener(new PopupMenuListener() {
-      @Override
-      public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
-        dark.setSelected(ThemeManager.isDark());
-      }
-
-      @Override
-      public void popupMenuWillBecomeInvisible(PopupMenuEvent e) {}
-
-      @Override
-      public void popupMenuCanceled(PopupMenuEvent e) {}
-    });
+    WindowMenus.addViewItems(menu, uiState, menuActions());
+    WindowMenus.addHelpItems(menu, menuActions());
     return menu;
   }
 
   private JMenuBar menuBar() {
-    JCheckBoxMenuItem dark = darkThemeItem();
     Action toggleList = content.getActionMap().get(TOGGLE_LIST);
     JCheckBoxMenuItem showList = new JCheckBoxMenuItem(toggleList);
     showList.setSelected(list.isVisible());
@@ -405,27 +379,9 @@ public final class MainFrame extends JFrame implements MainView {
     });
     JMenu view = new JMenu("View");
     view.add(showList);
-    view.add(dark);
-    view.add(WindowMenus.sourceFilterMenu(uiState, this::rerender));
-    view.addMenuListener(new MenuListener() {
-      @Override
-      public void menuSelected(MenuEvent e) {
-        dark.setSelected(ThemeManager.isDark());
-      }
-
-      @Override
-      public void menuDeselected(MenuEvent e) {}
-
-      @Override
-      public void menuCanceled(MenuEvent e) {}
-    });
-    JMenuItem shortcuts = new JMenuItem("Keyboard shortcuts");
-    shortcuts.addActionListener(e -> showShortcuts());
-    JMenuItem about = new JMenuItem("About");
-    about.addActionListener(e -> showAbout());
+    WindowMenus.addViewItems(view, uiState, menuActions());
     JMenu help = new JMenu("Help");
-    help.add(shortcuts);
-    help.add(about);
+    WindowMenus.addHelpItems(help, menuActions());
     JMenuBar bar = new JMenuBar();
     bar.add(view);
     bar.add(help);

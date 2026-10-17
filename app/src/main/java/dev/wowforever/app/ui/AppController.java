@@ -72,6 +72,8 @@ public final class AppController implements Navigator {
   private volatile ListOptions listOptions; // cached on the worker
   /** The last target other than a search shown, whose page a full layout's detail area shows under a search. */
   private ViewTarget lastPage;
+  /** The last status message the page on screen wrote ({@link #pageStatus}); null for none. */
+  private String pageMessage;
 
   /** One list to show: its title and rows; {@code page} is the row limit of the query, 0 for none. */
   private record Listing(String title, List<ListEntry> entries, int page) {
@@ -307,12 +309,16 @@ public final class AppController implements Navigator {
   private void showEntity(EntityRef ref) {
     int generation = ++detailGeneration;
     leaveListPage();
+    if (pageMessage != null && pageMessage.equals(view.status().message())) {
+      view.status().setMessage("Ready"); // the page left said it ("Loading pins…"); it no longer applies
+    }
+    pageMessage = null;
     view.setTitleSuffix(ref.kind().label() + " #" + ref.id());
     Async.run(worker, () -> DetailPanels.load(ref, repos), detail -> {
       if (generation == detailGeneration) {
         if (detail.isPresent()) {
-          view.setDetail(DetailPanels.render(detail.get(), repos, this, worker, pageStatus, view.sourceFilter(),
-              view.questPins()));
+          view.setDetail(DetailPanels.render(detail.get(), repos, this, worker, pageStatus(generation),
+              view.sourceFilter(), view.questPins()));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
         } else {
           view.setDetail(DetailPanels.notFound(ref));
@@ -424,18 +430,31 @@ public final class AppController implements Navigator {
     view.status().setMessage(n == 1 ? "1 result" : String.format(Locale.ROOT, "%,d results", n));
   }
 
-  /** What pages report once shown (a zone map loading pins): to the status bar, failures as {@link #fail}. */
-  private final StatusSink pageStatus = new StatusSink() {
-    @Override
-    public void message(String text) {
-      view.status().setMessage(text);
-    }
+  /**
+   * What the page of detail load {@code generation} reports once shown (a zone map loading pins): to the status bar,
+   * failures as {@link #fail}, while that page is the one on screen. A report that arrives after the user moved on
+   * (another page, a list, home) is dropped.
+   */
+  private StatusSink pageStatus(int generation) {
+    return new StatusSink() {
+      @Override
+      public void message(String text) {
+        if (generation == detailGeneration) {
+          pageMessage = text;
+          view.status().setMessage(text);
+        }
+      }
 
-    @Override
-    public void fail(Exception e) {
-      AppController.this.fail(e);
-    }
-  };
+      @Override
+      public void fail(Exception e) {
+        if (generation == detailGeneration) {
+          AppController.this.fail(e);
+        } else {
+          LOG.debug("A page no longer shown failed to load more", e);
+        }
+      }
+    };
+  }
 
   private void fail(Exception e) {
     LOG.warn("Loading failed", e);

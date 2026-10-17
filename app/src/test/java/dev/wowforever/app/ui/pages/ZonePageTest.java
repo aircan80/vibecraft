@@ -210,20 +210,26 @@ class ZonePageTest {
   }
 
   @Test
-  void togglesLoadOnTheWorkerAndDropStaleResults() {
+  void togglesLoadOnTheWorkerAndNeverRunAQueryAlreadyInFlight() {
     var pins = new FakePins();
     List<Runnable> queued = new ArrayList<>();
     var p = westfallPage(pins, queued::add, new ArrayList<>());
     p.mapPanel().allNpcsToggle().doClick();
-    p.mapPanel().objectsToggle().doClick();
+    p.mapPanel().objectsToggle().doClick(); // the NPCs still in flight: the second load asks for the objects only
+    p.mapPanel().allNpcsToggle().doClick(); // off and on again: nothing more to load
+    p.mapPanel().bossesToggle().doClick();
+    p.mapPanel().allNpcsToggle().doClick();
     assertThat(pins.calls).as("nothing runs on the calling thread").isEmpty();
     assertThat(queued).hasSize(2);
     assertThat(p.mapPanel().mapView().pins()).hasSize(3);
-    queued.get(0).run(); // superseded by the second load: dropped
-    assertThat(p.mapPanel().mapView().pins()).hasSize(3);
-    queued.get(1).run(); // loads both what the first would have and the objects
-    assertThat(pins.calls).containsExactly("npcs 40 false", "npcs 40 false", "objects 40");
+    queued.get(1).run(); // the newer load finishes first
+    assertThat(p.mapPanel().mapView().visiblePins()).extracting(Pin::name).contains("Chest").doesNotContain("Thor");
+    assertThat(status.messages).as("the NPCs still loading").containsExactly(ZoneMapPanel.LOADING,
+        ZoneMapPanel.LOADING);
+    queued.get(0).run(); // the older one still counts
+    assertThat(pins.calls).containsExactly("objects 40", "npcs 40 false");
     assertThat(p.mapPanel().mapView().visiblePins()).extracting(Pin::name).contains("Thor", "Chest");
+    assertThat(status.messages).last().isEqualTo("5 pins on the map");
   }
 
   @Test
@@ -303,12 +309,14 @@ class ZonePageTest {
     panel.allNpcsToggle().doClick();
     panel.objectsToggle().doClick(); // the NPCs still loading: one load of both
     panel.questsToggle().doClick(); // and then of all three
-    assertThat(queued).hasSize(3);
-    queued.remove(0).run(); // superseded: dropped, failure and all
+    assertThat(queued).as("one load per toggle, none repeated").hasSize(3);
+    queued.remove(2).run(); // the quests fail first
+    assertThat(panel.questsToggle().isSelected()).isFalse();
+    assertThat(panel.objectsToggle().isSelected()).as("still loading").isTrue();
     queued.remove(0).run();
-    assertThat(status.failures).isEmpty();
     queued.remove(0).run();
-    assertThat(status.failures).singleElement().satisfies(e -> assertThat(e).hasMessage("database is locked"));
+    assertThat(status.failures).extracting(Exception::getMessage)
+        .containsExactly("no quests", "database is locked", "no objects");
     assertThat(panel.bossesToggle().isSelected()).isTrue();
     assertThat(panel.allNpcsToggle().isSelected()).isFalse();
     assertThat(panel.objectsToggle().isSelected()).isFalse();
@@ -362,6 +370,20 @@ class ZonePageTest {
     assertThat(next.questsToggle().isSelected()).isTrue();
     assertThat(pins.calls).containsExactly("quests 40", "npcs 40 false", "quests 40");
     assertThat(next.mapView().pins()).filteredOn(pin -> pin.kind().quest()).hasSize(3);
+  }
+
+  @Test
+  void openingAMapWithQuestsOnLoadsThemWithoutWritingTheSetting() {
+    var pins = new FakePins();
+    List<Boolean> writes = new ArrayList<>();
+    BooleanSetting questsShown = BooleanSetting.of(() -> true, writes::add);
+    var panel = new ZoneMapPanel(40, westfallMap, spawnZones.npcSpawnsInZone(40, true), pins, Runnable::run, status,
+        t -> {}, questsShown);
+    assertThat(panel.questsToggle().isSelected()).isTrue();
+    assertThat(pins.calls).containsExactly("quests 40");
+    assertThat(writes).as("opening a page is not a change").isEmpty();
+    panel.questsToggle().doClick();
+    assertThat(writes).containsExactly(false);
   }
 
   @Test

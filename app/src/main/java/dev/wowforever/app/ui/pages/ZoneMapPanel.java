@@ -16,6 +16,7 @@ import java.awt.FlowLayout;
 import java.awt.event.HierarchyEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -35,8 +36,10 @@ import javax.swing.JToggleButton;
  * The zone page's map: toggles over a {@link MapView} of the zone. The map pins the zone's bosses and rares, loaded
  * with the page. "All NPCs" (paired with "Bosses & rares"), "Objects" and "Quests" (the quest givers, off unless
  * its remembered setting is on) load their pins on the worker the first time they are asked for, showing
- * {@code "Loading pins…"} meanwhile; a newer load drops an older one still in flight. A load that fails is reported
- * to the {@link StatusSink} and its toggle goes back to what the map shows. In the compact window the toggles
+ * {@code "Loading pins…"} meanwhile. Pins already loading are not asked for again: a toggle changed while a load is
+ * in flight loads only what is neither loaded nor loading, and every load's pins are kept when it finishes; the pin
+ * count is reported once nothing is loading any more. A load that fails is reported to the {@link StatusSink} and
+ * its toggles go back to what the map shows. In the compact window the toggles
  * collapse into a "Pins ▾" menu.
  */
 public final class ZoneMapPanel extends JPanel {
@@ -81,6 +84,9 @@ public final class ZoneMapPanel extends JPanel {
    */
   private record LoadedPins(List<Pin> npcs, List<Pin> objects, List<Pin> quests) {}
 
+  /** The pins a toggle loads: every NPC, the objects, the quest givers. */
+  private enum PinLoad { NPCS, OBJECTS, QUESTS }
+
   private final long zoneId;
   private final PinSource pinSource;
   private final Executor worker;
@@ -97,7 +103,8 @@ public final class ZoneMapPanel extends JPanel {
   private List<Pin> allNpcPins;
   private List<Pin> objectPins;
   private List<Pin> questPins;
-  private int pinGeneration;
+  /** The pin kinds a load in flight is bringing; never asked for again meanwhile. */
+  private final EnumSet<PinLoad> loading = EnumSet.noneOf(PinLoad.class);
   /** While a failed load puts its toggles back: their changes load nothing. */
   private boolean reverting;
 
@@ -143,6 +150,8 @@ public final class ZoneMapPanel extends JPanel {
         pinsMenu.show(pinsMenuButton, 0, pinsMenuButton.getHeight());
       }
     });
+    // set before its listener: opening a page is not a change to save (the quest pins load below)
+    questsToggle.setSelected(questsShown.isOn());
     // one of the pair always changes when the selection moves between them
     allNpcsToggle.addItemListener(e -> pinsChanged());
     objectsToggle.addItemListener(e -> pinsChanged());
@@ -168,8 +177,8 @@ public final class ZoneMapPanel extends JPanel {
       }
     });
     showPins();
-    if (questsShown.isOn()) {
-      questsToggle.setSelected(true);
+    if (questsToggle.isSelected()) {
+      pinsChanged();
     }
   }
 
@@ -187,59 +196,69 @@ public final class ZoneMapPanel extends JPanel {
     return givers.stream().map(Pin::of).toList();
   }
 
-  /** Shows the pins the toggles ask for, loading on the worker those not loaded yet. */
+  /** Shows the pins the toggles ask for, loading on the worker those neither loaded nor loading yet. */
   private void pinsChanged() {
     if (reverting) {
       return;
     }
-    boolean needNpcs = allNpcsToggle.isSelected() && allNpcPins == null;
-    boolean needObjects = objectsToggle.isSelected() && objectPins == null;
-    boolean needQuests = questsToggle.isSelected() && questPins == null;
+    boolean needNpcs = allNpcsToggle.isSelected() && allNpcPins == null && !loading.contains(PinLoad.NPCS);
+    boolean needObjects = objectsToggle.isSelected() && objectPins == null && !loading.contains(PinLoad.OBJECTS);
+    boolean needQuests = questsToggle.isSelected() && questPins == null && !loading.contains(PinLoad.QUESTS);
     showPins();
     if (!needNpcs && !needObjects && !needQuests) {
       return;
     }
-    int generation = ++pinGeneration;
+    EnumSet<PinLoad> load = EnumSet.noneOf(PinLoad.class);
+    if (needNpcs) {
+      load.add(PinLoad.NPCS);
+    }
+    if (needObjects) {
+      load.add(PinLoad.OBJECTS);
+    }
+    if (needQuests) {
+      load.add(PinLoad.QUESTS);
+    }
+    loading.addAll(load);
     status.message(LOADING);
     Async.run(worker, () -> new LoadedPins(needNpcs ? pins(pinSource.npcs(zoneId, false)) : null,
         needObjects ? pins(pinSource.objects(zoneId)) : null,
         needQuests ? questPins(pinSource.questPins(zoneId)) : null), loaded -> {
-          if (generation == pinGeneration) {
-            if (loaded.npcs() != null) {
-              allNpcPins = loaded.npcs();
-            }
-            if (loaded.objects() != null) {
-              objectPins = loaded.objects();
-            }
-            if (loaded.quests() != null) {
-              questPins = loaded.quests();
-            }
-            showPins();
+          loading.removeAll(load);
+          if (loaded.npcs() != null) {
+            allNpcPins = loaded.npcs();
+          }
+          if (loaded.objects() != null) {
+            objectPins = loaded.objects();
+          }
+          if (loaded.quests() != null) {
+            questPins = loaded.quests();
+          }
+          showPins();
+          if (loading.isEmpty()) {
             int n = mapView.visiblePins().size();
             status.message(n == 1 ? "1 pin on the map" : String.format(Locale.ROOT, "%,d pins on the map", n));
           }
         }, e -> {
-          if (generation == pinGeneration) {
-            // back to what the map shows: those pins did not load (asking again retries). Objects and Quests go
-            // off before the bosses come back, and none of the changes loads anything, so a combined load leaves
-            // no stray one
-            reverting = true;
-            try {
-              if (needObjects) {
-                objectsToggle.setSelected(false);
-              }
-              if (needQuests) {
-                questsToggle.setSelected(false);
-              }
-              if (needNpcs) {
-                bossesToggle.setSelected(true);
-              }
-            } finally {
-              reverting = false;
+          loading.removeAll(load);
+          // back to what the map shows: those pins did not load (asking again retries). Objects and Quests go off
+          // before the bosses come back, and none of the changes loads anything, so a combined load leaves no stray
+          // one
+          reverting = true;
+          try {
+            if (needObjects) {
+              objectsToggle.setSelected(false);
             }
-            showPins();
-            status.fail(e);
+            if (needQuests) {
+              questsToggle.setSelected(false);
+            }
+            if (needNpcs) {
+              bossesToggle.setSelected(true);
+            }
+          } finally {
+            reverting = false;
           }
+          showPins();
+          status.fail(e);
         });
   }
 

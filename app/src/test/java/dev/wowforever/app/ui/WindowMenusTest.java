@@ -10,12 +10,15 @@ import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.pages.NpcPage;
 import dev.wowforever.app.ui.pages.ZonePage;
+import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
+import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -97,6 +100,42 @@ class WindowMenusTest {
     assertThat(new UiState(node).questPinsShown()).as("saved").isTrue();
     c.open(new ViewTarget.Entity(new EntityRef(ZONE, 40)));
     assertThat(((ZonePage) view.detail).mapPanel().questsToggle().isSelected()).isTrue();
+  }
+
+  private static List<String> texts(JComponent menu) {
+    List<String> out = new ArrayList<>();
+    for (Component c : menu instanceof JMenu m ? m.getMenuComponents() : menu.getComponents()) {
+      out.add(c instanceof JMenuItem i ? i.getText() : "---");
+    }
+    return out;
+  }
+
+  @Test
+  void bothLayoutsGetTheSameViewAndHelpItemsFromOneBuilder() {
+    List<String> calls = new ArrayList<>();
+    boolean[] dark = {true};
+    WindowMenus.Actions actions = new WindowMenus.Actions(() -> dark[0], () -> calls.add("theme"),
+        () -> calls.add("rerender"), () -> calls.add("shortcuts"), () -> calls.add("about"));
+    JMenu view = new JMenu("View");
+    WindowMenus.addViewItems(view, state, actions);
+    JMenu help = new JMenu("Help");
+    WindowMenus.addHelpItems(help, actions);
+    JPopupMenu compact = new JPopupMenu();
+    WindowMenus.addViewItems(compact, state, actions);
+    WindowMenus.addHelpItems(compact, actions);
+    assertThat(texts(view)).containsExactly("Dark theme", "Drop sources");
+    assertThat(texts(help)).containsExactly("Keyboard shortcuts", "About");
+    assertThat(texts(compact)).containsExactly("Dark theme", "Drop sources", "---", "Keyboard shortcuts", "About");
+
+    JMenuItem darkItem = (JMenuItem) compact.getComponent(0);
+    assertThat(darkItem.isSelected()).isTrue();
+    dark[0] = false; // the other layout switched the theme
+    assertThat(darkItem.isSelected()).as("read live, no refresh needed").isFalse();
+    darkItem.doClick();
+    item(help, "Keyboard shortcuts").doClick();
+    item(help, "About").doClick();
+    item((JMenu) compact.getComponent(1), "Hide Questie-only rows").doClick();
+    assertThat(calls).containsExactly("theme", "shortcuts", "about", "rerender");
   }
 
   @Test
