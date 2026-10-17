@@ -13,6 +13,8 @@ import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
+import dev.wowforever.app.ui.GameLinks;
+import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.DropRow;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
@@ -39,6 +41,7 @@ import java.util.stream.Stream;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
+import javax.swing.JButton;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.table.TableColumn;
@@ -74,6 +77,7 @@ public final class ItemPage extends SourcesPage {
   private static final String SOURCE = "Source";
   private final ItemCardPanel card;
   private final HeaderPanel header;
+  private final JButton copyInGameLink = new JButton("Copy in-game link");
   private final LinkTable<DropRow> droppedBy;
 
   /** The page of {@code d} without its icon (the card shows an empty one). */
@@ -122,6 +126,12 @@ public final class ItemPage extends SourcesPage {
   public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
       Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
       QuestInvolvement.Result involvement, Navigator nav) {
+    this(all, icon, rateSources, bossNpcs, filter, onFilterChange, involvement, nav, ClipboardPort.system());
+  }
+
+  public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
+      QuestInvolvement.Result involvement, Navigator nav, ClipboardPort clipboard) {
     super(nav);
     SourceFilters.Filtered<DropSource> drops = SourceFilters.apply(all.droppedBy(), DropSource::origin, filter);
     ItemDetail d = new ItemDetail(all.summary(), all.classId(), all.subclassId(), all.startQuestId(), drops.rows(),
@@ -130,6 +140,9 @@ public final class ItemPage extends SourcesPage {
     long itemId = all.summary().id();
     header = ItemHeader.of(d, nav);
     header.setFacts(ItemSummaryLine.of(d, involvement));
+    copyInGameLink.addActionListener(e -> clipboard.copy(GameLinks.item(itemId, d.summary().displayName())));
+    copyInGameLink.setAlignmentX(LEFT_ALIGNMENT);
+    header.add(copyInGameLink);
     if (d.card().lines().isEmpty()) {
       card = null;
       header.setNote(STATS_HIDDEN);
@@ -215,6 +228,8 @@ public final class ItemPage extends SourcesPage {
     TableColumnModel columns = table.table().getColumnModel();
     return columns.getColumn(columns.getColumnIndex(title));
   }
+
+  public JButton copyInGameLinkButton() { return copyInGameLink; }
 
   public HeaderPanel header() {
     return header;

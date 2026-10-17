@@ -101,6 +101,16 @@ class ItemPageTest {
   }
 
   @Test
+  void copyInGameLinkUsesClipboard() {
+    var detail = repos.items().detail(19019).orElseThrow();
+    List<String> copied = new ArrayList<>();
+    var page = new ItemPage(detail, null, Map.of(), java.util.Set.of(), SourceFilter.ALL, f -> {},
+        dev.wowforever.app.model.QuestInvolvement.fromRelated(detail.relatedQuests()), t -> {}, copied::add);
+    page.copyInGameLinkButton().doClick();
+    assertThat(copied).containsExactly(dev.wowforever.app.ui.GameLinks.item(19019, detail.summary().displayName()));
+  }
+
+  @Test
   void questsSectionUsesCollectRoleAndIncludesObjectiveInFacts() {
     var row = new dev.wowforever.app.model.QuestInvolvement(
         new dev.wowforever.app.model.QuestSummary(176, "Wanted: Hogger", 11, 10, "Elwynn Forest"),

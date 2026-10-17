@@ -368,6 +368,31 @@ class SearchBarTest {
   }
 
   @Test
+  void windowEscapeClosesDropdownThenPageFilterThenSearch() {
+    class FilteredPage extends javax.swing.JPanel implements dev.wowforever.app.ui.pages.PageEscape {
+      boolean focused = true;
+      public boolean escape() {
+        if (!focused) return false;
+        focused = false;
+        return true;
+      }
+    }
+    FilteredPage page = new FilteredPage();
+    attachInline();
+    typeAndWait("hog");
+    assertThat(MainFrame.escapeContent(bar, page)).isTrue();
+    assertThat(dropdown.isShowing()).isFalse();
+    assertThat(page.focused).isTrue();
+    assertThat(bar.textField().getText()).isEqualTo("hog");
+    assertThat(MainFrame.escapeContent(bar, page)).isTrue();
+    assertThat(page.focused).isFalse();
+    assertThat(bar.textField().getText()).isEqualTo("hog");
+    assertThat(MainFrame.escapeContent(bar, page)).isTrue();
+    assertThat(bar.textField().getText()).isEmpty();
+    assertThat(MainFrame.escapeContent(bar, page)).isFalse();
+  }
+
+  @Test
   void escapeChainClosesTheDropdownThenClearsTheTextThenPassesOn() {
     state.addRecentSearch("deadmines");
     attachInline();

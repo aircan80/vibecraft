@@ -256,11 +256,14 @@ public final class SearchBar extends JPanel {
    * false when neither applied, so the window moves the focus on to the list. Either step drops the pending and
    * running lookups, and clearing does not show the recent searches, so one Esc never undoes another.
    */
+  public boolean dismissDropdown() {
+    if (!dropdown.isShowing()) return false;
+    stop();
+    return true;
+  }
+
   public boolean escape() {
-    if (dropdown.isShowing()) {
-      stop();
-      return true;
-    }
+    if (dismissDropdown()) return true;
     if (!text.getText().isEmpty()) {
       setTextQuietly("");
       stop();

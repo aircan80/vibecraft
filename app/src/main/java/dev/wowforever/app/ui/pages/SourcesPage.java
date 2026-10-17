@@ -246,7 +246,7 @@ abstract class SourcesPage extends JPanel implements PageState {
       section.setCollapsed(false);
       content.validate();
     }
-    content.scrollRectToVisible(new Rectangle(0, section.getY(), 1, scroll.getViewport().getHeight()));
+    content.scrollRectToVisible(new Rectangle(0, SwingUtilities.convertPoint(section, 0, 0, content).y, 1, scroll.getViewport().getHeight()));
     JTable table = section.table().table();
     if (table.getSelectedRow() < 0 && table.getRowCount() > 0) {
       table.changeSelection(0, 0, false, false);

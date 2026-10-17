@@ -374,7 +374,9 @@ public final class MainFrame extends JFrame implements MainView {
    * if an opened result collapsed it (in the compact layout, the page's first table or list).
    */
   private void escape() {
-    if (!searchBar.escape()) {
+    JComponent page = detailHolder.getComponentCount() > 0 && detailHolder.getComponent(0) instanceof JComponent c
+        ? c : null;
+    if (!escapeContent(searchBar, page)) {
       if (!layout.isCompact()) {
         revealList(content); // a list collapsed by an opened result comes back for Esc, unpinned
       }
@@ -383,6 +385,13 @@ public final class MainFrame extends JFrame implements MainView {
         target.requestFocusInWindow();
       }
     }
+  }
+
+  /** Headless seam for the real dropdown → page filter → search Escape order. */
+  static boolean escapeContent(SearchBar search, JComponent page) {
+    if (search.dismissDropdown()) return true;
+    if (page instanceof dev.wowforever.app.ui.pages.PageEscape local && local.escape()) return true;
+    return search.escape();
   }
 
   /** F10: the other layout ({@link LayoutSwitch#toggle}). */

@@ -29,9 +29,10 @@ import javax.swing.JPanel;
 import javax.swing.JTextArea;
 
 /** Quest facts, chain navigation and a shared map, rendered entirely from loaded records. */
-public final class QuestPage extends SourcesPage {
+public final class QuestPage extends SourcesPage implements PageEscape {
   public static final int SIDE_BY_SIDE_PX = 900;
   private final HeaderPanel header;
+  private final javax.swing.JButton copyInGameLink = new javax.swing.JButton("Copy in-game link");
   private final ChainStepper stepper;
   private final QuestMapPanel mapPanel;
   private final JPanel objectivesPanel = new JPanel(new BorderLayout());
@@ -50,6 +51,11 @@ public final class QuestPage extends SourcesPage {
       Navigator nav, ClipboardPort clipboard) {
     super(nav);
     header = QuestHeader.create(data, nav);
+    var summary = data.detail().summary();
+    copyInGameLink.addActionListener(e -> clipboard.copy(dev.wowforever.app.ui.GameLinks.quest(summary.id(),
+        summary.questLevel() == null ? 0 : summary.questLevel(), summary.displayName())));
+    copyInGameLink.setAlignmentX(LEFT_ALIGNMENT);
+    header.add(copyInGameLink);
     stepper = new ChainStepper(data.chain(), nav);
     chainPanel = new ChainPanel(data.chain(), nav);
     mapPanel = new QuestMapPanel(data, maps, zoneNames, nav, clipboard);
@@ -98,6 +104,7 @@ public final class QuestPage extends SourcesPage {
       related.setCollapsed(true);
     }
     bindJumpKeys();
+    installPageKeys(() -> java.awt.KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner());
   }
 
   /** Convenience for callers holding only old-style detail data, without locations or a chain. */
@@ -151,6 +158,49 @@ public final class QuestPage extends SourcesPage {
   }
 
   public ObjectivesPanel objectiveRows() { return objectiveRows; }
+  /** Installs the real page handlers with a focus-owner seam for headless keyboard checks. */
+  public void installPageKeys(java.util.function.Supplier<java.awt.Component> focusOwner) {
+    java.util.Map<String, Runnable> handlers = new java.util.HashMap<>();
+    handlers.put("g", () -> jumpSection("Given by"));
+    handlers.put("t", () -> jumpSection("Turned in to"));
+    handlers.put("o", () -> jumpSection("Objectives"));
+    handlers.put("m", () -> jumpComponent(mapPanel));
+    handlers.put("c", () -> {
+      if (chainPanel.isCollapsed()) chainPanel.heading().doClick();
+      jumpSection("Quest chain");
+    });
+    handlers.put("r", () -> jumpSection("Rewards"));
+    for (int number = 1; number <= 9; number++) {
+      final int objective = number;
+      handlers.put(Integer.toString(number), () -> mapPanel.focus(objective));
+    }
+    handlers.put("[", chainPanel::previous);
+    handlers.put("]", chainPanel::next);
+    handlers.put("z", mapPanel::nextZone);
+    dev.wowforever.app.ui.KeyMap.installPageKeys(this, handlers, focusOwner);
+  }
+
+  private void jumpSection(String title) {
+    SourceSection target = section(title);
+    if (target == null || !target.isVisible()) return;
+    if (target.isCollapsed()) target.setCollapsed(false);
+    jumpComponent(target);
+  }
+
+  private void jumpComponent(javax.swing.JComponent component) {
+    java.awt.Point at = javax.swing.SwingUtilities.convertPoint(component, 0, 0, content);
+    content.scrollRectToVisible(new java.awt.Rectangle(0, at.y, 1, scrollPane().getViewport().getHeight()));
+  }
+
+  @Override
+  public boolean escape() {
+    if (!mapPanel.hasFocusFilter()) return false;
+    mapPanel.clearFocus();
+    return true;
+  }
+
+  public javax.swing.JButton copyInGameLinkButton() { return copyInGameLink; }
+
   public HeaderPanel header() { return header; }
   public ChainStepper stepper() { return stepper; }
   public QuestMapPanel mapPanel() { return mapPanel; }
