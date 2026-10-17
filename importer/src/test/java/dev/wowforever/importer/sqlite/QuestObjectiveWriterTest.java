@@ -143,8 +143,8 @@ class QuestObjectiveWriterTest {
             .isEqualTo(scalar(c, "select count(*) from quest_objective where kind = '" + kind + "'"));
       }
     }
-    // 452 (9) + 532 (2) + 5561 (3) + 9422 (1) creature rows
-    assertThat(report.get("quest.objective.kinds.creature")).isEqualTo(15);
+    // 452 (9) + 532 (2) + 4964 (1, its correction) + 5561 (3) + 9422 (1) creature rows
+    assertThat(report.get("quest.objective.kinds.creature")).isEqualTo(16);
     assertThat(report.counters()).containsEntry("quest.objective.unknownKind", 0L);
   }
 

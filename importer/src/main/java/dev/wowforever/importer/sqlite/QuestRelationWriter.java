@@ -16,6 +16,11 @@ import java.util.Set;
  * <p>A (related quest, kind) pair is written once per quest. A related quest absent from the quests being written is
  * still written and counted as {@code quest.relation.missing} (once per row). A scalar id of 0 is Questie's "none";
  * malformed values count {@code badValue.quest.<field>} through {@link LuaColumns}.
+ *
+ * <p>A negative prerequisite id is written as its absolute id. Questie's {@code QuestieDB:IsPreQuestGroupFulfilled}
+ * reads a negative preQuestGroup entry as "negative = completed required, exclusive alternative not accepted": a
+ * strict prerequisite on the absolute id. preQuestSingle has no negative handling in Questie; it gets the same
+ * treatment defensively.
  */
 final class QuestRelationWriter implements AutoCloseable {
   private static final String KIND = "quest";
@@ -45,7 +50,11 @@ final class QuestRelationWriter implements AutoCloseable {
   void write(long questId, RawEntity r) throws SQLException {
     Set<String> written = new HashSet<>();
     for (String[] list : LISTS) {
-      add(questId, r.ids(list[0]), list[1], written);
+      List<Long> ids = r.ids(list[0]);
+      if (list[1].startsWith("pre_")) {
+        ids = ids.stream().map(Math::abs).toList();
+      }
+      add(questId, ids, list[1], written);
     }
     for (String[] scalar : SCALARS) {
       Object v = r.scalar(scalar[0]);

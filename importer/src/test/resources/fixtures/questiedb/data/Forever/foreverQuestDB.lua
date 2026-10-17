@@ -65,6 +65,7 @@ QuestieDB.questData = [[return {
 [599] = {"The Bloodsail Buccaneers",{{2490}},{{2487}},37,41,0,nil,{"Report the planned Bloodsail attack to Fleet Master Seahorn."},nil,nil,nil,nil,{597},nil,nil,nil,33,nil,nil,nil,nil,604,8,nil,nil,{{21,25},{87,-25}}},
 [1136] = {"Frostmaw",{{3441}},{{3441}},26,37,8589934770,nil,{"Bring Frostmaw's Mane to Melor Stonehoof in Thunder Bluff."},nil,{nil,nil,{{5811}}},5838,nil,{1131},nil,nil,nil,1638,nil,nil,nil,{5810},nil,nil,nil,nil,{{81,500}}},
 [3644] = {"Membership Card Renewal",{{8126}},{{8126}},30,47,0,nil,nil,nil,nil,nil,nil,{3639},nil,nil,nil,-201,{202,200},nil,nil,nil,nil,8,1},
+[4964] = {"The Completed Orb of Dar'Orahil",{{6266}},{{6266}},35,40,0,256,{"Wait for Menara Voidrender to complete the Orb of Dar'Orahil and then speak to her again."},nil,nil,nil,nil,{4976},nil,nil,{4975},-61,nil,nil,nil,nil,nil,2},
 [5142] = {"Little Pamela",{{10927}},{{10926}},50,55,0,nil,{"Find Pamela Redpath."},nil,nil,nil,nil,nil,nil,nil,{5601},139,nil,nil,nil,nil,5149,8},
 [5149] = {"Pamela's Doll",{{10926}},{{10926}},50,55,0,nil,{"Find Pamela's doll."},nil,{nil,nil,{{12885}}},nil,nil,{5142,5601},nil,nil,nil,139,nil,nil,nil,{12886,12887,12888},nil,8},
 [5561] = {"Kodo Roundup",{{11596}},{{11596}},30,34,0,nil,{"Bring five Tamed Kodos and the Kodo Kombobulator back to Smeed Scrabblescrew at Scrabblescrew's Camp."},nil,{{{11627,"Kodos Tamed"}}},13892,nil,nil,nil,nil,nil,405,nil,nil,nil,nil,nil,nil,nil,nil,{{470,150}}},

@@ -20,8 +20,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * quest_relation from the fixture quests after every Forever correction layer. The rows 247, 595, 597, 599, 5142,
- * 5149 and 5601 and the classicQuestFixes entries of 5142, 5149 and 5601 are copied from QuestieDB 49e7dbca.
+ * quest_relation from the fixture quests after every Forever correction layer. The rows 247, 595, 597, 599, 4964,
+ * 5142, 5149 and 5601 and the classicQuestFixes entries of 4964, 5142, 5149 and 5601 are copied from QuestieDB
+ * 49e7dbca.
  */
 class QuestRelationWriterTest {
   @TempDir Path tmp;
@@ -56,8 +57,9 @@ class QuestRelationWriterTest {
       assertThat(scalar(c, "select count(*) from quest_relation where related_id not in (select id from quest)"))
           .isEqualTo(report.get("quest.relation.missing"));
     }
-    // 2: 6383, 23, 24; 136: 138; 247: 23, 24; 532: 529, 539; 599: 604; 960: 944; 1136: 1131; 3644: 3639, 3641, 3643
-    assertThat(report.get("quest.relation.missing")).isEqualTo(14);
+    // 2: 6383, 23, 24; 136: 138; 247: 23, 24; 532: 529, 539; 599: 604; 960: 944; 1136: 1131; 3644: 3639, 3641, 3643;
+    // 4964: 4976, 4962, 4963
+    assertThat(report.get("quest.relation.missing")).isEqualTo(17);
   }
 
   @Test
@@ -69,8 +71,8 @@ class QuestRelationWriterTest {
     try (Connection c = write(tables)) {
       assertThat(relations(c, 176)).containsExactly("exclusive:136", "pre_single:2", "pre_single:999");
     }
-    // the fixture's 14, plus 999 once
-    assertThat(report.get("quest.relation.missing")).isEqualTo(15);
+    // the fixture's 17, plus 999 once
+    assertThat(report.get("quest.relation.missing")).isEqualTo(18);
   }
 
   @Test
@@ -82,6 +84,23 @@ class QuestRelationWriterTest {
       // 5149: the correction sets breadcrumbs {5142, 5601} and empties the raw preQuestSingle {5142, 5601}
       assertThat(relations(c, 5149)).containsExactly("breadcrumb:5142", "breadcrumb:5601");
     }
+  }
+
+  @Test
+  void negativePrerequisiteIdsAreStrictPrerequisitesOfTheAbsoluteId() throws Exception {
+    Map<EntityKind, EntityTable> tables = corrected();
+    // a negative id and its absolute id in one list are one prerequisite
+    tables.get(EntityKind.QUEST).set(176, "preQuestSingle", table(LuaNumber.of(-136), LuaNumber.of(136)));
+    try (Connection c = write(tables)) {
+      // 4964 The Completed Orb of Dar'Orahil: the correction's preQuestGroup {4976, -4962}, exclusiveTo {4963}
+      assertThat(relations(c, 4964)).containsExactly("exclusive:4963", "pre_group:4962", "pre_group:4976");
+      assertThat(relations(c, 176)).containsExactly("pre_single:136");
+      assertThat(scalar(c, "select count(*) from quest_relation where related_id < 0")).isZero();
+      // 4962 is absent from the fixture: one missing row, counted once
+      assertThat(scalar(c, "select count(*) from quest_relation where related_id = 4962")).isEqualTo(1);
+    }
+    // the fixture's 17 (4962 among them); 136 is present
+    assertThat(report.get("quest.relation.missing")).isEqualTo(17);
   }
 
   @Test

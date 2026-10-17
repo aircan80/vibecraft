@@ -58,6 +58,12 @@ function QuestieQuestFixes:Load()
             [questKeys.preQuestSingle] = {3639, 3641, 3643},
             [questKeys.requiredSpecialization] = specKeys.ENGINEERING_GOBLIN,
         },
+        [4964] = { -- The Completed Orb of Dar'Orahil
+            [questKeys.objectives] = {{{6266, nil, Questie.ICON_TYPE_EVENT}}},
+            [questKeys.preQuestSingle] = {},
+            [questKeys.preQuestGroup] = {4976, -4962},
+            [questKeys.exclusiveTo] = {4963},
+        },
         [5142] = { -- Little Pamela
             [questKeys.breadcrumbForQuestId] = 5149,
         },
