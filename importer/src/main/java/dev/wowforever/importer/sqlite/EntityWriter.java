@@ -72,16 +72,28 @@ final class EntityWriter {
     }
   }
 
-  /** NPCs and their spawns; adds each spawn row's zone to {@code spawnZones} (zone id to row count). */
+  /**
+   * NPCs, their spawns and their patrol waypoints; adds each spawn row's zone to {@code spawnZones} (zone id to row
+   * count). Counts {@code npc.waypoints.npcs} (NPCs with at least one waypoint) and {@code npc.waypoints.points}.
+   */
   void npcs(EntityTable t, Map<Long, Long> spawnZones) throws SQLException {
+    report.count("npc.waypoints.npcs", 0);
+    report.count("npc.waypoints.points", 0);
     try (Batch npcs = new Batch(c, "INSERT INTO npc(id, name, sub_name, min_level, max_level, rank, zone_id,"
             + " faction_id, friendly_to, npc_flags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        Batch spawns = new Batch(c, "INSERT INTO npc_spawn(npc_id, zone_id, x, y) VALUES (?, ?, ?, ?)")) {
+        Batch spawns = new Batch(c, "INSERT INTO npc_spawn(npc_id, zone_id, x, y) VALUES (?, ?, ?, ?)");
+        Batch waypoints = new Batch(c, "INSERT INTO npc_waypoint(npc_id, zone_id, route, ordinal, x, y)"
+            + " VALUES (?, ?, ?, ?, ?, ?)")) {
       for (Map.Entry<Long, LuaValue[]> e : t.rows().entrySet()) {
         RawEntity r = row(t, e.getValue());
         npcs.add(e.getKey(), r.name(), r.string("subName"), r.scalar("minLevel"), r.scalar("maxLevel"),
             r.scalar("rank"), r.zone(), r.scalar("factionID"), r.string("friendlyToFaction"), r.scalar("npcFlags"));
         r.spawns(e.getKey(), spawns, spawnZones);
+        long points = r.waypoints(e.getKey(), waypoints);
+        if (points > 0) {
+          report.count("npc.waypoints.npcs", 1);
+          report.count("npc.waypoints.points", points);
+        }
       }
     }
   }

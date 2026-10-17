@@ -2,12 +2,16 @@ package dev.wowforever.app.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.model.Route;
+import dev.wowforever.app.model.Route.Point;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
 import dev.wowforever.app.model.ZoneSummary;
+import java.nio.file.Path;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(FixtureDb.class)
 class ZoneRepositoryTest {
@@ -64,5 +68,31 @@ class ZoneRepositoryTest {
     assertThat(repos.zones().map(2437)).isEmpty();
     assertThat(repos.zones().detail(2437).get().map()).isEmpty();
     assertThat(repos.zones().map(-1)).isEmpty();
+  }
+
+  @Test
+  void routesInZoneHoldTheDefiasMessengersPatrol() {
+    assertThat(repos.zones().routesInZone(40)).singleElement().satisfies(r -> {
+      assertThat(r.npcId()).isEqualTo(550);
+      assertThat(r.points()).hasSize(171);
+    });
+    assertThat(repos.zones().routesInZone(12)).isEmpty();
+  }
+
+  @Test
+  void routesInZoneAreEveryNpcsRoutesByNpcRouteAndOrdinal(@TempDir Path dir) throws Exception {
+    try (SchemaDb schema = SchemaDb.create(dir)) {
+      NpcRepositoryTest.waypoint(schema, 9, 12, 1, 2, 2, 2);
+      NpcRepositoryTest.waypoint(schema, 9, 12, 1, 1, 1, 1);
+      NpcRepositoryTest.waypoint(schema, 3, 12, 2, 1, 7, 7);
+      NpcRepositoryTest.waypoint(schema, 3, 12, 1, 1, 6, 6);
+      NpcRepositoryTest.waypoint(schema, 3, 40, 1, 1, 8, 8);
+      try (Database db = schema.open()) {
+        assertThat(new ZoneRepository(db).routesInZone(12)).containsExactly(
+            new Route(3, 12, 1, List.of(new Point(6, 6)), false),
+            new Route(3, 12, 2, List.of(new Point(7, 7)), false),
+            new Route(9, 12, 1, List.of(new Point(1, 1), new Point(2, 2)), false));
+      }
+    }
   }
 }

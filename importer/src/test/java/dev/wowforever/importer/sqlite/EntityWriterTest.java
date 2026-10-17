@@ -10,6 +10,8 @@ import dev.wowforever.importer.entity.EntityTable;
 import dev.wowforever.importer.report.ImportReport;
 import dev.wowforever.lua.LuaNumber;
 import dev.wowforever.lua.LuaString;
+import dev.wowforever.lua.LuaTable;
+import dev.wowforever.lua.LuaValue;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -17,7 +19,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** The schema v3 quest columns from the fixture quests after every Forever correction layer. */
+/** The schema v3 quest columns and the NPC waypoints from the fixture entities after every Forever correction layer. */
 class EntityWriterTest {
   @TempDir Path tmp;
   private final ImportReport report = new ImportReport();
@@ -48,6 +50,56 @@ class EntityWriterTest {
     }
     assertThat(report.get("badValue.quest.requiredSkill")).isEqualTo(1);
     assertThat(report.get("badValue.quest.requiredMinRep")).isEqualTo(1);
+  }
+
+  @Test
+  void waypointsAreWrittenInOrder() throws Exception {
+    Map<EntityKind, EntityTable> tables = corrected();
+    EntityTable npcs = tables.get(EntityKind.NPC);
+    // Hogger: two routes in zone 12 and one in zone 40
+    npcs.set(448, "waypoints", zones(12, table(route(1, 2, 3, 4), route(5, 6)), 40, table(route(7, 8))));
+    // Gobbler: one good point; a string point, a point without y, a non-table route and a non-table zone are bad
+    LuaTable broken = table(table(xy(1, 1), new LuaString("x"), table(LuaNumber.of(2))), LuaNumber.of(7));
+    npcs.set(1259, "waypoints", zones(11, broken, 13, LuaNumber.of(5)));
+    try (Connection c = QuestFixture.write(tmp, tables, report)) {
+      // 550 Defias Messenger: one Westfall route of 171 points, verbatim from Questie, in Questie's order
+      assertThat(column(c, "select zone_id || ':' || route || ':' || count(*) || ':' || min(ordinal) || ':'"
+          + " || max(ordinal) from npc_waypoint where npc_id = 550 group by zone_id, route"))
+          .containsExactly("40:1:171:1:171");
+      assertThat(column(c, "select x || ',' || y from npc_waypoint where npc_id = 550 and ordinal in (1, 2, 171)"
+          + " order by ordinal")).containsExactly("45.1,69.33", "45.59,68.72", "44.48,69.61");
+      assertThat(column(c, "select zone_id || ':' || route || ':' || ordinal || ':' || x || ',' || y"
+          + " from npc_waypoint where npc_id = 448 order by zone_id, route, ordinal"))
+          .containsExactly("12:1:1:1.0,2.0", "12:1:2:3.0,4.0", "12:2:1:5.0,6.0", "40:1:1:7.0,8.0");
+      assertThat(column(c, "select zone_id || ':' || route || ':' || ordinal || ':' || x || ',' || y"
+          + " from npc_waypoint where npc_id = 1259")).containsExactly("11:1:1:1.0,1.0");
+      assertThat(column(c, "select distinct npc_id from npc_waypoint order by npc_id"))
+          .containsExactly("448", "550", "1259");
+    }
+    assertThat(report.get("npc.waypoints.npcs")).isEqualTo(3);
+    assertThat(report.get("npc.waypoints.points")).isEqualTo(171 + 4 + 1);
+    assertThat(report.get("badValue.npc.waypoints")).isEqualTo(4);
+  }
+
+  /** {@code {[zoneA] = a, [zoneB] = b}}. */
+  private static LuaTable zones(long zoneA, LuaValue a, long zoneB, LuaValue b) {
+    LuaTable t = new LuaTable();
+    t.put(LuaNumber.of(zoneA), a);
+    t.put(LuaNumber.of(zoneB), b);
+    return t;
+  }
+
+  /** A route of {@code {x, y}} points from the coordinate pairs. */
+  private static LuaTable route(double... coords) {
+    LuaValue[] points = new LuaValue[coords.length / 2];
+    for (int i = 0; i < points.length; i++) {
+      points[i] = xy(coords[2 * i], coords[2 * i + 1]);
+    }
+    return table(points);
+  }
+
+  private static LuaTable xy(double x, double y) {
+    return table(new LuaNumber(x), new LuaNumber(y));
   }
 
   /** {@code repeatable:skill:skillValue:repFaction:repValue:zoneOrSort:sortLabel}. */

@@ -146,7 +146,7 @@ class MainTest {
   @Test
   void missingFieldsAndUnresolvedUiFieldsCountAsUnsupported() {
     ImportReport r = new ImportReport();
-    r.count("unresolved.npc.waypoints", 4); // not shown in the UI
+    r.count("unresolved.npc.minLevelHealth", 4); // not shown in the UI
     r.count("missingField.item.name", 0);
     assertThat(Main.unsupportedCounters(r)).isZero();
     r.count("missingField.item.someRenamedField", 1);

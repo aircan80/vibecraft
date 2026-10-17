@@ -134,7 +134,8 @@ class CorrectionApplierTest {
     EntityTable npcs = tableWith(EntityKind.NPC, 448);
     apply(npcs, "{ [448] = { [npcKeys.waypoints_add] = {[12] = {{{1,2}}}} } }", "x");
     assertThat(report.skips()).extracting(Skip::reason).containsExactly("unsupported op on shape WAYPOINTLIST");
-    assertThat(report.skipsOnUiFields()).isZero();
+    // waypoints are a UI field since phase 3A (patrol routes), so the lost add-op fails the strict gate
+    assertThat(report.skipsOnUiFields()).isEqualTo(1);
   }
 
   @Test

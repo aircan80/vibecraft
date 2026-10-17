@@ -89,7 +89,7 @@ class ImportReportTest {
     r.skip(new Skip("l", ITEM, 1, "flags", "x"));
     r.skip(new Skip("l", QUEST, 0, "<id>", "x"));
     r.skip(new Skip("l", OBJECT, 0, "<layer>", "x"));
-    r.skip(new Skip("l", NPC, 1, "waypoints", "x"));
+    r.skip(new Skip("l", NPC, 1, "minLevelHealth", "x"));
     assertThat(r.skipsOnUiFields()).isEqualTo(3);
   }
 
@@ -98,7 +98,9 @@ class ImportReportTest {
     assertThat(UiFields.isUiField(ITEM, "startQuest")).isTrue();
     assertThat(UiFields.isUiField(ITEM, "teachesSpell")).isFalse();
     assertThat(UiFields.isUiField(NPC, "npcFlags")).isTrue();
-    assertThat(UiFields.isUiField(NPC, "waypoints")).isFalse();
+    assertThat(UiFields.isUiField(NPC, "minLevelHealth")).isFalse();
+    // phase 3A: patrol routes are drawn on the NPC and zone maps
+    assertThat(UiFields.isUiField(NPC, "waypoints")).isTrue();
     assertThat(UiFields.isUiField(OBJECT, "questEnds")).isTrue();
     assertThat(UiFields.isUiField(OBJECT, "factionID")).isFalse();
     assertThat(UiFields.isUiField(QUEST, "objectivesText")).isTrue();

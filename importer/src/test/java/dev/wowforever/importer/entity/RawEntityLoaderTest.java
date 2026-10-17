@@ -60,7 +60,7 @@ class RawEntityLoaderTest {
     assertThat(problems.problems()).isEmpty();
     assertThat(items.rows().keySet()).containsExactly(25L, 730L, 2874L, 5191L, 14145L, 14148L, 14149L, 16800L, 17204L, 19019L,
         19682L);
-    assertThat(npcs.rows().keySet()).containsExactly(448L, 639L, 1259L, 11502L, 11518L, 11520L, 12118L);
+    assertThat(npcs.rows().keySet()).containsExactly(448L, 550L, 639L, 1259L, 11502L, 11518L, 11520L, 12118L);
     assertThat(objects.size()).isEqualTo(2);
     assertThat(quests.get(2, "name")).isEqualTo(new LuaString("Sharptalon's Claw"));
     assertThat(npcs.contains(185333)).isFalse();

@@ -295,6 +295,19 @@ CREATE TABLE npc_spawn (
   y       REAL
 );
 
+-- NPC patrol routes (phase 3A, additive to schema v3): Questie npcKeys.waypoints {[zoneId] = {route, ...}}, each
+-- route an ordered list of {x, y}; route is the 1-based list index within the zone, ordinal the 1-based point index.
+-- Questie records no despawn points.
+CREATE TABLE npc_waypoint (
+  npc_id  INTEGER NOT NULL,
+  zone_id INTEGER NOT NULL,
+  route   INTEGER NOT NULL,
+  ordinal INTEGER NOT NULL,
+  x       REAL,
+  y       REAL,
+  PRIMARY KEY (npc_id, zone_id, route, ordinal)
+);
+
 CREATE TABLE object_spawn (
   object_id INTEGER NOT NULL,
   zone_id   INTEGER NOT NULL,
@@ -351,6 +364,7 @@ CREATE INDEX idx_quest_reward_item_item ON quest_reward_item(item_id);
 CREATE INDEX idx_item_related_quest_quest ON item_related_quest(quest_id);
 CREATE INDEX idx_npc_spawn_npc ON npc_spawn(npc_id);
 CREATE INDEX idx_npc_spawn_zone ON npc_spawn(zone_id);
+CREATE INDEX idx_npc_waypoint_zone ON npc_waypoint(zone_id);
 CREATE INDEX idx_object_spawn_object ON object_spawn(object_id);
 CREATE INDEX idx_object_spawn_zone ON object_spawn(zone_id);
 CREATE INDEX idx_npc_zone ON npc(zone_id);

@@ -197,4 +197,44 @@ final class RawEntity {
       }
     }
   }
+
+  /**
+   * {@code {[zoneId] = {{{x, y}, ...}, ...}}} (per zone a list of routes, each an ordered list of points) to
+   * npc_waypoint rows: {@code route} is the route's 1-based index within its zone, {@code ordinal} the point's
+   * 1-based index within its route. A malformed zone, route or point is counted {@code badValue.<kind>.waypoints}
+   * and skipped. Returns the rows written.
+   */
+  long waypoints(long id, Batch waypoints) throws SQLException {
+    LuaTable byZone = columns.table(kind, "waypoints", raw("waypoints")).orElse(null);
+    if (byZone == null) {
+      return 0;
+    }
+    long written = 0;
+    for (Map.Entry<LuaValue, LuaValue> zone : byZone.entries()) {
+      if (!(zone.getKey() instanceof LuaNumber z && z.isInteger() && zone.getValue() instanceof LuaTable routes)) {
+        columns.bad(kind, "waypoints");
+        continue;
+      }
+      List<LuaValue> routeList = routes.array();
+      for (int route = 0; route < routeList.size(); route++) {
+        if (!(routeList.get(route) instanceof LuaTable points)) {
+          if (!(routeList.get(route) instanceof LuaNil)) {
+            columns.bad(kind, "waypoints");
+          }
+          continue;
+        }
+        List<LuaValue> pointList = points.array();
+        for (int ordinal = 0; ordinal < pointList.size(); ordinal++) {
+          LuaValue point = pointList.get(ordinal);
+          if (point instanceof LuaTable xy && xy.get(1) instanceof LuaNumber x && xy.get(2) instanceof LuaNumber y) {
+            waypoints.add(id, z.asLong(), route + 1, ordinal + 1, x.value(), y.value());
+            written++;
+          } else if (!(point instanceof LuaNil)) {
+            columns.bad(kind, "waypoints");
+          }
+        }
+      }
+    }
+    return written;
+  }
 }
