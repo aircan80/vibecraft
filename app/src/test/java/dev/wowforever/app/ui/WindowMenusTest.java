@@ -102,7 +102,7 @@ class WindowMenusTest {
     List<String> calls = new ArrayList<>();
     boolean[] dark = {true};
     WindowMenus.Actions actions = new WindowMenus.Actions(() -> dark[0], () -> calls.add("theme"),
-        () -> calls.add("shortcuts"), () -> calls.add("about"));
+        () -> calls.add("shortcuts"), () -> calls.add("about"), () -> calls.add("sources"));
     JMenu view = new JMenu("View");
     WindowMenus.addViewItems(view, actions);
     JMenu help = new JMenu("Help");
@@ -111,13 +111,13 @@ class WindowMenusTest {
     WindowMenus.addViewItems(compact, actions);
     WindowMenus.addHelpItems(compact, actions);
     // no "Drop sources" menu: the filter sits beside the drop sections' headings
-    assertThat(texts(view)).containsExactly("Slate theme", "Parchment theme");
+    assertThat(texts(view)).containsExactly("Data sources", "Slate theme", "Parchment theme");
     assertThat(texts(help)).containsExactly("Keyboard shortcuts", "About");
-    assertThat(texts(compact)).containsExactly("Slate theme", "Parchment theme", "---", "Keyboard shortcuts",
+    assertThat(texts(compact)).containsExactly("Data sources", "Slate theme", "Parchment theme", "---", "Keyboard shortcuts",
         "About");
 
-    JMenuItem slate = (JMenuItem) compact.getComponent(0);
-    JMenuItem parchment = (JMenuItem) compact.getComponent(1);
+    JMenuItem slate = (JMenuItem) compact.getComponent(1);
+    JMenuItem parchment = (JMenuItem) compact.getComponent(2);
     assertThat(slate.isSelected()).isTrue();
     assertThat(parchment.isSelected()).isFalse();
     slate.doClick();
@@ -128,6 +128,8 @@ class WindowMenusTest {
     slate.doClick();
     item(help, "Keyboard shortcuts").doClick();
     item(help, "About").doClick();
-    assertThat(calls).containsExactly("theme", "shortcuts", "about");
+    item(view, "Data sources").doClick();
+    ((JMenuItem) compact.getComponent(0)).doClick();
+    assertThat(calls).containsExactly("theme", "shortcuts", "about", "sources", "sources");
   }
 }

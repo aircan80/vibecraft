@@ -14,12 +14,13 @@ public record Repositories(
     ZoneRepository zones,
     InstanceRepository instances,
     AssetRepository assets,
-    QuestLocator questLocator) {
+    QuestLocator questLocator,
+    SourceArchiveRepository sourceArchive) {
 
   public static Repositories of(Database db) {
     return new Repositories(new SearchRepository(db), new ItemRepository(db), new NpcRepository(db),
         new ObjectRepository(db), new QuestRepository(db), new ZoneRepository(db), new InstanceRepository(db),
-        new AssetRepository(db), new QuestLocator(db));
+        new AssetRepository(db), new QuestLocator(db), new SourceArchiveRepository(db));
   }
 
   /**

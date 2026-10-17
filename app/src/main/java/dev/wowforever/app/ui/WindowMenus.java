@@ -21,12 +21,13 @@ final class WindowMenus {
    * asked, so a switch made in the other layout shows), switching it, and opening the shortcut list and the About
    * box.
    */
-  record Actions(BooleanSupplier dark, Runnable toggleTheme, Runnable shortcuts, Runnable about) {
+  record Actions(BooleanSupplier dark, Runnable toggleTheme, Runnable shortcuts, Runnable about, Runnable sources) {
     Actions {
       Objects.requireNonNull(dark, "dark");
       Objects.requireNonNull(toggleTheme, "toggleTheme");
       Objects.requireNonNull(shortcuts, "shortcuts");
       Objects.requireNonNull(about, "about");
+      Objects.requireNonNull(sources, "sources");
     }
   }
 
@@ -37,6 +38,9 @@ final class WindowMenus {
    * per theme ("Slate theme", "Parchment theme"), the one on selected.
    */
   static void addViewItems(JComponent menu, Actions actions) {
+    JMenuItem sources = new JMenuItem("Data sources");
+    sources.addActionListener(e -> actions.sources().run());
+    menu.add(sources);
     for (ThemeManager.Mode mode : ThemeManager.Mode.values()) {
       boolean dark = mode == ThemeManager.Mode.DARK;
       JRadioButtonMenuItem item = new JRadioButtonMenuItem(mode.label() + " theme");

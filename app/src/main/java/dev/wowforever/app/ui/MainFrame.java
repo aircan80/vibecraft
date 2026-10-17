@@ -462,7 +462,7 @@ public final class MainFrame extends JFrame implements MainView {
   /** What the menu items both layouts share do ({@link WindowMenus}). */
   private WindowMenus.Actions menuActions() {
     return new WindowMenus.Actions(ThemeManager::isDark, () -> ThemeManager.toggle(this), this::showShortcuts,
-        this::showAbout);
+        this::showAbout, this::showSources);
   }
 
   /** The compact layout's context menu: what its missing menu bar would offer, and the way back. */
@@ -510,6 +510,28 @@ public final class MainFrame extends JFrame implements MainView {
     JScrollPane scroll = new JScrollPane(table);
     scroll.setPreferredSize(new Dimension(580, table.getRowHeight() * (table.getRowCount() + 2)));
     JOptionPane.showMessageDialog(this, scroll, "Keyboard shortcuts", JOptionPane.PLAIN_MESSAGE);
+  }
+
+  private void showSources() {
+    if (controller == null) return;
+    controller.loadSourceCatalog(catalog -> {
+      if (!isDisplayable()) return;
+      var panel = new SourceCatalogPanel(catalog, uri -> {
+        try {
+          java.awt.Desktop.getDesktop().browse(uri);
+        } catch (java.io.IOException | UnsupportedOperationException failure) {
+          throw new IllegalStateException(failure.getMessage(), failure);
+        }
+      });
+      var screen = getGraphicsConfiguration().getBounds();
+      panel.setPreferredSize(new Dimension(Math.min(900, Math.max(320, screen.width - 120)),
+          Math.min(450, Math.max(200, screen.height - 160))));
+      JOptionPane.showMessageDialog(this, panel, "Data sources", JOptionPane.PLAIN_MESSAGE);
+    }, failure -> {
+      if (isDisplayable()) JOptionPane.showMessageDialog(this, "Could not load source archive metadata.",
+          "Data sources", JOptionPane.ERROR_MESSAGE);
+      LOG.warn("Loading source archive metadata failed", failure);
+    });
   }
 
   private void showAbout() {

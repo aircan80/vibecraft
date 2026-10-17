@@ -378,6 +378,19 @@ public final class AppController implements Navigator {
     return worker;
   }
 
+  /** Load archive metadata on the controller's worker, never on the Swing event thread. */
+  public void loadSourceCatalog(java.util.function.Consumer<dev.wowforever.app.db.SourceArchiveRepository.Catalog> loaded,
+      java.util.function.Consumer<RuntimeException> failed) {
+    worker.execute(() -> {
+      try {
+        var catalog = repos.sourceArchive().catalog();
+        javax.swing.SwingUtilities.invokeLater(() -> loaded.accept(catalog));
+      } catch (RuntimeException failure) {
+        javax.swing.SwingUtilities.invokeLater(() -> failed.accept(failure));
+      }
+    });
+  }
+
   /** The database meta values this controller was given. */
   public Map<String, String> meta() {
     return meta;
