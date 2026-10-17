@@ -3,11 +3,12 @@ package dev.wowforever.app.ui;
 import java.awt.AWTEvent;
 import java.awt.Component;
 import java.awt.Toolkit;
+import java.awt.Window;
 import java.awt.event.AWTEventListener;
 import java.awt.event.MouseEvent;
 import java.util.Objects;
 import java.util.function.Predicate;
-import javax.swing.SwingUtilities;
+import javax.swing.JRootPane;
 import javax.swing.text.JTextComponent;
 
 /**
@@ -30,12 +31,15 @@ public final class MouseNavigation {
     this.isAppWindow = Objects.requireNonNull(isAppWindow, "isAppWindow");
   }
 
-  /** Starts navigating {@code controller} on buttons 4 and 5 pressed in the window of {@code appRoot}. */
-  public static MouseNavigation install(AppController controller, Component appRoot) {
+  /**
+   * Starts navigating {@code controller} on buttons 4 and 5 pressed in the window of {@code root}, the frame's root
+   * pane: it stays in the window whichever layout is its content pane, so the buttons work in both layouts.
+   */
+  public static MouseNavigation install(AppController controller, JRootPane root) {
     Objects.requireNonNull(controller, "controller");
-    Objects.requireNonNull(appRoot, "appRoot");
+    Objects.requireNonNull(root, "root");
     MouseNavigation nav =
-        new MouseNavigation(controller::back, controller::forward, source -> sameWindow(source, appRoot));
+        new MouseNavigation(controller::back, controller::forward, source -> sameWindow(source, root));
     Toolkit.getDefaultToolkit().addAWTEventListener(nav.listener, AWTEvent.MOUSE_EVENT_MASK);
     return nav;
   }
@@ -78,15 +82,23 @@ public final class MouseNavigation {
     return true;
   }
 
+  /**
+   * Whether {@code source} and {@code appRoot} share a top: the window they are in, or for components in no window
+   * (as in a headless test) the outermost container of their tree.
+   */
   static boolean sameWindow(Component source, Component appRoot) {
-    Component window = SwingUtilities.getWindowAncestor(source);
-    if (window == null) {
-      return false;
+    return top(source) == top(appRoot);
+  }
+
+  /**
+   * The first window from {@code c} up, else the outermost container. The walk stops at a window because an owned
+   * window's parent is its owner.
+   */
+  private static Component top(Component c) {
+    Component top = c;
+    while (!(top instanceof Window) && top.getParent() != null) {
+      top = top.getParent();
     }
-    Component appWindow = SwingUtilities.getWindowAncestor(appRoot);
-    if (appWindow == null) {
-      appWindow = SwingUtilities.getRoot(appRoot);
-    }
-    return window == appWindow;
+    return top;
   }
 }

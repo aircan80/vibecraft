@@ -7,7 +7,9 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
+import javax.swing.JButton;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import javax.swing.JTextField;
 import org.junit.jupiter.api.Test;
 
@@ -65,9 +67,37 @@ class MouseNavigationTest {
     assertThat(calls).isEmpty();
   }
 
+  @Test
+  void aSourceInAnotherTreeIsNotInTheAppWindow() {
+    assertThat(MouseNavigation.sameWindow(new JPanel(), new JPanel())).isFalse();
+    JRootPane root = new JRootPane();
+    JPanel elsewhere = new JPanel();
+    new JPanel().add(elsewhere);
+    assertThat(MouseNavigation.sameWindow(elsewhere, root)).isFalse();
+  }
 
   @Test
-  void aSourceWithoutAWindowIsNotInTheAppWindow() {
-    assertThat(MouseNavigation.sameWindow(new JPanel(), new JPanel())).isFalse();
+  void aSourceUnderTheRootPaneIsInTheAppWindow() {
+    JRootPane root = new JRootPane();
+    JPanel page = new JPanel();
+    JButton button = new JButton("Open");
+    page.add(button);
+    root.getContentPane().add(page);
+    assertThat(MouseNavigation.sameWindow(button, root)).isTrue();
+    assertThat(MouseNavigation.sameWindow(root.getContentPane(), root)).isTrue();
+    assertThat(MouseNavigation.sameWindow(root, root)).isTrue();
+  }
+
+  @Test
+  void theRootPaneStillCountsAfterTheContentPaneIsSwapped() {
+    JRootPane root = new JRootPane();
+    JPanel full = new JPanel();
+    root.setContentPane(full);
+    JPanel compact = new JPanel();
+    JButton inCompact = new JButton("Back");
+    compact.add(inCompact);
+    root.setContentPane(compact); // F10: the compact layout replaces the full one
+    assertThat(MouseNavigation.sameWindow(inCompact, root)).isTrue();
+    assertThat(MouseNavigation.sameWindow(inCompact, full)).as("the detached full layout is no anchor").isFalse();
   }
 }

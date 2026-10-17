@@ -17,8 +17,10 @@ import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.Rail;
 import dev.wowforever.app.ui.widgets.SearchDropdown;
 import java.awt.BorderLayout;
+import java.awt.Component;
 import java.awt.Frame;
 import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -27,6 +29,7 @@ import java.util.prefs.Preferences;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
 import javax.swing.JToolBar;
 import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.AfterEach;
@@ -66,6 +69,8 @@ class LayoutSwitchTest {
     int extendedState = Frame.NORMAL;
     JPanel shown;
     boolean menuBar;
+    /** The frame's root pane, whose content pane each layout shown becomes (as on the real frame). */
+    final JRootPane root = new JRootPane();
     final WindowStatePersistence persistence = new WindowStatePersistence(state,
         () -> new WindowStatePersistence.Snapshot(bounds, extendedState, "\\Display1"), new ManualDelay());
 
@@ -93,6 +98,7 @@ class LayoutSwitchTest {
           + (withMenuBar ? " with menu bar" : ""));
       shown = pane;
       menuBar = withMenuBar;
+      root.setContentPane(pane);
     }
 
     @Override
@@ -318,6 +324,33 @@ class LayoutSwitchTest {
     assertThat(view.masterList().entries()).isNotEmpty();
     assertThat(view.detail).isInstanceOf(JLabel.class); // the welcome text, not a blank page
     assertThat(((JLabel) view.detail).getText()).contains("WoW Forever Item");
+  }
+
+  /** Whether mouse button 4 released on {@code source} goes back, with the navigation installed on the root pane. */
+  private boolean button4GoesBack(Component source) {
+    List<String> calls = new ArrayList<>();
+    MouseNavigation nav = MouseNavigation.create(() -> calls.add("back"), () -> calls.add("forward"),
+        c -> MouseNavigation.sameWindow(c, window.root));
+    MouseEvent e = new MouseEvent(source, MouseEvent.MOUSE_RELEASED, 0L, 0, 1, 1, 1, false, MouseEvent.BUTTON1) {
+      @Override
+      public int getButton() {
+        return 4; // a headless toolkit rejects extra buttons in the constructor
+      }
+    };
+    return nav.handle(e) && calls.equals(List.of("back"));
+  }
+
+  @Test
+  void mouseButtonsWorkInBothLayoutsAndWhenTheAppStartsCompact() {
+    state.setCompactMode(true);
+    layout.start();
+    assertThat(button4GoesBack(shell.topBar())).as("started compact").isTrue();
+    assertThat(MouseNavigation.sameWindow(shell.topBar(), content)).as("the full layout is not in the window")
+        .isFalse();
+    layout.toggle();
+    assertThat(button4GoesBack(view.status())).as("full").isTrue();
+    layout.toggle();
+    assertThat(button4GoesBack(view.status())).as("compact again").isTrue();
   }
 
   @Test

@@ -207,7 +207,7 @@ public final class MainFrame extends JFrame implements MainView {
   /** Wires in the controller once the database is open, and enables searching and type-ahead. */
   public void attach(AppController controller) {
     this.controller = controller;
-    MouseNavigation.install(controller, content);
+    MouseNavigation.install(controller, getRootPane());
     searchBar.attach(SearchBar.Source.of(controller.repos().search()), controller.worker());
     searchBar.setEnabled(true);
   }
