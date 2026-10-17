@@ -4,6 +4,7 @@ import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;

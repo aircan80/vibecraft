@@ -7,7 +7,7 @@ import dev.wowforever.app.ui.KeyMap;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.ResultsTableModel;
 import dev.wowforever.app.ui.TableLinks;
-import dev.wowforever.app.ui.pages.ClipboardPort;
+import dev.wowforever.app.ui.widgets.ClipboardPort;
 import java.awt.BorderLayout;
 import java.util.List;
 import java.util.Locale;

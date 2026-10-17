@@ -48,6 +48,10 @@ public final class UiState {
   public static final int DEFAULT_WIDTH = 1280;
   /** The height of a window that has no usable saved bounds. */
   public static final int DEFAULT_HEIGHT = 800;
+  /** The top strip of a saved window, in pixels, that must be on a screen for its bounds to be kept. */
+  static final int TITLE_STRIP = 40;
+  /** How many pinned pages are kept; pinning more drops the oldest. */
+  public static final int MAX_PINNED = 50;
   /** How many recent searches are kept. */
   public static final int RECENT_SEARCHES = 10;
   /** Longest recent search kept, in characters, so that the saved list stays far below a preference's limit. */
@@ -89,16 +93,20 @@ public final class UiState {
 
   /**
    * Where to put the window on {@code screens} (each screen's bounds, the default screen first): the saved
-   * {@link #bounds()} when they overlap a screen, else a {@value #DEFAULT_WIDTH}×{@value #DEFAULT_HEIGHT} window
-   * (shrunk to fit) centred on the default screen.
+   * {@link #bounds()} when their top {@value #TITLE_STRIP} px (the title bar) overlap a screen, so the window can
+   * still be dragged; else a {@value #DEFAULT_WIDTH}×{@value #DEFAULT_HEIGHT} window (shrunk to fit) centred on
+   * the default screen.
    */
   public Rectangle windowBounds(List<Rectangle> screens) {
     if (screens.isEmpty()) {
       throw new IllegalArgumentException("No screens");
     }
     Rectangle saved = bounds();
-    if (saved != null && saved.width > 0 && saved.height > 0 && screens.stream().anyMatch(saved::intersects)) {
-      return saved;
+    if (saved != null && saved.width > 0 && saved.height > 0) {
+      Rectangle titleBar = new Rectangle(saved.x, saved.y, saved.width, Math.min(TITLE_STRIP, saved.height));
+      if (screens.stream().anyMatch(titleBar::intersects)) {
+        return saved;
+      }
     }
     Rectangle screen = screens.get(0);
     int w = Math.min(DEFAULT_WIDTH, screen.width);
@@ -234,9 +242,16 @@ public final class UiState {
     return saved.isEmpty() ? List.of() : List.of(saved.split(LINE));
   }
 
-  /** Saves the pinned pages' keys in order; blank and repeated keys are dropped. */
+  /**
+   * Saves the pinned pages' keys in order; blank and repeated keys are dropped, and so are the oldest beyond
+   * {@value #MAX_PINNED} or beyond what one preference can hold.
+   */
   public void setPinned(List<String> keys) {
-    List<String> kept = keys.stream().map(UiState::oneLine).filter(k -> !k.isEmpty()).distinct().toList();
+    List<String> kept = new ArrayList<>(
+        keys.stream().map(UiState::oneLine).filter(k -> !k.isEmpty()).distinct().toList());
+    while (kept.size() > MAX_PINNED || String.join(LINE, kept).length() > Preferences.MAX_VALUE_LENGTH) {
+      kept.remove(0);
+    }
     putOrRemove(PINNED, kept.isEmpty() ? null : String.join(LINE, kept));
   }
 

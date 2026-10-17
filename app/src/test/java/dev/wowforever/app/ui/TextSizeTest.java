@@ -42,6 +42,21 @@ class TextSizeTest {
   }
 
   @Test
+  void aStepPastTheLimitChangesNothing() {
+    TextSize size = new TextSize(state, BASE);
+    state.setTextSizePct(150);
+    size.applySaved();
+    Object installed = UIManager.getDefaults().get(TextSize.DEFAULT_FONT);
+    assertThat(size.bigger()).isEqualTo(150);
+    assertThat(UIManager.getDefaults().get(TextSize.DEFAULT_FONT)).isSameAs(installed); // no reinstall, no updateUI
+    state.setTextSizePct(90);
+    size.applySaved();
+    installed = UIManager.getDefaults().get(TextSize.DEFAULT_FONT);
+    assertThat(size.smaller()).isEqualTo(90);
+    assertThat(UIManager.getDefaults().get(TextSize.DEFAULT_FONT)).isSameAs(installed);
+  }
+
+  @Test
   void theSavedSizeIsAppliedFromTheBaseFont() {
     state.setTextSizePct(130);
     TextSize size = new TextSize(state, BASE);

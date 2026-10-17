@@ -186,6 +186,24 @@ class UiStateTest {
   }
 
   @Test
+  void pinnedKeepsTheNewestFifty() {
+    UiState state = new UiState(node);
+    IntStream.rangeClosed(1, 60).forEach(i -> state.togglePinned("item:" + i));
+    assertThat(state.pinned()).hasSize(UiState.MAX_PINNED).first().isEqualTo("item:11");
+    assertThat(state.pinned()).last().isEqualTo("item:60");
+  }
+
+  @Test
+  void pinnedThatWouldOverflowAPreferenceDropsTheOldest() {
+    UiState state = new UiState(node);
+    List<String> long300 = IntStream.rangeClosed(1, 50).mapToObj(i -> i + ":" + "x".repeat(300)).toList();
+    state.setPinned(long300); // 50 × 300 characters is far past a preference's 8,192
+    List<String> kept = new UiState(node).pinned();
+    assertThat(kept).isNotEmpty().last().isEqualTo(long300.get(49));
+    assertThat(String.join("\n", kept).length()).isLessThanOrEqualTo(Preferences.MAX_VALUE_LENGTH);
+  }
+
+  @Test
   void savedBoundsOnAScreenAreKept() {
     UiState state = new UiState(node);
     state.setBounds(new Rectangle(2000, 100, 1000, 700));
@@ -198,6 +216,19 @@ class UiStateTest {
     UiState state = new UiState(node);
     state.setBounds(new Rectangle(5000, 3000, 1000, 700)); // a screen that is no longer attached
     List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080), new Rectangle(-1280, 0, 1280, 1024));
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(320, 140, 1280, 800));
+    // only the bottom of the window is on a screen: its title bar is out of reach, so it is reset too
+    state.setBounds(new Rectangle(100, -650, 1000, 700));
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(320, 140, 1280, 800));
+  }
+
+  @Test
+  void aWindowWhoseTitleBarPartlyShowsIsKept() {
+    UiState state = new UiState(node);
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080));
+    state.setBounds(new Rectangle(1800, 1050, 1000, 700)); // 120 × 30 px of the top strip on screen
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(1800, 1050, 1000, 700));
+    state.setBounds(new Rectangle(1800, 1085, 1000, 700)); // the top strip starts below the screen
     assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(320, 140, 1280, 800));
   }
 

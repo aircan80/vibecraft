@@ -5,6 +5,7 @@ import dev.wowforever.app.model.ObjectSummary;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.detail.HeaderPanel;
+import dev.wowforever.app.ui.widgets.ClipboardPort;
 
 /**
  * The game object page, one scrolling page: the header (name and a zone link), then the sections Contains,

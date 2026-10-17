@@ -172,6 +172,11 @@ public final class SearchBar extends JPanel {
         setTextQuietly(recent);
         commit();
       }
+
+      @Override
+      public void closed() {
+        stop();
+      }
     });
     chips.onSelect(kind -> kindChanged());
     setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
@@ -194,15 +199,18 @@ public final class SearchBar extends JPanel {
 
   /**
    * The search box's steps of the Esc chain: closes the dropdown when it is open, else clears the text; returns
-   * false when neither applied, so the window moves the focus on to the list.
+   * false when neither applied, so the window moves the focus on to the list. Either step drops the pending and
+   * running lookups, and clearing does not show the recent searches, so one Esc never undoes another.
    */
   public boolean escape() {
     if (dropdown.isShowing()) {
-      dropdown.hide();
+      stop();
       return true;
     }
     if (!text.getText().isEmpty()) {
-      text.setText("");
+      setTextQuietly("");
+      stop();
+      chips.clearCounts();
       return true;
     }
     return false;

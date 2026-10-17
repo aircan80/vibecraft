@@ -9,7 +9,7 @@ import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
-import dev.wowforever.app.ui.pages.ClipboardPort;
+import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.NpcPage;

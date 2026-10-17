@@ -2,6 +2,9 @@ package dev.wowforever.app.ui;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.theme.Tokens;
+import dev.wowforever.app.ui.theme.WowForeverDarkLaf;
 import dev.wowforever.app.ui.widgets.FakeDropdownHost;
 import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.MasterList;
@@ -15,7 +18,10 @@ import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import javax.swing.AbstractButton;
 import javax.swing.JPanel;
+import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
+import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.plaf.UIResource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -29,13 +35,24 @@ class AccessibilityTest {
   private final Preferences node = UiStateTest.testNode();
   private final UiState state = new UiState(node);
 
+  private LookAndFeel savedLaf;
+  private Theme savedTokens;
+
+  /** The dark theme, always, without touching the saved theme preference (which ThemeManager.apply writes). */
   @BeforeEach
-  void installTheme() {
-    ThemeManager.applySaved();
+  void installDarkTheme() {
+    savedLaf = UIManager.getLookAndFeel();
+    savedTokens = Theme.current();
+    WowForeverDarkLaf.setup();
+    Theme.setCurrent(Tokens.DARK);
   }
 
   @AfterEach
-  void removeNode() throws BackingStoreException {
+  void restore() throws BackingStoreException, UnsupportedLookAndFeelException {
+    if (savedLaf != null) {
+      UIManager.setLookAndFeel(savedLaf);
+    }
+    Theme.setCurrent(savedTokens);
     node.removeNode();
   }
 

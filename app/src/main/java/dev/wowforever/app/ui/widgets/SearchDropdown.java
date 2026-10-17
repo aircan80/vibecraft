@@ -80,6 +80,9 @@ public final class SearchDropdown {
 
     /** Runs the recent search {@code text}. */
     void searchRecent(String text);
+
+    /** The user closed the list with Esc; nothing should reopen it until the text changes again. */
+    default void closed() {}
   }
 
   /** Puts the list on screen under the search box. */
@@ -153,7 +156,10 @@ public final class SearchDropdown {
     this.listener = Objects.requireNonNull(listener, "listener");
     bind(field, "DOWN", "searchDropdown.down", true, () -> move(1));
     bind(field, "UP", "searchDropdown.up", true, () -> move(-1));
-    bind(field, "ESCAPE", "searchDropdown.close", true, this::hide);
+    bind(field, "ESCAPE", "searchDropdown.close", true, () -> {
+      hide();
+      this.listener.closed();
+    });
     bind(field, "ENTER", "searchDropdown.enter", false, this::enter);
     bind(field, "shift ENTER", "searchDropdown.showAll", false, () -> {
       hide();

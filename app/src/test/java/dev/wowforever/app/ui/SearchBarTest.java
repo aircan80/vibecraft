@@ -273,11 +273,49 @@ class SearchBarTest {
     assertThat(bar.textField().getText()).isEqualTo("hog");
     assertThat(bar.escape()).isTrue();
     assertThat(bar.textField().getText()).isEmpty();
-    assertThat(dropdown.isShowing()).isTrue(); // the focused empty box shows the recent searches
+    assertThat(dropdown.isShowing()).isFalse(); // an Esc clear does not reopen the recent searches
+    assertThat(chipTexts()).first().isEqualTo("All");
+    assertThat(bar.escape()).isFalse(); // the third Esc: nothing left, the window moves the focus to the list
+    assertThat(opened).isEmpty();
+  }
+
+  @Test
+  void escapeWithRecentsDropsThePendingLookupAndNeverReopensTheList() {
+    state.addRecentSearch("deadmines");
+    attachInline();
+    bar.focusChanged(true);
+    assertThat(dropdown.isShowing()).isTrue(); // the focused empty box shows the recents
+    bar.textField().setText("hogg"); // typed before the debounce: the recents still show
+    assertThat(delay.pending()).isEqualTo(1);
     assertThat(bar.escape()).isTrue();
     assertThat(dropdown.isShowing()).isFalse();
-    assertThat(bar.escape()).isFalse(); // nothing left: the window moves the focus to the list
-    assertThat(opened).isEmpty();
+    assertThat(delay.pending()).isZero(); // the lookup cannot reopen the list a moment later
+    delay.fire();
+    assertThat(lookups).isEmpty();
+    assertThat(bar.escape()).isTrue();
+    assertThat(bar.textField().getText()).isEmpty();
+    assertThat(dropdown.isShowing()).isFalse();
+    assertThat(bar.escape()).isFalse();
+    bar.textField().setText("d"); // typing after an Esc clear works as before
+    bar.textField().setText("");
+    assertThat(dropdown.isShowing()).isTrue();
+  }
+
+  @Test
+  void escKeyInTheBoxDropsThePendingLookupSoTheListStaysClosed() {
+    attachInline();
+    typeAndWait("hog");
+    bar.textField().setCaretPosition(3);
+    bar.textField().replaceSelection("g"); // typed: the old hits still show while the debounce runs
+    assertThat(bar.textField().getText()).isEqualTo("hogg");
+    assertThat(dropdown.isShowing()).isTrue();
+    assertThat(delay.pending()).isEqualTo(1);
+    assertThat(press("ESCAPE")).isTrue();
+    assertThat(dropdown.isShowing()).isFalse();
+    assertThat(delay.pending()).isZero();
+    delay.fire();
+    assertThat(dropdown.isShowing()).isFalse();
+    assertThat(lookups).containsExactly("hog ALL");
   }
 
   @Test

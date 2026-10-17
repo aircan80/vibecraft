@@ -51,10 +51,14 @@ public final class TextSize {
     return set(UiState.TEXT_DEFAULT);
   }
 
+  /** Saves {@code pct} as {@link UiState#textSize} makes it; reinstalls the font only when the size changed. */
   private int set(int pct) {
+    int before = state.textSizePct();
     state.setTextSizePct(pct);
     int saved = state.textSizePct();
-    install(saved);
+    if (saved != before) {
+      install(saved);
+    }
     return saved;
   }
 

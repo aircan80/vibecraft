@@ -8,6 +8,7 @@ import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.widgets.RankChip;
 import dev.wowforever.app.ui.widgets.SourceSection;
 

@@ -1,4 +1,4 @@
-package dev.wowforever.app.ui.pages;
+package dev.wowforever.app.ui.widgets;
 
 import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
