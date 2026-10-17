@@ -8,6 +8,7 @@ import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.QuestRef;
 import dev.wowforever.app.model.Route;
+import dev.wowforever.app.model.NpcRoute;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
@@ -150,6 +151,26 @@ public final class ZoneRepository {
    */
   public List<Route> routesInZone(long zoneId) {
     return db.read(c -> NpcRepository.routes(c, NpcRepository.RouteKey.ZONE, zoneId));
+  }
+
+  /** Named patrol routes in the zone, including unknown NPCs with their id fallback. */
+  public List<NpcRoute> npcRoutesInZone(long zoneId) {
+    return db.read(c -> {
+      List<Route> routes = NpcRepository.routes(c, NpcRepository.RouteKey.ZONE, zoneId);
+      if (routes.isEmpty()) {
+        return List.of();
+      }
+      record Npc(String name, Integer rank) {}
+      java.util.Map<Long, Npc> npcs = new java.util.HashMap<>();
+      Sql.list(c, "SELECT n.id, n.name, " + NpcRepository.RANK + " AS rank FROM npc n"
+          + " WHERE EXISTS (SELECT 1 FROM npc_waypoint w WHERE w.npc_id = n.id AND w.zone_id = ?)",
+          rs -> { npcs.put(rs.getLong("id"), new Npc(rs.getString("name"), Sql.integer(rs, "rank"))); return 0; }, zoneId);
+      return routes.stream().map(r -> {
+        EntityRef ref = new EntityRef(EntityKind.NPC, r.npcId());
+        Npc n = npcs.get(r.npcId());
+        return new NpcRoute(ref, ref.displayName(n == null ? null : n.name()), n == null ? null : n.rank(), r);
+      }).toList();
+    });
   }
 
   /**

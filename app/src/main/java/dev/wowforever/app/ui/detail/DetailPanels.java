@@ -16,6 +16,7 @@ import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.model.Spawn;
+import dev.wowforever.app.model.Route;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
@@ -84,8 +85,14 @@ public final class DetailPanels {
    * {@value RateSource#BOSS_NOTE}.
    */
   public record LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
-      Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs) {
+      Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes) {
+    public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
+        Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs) {
+      this(detail, mapZoneId, map, rateSources, bossNpcs, List.of());
+    }
+
     public LoadedNpc {
+      routes = List.copyOf(routes);
       rateSources = Map.copyOf(rateSources);
       bossNpcs = Set.copyOf(bossNpcs);
     }
@@ -139,7 +146,7 @@ public final class DetailPanels {
         Long zone = mapZone(d.spawns());
         List<Long> rated = RateSource.ratedItems(d.drops());
         return new LoadedNpc(d, zone, zoneMap(zone, repos), repos.items().sourcesOfNpc(id, rated),
-            rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)));
+            rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)), repos.npcs().routes(id));
       });
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains())).map(d -> {
         Long zone = mapZone(d.spawns());
@@ -262,16 +269,24 @@ public final class DetailPanels {
    */
   public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
       StatusSink status, SourceFilter filter, Consumer<SourceFilter> onFilterChange, BooleanSetting questPins) {
+    return render(detail, repos, nav, worker, status, filter, onFilterChange, questPins,
+        BooleanSetting.inMemory(false));
+  }
+
+  /** Renders a page with the user's remembered quest-pin and patrol-route settings. */
+  public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
+      StatusSink status, SourceFilter filter, Consumer<SourceFilter> onFilterChange, BooleanSetting questPins,
+      BooleanSetting routes) {
     return switch (detail) {
       case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), p.bossNpcs(), filter, onFilterChange,
           nav);
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), p.bossNpcs(), filter,
-          onFilterChange, nav, ClipboardPort.system());
+          onFilterChange, nav, ClipboardPort.system(), p.routes());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
       case LoadedQuest p -> new QuestPage(p.detail(), p.starts(), p.ends(), nav);
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
-              worker, status, nav, questPins), nav);
+              worker, status, nav, questPins, routes), nav);
       case LoadedInstance p -> new InstancePage(p.detail(), p.quests(), repos, nav);
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };

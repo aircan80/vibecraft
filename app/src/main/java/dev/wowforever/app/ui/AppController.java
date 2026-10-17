@@ -298,7 +298,7 @@ public final class AppController implements Navigator {
       loadingDelay.cancel();
       leaveListPage();
       setPage(t, DetailPanels.render(loaded.detail(), repos, this, worker, pageStatus(generation),
-          view.sourceFilter(), this::changeSourceFilter, view.questPins()), state);
+          view.sourceFilter(), this::changeSourceFilter, view.questPins(), view.routes()), state);
       view.setTitleSuffix(DetailPanels.name(loaded.detail()));
       return;
     }
@@ -456,7 +456,7 @@ public final class AppController implements Navigator {
         if (detail.isPresent()) {
           loaded = new Loaded(ref, detail.get());
           setPage(new ViewTarget.Entity(ref), DetailPanels.render(detail.get(), repos, this, worker,
-              pageStatus(generation), view.sourceFilter(), this::changeSourceFilter, view.questPins()));
+              pageStatus(generation), view.sourceFilter(), this::changeSourceFilter, view.questPins(), view.routes()));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
         } else {
           loaded = null;

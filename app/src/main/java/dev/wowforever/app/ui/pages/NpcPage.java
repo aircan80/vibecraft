@@ -3,6 +3,7 @@ package dev.wowforever.app.ui.pages;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcDetail;
+import dev.wowforever.app.model.Route;
 import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.SourceFilter;
@@ -82,6 +83,13 @@ public final class NpcPage extends SourcesPage {
   public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
       Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav,
       ClipboardPort clipboard) {
+    this(d, mapZoneId, map, rateSources, bossNpcs, filter, onFilterChange, nav, clipboard, List.of());
+  }
+
+  /** The page including its NPC's own patrol routes, loaded off the EDT. */
+  public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav,
+      ClipboardPort clipboard, List<Route> routes) {
     super(nav);
     NpcSummary s = d.summary();
     header = zoneHeader(title(s), Labels.join("NPC #" + s.id(), Labels.levels(s.minLevel(), s.maxLevel())),
@@ -111,7 +119,7 @@ public final class NpcPage extends SourcesPage {
     if (d.spawns().isEmpty()) {
       spawns = null;
     } else {
-      spawns = new SpawnSection(d.spawns(), s.zoneName(), s.ref(), s.name(), mapZoneId, map, nav, clipboard);
+      spawns = new SpawnSection(d.spawns(), s.zoneName(), s.ref(), s.name(), mapZoneId, map, nav, clipboard, routes);
       addSection(spawns.section());
     }
     addSectionsInOrder(SectionOrder.NPC);

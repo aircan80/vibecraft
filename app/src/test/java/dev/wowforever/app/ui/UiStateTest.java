@@ -58,6 +58,16 @@ class UiStateTest {
   }
 
   @Test
+  void routesShownDefaultsToOffAndRoundTrips() {
+    UiState state = new UiState(node);
+    assertThat(state.routesShown()).isFalse();
+    state.setRoutesShown(true);
+    assertThat(new UiState(node).routesShown()).isTrue();
+    new UiState(node).routesSetting().set(false);
+    assertThat(state.routesShown()).isFalse();
+  }
+
+  @Test
   void questPinsShownDefaultsToOffAndRoundTrips() {
     assertThat(new UiState(node).questPinsShown()).isFalse();
     new UiState(node).setQuestPinsShown(true);

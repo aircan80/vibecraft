@@ -3,6 +3,8 @@ package dev.wowforever.app.ui.pages;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.Spawn;
+import dev.wowforever.app.model.Route;
+import dev.wowforever.app.ui.widgets.MapLayer;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.detail.LinkTable;
@@ -44,6 +46,11 @@ final class SpawnSection {
    */
   SpawnSection(List<Spawn> spawns, String pageZone, EntityRef self, String selfName, Long mapZoneId,
       BufferedImage map, Navigator nav, ClipboardPort clipboard) {
+    this(spawns, pageZone, self, selfName, mapZoneId, map, nav, clipboard, List.of());
+  }
+
+  SpawnSection(List<Spawn> spawns, String pageZone, EntityRef self, String selfName, Long mapZoneId,
+      BufferedImage map, Navigator nav, ClipboardPort clipboard, List<Route> routes) {
     table = LinkTable.inline(VisibleColumns.of(Columns.spawns(), spawns, pageZone), nav);
     table.setRows(spawns);
     table.setClipboard(clipboard);
@@ -72,6 +79,11 @@ final class SpawnSection {
     } else {
       this.map = new MapView(map, nav);
       this.map.setPins(pins);
+      this.map.setRoutes(routes.stream().filter(r -> mapZoneId != null && r.zoneId() == mapZoneId)
+          .map(r -> new MapView.RouteLine(self, self.displayName(selfName), MapView.PinKind.SELF,
+              r.points(), r.loop())).toList());
+      this.map.setLayerVisible(MapLayer.REGISTERED.stream().filter(l -> l.id().equals("routes"))
+          .findFirst().orElseThrow(), true);
       this.map.setClipboard(clipboard);
       this.map.setZoneName(spawns.stream().filter(s -> s.zoneId() == mapZoneId)
           .map(Spawn::zoneName).filter(java.util.Objects::nonNull).findFirst().orElse(null));

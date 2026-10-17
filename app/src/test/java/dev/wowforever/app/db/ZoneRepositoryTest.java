@@ -118,6 +118,16 @@ class ZoneRepositoryTest {
   }
 
   @Test
+  void namedRoutesCarryNpcIdentityAndKeepPointOrder() {
+    assertThat(repos.zones().npcRoutesInZone(40)).singleElement().satisfies(r -> {
+      assertThat(r.npc()).isEqualTo(new EntityRef(EntityKind.NPC, 550));
+      assertThat(r.name()).isEqualTo("Defias Messenger");
+      assertThat(r.route()).isEqualTo(repos.npcs().routes(550).getFirst());
+    });
+    assertThat(repos.zones().npcRoutesInZone(12)).isEmpty();
+  }
+
+  @Test
   void routesInZoneHoldTheDefiasMessengersPatrol() {
     assertThat(repos.zones().routesInZone(40)).singleElement().satisfies(r -> {
       assertThat(r.npcId()).isEqualTo(550);

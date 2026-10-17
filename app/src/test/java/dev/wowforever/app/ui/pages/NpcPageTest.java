@@ -97,6 +97,19 @@ class NpcPageTest {
   }
 
   @Test
+  void defiasMessengerShowsItsRoute() {
+    var loaded = (dev.wowforever.app.ui.detail.DetailPanels.LoadedNpc)
+        dev.wowforever.app.ui.detail.DetailPanels.load(new EntityRef(NPC, 550), repos).orElseThrow();
+    var page = new NpcPage(loaded.detail(), loaded.mapZoneId(), loaded.map(), loaded.rateSources(),
+        loaded.bossNpcs(), SourceFilter.ALL, f -> {}, t -> {}, text -> {}, loaded.routes());
+    assertThat(page.spawnMap()).isNotNull();
+    assertThat(page.spawnMap().routes()).singleElement().satisfies(r -> {
+      assertThat(r.points()).hasSizeGreaterThanOrEqualTo(30);
+      assertThat(r.loop()).isEqualTo(repos.npcs().routes(550).getFirst().loop());
+    });
+  }
+
+  @Test
   void theSourceFilterHidesDropsFromTheHiddenSourceAlone() {
     var all = filtered(SourceFilter.ALL);
     assertThat(all.section("Drops").heading().text()).isEqualTo("Drops (4)");
