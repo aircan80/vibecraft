@@ -51,7 +51,7 @@ java -jar importer/target/importer.jar --out app/src/main/resources/data/wowfore
 The same import runs inside Maven with `./mvnw -B -pl importer -am -Pimport-data verify`. It reads the client data from `~/.cache/wowforever-clientdata/out/current` unless you pass `-Dclientdata.dir=<dir>`, and `-Dclientdata.skip=true` imports without client data. `-Dclientdata.coverageMin=<pct>` sets the coverage threshold described below. The profile passes all importer arguments as one string, so `-Dexec.args=...` replaces the whole argument list, `--out` included.
 
 - **Download cache.** Upstream files are downloaded once into `~/.cache/wowforever-importer` and reused afterwards. Use `--cache <dir>` to put the cache elsewhere, or `--questiedb-dir` and `--atlasloot-dir` to read local checkouts instead.
-- **Client data.** Exactly one of `--client-data-dir <dir>` and `--skip-client-data` is required. With `--skip-client-data` the client tables are created empty, no item is marked as having client data, and the database still opens in the browser without icons, quality colours or tooltips. A directory holding `csv/ItemSparse.era.csv` must have a `build.lock` that records the Era fallback (`fallback_product`, `fallback_build`); otherwise the file is left over from an earlier fetch and the import stops. Re-run `fetch.py --fallback-product wow_classic_era` and `convert.py` to fix it.
+- **Client data.** Exactly one of `--client-data-dir <dir>` and `--skip-client-data` is required. With `--skip-client-data` the client tables are created empty, no item is marked as having client data, and the database still opens in the browser without icons, quality colours or tooltips. A directory holding an Era fallback table (`csv/ItemSparse.era.csv`, `csv/ItemEffect.era.csv`) must have a `build.lock` that records the Era fallback (`fallback_product`, `fallback_build` and the table's own sha under `tables`); otherwise the file is left over from an earlier fetch and the import stops. Re-run `fetch.py --fallback-product wow_classic_era` and `convert.py` to fix it.
 - **`--fail-on-unsupported`.** The importer exits with code 2 when a correction could not be applied to a field the browser shows, when a field the importer reads is missing from the upstream schema (`missingField.*` counters), or when a value of a field the browser shows could not be resolved (`unresolved.<kind>.<field>` counters). With client data it also exits with code 2 when fewer than 85 % of the named items have client data. Items without a name do not count on either side of that ratio. `--coverage-min <pct>` changes the threshold to any whole percentage from 0 to 100. The report shows the ratio as `clientdata.coverage.pct`, and its `clientdata.unmatched.ranges` note lists the unmatched item ids. Always pass the flag when refreshing the shipped database.
 - **Outputs.** The importer writes `import-report.txt` and `build-id.txt` beside the database. Commit all three files together.
 
@@ -63,7 +63,7 @@ The committed build has these headline row counts:
 | item with client data | 20,492 |
 | npc | 13,392 |
 | item_npc_drop | 164,447 |
-| item_tooltip_line | 160,510 |
+| item_tooltip_line | 161,815 |
 | icon | 2,925 |
 | zone_map | 57 |
 
@@ -72,13 +72,13 @@ The committed build has these headline row counts:
 Known gaps in the upstream data, as of this build:
 
 - **Unknown-NPC references.** 325 `item_npc_drop` rows name an NPC id that is not in the NPC table.
-- **Nameless stubs.** 249 items and 1 game object have no name. The items exist only because a QuestieDB correction gives them a quest-start link, and none of them is searchable.
+- **Nameless stubs.** 242 items and 1 game object have no name. The items exist only because a QuestieDB correction gives them a quest-start link, and none of them is searchable.
 
 ## Client data
 
-The shipped database uses product `wow_classic_beta`, build 1.60.1.70425, with the Classic Era `ItemSparse` of build 1.15.9.70003 as the fallback for items the beta lacks. `tools/clientdata/build.lock` records the build and the SHA-256 of every table.
+The shipped database uses product `wow_classic_beta`, build 1.60.1.70425, with the Classic Era `ItemSparse` and `ItemEffect` of build 1.15.9.70003 as the fallback for items the beta lacks: their stats and their Use, Equip and Chance on hit effects come from Era, the effect texts from the beta's spell tables. `tools/clientdata/build.lock` records the build and the SHA-256 of every table.
 
-**Prerequisites.** Python 3 with the tool's own virtual environment (`tools/clientdata/README.md`, "Setup"), and network access to wago.tools or a local wow.tools.local. The tool reads the exports only; it never touches a World of Warcraft installation.
+**Prerequisites.** Python 3 with the tool's own virtual environment (`tools/clientdata/README.md`, "Setup"), and network access to wago.tools or a local wow.tools.local (the fetch tool's default base URL, `http://localhost:5000`). Set `WOWFOREVER_CONTACT` to a contact URL before fetching from a public server; the User-Agent carries it (see the tools README, "Politeness"). The tool reads the exports only; it never touches a World of Warcraft installation.
 
 **The three commands.** Fetch, convert, then import (the import command is in the previous section). With `B=1.60.1.70425` and `C=~/.cache/wowforever-clientdata`:
 
@@ -97,8 +97,8 @@ java -jar importer/target/importer.jar --out app/src/main/resources/data/wowfore
 
 | What | Size |
 |---|---|
-| Fetch cache (45 tables, 6,311 BLP files) | 209 MB |
-| Converted output (`out/current`) | 57 MB |
+| Fetch cache (46 tables, 6,311 BLP files) | 210 MB |
+| Converted output (`out/current`) | 58 MB |
 | Shipped database | 66 MB, of which icons 13 MB and zone maps 11 MB |
 
 **Switching to the live build.** When Forever's live product `wowf` publishes a build, fetch it with `--product wowf` (and its build), convert it into a new `out/` directory, and import with `--client-data-dir` pointing there. Check the report's `clientdata.coverage.pct`, `clientdata.unverified.*` and `clientdata.unformatted` counters against this build's, run `./mvnw -B verify` (the shipped-data tests and the known-items oracle), and commit the database with the new `tools/clientdata/build.lock`. The Era fallback stays until the live `ItemSparse` covers those items.
@@ -133,9 +133,9 @@ This project is licensed under GPL-2.0-or-later, see `LICENSE`. Full credits are
 
 ## Known limitations
 
-- Item values come from the Forever beta client, not the live game. About 4,800 items use Classic Era rows instead, and their tooltip says so.
+- Item values come from the Forever beta client, not the live game. About 4,800 items use Classic Era rows for their stats and effects instead, and their tooltip says so.
 - 809 named items have no client data. 925 items with client data have no icon, and three more have an icon the converter cannot decode. All of them show a question mark.
-- Damage of 114 caster weapons is not shown: the client data does not explain Forever's values.
+- 114 weapons show no damage (`clientdata.unverified.damage`): 98 caster weapons, whose damage the client data does not explain, 15 weapons without a speed and one Frying Pan without a damage table.
 - 171 spell descriptions keep placeholders the client data cannot fill, such as `$z` (your home inn).
 - Crafting, PvP and faction vendors are not imported.
 - English only.

@@ -21,7 +21,8 @@ the suggested sequence is at the bottom.
    per-NPC rates for vanilla content, replacing "rate unknown" on ~153k of 164k drop rows.
 6. **Smaller additions.** Crafting recipes and "crafted by" (AtlasLoot crafting module), faction
    and PvP vendors, quest chains, copyable `item:ID` links, "usable by my class/level" filter,
-   two-item compare view.
+   two-item compare view, the 50 most-changed item names (client vs Questie, `item_alt_value`) in
+   the import report's Conflicts section (planned in phase 2A, deferred by its final review).
 
 **Build-time extraction vs. reading the user's client at runtime (decided 2026-10-16).** Do the
 extraction in the build pipeline and ship the results. Reasons: modern clients store assets in
