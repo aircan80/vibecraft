@@ -8,6 +8,7 @@ import static dev.wowforever.app.ui.pages.Tables.column;
 import static dev.wowforever.app.ui.pages.Tables.columnNames;
 import static dev.wowforever.app.ui.pages.Tables.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.within;
 
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
@@ -23,6 +24,7 @@ import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JSplitPane;
 import javax.swing.JToggleButton;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -197,6 +199,12 @@ class InstancePageTest {
         p.encounters().getPreferredSize().width);
     assertThat(loot.y).as("the loot is below the encounters").isGreaterThan(list.y);
     assertThat(loot.width).as("one column, page wide").isGreaterThan(p.getWidth() / 2);
+    JSplitPane split = p.split();
+    double share = (double) split.getDividerLocation() / (split.getHeight() - split.getDividerSize());
+    assertThat(share).as("the encounters start with 40 % of the stacked height").isCloseTo(0.4, within(0.02));
+    Rectangle encounterPane = boundsIn(split.getTopComponent(), p);
+    assertThat(encounterPane.height).as("laid out at that share")
+        .isCloseTo(split.getDividerLocation(), within(2));
 
     p.setSize(1000, 720); // resized: the columns come back
     layOut(p);

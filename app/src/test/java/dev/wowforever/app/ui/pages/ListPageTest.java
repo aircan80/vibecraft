@@ -7,6 +7,7 @@ import static dev.wowforever.app.model.EntityKind.QUEST;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static dev.wowforever.app.ui.pages.Tables.column;
 import static dev.wowforever.app.ui.pages.Tables.columnNames;
+import static dev.wowforever.app.ui.pages.Tables.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.FixtureDb;
@@ -207,6 +208,23 @@ class ListPageTest {
     assertThat(bar.getPreferredSize().width).isLessThanOrEqualTo(220);
     bar.getParent().setSize(5_000, 1_000);
     assertThat(bar.getPreferredSize().height).isEqualTo(oneRow);
+  }
+
+  @Test
+  void theLaidOutFilterBarShrinksToANarrowedPageAndWraps() {
+    ListPage p = page(new ViewTarget.List(ITEM));
+    FilterBar bar = p.filterBar();
+    p.setSize(900, 700);
+    layOut(p);
+    int wideHeight = bar.getHeight();
+    assertThat(bar.getWidth()).isLessThanOrEqualTo(900).isGreaterThan(420);
+    assertThat(p.header().getWidth()).isLessThanOrEqualTo(900).isGreaterThan(420);
+    p.setSize(420, 700); // narrowed after being wide
+    layOut(p);
+    assertThat(bar.getWidth()).as("as wide as the page, not its one-row width").isLessThanOrEqualTo(420);
+    assertThat(bar.getHeight()).as("wrapped onto more rows").isGreaterThan(wideHeight);
+    assertThat(p.header().getWidth()).isLessThanOrEqualTo(420);
+    assertThat(p.section().getWidth()).isLessThanOrEqualTo(420);
   }
 
   @Test

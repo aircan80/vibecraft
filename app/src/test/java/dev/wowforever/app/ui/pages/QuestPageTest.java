@@ -4,6 +4,7 @@ import static dev.wowforever.app.model.EntityKind.ITEM;
 import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.ui.pages.Tables.column;
 import static dev.wowforever.app.ui.pages.Tables.columnNames;
+import static dev.wowforever.app.ui.pages.Tables.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.FixtureDb;
@@ -40,6 +41,23 @@ class QuestPageTest {
     assertThat(columnNames(p.section("Turned in to").table().table())).containsExactly("Name", "Type");
     p.section("Turned in to").table().activateRow(0);
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 12696)));
+  }
+
+  @Test
+  void theWrappedObjectivesNarrowWithThePageAfterBeingWide() {
+    String longText = "Bring Sharptalon's Claw to Senani Thunderheart at Splintertree Post in Ashenvale. ".repeat(6);
+    var d = new QuestDetail(new QuestSummary(9, "Q", 30, 20, null), longText, List.of(), List.of(), List.of());
+    var p = new QuestPage(d, t -> {});
+    p.setSize(900, 700);
+    layOut(p);
+    int wide = p.objectives().getWidth();
+    int wideHeight = p.objectives().getHeight();
+    assertThat(wide).isLessThanOrEqualTo(900).isGreaterThan(420);
+    p.setSize(420, 700);
+    layOut(p);
+    assertThat(p.objectives().getWidth()).as("never wider than the page").isLessThanOrEqualTo(420);
+    assertThat(p.header().getWidth()).isLessThanOrEqualTo(420);
+    assertThat(p.objectives().getPreferredSize().height).as("re-wrapped onto more lines").isGreaterThan(wideHeight);
   }
 
   @Test

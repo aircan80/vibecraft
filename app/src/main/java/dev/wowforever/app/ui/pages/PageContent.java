@@ -65,9 +65,12 @@ final class PageContent extends JPanel implements Scrollable {
 
   /**
    * A vertical stack anchored at the top: each visible child at its preferred height, as wide as the container
-   * allows within its minimum and maximum widths, placed by its X alignment. Unlike a {@code BoxLayout}, extra
-   * height is never handed to the children (a panel's unbounded maximum height would take it all and push the rest
-   * of the page to the bottom); it stays below the last one.
+   * (up to the child's maximum width), placed by its X alignment. As in a {@code BoxLayout}, a child is never kept
+   * wider than the container for its minimum width: the page tracks the viewport's width and has no horizontal
+   * scrollbar, so a wider child would be cut off instead of wrapping (a line-wrapped text area reports its current
+   * width as its minimum, a wrapping filter bar its one-row width). Unlike a {@code BoxLayout}, extra height is
+   * never handed to the children (a panel's unbounded maximum height would take it all and push the rest of the
+   * page to the bottom); it stays below the last one.
    */
   static final class TopStack implements LayoutManager {
     @Override
@@ -108,7 +111,7 @@ final class PageContent extends JPanel implements Scrollable {
         if (!c.isVisible()) {
           continue;
         }
-        int width = Math.max(c.getMinimumSize().width, Math.min(c.getMaximumSize().width, available));
+        int width = Math.min(c.getMaximumSize().width, available);
         int x = in.left + Math.max(0, Math.round((available - width) * c.getAlignmentX()));
         int height = c.getPreferredSize().height;
         c.setBounds(x, y, width, height);

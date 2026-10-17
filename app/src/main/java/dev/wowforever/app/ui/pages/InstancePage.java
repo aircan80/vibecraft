@@ -128,6 +128,10 @@ public final class InstancePage extends JPanel {
     return split.getOrientation() == JSplitPane.VERTICAL_SPLIT;
   }
 
+  JSplitPane split() {
+    return split;
+  }
+
   /** The instance name over its type, levels, a zone link and an "NPCs in" link to the same zone. */
   private static HeaderPanel header(InstanceSummary s, Navigator nav) {
     HeaderPanel header = new HeaderPanel(Labels.instanceTitle(s.displayName(), s.key()),
