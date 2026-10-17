@@ -11,7 +11,7 @@ import javax.swing.JComponent;
 /**
  * The columns a {@link LinkTable} keeps in the compact window: the name (the first link column, else the first
  * column), the {@value Columns#RATE} column and the {@value #ORIGIN} chip column. The other columns are told in the
- * row's tooltip ({@code "Level 21 · Zone: Westfall · Slot 7"}). A table is compact while an enclosing component
+ * row's tooltip ({@code "Level 21 · Zone: Westfall · #7"}). A table is compact while an enclosing component
  * carries {@link #KEY} (the compact window's content does); it is not a global setting.
  */
 public final class CompactColumns {
@@ -52,9 +52,9 @@ public final class CompactColumns {
 
   /**
    * The row tooltip of a compact table over its {@code hidden} cells: each one that shows text (markup stripped),
-   * as {@code "Level 21"} when the text starts with a digit and {@code "Zone: Westfall"} otherwise, a disagreeing
-   * rate followed by {@link Columns#DISAGREES} (which the renderer of a hidden column cannot paint), joined by
-   * {@code " · "}; null when none shows any.
+   * as {@code "Level 21"} ({@code "#7"} for the loot order) when the text starts with a digit and
+   * {@code "Zone: Westfall"} otherwise, a disagreeing rate followed by {@link Columns#DISAGREES} (which the
+   * renderer of a hidden column cannot paint), joined by {@code " · "}; null when none shows any.
    */
   public static String tooltip(List<Cell> hidden) {
     List<String> parts = new ArrayList<>();
@@ -66,7 +66,8 @@ public final class CompactColumns {
       if (cell.disagrees() && !text.endsWith(Columns.DISAGREES.strip())) {
         text += Columns.DISAGREES;
       }
-      parts.add(Character.isDigit(text.charAt(0)) ? cell.title() + " " + text : cell.title() + ": " + text);
+      parts.add(!Character.isDigit(text.charAt(0)) ? cell.title() + ": " + text
+          : cell.title().equals(Columns.LOOT_ORDER) ? cell.title() + text : cell.title() + " " + text);
     }
     return parts.isEmpty() ? null : String.join(SEPARATOR, parts);
   }

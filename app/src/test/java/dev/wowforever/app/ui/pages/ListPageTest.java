@@ -279,7 +279,7 @@ class ListPageTest {
   void aSingleClickOnANameOpensTheEntity() {
     ListPage p = page(new ViewTarget.List(NPC, new NpcFilter(null, 3, null, null)));
     p.results().activateRow(0);
-    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 12118)));
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 639)));
   }
 
   @Test

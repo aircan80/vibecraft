@@ -70,11 +70,34 @@ class LabelsTest {
   @Test
   void itemSubtitle() {
     assertThat(Labels.itemSubtitle("Armor", "Mail", 37, 32)).isEqualTo("Mail · iLvl 37 · Req 32");
-    assertThat(Labels.itemSubtitle("Quest", "Quest", 16, 0)).isEqualTo("Quest · iLvl 16");
+    assertThat(Labels.itemSubtitle("Quest", "Quest", 16, 0)).as("not read as a quest")
+        .isEqualTo("Quest item · iLvl 16");
     assertThat(Labels.itemSubtitle("Trade Goods", null, 1, 1)).isEqualTo("Trade Goods");
     assertThat(Labels.itemSubtitle("Miscellaneous", "Junk", 1, null)).isEqualTo("Junk");
     assertThat(Labels.itemSubtitle(null, null, null, null)).isEmpty();
     assertThat(Labels.itemSubtitle(null, "Cloth", 19, 14)).isEqualTo("Cloth · iLvl 19 · Req 14");
+  }
+
+  @Test
+  void requiredSkillFromTheTooltipLine() {
+    assertThat(Labels.skill("Requires Leatherworking (65)")).isEqualTo("Leatherworking 65");
+    assertThat(Labels.skill("Requires Engineering")).isEqualTo("Engineering");
+    assertThat(Labels.skill("  ")).isNull();
+    assertThat(Labels.skill(null)).isNull();
+  }
+
+  @Test
+  void classesOfAClassMask() {
+    assertThat(Labels.classes(256)).isEqualTo("Warlock");
+    assertThat(Labels.classes(1 | 2)).isEqualTo("Warrior, Paladin");
+    assertThat(Labels.classes(1024 | 128)).isEqualTo("Mage, Druid");
+    assertThat(Labels.classes(null)).isNull();
+    assertThat(Labels.classes(-1)).as("every class").isNull();
+    assertThat(Labels.classes(0)).isNull();
+    assertThat(Labels.classes(32767)).isNull();
+    assertThat(Labels.classes(1535)).as("every class of the game").isNull();
+    assertThat(Labels.classes(1535 | 32)).as("plus classes the game lacks").isNull();
+    assertThat(Labels.classes(32)).as("only classes the game lacks").isNull();
   }
 
   @Test

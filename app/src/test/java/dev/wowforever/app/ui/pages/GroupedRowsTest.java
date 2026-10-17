@@ -23,7 +23,7 @@ class GroupedRowsTest {
   @Test
   void groupedRateColumnsFlagTheEntriesWhoseSourcesDisagree() {
     List<Column<GroupedRows.Row<LootRow>>> cols = GroupedRows.columns(Columns.lootRated());
-    Column<GroupedRows.Row<LootRow>> rate = cols.get(2);
+    Column<GroupedRows.Row<LootRow>> rate = cols.get(3);
     assertThat(rate.title()).isEqualTo(Columns.RATE);
     List<GroupedRows.Row<LootRow>> rows = rows();
     assertThat(rate.disagreesFor(rows.get(0))).as("heading").isFalse();
@@ -43,7 +43,7 @@ class GroupedRowsTest {
     assertThat(item.iconFor(rows.get(1))).isEqualTo(132648L);
     assertThat(item.iconFor(rows.get(2))).as("no client data: the question mark").isZero();
     assertThat(item.qualityFor(rows.get(1))).isEqualTo(3);
-    assertThat(GroupedRows.columns(Columns.lootRated()).get(1).hasIcon()).as("item level").isFalse();
+    assertThat(GroupedRows.columns(Columns.lootRated()).get(2).hasIcon()).as("item level").isFalse();
   }
 
   @Test

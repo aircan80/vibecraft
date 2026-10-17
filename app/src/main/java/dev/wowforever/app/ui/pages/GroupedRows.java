@@ -11,31 +11,61 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 
 /**
  * Table rows grouped under heading rows ({@code "Gear (2)"}), for one table whose columns line up across the
- * groups. Heading rows show their text in the first column, leave the others blank and link nowhere; pages
- * install them as {@linkplain dev.wowforever.app.ui.widgets.DividerRows dividers}.
+ * groups. Heading rows show their text in the first column, leave the others blank (or show a group's own column
+ * label, {@link GroupCells}) and link nowhere; pages install them as
+ * {@linkplain dev.wowforever.app.ui.widgets.DividerRows dividers}. A collapsible group's heading reads
+ * {@code "World drops (23) ▸"} while its entries are left out and {@code "World drops (23) ▾"} while they show.
  */
 final class GroupedRows {
+  /** The marker of a collapsed group's heading. */
+  static final String COLLAPSED = " ▸";
+  /** The marker of an expanded collapsible group's heading. */
+  static final String EXPANDED = " ▾";
+
   private GroupedRows() {}
 
   /** A row of a grouped table: a group's heading or one of its entries. */
   sealed interface Row<T> permits Heading, Entry {}
 
-  /** The heading of a group of {@code count} entries. */
-  record Heading<T>(String group, int count) implements Row<T> {
-    /** {@code "Gear (2)"}. */
+  /** How a group's heading shows its entries. */
+  enum Fold { NONE, COLLAPSED, EXPANDED }
+
+  /** The heading of a group of {@code count} entries, collapsible unless {@code fold} is {@link Fold#NONE}. */
+  record Heading<T>(String group, int count, Fold fold) implements Row<T> {
+    /** A heading that cannot be collapsed. */
+    Heading(String group, int count) {
+      this(group, count, Fold.NONE);
+    }
+
+    /** {@code "Gear (2)"}, a collapsible group's ending in {@link #COLLAPSED} or {@link #EXPANDED}. */
     String text() {
-      return String.format(Locale.ROOT, "%s (%,d)", group, count);
+      String text = String.format(Locale.ROOT, "%s (%,d)", group, count);
+      return switch (fold) {
+        case NONE -> text;
+        case COLLAPSED -> text + COLLAPSED;
+        case EXPANDED -> text + EXPANDED;
+      };
+    }
+
+    boolean collapsible() {
+      return fold != Fold.NONE;
     }
   }
 
-  /** One entry of a group. */
-  record Entry<T>(T value) implements Row<T> {
+  /** One entry of a group ({@code group} null when unknown). */
+  record Entry<T>(T value, String group) implements Row<T> {
     Entry {
       Objects.requireNonNull(value, "value");
+    }
+
+    /** An entry of no particular group. */
+    Entry(T value) {
+      this(value, null);
     }
 
     /** The value of {@code row} when it is an entry whose value is a {@code type}; null otherwise (a heading). */
@@ -44,8 +74,39 @@ final class GroupedRows {
     }
   }
 
+  /**
+   * What some columns show for one group instead of their own values: an entry's value of column {@code title} in
+   * {@code group} ({@link #entryValue}), and the label its heading shows in that column ({@link #headingLabel}),
+   * each null to keep the column's own (a blank heading cell).
+   */
+  interface GroupCells<T> {
+    Function<T, Object> entryValue(String group, String title);
+
+    String headingLabel(String group, String title);
+
+    /** No group shows anything of its own. */
+    static <T> GroupCells<T> none() {
+      return new GroupCells<>() {
+        @Override
+        public Function<T, Object> entryValue(String group, String title) {
+          return null;
+        }
+
+        @Override
+        public String headingLabel(String group, String title) {
+          return null;
+        }
+      };
+    }
+  }
+
   static boolean isHeading(Row<?> row) {
     return row instanceof Heading;
+  }
+
+  /** Whether {@code row} is the heading of a collapsible group. */
+  static boolean isCollapsibleHeading(Row<?> row) {
+    return row instanceof Heading<?> h && h.collapsible();
   }
 
   /**
@@ -54,6 +115,15 @@ final class GroupedRows {
    * the given order when {@code within} is null.
    */
   static <T> List<Row<T>> of(List<T> rows, Function<T, String> groupOf, List<String> order, Comparator<T> within) {
+    return of(rows, groupOf, order, within, Set.of(), Set.of());
+  }
+
+  /**
+   * {@code rows} grouped as {@link #of(List, Function, List, Comparator)}; the groups in {@code collapsible} can be
+   * collapsed, and those of them in {@code collapsed} show their heading alone.
+   */
+  static <T> List<Row<T>> of(List<T> rows, Function<T, String> groupOf, List<String> order, Comparator<T> within,
+      Set<String> collapsible, Set<String> collapsed) {
     Map<String, List<T>> groups = new LinkedHashMap<>();
     order.forEach(g -> groups.put(g, new ArrayList<>()));
     rows.forEach(r -> groups.computeIfAbsent(groupOf.apply(r), g -> new ArrayList<>()).add(r));
@@ -65,8 +135,12 @@ final class GroupedRows {
       if (within != null) {
         entries.sort(within);
       }
-      out.add(new Heading<>(group, entries.size()));
-      entries.forEach(e -> out.add(new Entry<>(e)));
+      Fold fold = !collapsible.contains(group) ? Fold.NONE
+          : collapsed.contains(group) ? Fold.COLLAPSED : Fold.EXPANDED;
+      out.add(new Heading<>(group, entries.size(), fold));
+      if (fold != Fold.COLLAPSED) {
+        entries.forEach(e -> out.add(new Entry<>(e, group)));
+      }
     });
     return List.copyOf(out);
   }
@@ -76,13 +150,21 @@ final class GroupedRows {
    * fills the first column only.
    */
   static <T> List<Column<Row<T>>> columns(List<Column<T>> cols) {
+    return columns(cols, GroupCells.none());
+  }
+
+  /** {@link #columns(List)}, where {@code cells} gives some groups' own values and heading labels. */
+  static <T> List<Column<Row<T>>> columns(List<Column<T>> cols, GroupCells<T> cells) {
     List<Column<Row<T>>> out = new ArrayList<>();
     for (int i = 0; i < cols.size(); i++) {
       Column<T> c = cols.get(i);
       boolean first = i == 0;
       Function<Row<T>, Object> value = r -> switch (r) {
-        case Entry<T> e -> c.value().apply(e.value());
-        case Heading<T> h -> first ? h.text() : null;
+        case Entry<T> e -> {
+          Function<T, Object> own = e.group() == null ? null : cells.entryValue(e.group(), c.title());
+          yield (own != null ? own : c.value()).apply(e.value());
+        }
+        case Heading<T> h -> first ? h.text() : cells.headingLabel(h.group(), c.title());
       };
       Function<Row<T>, Optional<EntityRef>> link = c.isLink()
           ? r -> r instanceof Entry<T> e ? c.refFor(e.value()) : Optional.empty()

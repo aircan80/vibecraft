@@ -29,11 +29,16 @@ import dev.wowforever.app.ui.widgets.RankChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.BorderLayout;
+import java.awt.Rectangle;
+import java.awt.event.ActionEvent;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.swing.JComponent;
 import javax.swing.JTable;
+import javax.swing.KeyStroke;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -162,6 +167,54 @@ class NpcPageTest {
         "Recipes (1)", "Recipe");
   }
 
+  private static LootRow drop(long id, String name, Double pct, String className, int droppers, String skill) {
+    return new LootRow(new EntityRef(ITEM, id), name, 15, pct, "questie", null, null, className, null, false, 0, null,
+        null, skill, null, droppers);
+  }
+
+  /** Hogger's kind of drops: his own items, then the generic pool hundreds of NPCs drop at an unknown rate. */
+  private static NpcPage hoggerWithWorldDrops() {
+    return new NpcPage(npc(HOGGER, List.of(drop(1, "Huge Gnoll Claw", 84.0, "Quest", 1, null),
+        drop(2, "Tough Jerky", null, "Consumable", 161, null),
+        drop(3, "Pattern: Dark Leather Tunic", null, "Recipe", 562, "Requires Leatherworking (75)"),
+        drop(4, "Gold Pickup Schedule", null, "Quest", 4, null),
+        drop(5, "Rare Find", null, "Consumable", ItemCategories.WORLD_DROP_NPCS - 1, null)), List.of(), List.of()),
+        t -> {}, text -> {});
+  }
+
+  @Test
+  void worldDropsComeLastInACollapsedGroupThatAClickOpensAndEnterCloses() {
+    var p = hoggerWithWorldDrops();
+    JTable t = p.drops().table();
+    assertThat(column(t, 0)).containsExactly("Quest items (2)", "Huge Gnoll Claw", "Gold Pickup Schedule",
+        "Consumables (1)", "Rare Find", "World drops (2) ▸");
+    assertThat(p.section("Drops").heading().getText()).as("the heading counts every drop").isEqualTo("Drops (5)");
+    Rectangle heading = t.getCellRect(5, 1, true);
+    t.dispatchEvent(new MouseEvent(t, MouseEvent.MOUSE_CLICKED, 0L, 0, heading.x + 2, heading.y + 2, 1, false,
+        MouseEvent.BUTTON1));
+    assertThat(column(t, 0)).endsWith("World drops (2) ▾", "Pattern: Dark Leather Tunic", "Tough Jerky");
+    assertThat(t.getSelectedRow()).as("the heading can be selected").isEqualTo(5);
+    Object enter = t.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT).get(KeyStroke.getKeyStroke("ENTER"));
+    t.getActionMap().get(enter).actionPerformed(new ActionEvent(t, ActionEvent.ACTION_PERFORMED, "enter"));
+    assertThat(column(t, 0)).last().isEqualTo("World drops (2) ▸");
+    assertThat(t.prepareRenderer(t.getCellRenderer(0, 0), 0, 0).getForeground()).as("other headings stay muted")
+        .isEqualTo(Theme.current().textMuted());
+    t.changeSelection(0, 0, false, false);
+    assertThat(t.getSelectedRow()).as("other headings are skipped").isEqualTo(1);
+  }
+
+  @Test
+  void recipesShowTheirRequiredSkillUnderASkillLabel() {
+    var p = new NpcPage(npc(HOGGER, List.of(drop(1, "Sword", 5.0, "Weapon", 1, null),
+        drop(2, "Pattern: Fine Leather Boots", 2.0, "Recipe", 3, "Requires Leatherworking (65)"),
+        drop(3, "Plans: Odd", 1.0, "Recipe", 3, null)), List.of(), List.of()), t -> {}, text -> {});
+    JTable t = p.drops().table();
+    assertThat(columnNames(t)).containsExactly("Item", "Item level", "Rate");
+    assertThat(column(t, 0)).containsExactly("Gear (1)", "Sword", "Recipes (2)", "Pattern: Fine Leather Boots",
+        "Plans: Odd");
+    assertThat(column(t, 1)).containsExactly(null, 15, "Skill", "Leatherworking 65", 15);
+  }
+
   @Test
   void columnsEmptyOrUniformForEveryRowAreHidden() {
     var p = new NpcPage(vanCleef(), t -> {}, text -> {});
@@ -243,8 +296,9 @@ class NpcPageTest {
   @Test
   void rankChipNamesTheRank() {
     var p = new NpcPage(vanCleef(), t -> {}, text -> {});
-    assertThat(p.rankChip().getText()).isEqualTo("Rare Elite");
-    assertThat(p.rankChip().style()).isEqualTo(RankChip.Style.SILVER_OUTLINE);
+    // Questie calls him rare elite; he is an AtlasLoot encounter, so a boss
+    assertThat(p.rankChip().getText()).isEqualTo("Boss");
+    assertThat(p.rankChip().style()).isEqualTo(RankChip.Style.GOLD_FILL);
     assertThat(p.rankChip().isVisible()).isTrue();
   }
 

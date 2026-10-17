@@ -13,6 +13,7 @@ import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
@@ -27,6 +28,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.IntFunction;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -280,7 +282,9 @@ public final class InstancePage extends JPanel {
     if (boss.npcId() != null) {
       bossHeader.addLink("NPC page", new EntityRef(EntityKind.NPC, boss.npcId()), nav);
     }
-    lootTable = LootTables.grouped(loot, SlotGroups::of, SlotGroups.ORDER, null,
+    // AtlasLoot's entry order ("#") orders the rows but is no equipment slot: the column is left out
+    lootTable = LootTables.grouped(loot, new LootTables.Grouping(SlotGroups::of, SlotGroups.ORDER, null, Set.of(),
+        Set.of(Columns.LOOT_ORDER)),
         boss.npcId() == null ? LootTables.NO_SOURCES : LootTables.sourcesOf(boss.npcId(), sources), nav);
     lootSection = new SourceSection("Loot", loot.size(), lootTable);
     lootPane.removeAll();

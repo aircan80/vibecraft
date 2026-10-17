@@ -395,7 +395,7 @@ class ItemPageTest {
     List<ViewTarget> opened = new ArrayList<>();
     var q = new ItemPage(d, opened::add);
     // a quest item of item level 1 shows no item level (never "iLvl 1")
-    assertThat(q.header().subtitle()).isEqualTo("Item #2874 · Quest · Starts quest: The Unsent Letter");
+    assertThat(q.header().subtitle()).isEqualTo("Item #2874 · Quest item · Starts quest: The Unsent Letter");
     q.header().links().get(0).doClick();
     assertThat(opened).containsExactly(new ViewTarget.Entity(quest));
   }

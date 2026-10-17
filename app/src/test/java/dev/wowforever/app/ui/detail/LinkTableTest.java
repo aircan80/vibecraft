@@ -213,10 +213,10 @@ class LinkTableTest {
     t.setCompact(true);
     assertThat(t.isCompact()).isTrue();
     assertThat(names(t)).containsExactly("Item", "Rate", "Origin");
-    assertThat(t.rowTooltip(0)).isEqualTo("Item level 21 · Slot 7");
+    assertThat(t.rowTooltip(0)).isEqualTo("Item level 21 · #7");
     assertThat(t.rowTooltip(1)).isNull(); // nothing hidden has a value
     t.setCompact(false);
-    assertThat(names(t)).containsExactly("Item", "Item level", "Rate", "Origin", "Slot");
+    assertThat(names(t)).containsExactly("Item", "Classes", "Item level", "Rate", "Origin", "#");
     assertThat(t.rowTooltip(0)).isNull();
   }
 
@@ -267,21 +267,21 @@ class LinkTableTest {
     assertThat(names(t)).containsExactly("Item", "Rate", "Origin");
     new JPanel().add(page);
     assertThat(t.isCompact()).isFalse();
-    assertThat(names(t)).hasSize(5);
+    assertThat(names(t)).hasSize(6);
   }
 
   @Test
   void compactTooltipsTellHiddenColumnsAsTheirRenderersShowThem() {
     var t = new LinkTable<>(Columns.lootRated(), v -> {});
     t.setRows(List.of(new LootRow(new EntityRef(ITEM, 1), "Sword", 21, 5.0, "questie", 7)));
-    t.table().getColumnModel().getColumn(4).setCellRenderer(new DefaultTableCellRenderer() {
+    t.table().getColumnModel().getColumn(5).setCellRenderer(new DefaultTableCellRenderer() {
       @Override
       protected void setValue(Object value) {
-        setText("#" + value);
+        setText("No. " + value);
       }
     });
     t.setCompact(true);
-    assertThat(t.rowTooltip(0)).isEqualTo("Item level 21 · Slot: #7");
+    assertThat(t.rowTooltip(0)).isEqualTo("Item level 21 · #: No. 7");
   }
 
   @Test
@@ -301,7 +301,7 @@ class LinkTableTest {
     Rectangle cell = t.table().getCellRect(0, 0, true);
     MouseEvent over = new MouseEvent(t.table(), MouseEvent.MOUSE_MOVED, 0, 0, cell.x + 1, cell.y + 1, 0, false);
     assertThat(t.table().getToolTipText(over))
-        .isEqualTo("<html>Item level 21 · Slot 7<br>Sword of &lt;Testing&gt;</html>");
+        .isEqualTo("<html>Item level 21 · #7<br>Sword of &lt;Testing&gt;</html>");
     t.setCompact(false);
     assertThat(t.table().getToolTipText(over)).isEqualTo("Sword of <Testing>");
   }
@@ -321,8 +321,8 @@ class LinkTableTest {
     assertThat(loot.table().getValueAt(0, 2)).isEqualTo("60.00 % ≠");
     var rated = new LinkTable<>(Columns.lootRated(), v -> {});
     rated.setRows(List.of(letter, loot(2, 5.0)));
-    assertThat(rateText(rated, 0, 2)).isEqualTo("60.00 % ≠");
-    assertThat(rateText(rated, 1, 2)).isEqualTo("5.00 %");
+    assertThat(rateText(rated, 0, 3)).isEqualTo("60.00 % ≠");
+    assertThat(rateText(rated, 1, 3)).isEqualTo("5.00 %");
     var lists = new LinkTable<>(Columns.lootLists(), v -> {});
     lists.setRows(LootListRow.of(List.of(new InstanceLoot(new EntityRef(INSTANCE, 4), "The Deadmines", 10,
         "Edwin VanCleef", 639L, 5, 60.0, true, 4))));

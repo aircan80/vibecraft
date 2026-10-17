@@ -385,14 +385,14 @@ class AppControllerTest {
     c.open(AppController.target(RailTarget.NPCS));
     select(listPage().filterBar().ranks(), 3);
     listPage().results().activateRow(0); // a click on the first name
-    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(NPC, 12118)));
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(NPC, 639)));
     assertThat(view.detail).isInstanceOf(NpcPage.class);
     c.back();
     ViewTarget.List filtered = new ViewTarget.List(NPC, new NpcFilter(null, 3, null, null));
     assertThat(c.current()).isEqualTo(filtered);
     assertThat(listPage().target()).isEqualTo(filtered);
     assertThat(selected(listPage().filterBar().ranks())).isEqualTo(3);
-    assertThat(listPage().results().rowCount()).isEqualTo(2);
+    assertThat(listPage().results().rowCount()).isEqualTo(5);
     c.forward();
     assertThat(view.detail).isInstanceOf(NpcPage.class);
   }
@@ -407,7 +407,7 @@ class AppControllerTest {
     select(page.filterBar().ranks(), 3);
     ViewTarget.List bosses = new ViewTarget.List(NPC, new NpcFilter(null, 3, null, null));
     assertThat(c.current()).isEqualTo(bosses);
-    assertThat(page.results().rowCount()).isEqualTo(2);
+    assertThat(page.results().rowCount()).isEqualTo(5);
     select(page.filterBar().ranks(), 1);
     assertThat(c.current()).isEqualTo(new ViewTarget.List(NPC, new NpcFilter(null, 1, null, null)));
     c.back();
@@ -427,7 +427,7 @@ class AppControllerTest {
     select(page.filterBar().ranks(), 3);
     queued.get(1).run();
     queued.get(0).run(); // the elite reload finishes last and must not replace the bosses
-    assertThat(page.results().rowCount()).isEqualTo(2);
+    assertThat(page.results().rowCount()).isEqualTo(5);
     assertThat(page.target().filter()).isEqualTo(new NpcFilter(null, 3, null, null));
   }
 

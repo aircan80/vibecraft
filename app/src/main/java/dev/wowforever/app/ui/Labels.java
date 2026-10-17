@@ -5,9 +5,13 @@ import dev.wowforever.app.model.EntityRef;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Data values in words for subtitles and headers: content types, zone kinds, NPC ranks, level ranges and the
@@ -16,6 +20,13 @@ import java.util.StringJoiner;
  */
 public final class Labels {
   private static final String SEPARATOR = " · ";
+  /** {@code "Requires <skill> (<rank>)"}, the rank optional. */
+  private static final Pattern REQUIRES = Pattern.compile("(?:Requires\\s+)?(.+?)(?:\\s*\\((\\d+)\\))?");
+  /** The classes of the game by class id. */
+  private static final Map<Integer, String> CLASSES = new TreeMap<>(Map.of(1, "Warrior", 2, "Paladin", 3, "Hunter",
+      4, "Rogue", 5, "Priest", 7, "Shaman", 8, "Mage", 9, "Warlock", 11, "Druid"));
+  /** The class mask of every class of the game. */
+  private static final int ALL_CLASSES = CLASSES.keySet().stream().mapToInt(id -> 1 << (id - 1)).sum();
 
   private Labels() {}
 
@@ -90,15 +101,50 @@ public final class Labels {
   }
 
   /**
-   * {@code "Mail · iLvl 37 · Req 32"}: the subclass, or the class when the subclass is unknown or named like it;
-   * the item level and required level only when above 1.
+   * {@code "Mail · iLvl 37 · Req 32"}: the subclass, or the class when the subclass is unknown or named like it
+   * ("Quest" reads "Quest item", so a quest item is not taken for a quest); the item level and required level only
+   * when above 1.
    */
   public static String itemSubtitle(String className, String subclassName, Integer itemLevel, Integer requiredLevel) {
     StringJoiner s = joiner();
-    add(s, isBlank(subclassName) || subclassName.equals(className) ? className : subclassName);
+    String kind = isBlank(subclassName) || subclassName.equals(className) ? className : subclassName;
+    add(s, "Quest".equals(kind) ? "Quest item" : kind);
     add(s, above1(itemLevel) ? "iLvl " + itemLevel : null);
     add(s, above1(requiredLevel) ? "Req " + requiredLevel : null);
     return s.toString();
+  }
+
+  /**
+   * The skill of a tooltip's required-skill line: {@code "Requires Leatherworking (65)"} → {@code "Leatherworking
+   * 65"}, a line without a rank → the skill; null for a null or blank line.
+   */
+  public static String skill(String requiresLine) {
+    if (isBlank(requiresLine)) {
+      return null;
+    }
+    Matcher m = REQUIRES.matcher(requiresLine.strip());
+    if (m.matches()) {
+      return m.group(2) == null ? m.group(1) : m.group(1) + " " + m.group(2);
+    }
+    return requiresLine.strip();
+  }
+
+  /**
+   * The classes of a client class mask ({@code AllowableClass}, bit {@code id - 1} per class id), in class id order
+   * ({@code "Warrior, Paladin"}); null when the item is not restricted: a null, zero or negative mask, or one that
+   * allows every class of the game.
+   */
+  public static String classes(Integer mask) {
+    if (mask == null || mask <= 0 || (mask & ALL_CLASSES) == ALL_CLASSES) {
+      return null;
+    }
+    StringJoiner names = new StringJoiner(", ");
+    CLASSES.forEach((id, name) -> {
+      if ((mask & (1 << (id - 1))) != 0) {
+        names.add(name);
+      }
+    });
+    return names.length() == 0 ? null : names.toString();
   }
 
   /** {@code "Elite · Level 34–35 · Scarlet Monastery"}. */

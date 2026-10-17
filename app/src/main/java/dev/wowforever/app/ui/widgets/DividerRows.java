@@ -15,7 +15,8 @@ import javax.swing.table.TableColumn;
 
 /**
  * Divider pseudo-rows in a {@link LinkTable}: a divider shows its first-column value in muted text, leaves the
- * other cells blank and cannot be selected (the selection steps over it). Rows keep the order they were given,
+ * other cells blank (or shows its own label there, muted too) and cannot be selected (the selection steps over it)
+ * unless it is one the page acts on, such as a collapsible group's heading. Rows keep the order they were given,
  * since a divider belongs between its groups, so the table is not sortable.
  */
 public final class DividerRows {
@@ -23,6 +24,14 @@ public final class DividerRows {
 
   /** Treats the rows of {@code links} that match {@code isDivider} as dividers. Call after the renderers are set. */
   public static <T> void install(LinkTable<T> links, Predicate<T> isDivider) {
+    install(links, isDivider, row -> false);
+  }
+
+  /**
+   * As {@link #install(LinkTable, Predicate)}, the dividers that match {@code selectable} taking the selection
+   * like any row (a heading that Enter opens, say).
+   */
+  public static <T> void install(LinkTable<T> links, Predicate<T> isDivider, Predicate<T> selectable) {
     JTable table = links.table();
     table.setRowSorter(null);
     IntPredicate divider = viewRow -> viewRow >= 0 && viewRow < table.getRowCount()
@@ -31,7 +40,9 @@ public final class DividerRows {
       TableColumn column = table.getColumnModel().getColumn(c);
       column.setCellRenderer(new Renderer(column.getCellRenderer(), column.getModelIndex(), divider));
     }
-    SkipDividers selection = new SkipDividers(divider, table);
+    IntPredicate skipped = viewRow -> divider.test(viewRow)
+        && !selectable.test(links.model().rowAt(table.convertRowIndexToModel(viewRow)));
+    SkipDividers selection = new SkipDividers(skipped, table);
     selection.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
     table.setSelectionModel(selection);
   }
@@ -60,9 +71,10 @@ public final class DividerRows {
             own != null ? own : table.getDefaultRenderer(table.getModel().getColumnClass(modelColumn));
         return r.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
       }
-      boolean first = modelColumn == 0;
-      super.getTableCellRendererComponent(table, first ? value : "", false, false, row, column);
-      setForeground(Theme.current().textMuted());
+      super.getTableCellRendererComponent(table, value == null ? "" : value, isSelected, false, row, column);
+      if (!isSelected) {
+        setForeground(Theme.current().textMuted());
+      }
       return this;
     }
 

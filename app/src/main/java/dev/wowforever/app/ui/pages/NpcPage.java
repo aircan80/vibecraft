@@ -16,11 +16,13 @@ import dev.wowforever.app.ui.widgets.RankChip;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * The NPC page, one scrolling page: the header (name and title, a rank chip, levels and a zone link), then the
  * sections Drops, Sells, Starts quests, Ends quests and Spawns (those without rows are left out). Drops are
- * grouped by {@link ItemCategories} under heading rows, each group ranked by rate with unknown rates last.
+ * grouped by {@link ItemCategories} under heading rows, each group ranked by rate with unknown rates last; the
+ * world drops (unknown rate, dropped by many NPCs) come last in a collapsed group, and recipes show their skill.
  * Columns that say nothing for any row are left out ({@link VisibleColumns}). Given the decoded map of a spawn
  * zone, the Spawns section shows it above its table with the NPC's spawn points there.
  *
@@ -61,8 +63,9 @@ public final class NpcPage extends SourcesPage {
     if (d.drops().isEmpty()) {
       drops = null;
     } else {
-      drops = LootTables.grouped(shown.rows(), l -> ItemCategories.of(l.className()), ItemCategories.ORDER,
-          LootTables.BY_RATE, LootTables.sourcesOf(s.id(), rateSources), nav);
+      drops = LootTables.grouped(shown.rows(), new LootTables.Grouping(ItemCategories::ofDrop,
+          ItemCategories.DROP_ORDER, LootTables.BY_RATE, Set.of(ItemCategories.WORLD_DROPS), Set.of()),
+          LootTables.sourcesOf(s.id(), rateSources), nav);
       addFilteredSection("Drops", shown, drops);
     }
     addLootSection("Sells", d.sells());

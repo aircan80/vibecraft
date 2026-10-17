@@ -132,6 +132,10 @@ public final class Columns {
   public static final String RATE = "Rate";
   /** Appended to a drop rate whose sources disagree. */
   public static final String DISAGREES = " ≠";
+  /** The title of the loot tables' class restriction column ({@link Labels#classes}). */
+  public static final String CLASSES = "Classes";
+  /** The title of the loot tables' AtlasLoot entry order column (not an equipment slot). */
+  public static final String LOOT_ORDER = "#";
 
   /**
    * Orders formatted numbers ({@code "5.00 %"}, {@code "45.3"}) by their leading number; text without one
@@ -248,20 +252,22 @@ public final class Columns {
         plain("Item level", Integer.class, LootRow::itemLevel),
         numeric("Drop %", l -> rateText(l.dropPct(), l.disagrees())),
         plain("Origin", String.class, LootRow::origin),
-        plain("Slot", Integer.class, LootRow::slot));
+        plain(LOOT_ORDER, Integer.class, LootRow::slot));
   }
 
   /**
    * Items on the entity pages (an NPC's drops and wares, an object's contents, a quest's rewards, a boss's loot):
-   * the item, its level, the rate (a {@link Double}, null when unknown), the data origin and the loot slot.
+   * the item, the classes it is restricted to ({@value #CLASSES}, blank for most), its level, the rate (a
+   * {@link Double}, null when unknown), the data origin and AtlasLoot's entry order ({@value #LOOT_ORDER}).
    */
   public static List<Column<LootRow>> lootRated() {
     return List.of(
         lootItem(),
+        plain(CLASSES, String.class, l -> Labels.classes(l.allowableClass())),
         plain("Item level", Integer.class, LootRow::itemLevel),
         rate(LootRow::dropPct, LootRow::disagrees),
         plain("Origin", String.class, LootRow::origin),
-        plain("Slot", Integer.class, LootRow::slot));
+        plain(LOOT_ORDER, Integer.class, LootRow::slot));
   }
 
   /** The NPCs, objects and items that start or end a quest; an item in its quality colour after its icon. */

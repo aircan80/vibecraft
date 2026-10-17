@@ -6,11 +6,22 @@ package dev.wowforever.app.model;
  * {@code className} ({@code item_class.name}: Weapon, Armor, Recipe, ...) and {@code subclassId} are null when
  * the item or its class is unknown. {@code sourceCount} is how many drop rate sources gave a rate and
  * {@code disagrees} whether they disagree on it (false and 0 for lists without drop rates). {@code quality} and
- * {@code iconId} come from the client data and are null for items without it.
+ * {@code iconId} come from the client data and are null for items without it, as are {@code skillLine} (the
+ * tooltip's required-skill line, {@code "Requires Leatherworking (65)"}, null when the item has none) and
+ * {@code allowableClass} (the client's class mask; null, -1 and every class mean unrestricted). {@code dropperCount}
+ * is how many NPCs drop the item, filled on NPC drop lists only (0 elsewhere).
  */
 public record LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
     Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
-    Long iconId) {
+    Long iconId, String skillLine, Integer allowableClass, int dropperCount) {
+
+  /** A row without a required skill, class restriction or dropper count. */
+  public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
+      Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
+      Long iconId) {
+    this(item, itemName, itemLevel, dropPct, origin, slot, classId, className, subclassId, disagrees, sourceCount,
+        quality, iconId, null, null, 0);
+  }
 
   /** A row without client data (quality and icon). */
   public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,

@@ -105,16 +105,13 @@ public final class ZoneRepository {
 
   /**
    * The NPC spawn points in zone {@code zoneId} that lie on its map ({@link MapCoordinates#onMap}), each with the
-   * NPC's name and rank, in import order and at most {@link #PIN_CAP}; with {@code bossesAndRaresOnly} only those
-   * of bosses, rare elites and rares (ranks 3, 2 and 4).
+   * NPC's name and rank (the rank shown, {@link NpcRepository#RANK}), in import order and at most
+   * {@link #PIN_CAP}; with {@code bossesAndRaresOnly} only those of bosses, rare elites and rares (ranks 3, 2 and 4).
    */
   public List<SpawnPin> npcSpawnsInZone(long zoneId, boolean bossesAndRaresOnly) {
-    return db.read(c -> Sql.list(c, """
-        SELECT s.npc_id AS id, n.name, n.rank, s.x, s.y
-        FROM npc_spawn s LEFT JOIN npc n ON n.id = s.npc_id
-        WHERE s.zone_id = ?""" + ON_MAP + """
-          AND (? = 0 OR n.rank IN (2, 3, 4))
-        ORDER BY s.rowid LIMIT ?""",
+    return db.read(c -> Sql.list(c, "SELECT s.npc_id AS id, n.name, " + NpcRepository.RANK + " AS rank, s.x, s.y"
+        + " FROM npc_spawn s LEFT JOIN npc n ON n.id = s.npc_id WHERE s.zone_id = ?" + ON_MAP
+        + " AND (? = 0 OR " + NpcRepository.RANK + " IN (2, 3, 4)) ORDER BY s.rowid LIMIT ?",
         rs -> pin(rs, EntityKind.NPC, Sql.integer(rs, "rank")), zoneId, bossesAndRaresOnly ? 1 : 0, PIN_CAP));
   }
 

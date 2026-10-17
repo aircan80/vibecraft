@@ -58,7 +58,7 @@ public final class SearchRepository {
              sole.id AS sole_id, sole.name AS sole_name,
              ic.name AS class_name, isc.name AS subclass_name, i.item_level, i.required_level, i.quality,
              i.icon_id,
-             n.rank, n.min_level, n.max_level, nz.name AS npc_zone,
+             %s AS rank, n.min_level, n.max_level, nz.name AS npc_zone,
              oz.name AS object_zone,
              q.quest_level, qz.name AS quest_zone,
              z.kind AS zone_kind, zp.name AS zone_parent,
@@ -135,7 +135,7 @@ public final class SearchRepository {
     params.add(kind.isEmpty() ? 1 : 0);
     params.add(exactText(text));
     params.add((long) limit * FETCH_FACTOR);
-    String sql = SQL.formatted(kind.isPresent() ? "AND kind = ?" : "");
+    String sql = SQL.formatted(kind.isPresent() ? "AND kind = ?" : "", NpcRepository.RANK);
     try {
       List<SearchHit> rows = db.read(c -> Sql.list(c, sql, SearchRepository::hit, params.toArray()));
       return collapse(rows.stream().filter(Objects::nonNull).toList(), limit);

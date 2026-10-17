@@ -99,7 +99,7 @@ class SearchRankingTest {
     assertThat(hits).extracting(SearchHit::subtitle).containsExactly(
         "Dungeon · Level 20–25 · Crypt Depths",
         "Zone · Westfall",
-        "NPC · Elite · Level 30 · Westfall",
+        "NPC · Boss · Level 30 · Westfall",
         "NPC · Rare · Level 30 · Westfall",
         "Cloth · iLvl 20 · Req 15",
         "Quest · Level 10 · Westfall",

@@ -12,8 +12,8 @@ class CompactColumnsTest {
   void theTooltipSkipsEmptyCellsAndStripsMarkup() {
     assertThat(CompactColumns.tooltip(List.of(new Cell("Level", "21"),
         new Cell("Zone", "<html><u>Westfall</u></html>"), new Cell("Kind", Columns.NONE), new Cell("Note", " "),
-        new Cell("Slot", "7"))))
-        .isEqualTo("Level 21 · Zone: Westfall · Slot 7");
+        new Cell("#", "7"))))
+        .isEqualTo("Level 21 · Zone: Westfall · #7");
     assertThat(CompactColumns.tooltip(List.of(new Cell("Zone", null), new Cell("Kind", "")))).isNull();
   }
 

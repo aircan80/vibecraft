@@ -19,6 +19,7 @@ import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Component;
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -201,6 +202,28 @@ class InstancePageTest {
     var p = deadmines(new ArrayList<>());
     assertThat(repos.instances().detail(2).get().difficulties()).hasSize(1);
     assertThat(p.difficultyControl()).isNull();
+  }
+
+  @Test
+  void lootKeepsAtlasLootsOrderWithoutItsColumnAndNamesClassRestrictionsMuted() {
+    BossSummary boss = new BossSummary(7, "Lord Alexei Barov", 10504L, 60, null, false);
+    var d = new InstanceDetail(new InstanceSummary(9, "Scholomance", "DUNGEON", 58, 60, null, null), List.of(boss),
+        List.of("NORMAL"));
+    BossLoot loot = (bossId, difficulty) -> List.of(
+        new LootRow(new EntityRef(ITEM, 1), "Barovian Family Sword", 62, null, "atlasloot", 1, 2, "Weapon", 8, false,
+            0, 3, null, null, null, 0),
+        new LootRow(new EntityRef(ITEM, 2), "Necropile Robe", 61, null, "atlasloot", 2, 4, "Armor", 1, false, 0, 3,
+            null, null, 128 | 256 | 16, 0),
+        new LootRow(new EntityRef(ITEM, 3), "Dreadmist Wraps", 57, null, "atlasloot", 3, 4, "Armor", 1, false, 0, 3,
+            null, null, 256, 0));
+    var p = new InstancePage(d, loot, t -> {});
+    JTable t = p.lootTable().table();
+    assertThat(columnNames(t)).containsExactly("Item", "Classes", "Item level").doesNotContain("#", "Slot");
+    assertThat(column(t, 0)).containsExactly("Weapons (1)", "Barovian Family Sword", "Armour (2)",
+        "Necropile Robe", "Dreadmist Wraps");
+    assertThat(column(t, 1)).containsExactly(null, null, null, "Priest, Mage, Warlock", "Warlock");
+    assertThat(t.prepareRenderer(t.getCellRenderer(4, 1), 4, 1).getForeground())
+        .isEqualTo(Theme.current().textMuted());
   }
 
   @Test

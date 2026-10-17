@@ -16,14 +16,27 @@ import java.util.Optional;
 
 /** NPCs: detail pages, filtered lists and zone lists. */
 public final class NpcRepository {
-  private static final String SUMMARY = """
-      SELECT n.id, n.name, n.sub_name, n.min_level, n.max_level, n.rank, n.zone_id, nz.name AS zone_name,
-             n.npc_flags, n.friendly_to
-      FROM npc n LEFT JOIN zone nz ON nz.id = n.zone_id""";
+  /**
+   * The rank an NPC {@code n} is shown and filtered with: Boss (3) for an AtlasLoot encounter of an instance's main
+   * list that AtlasLoot gives no special type (Questie calls some of them elite or rare elite, Edwin VanCleef
+   * among them), else Questie's rank. An encounter AtlasLoot itself calls rare or elite keeps Questie's rank, as the
+   * instance page reads it. The {@code IN} list is built once per query.
+   */
+  static final String RANK = """
+      CASE WHEN n.id IN (SELECT b.npc_id FROM boss b WHERE b.npc_id IS NOT NULL AND b.is_extra_list = 0
+                         AND (b.special_type IS NULL OR b.special_type = '')) THEN 3 ELSE n.rank END""";
+  private static final String SUMMARY = "SELECT n.id, n.name, n.sub_name, n.min_level, n.max_level, " + RANK
+      + " AS rank, n.zone_id, nz.name AS zone_name, n.npc_flags, n.friendly_to"
+      + " FROM npc n LEFT JOIN zone nz ON nz.id = n.zone_id";
 
-  /** The item columns a {@link LootRow} reads ({@link #itemJoin} must be joined): name, level, class, quality, icon. */
-  static final String ITEM_COLUMNS =
-      "i.name, i.item_level, i.class_id, ic.name AS class_name, i.subclass_id, i.quality, i.icon_id";
+  /**
+   * The item columns a {@link LootRow} reads ({@link #itemJoin} must be joined): name, level, class, quality, icon,
+   * class mask and the tooltip's required-skill line.
+   */
+  static final String ITEM_COLUMNS = """
+      i.name, i.item_level, i.class_id, ic.name AS class_name, i.subclass_id, i.quality, i.icon_id, \
+      i.allowable_class, (SELECT t.text FROM item_tooltip_line t WHERE t.item_id = i.id AND t.kind = 'req_skill' \
+      ORDER BY t.ordinal LIMIT 1) AS skill_line""";
 
   private final Database db;
 
@@ -42,13 +55,15 @@ public final class NpcRepository {
         return head;
       }
       NpcDetail h = head.get();
+      // dropper_count: how many NPCs drop the item (a primary-key prefix count), which tells the world drops
       List<LootRow> drops = Sql.list(c, "SELECT d.item_id, " + ITEM_COLUMNS
-          + ", d.drop_pct, d.origin, d.disagrees, d.source_count"
+          + ", d.drop_pct, d.origin, d.disagrees, d.source_count,"
+          + " (SELECT count(*) FROM item_npc_drop x WHERE x.item_id = d.item_id) AS dropper_count"
           + " FROM item_npc_drop d " + itemJoin("d") + """
 
           WHERE d.npc_id = ?
           ORDER BY d.drop_pct IS NULL, d.drop_pct DESC, i.name IS NULL, i.name COLLATE NOCASE, d.item_id""",
-          rs -> ratedLoot(rs, rs.getString("origin"), null),
+          rs -> withDropperCount(ratedLoot(rs, rs.getString("origin"), null), rs.getInt("dropper_count")),
           id);
       List<LootRow> sells = Sql.list(c, "SELECT v.item_id, " + ITEM_COLUMNS
           + " FROM item_vendor v " + itemJoin("v") + """
@@ -74,7 +89,8 @@ public final class NpcRepository {
   }
 
   /**
-   * Every NPC {@code filter} lets through, by name. The level bounds keep an NPC whose level range overlaps them (an
+   * Every NPC {@code filter} lets through, by name; the rank filter matches the rank shown ({@link #RANK}). The
+   * level bounds keep an NPC whose level range overlaps them (an
    * NPC with one known level counts it as both ends); NPCs without a level drop out once a bound is set.
    */
   public List<NpcSummary> list(NpcFilter filter) {
@@ -85,7 +101,7 @@ public final class NpcRepository {
       params.add(filter.zoneId());
     }
     if (filter.rank() != null) {
-      where.append(" AND n.rank = ?");
+      where.append(" AND ").append(RANK).append(" = ?");
       params.add(filter.rank());
     }
     if (filter.minLevel() != null) {
@@ -115,7 +131,13 @@ public final class NpcRepository {
     return new LootRow(new EntityRef(EntityKind.ITEM, rs.getLong("item_id")), rs.getString("name"),
         Sql.integer(rs, "item_level"), dropPct, origin, slot, Sql.integer(rs, "class_id"),
         rs.getString("class_name"), Sql.integer(rs, "subclass_id"), false, 0, Sql.integer(rs, "quality"),
-        Sql.longValue(rs, "icon_id"));
+        Sql.longValue(rs, "icon_id"), rs.getString("skill_line"), Sql.integer(rs, "allowable_class"), 0);
+  }
+
+  private static LootRow withDropperCount(LootRow r, int dropperCount) {
+    return new LootRow(r.item(), r.itemName(), r.itemLevel(), r.dropPct(), r.origin(), r.slot(), r.classId(),
+        r.className(), r.subclassId(), r.disagrees(), r.sourceCount(), r.quality(), r.iconId(), r.skillLine(),
+        r.allowableClass(), dropperCount);
   }
 
   /**
@@ -126,7 +148,7 @@ public final class NpcRepository {
     LootRow row = loot(rs, Sql.doubleValue(rs, "drop_pct"), origin, slot);
     return new LootRow(row.item(), row.itemName(), row.itemLevel(), row.dropPct(), row.origin(), row.slot(),
         row.classId(), row.className(), row.subclassId(), rs.getInt("disagrees") != 0, rs.getInt("source_count"),
-        row.quality(), row.iconId());
+        row.quality(), row.iconId(), row.skillLine(), row.allowableClass(), 0);
   }
 
   /** The spawn points of an NPC or object from {@code table} (npc_spawn or object_spawn), in import order. */

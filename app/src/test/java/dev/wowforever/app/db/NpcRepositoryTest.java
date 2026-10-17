@@ -6,8 +6,14 @@ import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.model.NpcSummary;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(FixtureDb.class)
 class NpcRepositoryTest {
@@ -51,19 +57,65 @@ class NpcRepositoryTest {
   }
 
   @Test
+  void dropRowsCountTheNpcsThatDropTheirItemAndCarryTheClientClassAndSkill(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into item_npc_drop(item_id, npc_id, origin) values (5191, 448, 'questie'),"
+          + " (5191, 449, 'questie')");
+      st.executeUpdate("update item set allowable_class = 256 where id = 5191");
+      st.executeUpdate("insert into item_tooltip_line(item_id, ordinal, kind, text) values"
+          + " (5191, 90, 'req_skill', 'Requires Leatherworking (65)')");
+    }
+    try (Database db = Database.open(copy)) {
+      NpcDetail d = Repositories.of(db).npcs().detail(639).orElseThrow();
+      assertThat(d.drops()).filteredOn(l -> l.item().id() == 5191).singleElement().satisfies(l -> {
+        assertThat(l.dropperCount()).as("VanCleef and the two added").isEqualTo(3);
+        assertThat(l.allowableClass()).isEqualTo(256);
+        assertThat(l.skillLine()).isEqualTo("Requires Leatherworking (65)");
+      });
+      assertThat(d.drops()).filteredOn(l -> l.item().id() == 2874).singleElement().satisfies(l -> {
+        assertThat(l.dropperCount()).isEqualTo(1);
+        assertThat(l.skillLine()).isNull();
+      });
+    }
+  }
+
+  @Test
   void byZoneListsSpawnZoneNpcs() {
     assertThat(repos.npcs().byZone(2437)).extracting(n -> n.id()).contains(11520L);
   }
 
   @Test
   void npcsByRank() {
+    // the AtlasLoot encounters are bosses, whatever Questie's rank (elite, rare elite)
     assertThat(repos.npcs().list(new NpcFilter(null, 3, null, null))).extracting(NpcSummary::name)
-        .containsExactly("Lucifron", "Ragnaros");
+        .containsExactly("Edwin VanCleef", "Jergosh the Invoker", "Lucifron", "Ragnaros", "Taragaman the Hungerer");
     assertThat(repos.npcs().list(new NpcFilter(null, 1, null, null))).extracting(NpcSummary::name)
-        .containsExactly("Hogger", "Jergosh the Invoker", "Taragaman the Hungerer");
-    assertThat(repos.npcs().list(new NpcFilter(2437L, 1, null, null))).extracting(NpcSummary::name)
+        .containsExactly("Hogger");
+    assertThat(repos.npcs().list(new NpcFilter(2437L, 3, null, null))).extracting(NpcSummary::name)
         .containsExactly("Jergosh the Invoker", "Taragaman the Hungerer");
     assertThat(repos.npcs().list(new NpcFilter(12L, 3, null, null))).isEmpty();
+  }
+
+  @Test
+  void anAtlasLootEncounterIsABossWhateverQuestiesRank(@TempDir Path tmp) throws Exception {
+    assertThat(repos.npcs().detail(639).orElseThrow().summary().rank()).as("Questie says rare elite").isEqualTo(3);
+    assertThat(repos.npcs().list(new NpcFilter(null, 3, null, null))).extracting(NpcSummary::name)
+        .contains("Edwin VanCleef");
+    assertThat(repos.npcs().list(new NpcFilter(null, 2, null, null))).extracting(NpcSummary::name)
+        .doesNotContain("Edwin VanCleef");
+    assertThat(repos.npcs().byZone(1581)).filteredOn(n -> n.id() == 639).singleElement()
+        .satisfies(n -> assertThat(n.rank()).isEqualTo(3));
+    // an encounter AtlasLoot itself calls rare keeps Questie's rank, as the instance page reads it
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("update boss set special_type = 'rare' where npc_id = 639");
+    }
+    try (Database db = Database.open(copy)) {
+      assertThat(Repositories.of(db).npcs().detail(639).orElseThrow().summary().rank()).isEqualTo(2);
+    }
   }
 
   @Test

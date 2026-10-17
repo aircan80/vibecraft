@@ -104,7 +104,7 @@ class SearchRepositoryTest {
   @Test
   void itemSubtitleOmitsASubclassNamedLikeItsClass() {
     assertThat(repos.search().search("unsent letter", Optional.of(ITEM), 5)).singleElement()
-        .satisfies(h -> assertThat(h.subtitle()).isEqualTo("Quest · iLvl 16 · Req 16"));
+        .satisfies(h -> assertThat(h.subtitle()).isEqualTo("Quest item · iLvl 16 · Req 16"));
   }
 
   @Test
@@ -112,13 +112,19 @@ class SearchRepositoryTest {
     assertThat(repos.search().search("Subterranean Cape", Optional.of(ITEM), 1))
         .singleElement().satisfies(h -> assertThat(h.subtitle()).isEqualTo("Cloth · iLvl 18 · Req 13"));
     assertThat(repos.search().search("Taragaman", Optional.of(NPC), 1))
-        .singleElement().satisfies(h -> assertThat(h.subtitle()).startsWith("NPC · Elite · Level"));
+        .singleElement().satisfies(h -> assertThat(h.subtitle()).startsWith("NPC · Boss · Level"));
     assertThat(repos.search().search("hogger", Optional.of(NPC), 1))
         .singleElement().satisfies(h -> assertThat(h.subtitle()).isEqualTo("NPC · Elite · Level 11 · Elwynn Forest"));
     assertThat(repos.search().search("ragefire", Optional.of(EntityKind.INSTANCE), 1))
         .singleElement().satisfies(h -> assertThat(h.subtitle()).isEqualTo("Dungeon · Level 10–13 · Orgrimmar"));
     assertThat(repos.search().search("deadmines", Optional.of(EntityKind.ZONE), 1))
         .singleElement().satisfies(h -> assertThat(h.subtitle()).isEqualTo("Dungeon · Westfall"));
+  }
+
+  @Test
+  void anAtlasLootEncounterReadsBossInItsSubtitle() {
+    assertThat(repos.search().search("vancleef", Optional.of(EntityKind.NPC), 5)).singleElement()
+        .satisfies(h -> assertThat(h.subtitle()).startsWith("NPC · Boss · "));
   }
 
   @Test
