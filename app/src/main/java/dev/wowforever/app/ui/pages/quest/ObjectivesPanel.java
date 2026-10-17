@@ -10,6 +10,10 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Color;
 import java.awt.Dimension;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Insets;
+import java.awt.LayoutManager;
 import java.awt.FlowLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -37,7 +41,7 @@ public final class ObjectivesPanel extends JPanel {
   public ObjectivesPanel(List<ObjectiveRow> objectives, List<QuestSourceItem> items, Navigator nav,
       IntConsumer onFocus, IntConsumer onShowAll) {
     setOpaque(false);
-    setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+    setLayout(new NaturalStack());
     List<ObjectiveRowView> views = new ArrayList<>();
     for (ObjectiveRow row : objectives) {
       ObjectiveRowView view = new ObjectiveRowView(row, nav, onFocus, onShowAll);
@@ -78,7 +82,7 @@ public final class ObjectivesPanel extends JPanel {
     ObjectiveRowView(ObjectiveRow row, Navigator nav, IntConsumer onFocus, IntConsumer onShowAll) {
       this.row = row;
       setOpaque(false);
-      setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
+      setLayout(new NaturalStack());
       setAlignmentX(LEFT_ALIGNMENT);
       setBorder(BorderFactory.createEmptyBorder(0, 0, UIScale.scale(10), 0));
       JPanel head = new JPanel(new FlowLayout(FlowLayout.LEADING, UIScale.scale(4), 0));
@@ -131,16 +135,7 @@ public final class ObjectivesPanel extends JPanel {
           + (row.targetName() == null ? "" : " " + row.targetName()));
     }
 
-    @Override public Dimension getPreferredSize() {
-      int width = getWidth() > 0 ? getWidth() : 480;
-      text.setSize(width, 1);
-      whereLine.setSize(width, 1);
-      return super.getPreferredSize();
-    }
-
-    @Override public Dimension getMaximumSize() {
-      return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
-    }
+    public int heightFor(int width) { return stackHeight(this, width); }
 
     public ObjectiveRow row() { return row; }
     public JButton focusButton() { return focusButton; }
@@ -149,6 +144,54 @@ public final class ObjectivesPanel extends JPanel {
     public JTextArea whereLine() { return whereLine; }
     public JButton whereLink() { return whereLink; }
     public JButton showAllButton() { return showAllButton; }
+  }
+
+  /** Measures wrapped text at its allocated width without changing component bounds or requesting layout. */
+  public static int textHeight(JTextArea area, int width) {
+    if (!area.isVisible()) return 0;
+    Insets in = area.getInsets();
+    var view = area.getUI().getRootView(area);
+    view.setSize(Math.max(1, width - in.left - in.right), Integer.MAX_VALUE);
+    return (int) Math.ceil(view.getPreferredSpan(javax.swing.text.View.Y_AXIS)) + in.top + in.bottom;
+  }
+
+  public int heightFor(int width) { return stackHeight(this, width); }
+
+  private static int childHeight(Component child, int width) {
+    if (child instanceof JTextArea area) return textHeight(area, width);
+    if (child instanceof ObjectiveRowView row) return row.heightFor(width);
+    return child.getPreferredSize().height;
+  }
+
+  private static int stackHeight(Container container, int width) {
+    Insets in = container.getInsets();
+    int height = in.top + in.bottom;
+    for (Component child : container.getComponents()) {
+      if (child.isVisible()) height += childHeight(child, Math.max(1, width - in.left - in.right));
+    }
+    return height;
+  }
+
+  /** Never compresses a row to a stale BoxLayout maximum height after wrapping changes. */
+  private static final class NaturalStack implements LayoutManager {
+    public void addLayoutComponent(String name, Component child) {}
+    public void removeLayoutComponent(Component child) {}
+    public Dimension preferredLayoutSize(Container parent) {
+      int width = parent.getWidth() > 0 ? parent.getWidth() : 480;
+      return new Dimension(width, stackHeight(parent, width));
+    }
+    public Dimension minimumLayoutSize(Container parent) { return preferredLayoutSize(parent); }
+    public void layoutContainer(Container parent) {
+      Insets in = parent.getInsets();
+      int width = Math.max(1, parent.getWidth() - in.left - in.right);
+      int y = in.top;
+      for (Component child : parent.getComponents()) {
+        if (!child.isVisible()) continue;
+        int height = childHeight(child, width);
+        child.setBounds(in.left, y, width, height);
+        y += height;
+      }
+    }
   }
 
   private static JTextArea muted(String text) {

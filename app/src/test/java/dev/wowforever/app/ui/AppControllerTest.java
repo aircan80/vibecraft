@@ -661,6 +661,167 @@ class AppControllerTest {
   }
 
   @Test
+  void searchTextFollowsCommittedLinksAndHistory() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    assertThat(view.searchText).isEqualTo("Subterranean Cape");
+    ((ItemPage) view.detail).droppedBy().activateRow(0);
+    assertThat(view.searchText).isEqualTo("Taragaman the Hungerer");
+    c.back();
+    assertThat(view.searchText).isEqualTo("Subterranean Cape");
+    c.forward();
+    assertThat(view.searchText).isEqualTo("Taragaman the Hungerer");
+  }
+
+  @Test
+  void aLoadedPreviewPreservesQueryUntilCommittedWithoutReloading() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    view.searchText = "cape query";
+    c.preview(new EntityRef(ITEM, 14149));
+    queued.removeFirst().run();
+    assertThat(view.searchText).isEqualTo("cape query");
+    assertThat(view.pageNames).isEmpty();
+    c.commit(new EntityRef(ITEM, 14149));
+    assertThat(queued).isEmpty();
+    assertThat(view.searchText).isEqualTo("Subterranean Cape");
+    assertThat(view.pageNames).containsExactly("Subterranean Cape");
+  }
+
+  @Test
+  void aCommittedPreviewStillLoadingFollowsOnlyAfterCompletion() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    view.searchText = "cape query";
+    c.preview(new EntityRef(ITEM, 14149));
+    c.commit(new EntityRef(ITEM, 14149));
+    assertThat(view.pageNames).isEmpty();
+    queued.removeFirst().run();
+    assertThat(view.searchText).isEqualTo("Subterranean Cape");
+    assertThat(view.pageNames).containsExactly("Subterranean Cape");
+  }
+
+  @Test
+  void staleEntityAndPreviewLoadsCannotOverwriteTheCommittedSearchName() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    c.preview(new EntityRef(ITEM, 14149));
+    c.open(new ViewTarget.Entity(new EntityRef(NPC, 448)));
+    queued.remove(1).run();
+    queued.removeFirst().run();
+    assertThat(view.searchText).isEqualTo("Hogger");
+    assertThat(view.pageNames).containsExactly("Hogger");
+  }
+
+  @Test
+  void aRealSearchEditSurvivesEntityCompletionWithPendingOrRunningTypeAhead() throws Exception {
+    for (boolean startLookup : new boolean[] {false, true}) {
+      var node = UiStateTest.testNode();
+      try {
+        var state = new UiState(node);
+        var delay = new ManualDelay();
+        var host = new dev.wowforever.app.ui.widgets.FakeDropdownHost();
+        var dropdown = new dev.wowforever.app.ui.widgets.SearchDropdown(host);
+        var bar = new SearchBar(target -> {}, state, delay, dropdown);
+        List<Runnable> lookups = new ArrayList<>();
+        bar.attach(SearchBar.Source.of(repos.search()), lookups::add);
+        view.searchEdits = bar::editRevision;
+        view.followSearchName = bar::followPageName;
+        List<Runnable> pages = new ArrayList<>();
+        var controller = new AppController(repos, view, pages::add);
+        controller.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+        bar.focusChanged(true);
+        bar.textField().setText("hog");
+        long edited = bar.editRevision();
+        assertThat(edited).isPositive();
+        if (startLookup) delay.fire();
+        pages.removeFirst().run();
+        assertThat(view.pageNames).isEmpty();
+        assertThat(bar.textField().getText()).isEqualTo("hog");
+        assertThat(bar.editRevision()).isEqualTo(edited);
+        if (!startLookup) {
+          assertThat(delay.pending()).isEqualTo(1);
+          delay.fire();
+        }
+        assertThat(lookups).hasSize(1);
+        lookups.removeFirst().run();
+        assertThat(host.showing).as("new type-ahead survives page completion").isTrue();
+        assertThat(state.recentSearches()).isEmpty();
+      } finally {
+        node.removeNode();
+      }
+      view.pageNames.clear();
+    }
+  }
+
+  @Test
+  void rerenderOfAPendingEntityPreservesItsOriginalSearchEditToken() {
+    var edits = new java.util.concurrent.atomic.AtomicLong();
+    view.searchEdits = edits::get;
+    List<Runnable> pages = new ArrayList<>();
+    var controller = new AppController(repos, view, pages::add);
+    controller.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    view.searchText = "new query";
+    edits.incrementAndGet();
+    controller.rerender();
+    assertThat(pages).hasSize(2);
+    pages.remove(1).run();
+    pages.removeFirst().run();
+    assertThat(view.searchText).isEqualTo("new query");
+    assertThat(view.pageNames).isEmpty();
+  }
+
+  @Test
+  void aNewExplicitNavigationCapturesTheCurrentSearchEditToken() {
+    var edits = new java.util.concurrent.atomic.AtomicLong();
+    view.searchEdits = edits::get;
+    var controller = new AppController(repos, view, Runnable::run);
+    controller.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    edits.incrementAndGet();
+    ((ItemPage) view.detail).droppedBy().activateRow(0);
+    assertThat(view.searchText).isEqualTo("Taragaman the Hungerer");
+    edits.incrementAndGet();
+    controller.back();
+    assertThat(view.searchText).isEqualTo("Subterranean Cape");
+  }
+
+  @Test
+  void explicitlyCommittingAPendingPreviewRefreshesTheSearchEditToken() {
+    var edits = new java.util.concurrent.atomic.AtomicLong();
+    view.searchEdits = edits::get;
+    List<Runnable> pages = new ArrayList<>();
+    var controller = new AppController(repos, view, pages::add);
+    controller.preview(new EntityRef(ITEM, 14149));
+    edits.incrementAndGet(); // a query was edited before the user explicitly commits this preview
+    controller.commit(new EntityRef(ITEM, 14149));
+    pages.removeFirst().run();
+    assertThat(view.searchText).isEqualTo("Subterranean Cape");
+    assertThat(view.pageNames).containsExactly("Subterranean Cape");
+  }
+
+  @Test
+  void anEntityCompletingBehindANewerSearchDoesNotReplaceItsQuery() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    c.open(ITEMS_C);
+    view.searchText = "c";
+    queued.removeFirst().run();
+    assertThat(view.searchText).isEqualTo("c");
+    assertThat(view.pageNames).isEmpty();
+  }
+
+  @Test
+  void rerenderDoesNotReplaceANewlyTypedQueryWithThePageName() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    view.searchText = "new query";
+    c.rerender();
+    assertThat(view.searchText).isEqualTo("new query");
+    assertThat(view.pageNames).containsExactly("Subterranean Cape");
+  }
+
+  @Test
   void clickThroughFromItemToNpcAndBack() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));

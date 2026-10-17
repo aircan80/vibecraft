@@ -83,6 +83,8 @@ public final class AppController implements Navigator {
   private int detailGeneration;
   /** Whether the current history slot was taken by a list preview, so the next preview may reuse it. */
   private boolean previewSlot;
+  /** Search input revision when the current entity navigation was requested or explicitly committed. */
+  private long pageSearchEditRevision;
   /** The list page on screen, null while the detail shows anything else. */
   private ListPage listPage;
   /** The target of {@link #listPage}'s history entry, updated as soon as a filter changes. */
@@ -216,6 +218,10 @@ public final class AppController implements Navigator {
     ViewTarget t = new ViewTarget.Entity(ref);
     if (isCurrent(t)) {
       previewSlot = false;
+      pageSearchEditRevision = view.searchEditRevision();
+      if (loaded != null && loaded.ref().equals(ref) && t.equals(pageTarget)) {
+        followCommittedPage(ref, loaded.detail());
+      }
       return;
     }
     if (previewSlot) {
@@ -303,7 +309,7 @@ public final class AppController implements Navigator {
       return;
     }
     pendingState = new PendingState(t, state);
-    show(t);
+    show(t, false);
   }
 
   /**
@@ -378,6 +384,10 @@ public final class AppController implements Navigator {
   }
 
   private void show(ViewTarget t) {
+    show(t, true);
+  }
+
+  private void show(ViewTarget t, boolean captureSearchEdit) {
     loadingDelay.cancel(); // the loading page of a page left behind
     if (!(t instanceof ViewTarget.Search)) {
       lastPage = t;
@@ -393,7 +403,7 @@ public final class AppController implements Navigator {
         loadResults(() -> search(s), null);
       }
       case ViewTarget.List l -> showList(l);
-      case ViewTarget.Entity e -> showEntity(e.ref());
+      case ViewTarget.Entity e -> showEntity(e.ref(), captureSearchEdit);
       case ViewTarget.Home h -> showHome();
     }
   }
@@ -435,7 +445,10 @@ public final class AppController implements Navigator {
    * panel is built on the EDT ({@link DetailPanels#render}) under the view's drop source filter, a zone map's
    * "Quests" toggle as the view's setting says.
    */
-  private void showEntity(EntityRef ref) {
+  private void showEntity(EntityRef ref, boolean captureSearchEdit) {
+    if (captureSearchEdit) {
+      pageSearchEditRevision = view.searchEditRevision();
+    }
     int generation = ++detailGeneration;
     leaveListPage();
     if (pageMessage != null && pageMessage.equals(view.status().message())) {
@@ -458,6 +471,7 @@ public final class AppController implements Navigator {
           setPage(new ViewTarget.Entity(ref), DetailPanels.render(detail.get(), repos, this, worker,
               pageStatus(generation), view.sourceFilter(), this::changeSourceFilter, view.questPins(), view.routes()));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
+          followCommittedPage(ref, detail.get());
         } else {
           loaded = null;
           setPage(new ViewTarget.Entity(ref), DetailPanels.notFound(ref));
@@ -472,6 +486,14 @@ public final class AppController implements Navigator {
         fail(e);
       }
     });
+  }
+
+  /** A preview or a late page behind a newer search must leave the user's query alone. */
+  private void followCommittedPage(EntityRef ref, Object detail) {
+    if (!previewSlot && isCurrent(new ViewTarget.Entity(ref))
+        && pageSearchEditRevision == view.searchEditRevision()) {
+      view.followPageName(DetailPanels.name(detail));
+    }
   }
 
   /**

@@ -130,6 +130,7 @@ public final class SearchBar extends JPanel {
   private Executor worker;
   /** Bumped by every text change and lookup, so only the newest lookup's result is shown. */
   private int generation;
+  private long editRevision;
   private boolean focused;
   /** Set by {@link #focus()} so the focus event it causes counts as a deliberate entry into the box. */
   private boolean deliberateFocus;
@@ -363,6 +364,7 @@ public final class SearchBar extends JPanel {
     if (quiet) {
       return;
     }
+    editRevision++;
     if (query().isEmpty()) {
       chips.clearCounts();
       if (focused) {
@@ -477,6 +479,18 @@ public final class SearchBar extends JPanel {
     delay.cancel();
     generation++;
     dropdown.hide();
+  }
+
+  /** User text edits only; a quiet page-name update does not advance this revision. */
+  public long editRevision() {
+    return editRevision;
+  }
+
+  /** Shows a committed page name without a lookup, dropdown, counts request or recent-search write. */
+  public void followPageName(String displayName) {
+    stop();
+    setTextQuietly(Objects.requireNonNull(displayName, "displayName"));
+    chips.clearCounts();
   }
 
   private void setTextQuietly(String s) {

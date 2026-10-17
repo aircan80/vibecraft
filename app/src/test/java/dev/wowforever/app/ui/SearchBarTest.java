@@ -112,6 +112,27 @@ class SearchBarTest {
   }
 
   @Test
+  void searchBoxFollowsThePageWithoutSearchDropdownOrRecents() {
+    attachQueued();
+    typeAndWait("hog");
+    assertThat(queued).hasSize(1);
+    long edited = bar.editRevision();
+    bar.followPageName("Edwin VanCleef");
+    assertThat(bar.editRevision()).isEqualTo(edited);
+    assertThat(bar.textField().getText()).isEqualTo("Edwin VanCleef");
+    assertThat(delay.pending()).isZero();
+    assertThat(host.showing).isFalse();
+    runQueued(); // the older query must not reopen its popup or restore its counts
+    assertThat(host.showing).isFalse();
+    assertThat(state.recentSearches()).isEmpty();
+    assertThat(countLookups).isEmpty();
+    assertThat(lookups).containsExactly("hog ALL");
+    assertThat(opened).isEmpty();
+    delay.fire();
+    assertThat(queued).isEmpty();
+  }
+
+  @Test
   void theDatabaseLookupWarmsTheIconsOfItsItemHits() {
     IconCache cache = new IconCache(FixtureDb.repositories().assets()::icon, 100, null);
     IconCache before = IconCache.install(cache);

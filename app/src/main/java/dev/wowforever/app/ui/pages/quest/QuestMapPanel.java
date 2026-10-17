@@ -328,11 +328,16 @@ public final class QuestMapPanel extends JPanel {
     super.doLayout();
   }
 
+  /** Height of zone controls, legend and focus/banner controls around the image. */
+  public int chromeHeight() {
+    return selectors.getPreferredSize().height + foot.getPreferredSize().height + 8;
+  }
+
   @Override
   public Dimension getPreferredSize() {
     int width = getWidth() > 0 ? getWidth() : 500;
     int imageHeight = mapView == null ? centre.getPreferredSize().height : mapView.heightFor(width);
-    return new Dimension(width, imageHeight + selectors.getPreferredSize().height + foot.getPreferredSize().height + 8);
+    return new Dimension(width, imageHeight + chromeHeight());
   }
 
   public void nextZone() {

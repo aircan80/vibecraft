@@ -44,6 +44,15 @@ shipped DB; small text ≥ 4.5:1 in both themes; no unexplained new unsupported/
 
 ## 3. Quality fixes in flight (2B Task 14, not backlog features)
 Each one is a v0.3.0 ship blocker if Task 14 leaves it open.
+- **BUG-CSB-001 — Cozy Sleeping Bag quest chain missing (open, user-reported 2026-10-17).**
+  The shipped database contains item 211527 and its reward quest 79976, "This Must Be The Place",
+  plus quests 79192 ("Stepping Stones"), 79980 ("Scramble"), 79974 ("Wet Job") and 79975
+  ("Eagle's Fist"), but contains no `quest_relation` rows referencing any of those quests.
+  The chain renderer therefore has no recorded links to display. Confirm the full chain and ordering
+  against the pinned Forever quest source, then trace whether relationships are missing upstream or lost
+  during import; do not infer order from quest IDs or names. Add importer/shipped-data and chain-rendering
+  regression coverage once verified. Acceptance: the reward quest exposes the verified connected chain,
+  with every available step navigable and any genuinely unavailable steps identified honestly.
 - Zone level bands read "1–60" for Elwynn and Westfall; zone header repeats "Zone #12 · Zone".
 - AtlasLoot ordinals shown as "Slot" and "Trash · slot 24" instead of the equip slot.
 - The world-drop pool is buried in Hogger's drops; recipes and trade goods show item level instead of required skill.

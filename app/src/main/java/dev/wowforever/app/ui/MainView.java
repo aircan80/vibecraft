@@ -22,6 +22,12 @@ public interface MainView {
   /** Shows {@code s} after the application name in the window title; empty for none. */
   void setTitleSuffix(String s);
 
+  /** Revision of user edits to the search text, used to preserve input while a page is loading. */
+  default long searchEditRevision() { return 0; }
+
+  /** Quietly follows a committed entity page's loaded name, without searching or recording a recent. */
+  default void followPageName(String displayName) {}
+
   /** Highlights the rail section of the page on screen, without opening it; null highlights none. */
   void selectRail(RailTarget target);
 

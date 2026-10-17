@@ -35,7 +35,9 @@ public final class QuestPage extends SourcesPage implements PageEscape {
   private final javax.swing.JButton copyInGameLink = new javax.swing.JButton("Copy in-game link");
   private final ChainStepper stepper;
   private final QuestMapPanel mapPanel;
-  private final JPanel objectivesPanel = new JPanel(new BorderLayout());
+  private final JPanel objectivesPanel = new ObjectiveContent();
+  private final JLabel noLocations = new JLabel("No objective locations in the quest database.");
+  private final java.util.List<SourceSection> giverSections = new java.util.ArrayList<>();
   private final ChainPanel chainPanel;
   private final SourceSection chainSection;
   private final Body body = new Body();
@@ -73,15 +75,10 @@ public final class QuestPage extends SourcesPage implements PageEscape {
     objectiveRows = new ObjectivesPanel(data.objectives(), data.sourceItems(), nav, mapPanel::focus,
         mapPanel::showAllSources);
     if (data.objectives().isEmpty()) {
-      JPanel fallback = new JPanel(new BorderLayout());
-      fallback.setOpaque(false);
-      fallback.add(objectives, BorderLayout.CENTER);
-      fallback.add(new JLabel("No objective locations in the quest database."), BorderLayout.SOUTH);
-      objectivesPanel.add(fallback, BorderLayout.NORTH);
-      objectivesPanel.add(objectiveRows, BorderLayout.SOUTH);
-    } else {
-      objectivesPanel.add(objectiveRows, BorderLayout.CENTER);
+      objectivesPanel.add(objectives);
+      objectivesPanel.add(noLocations);
     }
+    objectivesPanel.add(objectiveRows);
     objectiveSection = panelSection("Objectives", objectivesPanel);
     addSection(objectiveSection);
     content.remove(objectiveSection);
@@ -89,10 +86,10 @@ public final class QuestPage extends SourcesPage implements PageEscape {
     body.add(mapPanel);
     content.add(body);
     if (!data.starts().isEmpty()) {
-      addSection(GiverSections.create("Given by", data.starts(), nav));
+      addGiverSection(GiverSections.create("Given by", data.starts(), nav));
     }
     if (!data.ends().isEmpty()) {
-      addSection(GiverSections.create("Turned in to", data.ends(), nav));
+      addGiverSection(GiverSections.create("Turned in to", data.ends(), nav));
     }
     chainSection = panelSection("Quest chain", chainPanel);
     addSection(chainSection);
@@ -117,6 +114,13 @@ public final class QuestPage extends SourcesPage implements PageEscape {
   private static List<GiverSpot> givers(QuestDetail detail, String role) {
     return detail.givers().stream().filter(g -> role.equals(g.role()))
         .map(g -> new GiverSpot(g, List.of(), List.of())).toList();
+  }
+
+  private void addGiverSection(SourceSection section) {
+    addSection(section); // retain section order and jump-key registration
+    content.remove(section);
+    giverSections.add(section);
+    body.add(section);
   }
 
   private SourceSection panelSection(String title, JPanel panel) {
@@ -211,50 +215,104 @@ public final class QuestPage extends SourcesPage implements PageEscape {
   public JTextArea objectives() { return objectives; }
   public boolean isSideBySide() { return getWidth() >= SIDE_BY_SIDE_PX && !CompactColumns.within(this); }
 
-  /** Width-aware layout keeps the map above the text in a narrow or compact window. */
+  /** Objective prose and rows are measured using their available width, never their previous height. */
+  private final class ObjectiveContent extends JPanel {
+    ObjectiveContent() { setLayout(null); }
+
+    int heightFor(int width) {
+      int height = objectiveRows.heightFor(width);
+      if (objectiveRows.rows().isEmpty()) {
+        height += ObjectivesPanel.textHeight(objectives, width) + noLocations.getPreferredSize().height;
+      }
+      return height;
+    }
+
+    @Override public Dimension getPreferredSize() {
+      int width = getWidth() > 0 ? getWidth() : 480;
+      return new Dimension(width, heightFor(width));
+    }
+
+    @Override public void doLayout() {
+      int width = getWidth();
+      int y = 0;
+      if (objectiveRows.rows().isEmpty()) {
+        int textHeight = ObjectivesPanel.textHeight(objectives, width);
+        objectives.setBounds(0, y, width, textHeight);
+        y += textHeight;
+        int noteHeight = noLocations.getPreferredSize().height;
+        noLocations.setBounds(0, y, width, noteHeight);
+        y += noteHeight;
+      }
+      objectiveRows.setBounds(0, y, width, objectiveRows.heightFor(width));
+    }
+  }
+
+  /** A natural-height left facts column alongside the map, stacking map first in compact mode. */
   private final class Body extends JPanel {
     private static final int PAD = 10;
     private static final int GAP = 16;
+    private static final int SECTION_GAP = 8;
 
     Body() {
       setLayout(null);
       setOpaque(false);
-      setBorder(BorderFactory.createEmptyBorder(0, PAD, 8, PAD));
+      setBorder(BorderFactory.createEmptyBorder(0, PAD, SECTION_GAP, PAD));
     }
 
     private int available() {
-      return Math.max(0, (getWidth() > 0 ? getWidth() : QuestPage.this.getWidth() > 0
-          ? QuestPage.this.getWidth() : 1200) - PAD * 2);
+      int pageWidth = QuestPage.this.getWidth() > 0 ? QuestPage.this.getWidth() : 1200;
+      int parentWidth = getParent() != null && getParent().getWidth() > 0 ? getParent().getWidth() : pageWidth;
+      return Math.max(1, Math.min(pageWidth, parentWidth) - PAD * 2);
     }
 
-    private int mapWidth() {
-      return isSideBySide() ? (available() - GAP) / 2 : available();
+    private int mapWidth() { return isSideBySide() ? (available() - GAP) / 2 : available(); }
+
+    private int objectiveHeight(int width) {
+      int inner = Math.max(1, width - objectiveSection.getInsets().left - objectiveSection.getInsets().right);
+      // SourceSection's AboveTable reserves its ordinary gap and the hidden empty table's natural height.
+      return objectiveSection.heading().getPreferredSize().height + 6 + objectiveSection.table().getPreferredSize().height
+          + ((ObjectiveContent) objectivesPanel).heightFor(inner);
     }
 
-    @Override
-    public Dimension getPreferredSize() {
+    private int leftHeight(int width) {
+      int height = objectiveHeight(width);
+      for (SourceSection section : giverSections) {
+        if (section.isVisible()) height += SECTION_GAP + section.getPreferredSize().height;
+      }
+      return height;
+    }
+
+    private int mapHeight(int width) {
+      var map = mapPanel.mapView();
+      int imageHeight = map == null ? mapPanel.getPreferredSize().height : map.heightFor(width);
+      if (map == null) return imageHeight;
+      // The panel's chrome is independent of the image width; measuring it never resizes the live map.
+      return imageHeight + mapPanel.chromeHeight();
+    }
+
+    @Override public Dimension getPreferredSize() {
       int mapWidth = mapWidth();
-      mapPanel.setSize(mapWidth, mapPanel.getHeight());
-      int mapHeight = mapPanel.getPreferredSize().height;
-      int objectiveWidth = isSideBySide() ? available() - mapWidth - GAP : available();
-      objectives.setSize(Math.max(1, objectiveWidth - 24), 1);
-      int textHeight = Math.max(30, objectivesPanel.getPreferredSize().height) + 44;
-      return new Dimension(available() + PAD * 2,
-          (isSideBySide() ? Math.max(mapHeight, textHeight) : mapHeight + GAP + textHeight) + 8);
+      int leftWidth = isSideBySide() ? available() - mapWidth - GAP : available();
+      int height = isSideBySide() ? Math.max(mapHeight(mapWidth), leftHeight(leftWidth))
+          : mapHeight(mapWidth) + GAP + leftHeight(leftWidth);
+      return new Dimension(available() + PAD * 2, height + SECTION_GAP);
     }
 
-    @Override
-    public void doLayout() {
-      int mapWidth = mapWidth();
-      mapPanel.setSize(mapWidth, mapPanel.getHeight());
-      int mapHeight = mapPanel.getPreferredSize().height;
-      if (isSideBySide()) {
-        int left = available() - mapWidth - GAP;
-        objectiveSection.setBounds(PAD, 0, left, getHeight() - 8);
-        mapPanel.setBounds(PAD + left + GAP, 0, mapWidth, mapHeight);
-      } else {
-        mapPanel.setBounds(PAD, 0, mapWidth, mapHeight);
-        objectiveSection.setBounds(PAD, mapHeight + GAP, available(), Math.max(0, getHeight() - mapHeight - GAP - 8));
+    @Override public void doLayout() {
+      int width = mapWidth();
+      int height = mapHeight(width);
+      int leftWidth = isSideBySide() ? available() - width - GAP : available();
+      int y = isSideBySide() ? 0 : height + GAP;
+      mapPanel.setBounds(isSideBySide() ? PAD + leftWidth + GAP : PAD, 0, width, height);
+      int objectiveHeight = objectiveHeight(leftWidth);
+      objectiveSection.setBounds(PAD, y, leftWidth, objectiveHeight);
+      y += objectiveHeight;
+      for (SourceSection section : giverSections) {
+        if (!section.isVisible()) continue;
+        y += SECTION_GAP;
+        int h = section.getPreferredSize().height;
+        section.setBounds(PAD, y, leftWidth, h);
+        y += h;
       }
     }
   }

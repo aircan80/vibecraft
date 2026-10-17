@@ -533,6 +533,16 @@ public final class MainFrame extends JFrame implements MainView {
     }
   }
 
+  @Override
+  public long searchEditRevision() {
+    return searchBar.editRevision();
+  }
+
+  @Override
+  public void followPageName(String displayName) {
+    searchBar.followPageName(displayName);
+  }
+
   public SearchBar searchBar() {
     return searchBar;
   }

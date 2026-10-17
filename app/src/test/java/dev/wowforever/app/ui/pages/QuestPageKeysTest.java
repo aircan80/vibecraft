@@ -58,7 +58,8 @@ class QuestPageKeysTest {
     for (int i = 0; i < 5; i++) layout(page);
     press(page, "g");
     int giverScroll = page.scrollPane().getVerticalScrollBar().getValue();
-    assertThat(giverScroll).isPositive();
+    var giverTable = page.section("Given by").table().table();
+    assertThat(giverTable.getVisibleRect().height).isGreaterThanOrEqualTo(giverTable.getRowHeight());
     press(page, "c");
     assertThat(page.scrollPane().getVerticalScrollBar().getValue()).isGreaterThanOrEqualTo(giverScroll);
     press(page, "["); press(page, "]");

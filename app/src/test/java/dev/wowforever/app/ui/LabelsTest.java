@@ -85,6 +85,12 @@ class LabelsTest {
   }
 
   @Test
+  void questItemSubtitle() {
+    // Westfall Deed (1972): a quest item, rather than a quest search result.
+    assertThat(Labels.itemSubtitle("Quest", "Quest", 8, 8)).isEqualTo("Quest item · iLvl 8 · Req 8");
+  }
+
+  @Test
   void requiredSkillFromTheTooltipLine() {
     assertThat(Labels.skill("Requires Leatherworking (65)")).isEqualTo("Leatherworking 65");
     assertThat(Labels.skill("Requires Engineering")).isEqualTo("Engineering");

@@ -62,6 +62,15 @@ import org.junit.jupiter.api.Test;
 @Tag("shipped-data")
 class ShippedDataTest extends ShippedDataSupport {
   @Test
+  void westfallDeedSubtitleNamesTheQuestItem() {
+    assertThat(repos.search().search("Westfall Deed", Optional.of(EntityKind.ITEM), 20))
+        .filteredOn(h -> h.ref().id() == 1972).singleElement().satisfies(h -> {
+          assertThat(h.name()).isEqualTo("Westfall Deed");
+          assertThat(h.subtitle()).isEqualTo("Quest item · iLvl 8 · Req 8");
+        });
+  }
+
+  @Test
   void minimumCounts() {
     assertThat(count("item")).isGreaterThan(15_000);
     assertThat(count("npc")).isGreaterThan(8_000);

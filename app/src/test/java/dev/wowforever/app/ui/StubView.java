@@ -26,6 +26,10 @@ final class StubView implements MainView {
   boolean canBack;
   boolean canForward;
   String titleSuffix;
+  String searchText;
+  final List<String> pageNames = new ArrayList<>();
+  java.util.function.LongSupplier searchEdits = () -> 0;
+  Consumer<String> followSearchName = name -> {};
   /** The rail section last selected; null for none. */
   RailTarget rail;
   /** What {@link #showsMasterList()} answers: false plays the compact window. */
@@ -65,6 +69,18 @@ final class StubView implements MainView {
   @Override
   public void setTitleSuffix(String s) {
     titleSuffix = s;
+  }
+
+  @Override
+  public void followPageName(String displayName) {
+    searchText = displayName;
+    pageNames.add(displayName);
+    followSearchName.accept(displayName);
+  }
+
+  @Override
+  public long searchEditRevision() {
+    return searchEdits.getAsLong();
   }
 
   @Override
