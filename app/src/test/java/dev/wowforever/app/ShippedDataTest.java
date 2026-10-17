@@ -4,6 +4,7 @@ import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.extras.FlatSVGIcon;
 import dev.wowforever.app.db.DatabaseInstaller;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
@@ -26,6 +27,7 @@ import dev.wowforever.app.ui.pages.ObjectPage;
 import dev.wowforever.app.ui.pages.QuestPage;
 import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.ui.widgets.MasterList;
+import dev.wowforever.app.ui.widgets.RailIcons;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -184,6 +186,18 @@ class ShippedDataTest extends ShippedDataSupport {
         }
       }
     });
+  }
+
+  /** The rail's client art (phase 3B Task 3): every target gets its 24 px plate image and a 16 px client icon. */
+  @Test
+  void loadsAllSixFromTheShippedDatabase() {
+    RailIcons icons = RailIcons.load(repos.assets()::uiIcon);
+    for (RailTarget t : RailTarget.values()) {
+      assertThat(icons.plate(t)).as(t.assetName()).isPresent();
+      assertThat(icons.plates().get(t).getWidth() + "x" + icons.plates().get(t).getHeight()).as(t.assetName())
+          .isEqualTo("24x24");
+      assertThat(icons.small(t, 16)).as(t.assetName()).isNotInstanceOf(FlatSVGIcon.class);
+    }
   }
 
   @Test

@@ -10,17 +10,21 @@ import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.widgets.MasterList;
+import dev.wowforever.app.ui.widgets.RailIcons;
+import dev.wowforever.app.ui.widgets.RailTarget;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
+import javax.swing.Icon;
 import javax.swing.JLabel;
 
 /**
  * A list page opened from the category rail, one scrolling page: the title, a {@link FilterBar} for items, NPCs
  * and quests, then a sortable table of the rows (zones by name), or, for instances, one table per
- * {@linkplain LevelBands level band}. A click on a name opens it. Filter changes go to {@code onFilter}; the
+ * {@linkplain LevelBands level band}, each table headed by the list's 16 px rail icon. A click on a name opens it.
+ * Filter changes go to {@code onFilter}; the
  * controller loads the rows and hands them to {@link #showRows}.
  */
 public final class ListPage extends SourcesPage {
@@ -74,6 +78,10 @@ public final class ListPage extends SourcesPage {
     emptyNote.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
     emptyNote.setVisible(rows.isEmpty());
     content.add(emptyNote);
+    Icon icon = RailIcons.shared().small(RailTarget.of(target.kind()).orElseThrow(), RailIcons.SMALL);
+    for (SourceSection s : sections()) { // the rail icon of the list, rows or not
+      s.heading().setIcon(icon);
+    }
     bindJumpKeys();
   }
 

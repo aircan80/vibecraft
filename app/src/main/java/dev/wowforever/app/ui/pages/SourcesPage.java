@@ -6,8 +6,11 @@ import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.Labels;
+import dev.wowforever.app.ui.ResultsTableModel;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.widgets.RailIcons;
+import dev.wowforever.app.ui.widgets.RailTarget;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.BorderLayout;
 import java.awt.Rectangle;
@@ -16,6 +19,7 @@ import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.JPanel;
@@ -27,7 +31,9 @@ import javax.swing.SwingUtilities;
 /**
  * An entity page that scrolls as a whole: whatever the page puts at the top (its header), then one
  * {@link SourceSection} per kind of row it has. Ctrl+1 to Ctrl+6 jump to the first six sections once the page
- * calls {@link #bindJumpKeys()} after adding them.
+ * calls {@link #bindJumpKeys()} after adding them. A section of rows of one entity kind made here is headed by that
+ * kind's 16 px rail icon; a section built elsewhere ({@link #addSection(SourceSection)}, such as the spawn points) is
+ * added as it is.
  */
 abstract class SourcesPage extends JPanel implements PageState {
   private static final int MAX_JUMP_KEYS = 6;
@@ -52,7 +58,7 @@ abstract class SourcesPage extends JPanel implements PageState {
     }
     LinkTable<T> table = LinkTable.inline(cols, nav);
     table.setRows(rows);
-    addSection(new SourceSection(title, count, table));
+    addRowSection(new SourceSection(title, count, table));
     return table;
   }
 
@@ -76,7 +82,7 @@ abstract class SourcesPage extends JPanel implements PageState {
   void addFilteredSection(String title, SourceFilters.Filtered<?> filtered, LinkTable<?> table) {
     SourceSection section = new SourceSection(title, filtered.rows().size(), table);
     SourceFilters.annotate(section, filtered);
-    addSection(section);
+    addRowSection(section);
   }
 
   /**
@@ -88,8 +94,44 @@ abstract class SourcesPage extends JPanel implements PageState {
       return null;
     }
     LinkTable<LootRow> table = LootTables.plain(loot, nav);
-    addSection(new SourceSection(title, loot.size(), table));
+    addRowSection(new SourceSection(title, loot.size(), table));
     return table;
+  }
+
+  /**
+   * Adds {@code section}, a section of entity rows, headed by the {@value RailIcons#SMALL} px rail icon of their kind
+   * when they are all of one kind ({@link #railTarget}).
+   */
+  private void addRowSection(SourceSection section) {
+    railTarget(section.table())
+        .ifPresent(t -> section.heading().setIcon(RailIcons.shared().small(t, RailIcons.SMALL)));
+    addSection(section);
+  }
+
+  /**
+   * The rail section of the entities {@code table} lists: the kind every row's first link points at (rows without a
+   * link, such as group headings and dividers, aside), when it has a rail section. Empty for a table without such rows,
+   * one that mixes kinds (NPCs and objects that drop an item) and one of objects.
+   */
+  static Optional<RailTarget> railTarget(LinkTable<?> table) {
+    ResultsTableModel<?> model = table.model();
+    int column = model.firstLinkColumn();
+    if (column < 0) {
+      return Optional.empty();
+    }
+    EntityKind kind = null;
+    for (int row = 0; row < model.getRowCount(); row++) {
+      Optional<EntityRef> ref = model.refAt(row, column);
+      if (ref.isEmpty()) {
+        continue;
+      }
+      if (kind == null) {
+        kind = ref.get().kind();
+      } else if (kind != ref.get().kind()) {
+        return Optional.empty();
+      }
+    }
+    return kind == null ? Optional.empty() : RailTarget.of(kind);
   }
 
   /**

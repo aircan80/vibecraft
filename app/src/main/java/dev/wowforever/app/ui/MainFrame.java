@@ -5,6 +5,7 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.widgets.HistoryButtons;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.Rail;
+import dev.wowforever.app.ui.widgets.RailIcons;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -45,6 +46,8 @@ import javax.swing.KeyStroke;
 import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * The main window: back/forward and search on top; the icon rail, the master list and the detail in the middle;
@@ -58,6 +61,7 @@ import javax.swing.WindowConstants;
  */
 public final class MainFrame extends JFrame implements MainView {
   public static final String APP_NAME = "WoW Forever Item & Drop Browser";
+  private static final Logger LOG = LoggerFactory.getLogger(MainFrame.class);
   /** The content's action that hides or shows the master list (Ctrl+B through {@link KeyMap}). */
   static final String TOGGLE_LIST = "toggleList";
   private static final String SHOWN_DIVIDER_SIZE = "wowforever.shownDividerSize";
@@ -218,12 +222,20 @@ public final class MainFrame extends JFrame implements MainView {
     return uiState.questPinsSetting();
   }
 
-  /** Wires in the controller once the database is open, and enables searching and type-ahead. */
+  /**
+   * Wires in the controller once the database is open, and enables searching and type-ahead. The rail's client art
+   * loads once, on the controller's worker; on the EDT it then becomes the {@linkplain RailIcons#shared shared} icons
+   * and replaces the rail's SVG glyphs (which stay if it fails).
+   */
   public void attach(AppController controller) {
     this.controller = controller;
     MouseNavigation.install(controller, getRootPane());
     searchBar.attach(SearchBar.Source.of(controller.repos().search()), controller.worker());
     searchBar.setEnabled(true);
+    Async.run(controller.worker(), () -> RailIcons.load(controller.repos().assets()::uiIcon), icons -> {
+      RailIcons.install(icons);
+      rail.setIcons(icons);
+    }, e -> LOG.warn("Loading the rail icons failed; the rail keeps its own glyphs", e));
   }
 
   /** The About text: the bundled NOTICE.md, then the database meta values. */
