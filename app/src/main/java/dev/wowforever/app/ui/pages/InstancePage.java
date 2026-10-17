@@ -10,6 +10,7 @@ import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcFilter;
+import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
@@ -18,6 +19,8 @@ import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.widgets.RailIcons;
+import dev.wowforever.app.ui.widgets.RailTarget;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.BorderLayout;
 import java.awt.Color;
@@ -43,9 +46,11 @@ import javax.swing.JToggleButton;
 import javax.swing.ListSelectionModel;
 
 /**
- * The dungeon or raid page: the header ({@code "Raid (40) · Level 60–63 · <zone> · NPCs in <zone>"}), then the
- * numbered encounters ({@code "1. Lucifron  Lv 63  Boss"}, the level left out when unknown) with AtlasLoot's extra
- * lists under "Other loot lists", and the loot of the selected one grouped by {@link SlotGroups} in slot order. The
+ * The dungeon or raid page: the header (a dungeons plate, {@code "Raid (40) · Level 60–63 · <zone> · NPCs in <zone>"}),
+ * then the numbered encounters ({@code "1. Lucifron  Lv 63  Boss"}, the level left out when unknown) with AtlasLoot's
+ * extra lists under "Other loot lists", and the loot of the selected one grouped by {@link SlotGroups} in slot order,
+ * followed by the quests filed under the instance's zone (a "Quests" section, when there are any): the
+ * {@link SectionOrder#INSTANCE} order. The
  * encounters sit left of the loot, or above it while the page is narrower than {@value #STACK_BELOW} px (the compact
  * window); the layout follows the width as the page is resized. A difficulty switch shows only when the instance's
  * loot has more than one difficulty. The first encounter is selected on construction.
@@ -53,6 +58,8 @@ import javax.swing.ListSelectionModel;
 public final class InstancePage extends JPanel implements PageState {
   /** The page width, in logical pixels, below which the encounters stack above the loot in one column. */
   public static final int STACK_BELOW = 600;
+  /** The title of the section of the quests filed under the instance's zone. */
+  private static final String QUESTS = "Quests";
   /** The share of a stacked page's height the encounters start with. */
   private static final double STACKED_LIST_SHARE = 0.4;
 
@@ -73,19 +80,34 @@ public final class InstancePage extends JPanel implements PageState {
   private HeaderPanel bossHeader;
   private SourceSection lootSection;
   private LinkTable<GroupedRows.Row<LootRow>> lootTable;
+  private final SourceSection questsSection;
 
-  /** The page over the repository's boss loot. */
+  /** The page over the repository's boss loot, without quests. */
   public InstancePage(InstanceDetail d, Repositories repos, Navigator nav) {
-    this(d, BossLoot.of(repos), nav);
+    this(d, List.of(), repos, nav);
   }
 
-  /** The page reading each boss's loot from {@code bossLoot}. */
+  /**
+   * The page over the repository's boss loot; {@code quests} are the quests filed under the instance's zone, loaded
+   * off the EDT ({@link dev.wowforever.app.ui.detail.DetailPanels#load}).
+   */
+  public InstancePage(InstanceDetail d, List<QuestSummary> quests, Repositories repos, Navigator nav) {
+    this(d, quests, BossLoot.of(repos), nav);
+  }
+
+  /** The page reading each boss's loot from {@code bossLoot}, without quests. */
   public InstancePage(InstanceDetail d, BossLoot bossLoot, Navigator nav) {
+    this(d, List.of(), bossLoot, nav);
+  }
+
+  /** The page with {@code quests}, reading each boss's loot from {@code bossLoot}. */
+  public InstancePage(InstanceDetail d, List<QuestSummary> quests, BossLoot bossLoot, Navigator nav) {
     super(new BorderLayout());
     this.bossLoot = bossLoot;
     this.nav = nav;
     InstanceSummary s = d.summary();
     header = header(s, nav);
+    questsSection = questsSection(quests, s.zoneName(), nav);
     mainBosses = d.bosses().stream().filter(b -> !b.extraList()).toList();
     extraBosses = d.bosses().stream().filter(BossSummary::extraList).toList();
     encounters = bossList(mainBosses, i -> encounterLabel(i + 1, mainBosses.get(i)));
@@ -109,7 +131,24 @@ public final class InstancePage extends JPanel implements PageState {
     add(split, BorderLayout.CENTER);
     if (!d.bosses().isEmpty()) {
       selectBoss(0); // firstBoss(d): main encounters come first
+    } else if (questsSection != null) {
+      lootPane.add(questsSection);
     }
+  }
+
+  /**
+   * The "Quests" section of {@code quests} (their zone column left out, as every one is in the instance's zone
+   * {@code zoneName}), headed by the quests rail icon; null without quests.
+   */
+  private static SourceSection questsSection(List<QuestSummary> quests, String zoneName, Navigator nav) {
+    if (quests.isEmpty()) {
+      return null;
+    }
+    LinkTable<QuestSummary> table = LinkTable.inline(VisibleColumns.of(Columns.quests(), quests, zoneName), nav);
+    table.setRows(quests);
+    SourceSection section = new SourceSection(QUESTS, quests.size(), table);
+    section.heading().setIcon(RailIcons.shared().small(RailTarget.QUESTS, RailIcons.SMALL));
+    return section;
   }
 
   /**
@@ -153,6 +192,8 @@ public final class InstancePage extends JPanel implements PageState {
   private static HeaderPanel header(InstanceSummary s, Navigator nav) {
     HeaderPanel header = new HeaderPanel(Labels.instanceTitle(s.displayName(), s.key()),
         Labels.instanceSubtitle(s.contentType(), s.levelMin(), s.levelMax(), null));
+    header.setPlate(SourcesPage.plateIcon(RailTarget.INSTANCES));
+    header.setKindWord(EntityKind.INSTANCE.label());
     if (s.zoneId() != null) {
       EntityRef zone = new EntityRef(EntityKind.ZONE, s.zoneId());
       String name = zone.displayName(s.zoneName());
@@ -327,6 +368,9 @@ public final class InstancePage extends JPanel implements PageState {
       lootPane.add(difficultyControl);
     }
     lootPane.add(lootSection);
+    if (questsSection != null) {
+      lootPane.add(questsSection);
+    }
     lootPane.revalidate();
     lootPane.repaint();
   }
@@ -374,6 +418,11 @@ public final class InstancePage extends JPanel implements PageState {
   /** The loot section of the selected encounter or list; null before one is selected. */
   public SourceSection lootSection() {
     return lootSection;
+  }
+
+  /** The quests filed under the instance's zone, below the loot; null without quests. */
+  public SourceSection questsSection() {
+    return questsSection;
   }
 
   /** The grouped loot of the selected encounter or list; null before one is selected. */

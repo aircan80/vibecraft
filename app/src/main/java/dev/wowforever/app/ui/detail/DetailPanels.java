@@ -12,6 +12,7 @@ import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
 import dev.wowforever.app.model.QuestGiver;
+import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.model.Spawn;
@@ -82,6 +83,16 @@ public final class DetailPanels {
     }
   }
 
+  /**
+   * What {@link #load} returns for a dungeon or raid: the instance and the quests filed under its zone
+   * ({@link dev.wowforever.app.db.QuestRepository#byZone}; none without a zone), which its page lists after the loot.
+   */
+  public record LoadedInstance(InstanceDetail detail, List<QuestSummary> quests) {
+    public LoadedInstance {
+      quests = List.copyOf(quests);
+    }
+  }
+
   /** What {@link #load} returns for an object: as {@link LoadedNpc}. */
   public record LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map) {}
 
@@ -102,7 +113,8 @@ public final class DetailPanels {
    * an NPC's drops and wares, an object's contents, a quest's item givers, rewards and related items, an item's
    * containers, an instance's first boss's loot. So are the drop rate sources of the rates with any
    * ({@code sourceCount > 0}) of an item's drops and loot lists and an NPC's drops, in one query per page, which the
-   * rate tooltips list (the instance page loads its bosses' as it shows them).
+   * rate tooltips list (the instance page loads its bosses' as it shows them). An instance also loads the quests
+   * filed under its zone ({@link LoadedInstance}).
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
@@ -125,7 +137,9 @@ public final class DetailPanels {
               d.rewards()))
           .map(d -> new LoadedQuest(d, giverMap(d, "start", repos), giverMap(d, "end", repos)));
       case ZONE -> repos.zones().detail(id).map(d -> loadedZone(d, repos));
-      case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)));
+      case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)))
+          .map(d -> new LoadedInstance(d, d.summary().zoneId() == null ? List.of()
+              : repos.quests().byZone(d.summary().zoneId())));
       case BOSS -> Optional.empty();
     };
     return detail.map(Object.class::cast);
@@ -236,7 +250,7 @@ public final class DetailPanels {
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
               worker, status, nav, questPins), nav);
-      case InstanceDetail d -> new InstancePage(d, repos, nav);
+      case LoadedInstance p -> new InstancePage(p.detail(), p.quests(), repos, nav);
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
   }
@@ -249,7 +263,7 @@ public final class DetailPanels {
       case LoadedObject p -> p.detail().summary().displayName();
       case LoadedQuest p -> p.detail().summary().displayName();
       case LoadedZone p -> p.detail().summary().displayName();
-      case InstanceDetail d -> d.summary().displayName();
+      case LoadedInstance p -> p.detail().summary().displayName();
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
   }

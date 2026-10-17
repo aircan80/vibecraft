@@ -22,6 +22,8 @@ import java.util.List;
 import java.util.Optional;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
+import javax.swing.Icon;
+import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -30,8 +32,10 @@ import javax.swing.SwingUtilities;
 
 /**
  * An entity page that scrolls as a whole: whatever the page puts at the top (its header), then one
- * {@link SourceSection} per kind of row it has. Ctrl+1 to Ctrl+6 jump to the first six sections once the page
- * calls {@link #bindJumpKeys()} after adding them. A section of rows of one entity kind made here is headed by that
+ * {@link SourceSection} per kind of row it has, and any other titled block ({@link #addBlock}, a map, a row of links),
+ * in the page type's fixed order once the page calls {@link #addSectionsInOrder} ({@link SectionOrder}). Ctrl+1 to
+ * Ctrl+6 jump to the first six sections once the page calls {@link #bindJumpKeys()} after adding them; a jump opens a
+ * section the compact window collapsed. A section of rows of one entity kind made here is headed by that
  * kind's 16 px rail icon; a section built elsewhere ({@link #addSection(SourceSection)}, such as the spawn points) is
  * added as it is.
  */
@@ -42,6 +46,11 @@ abstract class SourcesPage extends JPanel implements PageState {
   final PageContent content = new PageContent();
   private final JScrollPane scroll = new JScrollPane(content);
   private final List<SourceSection> sections = new ArrayList<>();
+  /** The sections and other titled blocks, in the order added and then in the page's order. */
+  private final List<Block> blocks = new ArrayList<>();
+
+  /** A part of the page below its header that the page's order places by {@code title}. */
+  private record Block(String title, JComponent component) {}
 
   SourcesPage(Navigator nav) {
     super(new BorderLayout());
@@ -151,7 +160,41 @@ abstract class SourcesPage extends JPanel implements PageState {
   /** Adds {@code section} below the others. */
   void addSection(SourceSection section) {
     sections.add(section);
+    blocks.add(new Block(section.title(), section));
     content.add(section);
+  }
+
+  /** Adds {@code component} below the others, a block that {@link #addSectionsInOrder} places by {@code title}. */
+  void addBlock(String title, JComponent component) {
+    blocks.add(new Block(title, component));
+    content.add(component);
+  }
+
+  /**
+   * Puts the sections and blocks in {@code order} ({@link SectionOrder}): the titles it names in its order, then the
+   * others in the order they were added. Whatever came before them on the page (the header) stays on top. Call once
+   * every section is added, before {@link #bindJumpKeys}.
+   */
+  void addSectionsInOrder(List<String> order) {
+    List<Block> sorted = SectionOrder.sort(order, blocks, Block::title);
+    for (Block b : blocks) {
+      content.remove(b.component());
+    }
+    blocks.clear();
+    sections.clear();
+    for (Block b : sorted) {
+      blocks.add(b);
+      content.add(b.component());
+      if (b.component() instanceof SourceSection s) {
+        sections.add(s);
+      }
+    }
+    content.revalidate();
+  }
+
+  /** The icon of a page header's plate for {@code target}: its rail art, else its small icon. */
+  static Icon plateIcon(RailTarget target) {
+    return RailIcons.shared().plate(target).orElseGet(() -> RailIcons.shared().small(target, RailIcons.SMALL));
   }
 
   /**
@@ -187,6 +230,10 @@ abstract class SourcesPage extends JPanel implements PageState {
    */
   public void jumpTo(int index) {
     SourceSection section = jumpTargets().get(index);
+    if (section.isCollapsed()) {
+      section.setCollapsed(false);
+      content.validate();
+    }
     content.scrollRectToVisible(new Rectangle(0, section.getY(), 1, scroll.getViewport().getHeight()));
     JTable table = section.table().table();
     if (table.getSelectedRow() < 0 && table.getRowCount() > 0) {

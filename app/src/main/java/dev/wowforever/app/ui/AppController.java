@@ -12,6 +12,7 @@ import dev.wowforever.app.ui.detail.DetailPanels;
 import dev.wowforever.app.ui.pages.ListOptions;
 import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.pages.ListRows;
+import dev.wowforever.app.ui.pages.LoadingPage;
 import dev.wowforever.app.ui.pages.PageState;
 import dev.wowforever.app.ui.widgets.ListEntries;
 import dev.wowforever.app.ui.widgets.ListEntry;
@@ -51,16 +52,27 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Where the view shows no master list (the compact window, {@link MainView#showsMasterList}), a full search's
  * results fill the detail area as a list of their own, without previews: Enter or a click opens a row.
+ *
+ * <p>An entity page that takes longer than {@value #LOADING_DELAY_MS} ms to load is announced by a
+ * {@link LoadingPage} ({@code "Hogger"} over {@code "Loading drops…"}), its name taken from the list entry or the
+ * search hit opened (else {@code "NPC #448"}); a load that finishes first never shows it.
  */
 public final class AppController implements Navigator {
   /** Most search hits shown; list pages show every row. */
   public static final int SEARCH_LIMIT = 200;
+  /** How long an entity page may take to load before the loading page shows, in milliseconds. */
+  public static final int LOADING_DELAY_MS = 150;
   private static final Logger LOG = LoggerFactory.getLogger(AppController.class);
 
   private final Repositories repos;
   private final MainView view;
   private final Executor worker;
   private final Map<String, String> meta;
+  /** The wait before a loading page shows: a Swing timer, or a delay the test fires by hand. */
+  private final MasterList.Delay loadingDelay;
+  /** The search hit last opened from the dropdown and its name, which its loading page reads. */
+  private EntityRef hitRef;
+  private String hitTitle;
   private final NavigationHistory history = new NavigationHistory();
   private int resultsGeneration;
   private int detailGeneration;
@@ -107,6 +119,16 @@ public final class AppController implements Navigator {
    * in the status line, which also shows where the data comes from ({@link StatusBar#setProvenance}).
    */
   public AppController(Repositories repos, MainView view, Executor worker, Map<String, String> meta) {
+    this(repos, view, worker, meta, MasterList.timerDelay(LOADING_DELAY_MS));
+  }
+
+  /**
+   * As above, the loading page waiting for {@code loadingDelay} (the loading delay seam: tests pass a delay they fire
+   * by hand) rather than {@value #LOADING_DELAY_MS} ms on a Swing timer.
+   */
+  public AppController(Repositories repos, MainView view, Executor worker, Map<String, String> meta,
+      MasterList.Delay loadingDelay) {
+    this.loadingDelay = Objects.requireNonNull(loadingDelay, "loadingDelay");
     this.repos = Objects.requireNonNull(repos, "repos");
     this.view = Objects.requireNonNull(view, "view");
     this.worker = Objects.requireNonNull(worker, "worker");
@@ -210,6 +232,13 @@ public final class AppController implements Navigator {
     loadResults(() -> search(search), hit.ref());
   }
 
+  /** {@link #openHit(ViewTarget.Entity, ViewTarget.Search)}, the hit called {@code title} while its page loads. */
+  public void openHit(ViewTarget.Entity hit, ViewTarget.Search search, String title) {
+    hitRef = hit.ref();
+    hitTitle = title;
+    openHit(hit, search);
+  }
+
   private boolean isCurrent(ViewTarget t) {
     return history.current().filter(t::equals).isPresent();
   }
@@ -259,6 +288,7 @@ public final class AppController implements Navigator {
       view.setHistoryState(history.canBack(), history.canForward());
       view.selectRail(railSection(t));
       int generation = ++detailGeneration; // a load still in flight for an older page is dropped
+      loadingDelay.cancel();
       leaveListPage();
       setPage(t, DetailPanels.render(loaded.detail(), repos, this, worker, pageStatus(generation),
           view.sourceFilter(), view.questPins()), state);
@@ -330,6 +360,7 @@ public final class AppController implements Navigator {
   }
 
   private void show(ViewTarget t) {
+    loadingDelay.cancel(); // the loading page of a page left behind
     if (!(t instanceof ViewTarget.Search)) {
       lastPage = t;
     }
@@ -391,8 +422,16 @@ public final class AppController implements Navigator {
     }
     pageMessage = null;
     view.setTitleSuffix(ref.kind().label() + " #" + ref.id());
+    String title = knownTitle(ref);
+    loadingDelay.cancel();
+    loadingDelay.schedule(() -> { // before the load: a worker that runs it inline cancels this at once
+      if (generation == detailGeneration) {
+        setPage(null, LoadingPage.of(ref.kind(), title), null);
+      }
+    });
     Async.run(worker, () -> DetailPanels.load(ref, repos), detail -> {
       if (generation == detailGeneration) {
+        loadingDelay.cancel();
         if (detail.isPresent()) {
           loaded = new Loaded(ref, detail.get());
           setPage(new ViewTarget.Entity(ref), DetailPanels.render(detail.get(), repos, this, worker,
@@ -405,9 +444,23 @@ public final class AppController implements Navigator {
       }
     }, e -> {
       if (generation == detailGeneration) {
+        loadingDelay.cancel();
         fail(e);
       }
     });
+  }
+
+  /**
+   * The name of {@code ref} as the controller already has it, for its loading page: the search hit just opened, else
+   * its row in the master list, else {@code "NPC #448"}.
+   */
+  private String knownTitle(EntityRef ref) {
+    if (ref.equals(hitRef) && hitTitle != null && !hitTitle.isBlank()) {
+      return hitTitle;
+    }
+    return view.masterList().entries().stream()
+        .filter(e -> e.ref().equals(ref) && e.title() != null && !e.title().isBlank()).map(ListEntry::title)
+        .findFirst().orElse(ref.kind().label() + " #" + ref.id());
   }
 
   private void showHome() {

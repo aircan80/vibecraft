@@ -35,7 +35,7 @@ class ObjectPageTest {
     var p = new ObjectPage(repos.objects().detail(386759).get(), opened::add, copied::add);
     assertThat(p.header().title()).isEqualTo("Library Book");
     assertThat(p.header().subtitle()).isEqualTo("Object #386759 · Elwynn Forest");
-    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Contains", "Spawns");
+    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Contains", "Location");
     var contains = p.section("Contains").table();
     assertThat(columnNames(contains.table())).containsExactly("Item");
     assertThat(column(contains.table(), 0)).containsExactly("Archmage Theocritus' Research Journal");
@@ -68,7 +68,7 @@ class ObjectPageTest {
     var p = new ObjectPage(repos.objects().detail(386759).get(), 12L, elwynn, t -> {}, text -> {});
     assertThat(p.spawnMap().pins()).singleElement()
         .isEqualTo(new Pin(new EntityRef(OBJECT, 386759), "Library Book", 65.4, 70.1, PinKind.SELF));
-    assertThat(javax.swing.SwingUtilities.isDescendingFrom(p.spawnMap(), p.section("Spawns"))).isTrue();
+    assertThat(javax.swing.SwingUtilities.isDescendingFrom(p.spawnMap(), p.section("Location"))).isTrue();
     assertThat(new ObjectPage(repos.objects().detail(386759).get(), t -> {}, text -> {}).spawnMap()).isNull();
   }
 }

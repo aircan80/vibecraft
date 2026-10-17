@@ -109,10 +109,11 @@ class ItemPageTest {
   @Test
   void everyKindHasItsSectionInTheFixedOrder() {
     var p = new ItemPage(everything(), t -> {});
-    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Dropped by", "In instance loot",
-        "Contained in", "Sold by", "Quest reward", "Related quests");
-    assertThat(p.sections()).extracting(s -> s.heading().text()).containsExactly("Dropped by (3)",
-        "In instance loot (2)", "Contained in (2)", "Sold by (1)", "Quest reward (1)", "Related quests (2)");
+    // SectionOrder.ITEM first; "In instance loot" and "Related quests" (merged by later tasks) after it
+    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Dropped by", "Sold by",
+        "Quest reward", "Contained in", "In instance loot", "Related quests");
+    assertThat(p.sections()).extracting(s -> s.heading().text()).containsExactly("Dropped by (3)", "Sold by (1)",
+        "Quest reward (1)", "Contained in (2)", "In instance loot (2)", "Related quests (2)");
     JTable contained = p.section("Contained in").table().table();
     assertThat(contained.getColumnName(1)).isEqualTo("Kind");
     assertThat(column(contained, 1)).containsExactly("Object", "Container item");
@@ -120,9 +121,34 @@ class ItemPageTest {
   }
 
   @Test
+  void sectionOrder() {
+    var p = new ItemPage(everything(), t -> {});
+    List<String> titles = p.sections().stream().map(SourceSection::title).toList();
+    assertThat(titles.stream().filter(SectionOrder.ITEM::contains).toList()).as("the listed ones in their order")
+        .isEqualTo(SectionOrder.ITEM.stream().filter(titles::contains).toList());
+    List<Component> onPage = List.of(p.sections().get(0).getParent().getComponents());
+    assertThat(p.sections()).as("laid out in that order").extracting(onPage::indexOf).isSorted();
+    // empty ones are absent
+    assertThat(new ItemPage(repos.items().detail(14149).get(), t -> {}).sections()).extracting(SourceSection::title)
+        .containsExactly("Dropped by", "In instance loot");
+  }
+
+  @Test
+  void factsStripIsPositiveOnly() {
+    // Huge Gnoll Claw: Hogger drops it and Wanted: "Hogger" asks for it; no vendor, no container, no loot list
+    ItemDetail claw = new ItemDetail(new ItemSummary(1931, "Huge Gnoll Claw", 1, null, "Quest", "Quest", 1), 12, 0,
+        null, List.of(new DropSource(new EntityRef(NPC, 448), "Hogger", 11, 11, "Elwynn Forest", 12L, 84.0,
+            "questie", "both")), List.of(), List.of(), List.of(), List.of(), List.of(),
+        List.of(src(ItemSource.RELATED, new EntityRef(QUEST, 176), "Wanted:  \"Hogger\"")));
+    var p = new ItemPage(claw, t -> {});
+    assertThat(p.header().facts()).isEqualTo("1 NPC · 1 quest");
+    assertThat(p.summary()).isEqualTo("1 NPC · 1 quest").doesNotContain("no vendor").doesNotContain("no quests");
+  }
+
+  @Test
   void summaryCountsEachKind() {
     assertThat(new ItemPage(repos.items().detail(14149).get(), t -> {}).summary())
-        .isEqualTo("1 NPC · 1 loot list · no vendor · no quests");
+        .isEqualTo("1 NPC · 1 loot list");
     assertThat(new ItemPage(everything(), t -> {}).summary())
         .isEqualTo("3 NPCs · 2 loot lists · 2 containers · 1 vendor · 2 quests");
     assertThat(new ItemPage(everything(), t -> {}).summaryLabel().getForeground())
@@ -165,8 +191,7 @@ class ItemPageTest {
     assertThat(loot.heading().text()).isEqualTo("In instance loot (1)");
     assertThat(loot.note()).isNull();
     assertThat(loot.table().rowCount()).isEqualTo(1);
-    assertThat(p.summary()).as("the NPCs shown, every loot list")
-        .isEqualTo("3 NPCs · 1 loot list · no vendor · no quests");
+    assertThat(p.summary()).as("the NPCs shown, every loot list").isEqualTo("3 NPCs · 1 loot list");
   }
 
   @Test
@@ -367,7 +392,7 @@ class ItemPageTest {
     Rectangle first = boundsIn(p.sections().get(0), p);
     assertThat(header.y).isZero();
     assertThat(header.height).as("the header keeps its own height").isEqualTo(p.header().getPreferredSize().height);
-    assertThat(summary.y).as("the summary right under the header").isEqualTo(header.y + header.height);
+    assertThat(header.contains(summary)).as("the summary is the header's facts strip").isTrue();
     assertThat(first.y).as("the first section within a header height of the header's bottom")
         .isLessThanOrEqualTo(header.y + 2 * header.height);
   }

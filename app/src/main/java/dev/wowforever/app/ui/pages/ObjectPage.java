@@ -1,5 +1,6 @@
 package dev.wowforever.app.ui.pages;
 
+import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.ObjectSummary;
 import dev.wowforever.app.nav.Navigator;
@@ -10,9 +11,9 @@ import dev.wowforever.app.ui.widgets.MapView;
 import java.awt.image.BufferedImage;
 
 /**
- * The game object page, one scrolling page: the header (name and a zone link), then the sections Contains,
- * Starts quests, Ends quests and Spawns (those without rows are left out). Given the decoded map of a spawn zone, the
- * Spawns section shows it above its table with the object's spawn points there.
+ * The game object page, one scrolling page: the header (name, the kind word and a zone link), then the sections
+ * Contains, Starts quests, Ends quests and Location (those without rows are left out). Given the decoded map of a
+ * spawn zone, the Location section shows it above its table with the object's spawn points there.
  */
 public final class ObjectPage extends SourcesPage {
   private final HeaderPanel header;
@@ -22,11 +23,12 @@ public final class ObjectPage extends SourcesPage {
     this(d, null, null, nav, clipboard);
   }
 
-  /** The page with {@code map}, the decoded map of zone {@code mapZoneId} (both null: none), in its Spawns section. */
+  /** The page with {@code map}, the decoded map of zone {@code mapZoneId} (both null: none), in its Location section. */
   public ObjectPage(ObjectDetail d, Long mapZoneId, BufferedImage map, Navigator nav, ClipboardPort clipboard) {
     super(nav);
     ObjectSummary s = d.summary();
     header = zoneHeader(s.displayName(), "Object #" + s.id(), s.zoneId(), s.zoneName());
+    header.setKindWord(EntityKind.OBJECT.label()); // objects have no rail section, so no plate
     content.add(header);
     addLootSection("Contains", d.contains());
     addSection("Starts quests", d.starts().size(), VisibleColumns.of(Columns.quests(), d.starts(), s.zoneName()),
@@ -46,7 +48,7 @@ public final class ObjectPage extends SourcesPage {
     return header;
   }
 
-  /** The map of the Spawns section; null without one. */
+  /** The map of the Location section; null without one. */
   public MapView spawnMap() {
     return spawns == null ? null : spawns.map();
   }

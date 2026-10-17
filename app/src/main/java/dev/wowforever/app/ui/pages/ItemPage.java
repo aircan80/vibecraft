@@ -22,6 +22,7 @@ import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.ItemCardPanel;
 import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RaisedBorder;
+import dev.wowforever.app.ui.widgets.RailTarget;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import java.awt.Dimension;
 import java.awt.Insets;
@@ -38,11 +39,12 @@ import javax.swing.table.TableColumnModel;
 
 /**
  * The item page, one scrolling page: an item with client data opens with its tooltip card ({@link ItemCardPanel})
- * over a facts line ("Item #id", class and levels, a starts-quest link), an item without it with the header (name
- * and that line); then a one-line summary of the sources ("3 NPCs · 2 loot lists · no
- * vendor · 1 quest"), then a section per kind of source the item has, in the order Dropped by, In instance loot,
- * Contained in, Sold by, Quest reward, Related quests (kinds without rows are left out). Drops are ranked by rate,
- * the unknown rates last under a divider. Ctrl+1 to Ctrl+6 jump to the first six sections ({@link SourcesPage}).
+ * over a facts line ("Item #id", class and levels, a starts-quest link), an item without it with the header (an
+ * items plate, the name and that line); then the header's facts strip, a one-line summary of the sources it has
+ * ("3 NPCs · 2 loot lists · 1 quest", positive facts only), then a section per kind of source the item has, in
+ * {@link SectionOrder#ITEM} order (Dropped by, Sold by, Quest reward, Contained in), then In instance loot and
+ * Related quests until later tasks merge them (kinds without rows are left out). Drops are ranked by rate, the
+ * unknown rates last under a divider. Ctrl+1 to Ctrl+6 jump to the first six sections ({@link SourcesPage}).
  *
  * <p>The drop source filter ({@link SourceFilter}) applies to the NPC drops (Dropped by) only: its heading and the
  * summary's NPC count count the drops shown, and a note under the section says how many it hid. The instance loot
@@ -51,7 +53,6 @@ import javax.swing.table.TableColumnModel;
 public final class ItemPage extends SourcesPage {
   private final ItemCardPanel card;
   private final HeaderPanel header;
-  private final JLabel summary;
   private final LinkTable<DropRow> droppedBy;
 
   /** The page of {@code d} without its icon (the card shows an empty one). */
@@ -81,8 +82,7 @@ public final class ItemPage extends SourcesPage {
         all.relatedQuests(), all.card());
     long itemId = all.summary().id();
     header = ItemHeader.of(d, nav);
-    summary = PageContent.mutedLabel(ItemSummaryLine.of(d));
-    summary.setBorder(BorderFactory.createEmptyBorder(0, 12, 4, 12));
+    header.setFacts(ItemSummaryLine.of(d));
     if (d.card().lines().isEmpty()) {
       card = null;
     } else {
@@ -93,7 +93,6 @@ public final class ItemPage extends SourcesPage {
       header.setBorder(BorderFactory.createEmptyBorder(2, 12, 6, 12));
     }
     content.add(header);
-    content.add(summary);
     droppedBy = addFilteredSection("Dropped by", drops, Columns.dropSourcesRanked(), DropRow.ranked(d.droppedBy()));
     if (droppedBy != null) {
       RateBarRenderer.install(column(droppedBy, Columns.RATE), row -> row instanceof DropRow.Source s
@@ -114,6 +113,7 @@ public final class ItemPage extends SourcesPage {
     addSection("Sold by", d.soldBy().size(), Columns.sourceNames(), d.soldBy());
     addSection("Quest reward", d.rewardFrom().size(), Columns.sourceNames(), d.rewardFrom());
     addSection("Related quests", d.relatedQuests().size(), Columns.sourceNames(), d.relatedQuests());
+    addSectionsInOrder(SectionOrder.ITEM);
     bindJumpKeys();
   }
 
@@ -131,13 +131,13 @@ public final class ItemPage extends SourcesPage {
     return card;
   }
 
-  /** The summary line as read. */
+  /** The summary line as read: the header's facts. */
   public String summary() {
-    return summary.getText();
+    return header.facts();
   }
 
   JLabel summaryLabel() {
-    return summary;
+    return header.factsLabel();
   }
 
   /** The ranked drop table; null when no NPC drops the item. */
@@ -197,6 +197,8 @@ public final class ItemPage extends SourcesPage {
       HeaderPanel header = new HeaderPanel(s.displayName(), Labels.join("Item #" + s.id(),
           Labels.itemSubtitle(s.className(), s.subclassName(), s.itemLevel(), s.requiredLevel())));
       header.setAlignmentX(LEFT_ALIGNMENT);
+      header.setPlate(plateIcon(RailTarget.ITEMS));
+      header.setKindWord(EntityKind.ITEM.label());
       if (d.startQuestId() != null) {
         EntityRef quest = new EntityRef(EntityKind.QUEST, d.startQuestId());
         header.addLink("Starts quest: " + questName(d, quest), quest, nav);

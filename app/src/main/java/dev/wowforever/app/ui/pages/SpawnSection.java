@@ -9,7 +9,6 @@ import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.widgets.MapView;
 import dev.wowforever.app.ui.widgets.SourceSection;
-import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.image.BufferedImage;
 import java.util.List;
@@ -20,13 +19,15 @@ import javax.swing.JButton;
 import javax.swing.JPanel;
 
 /**
- * The Spawns section of the NPC and object pages: each spawn point's zone and coordinates ({@code "42.3, 67.4"};
+ * The {@value #TITLE} section of the NPC and object pages: each spawn point's zone and coordinates ({@code "42.3, 67.4"};
  * the Zone column is left out when every point is in the page's zone), and a "Copy /way" button that copies a
  * TomTom waypoint command for the selected point (the first when none is selected). Ctrl+Shift+C on a point
  * copies the same command. With the decoded map of a spawn zone, the map shows above the table with the
  * entity's spawn points in that zone pinned as its own ({@link MapView.PinKind#SELF}).
  */
 final class SpawnSection {
+  /** The section's title (it was "Spawns" before the shared page skeleton). */
+  static final String TITLE = "Location";
   private final SourceSection section;
   private final LinkTable<Spawn> table;
   private final JButton copy = new JButton("Copy /way");
@@ -47,7 +48,7 @@ final class SpawnSection {
     table.setRows(spawns);
     table.setClipboard(clipboard);
     table.setIdText(s -> Columns.hasCoordinates(s) ? Optional.of(wayCommand(s)) : Optional.empty());
-    section = new SourceSection("Spawns", spawns.size(), table);
+    section = new SourceSection(TITLE, spawns.size(), table);
     copy.setToolTipText("Copy a /way command for the selected spawn point");
     copy.addActionListener(e -> {
       Spawn target = target();
@@ -61,7 +62,7 @@ final class SpawnSection {
     buttons.setOpaque(false);
     buttons.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
     buttons.add(copy);
-    section.add(buttons, BorderLayout.SOUTH);
+    section.addFooter(buttons);
     List<MapView.Pin> pins = map == null || mapZoneId == null ? List.of() : spawns.stream()
         .filter(s -> s.zoneId() == mapZoneId && MapCoordinates.onMap(s.x(), s.y()))
         .map(s -> new MapView.Pin(self, self.displayName(selfName), s.x(), s.y(), MapView.PinKind.SELF))

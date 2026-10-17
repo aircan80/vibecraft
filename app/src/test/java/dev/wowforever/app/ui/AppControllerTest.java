@@ -22,11 +22,13 @@ import dev.wowforever.app.ui.pages.FilterBar;
 import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.ListPage;
+import dev.wowforever.app.ui.pages.LoadingPage;
 import dev.wowforever.app.ui.pages.NpcPage;
 import dev.wowforever.app.ui.pages.ZoneMapPanel;
 import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.ListEntry;
+import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.nio.file.Files;
@@ -823,5 +825,51 @@ class AppControllerTest {
     queued.remove(0).run(); // then the pins of the page left
     assertThat(view.status().message()).as("the page left reports nothing").isEqualTo("Ready");
     assertThat(elwynn.mapPanel().mapView().pins()).as("its map still takes the pins").hasSize(5);
+  }
+
+  @Test
+  void loadingPageOnlyAfterDelay() {
+    List<Runnable> pending = new ArrayList<>(); // the worker: loads finish when the test runs them
+    ManualDelay loading = new ManualDelay();
+    AppController c = new AppController(repos, view, pending::add, Map.of(), loading);
+    EntityRef hogger = new EntityRef(NPC, 448);
+    list().show("Search: hogger", List.of(new ListEntry(hogger, "Hogger", "NPC", null, null)), false);
+    c.commit(hogger);
+    assertThat(view.detail instanceof LoadingPage).as("nothing before the delay").isFalse();
+    assertThat(AppController.LOADING_DELAY_MS).isEqualTo(150);
+    loading.fire();
+    assertThat(view.detail).as("the delay passed, the load still pending").isInstanceOf(LoadingPage.class);
+    LoadingPage page = (LoadingPage) view.detail;
+    assertThat(page.title()).as("from the list entry").isEqualTo("Hogger");
+    assertThat(page.what()).isEqualTo("Loading drops…");
+    pending.remove(0).run();
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
+
+    // a load that finishes first cancels it
+    c.open(new ViewTarget.Entity(new EntityRef(ITEM, 14149)));
+    pending.remove(0).run();
+    assertThat(view.detail).isInstanceOf(ItemPage.class);
+    assertThat(loading.pending()).isZero();
+    loading.fire();
+    assertThat(view.detail).isInstanceOf(ItemPage.class);
+  }
+
+  @Test
+  void theLoadingPageOfAHitReadsTheHitsNameAndALinkItsKindAndId() {
+    List<Runnable> pending = new ArrayList<>();
+    ManualDelay loading = new ManualDelay();
+    AppController c = new AppController(repos, view, pending::add, Map.of(), loading);
+    c.openHit(new ViewTarget.Entity(new EntityRef(NPC, 448)), new ViewTarget.Search("hog", Optional.of(NPC)),
+        "Hogger");
+    loading.fire();
+    assertThat(((LoadingPage) view.detail).title()).isEqualTo("Hogger");
+    pending.clear();
+    c.open(new ViewTarget.Entity(new EntityRef(ZONE, 40))); // a link: no name at hand
+    loading.fire();
+    assertThat(((LoadingPage) view.detail).title()).isEqualTo("Zone #40");
+    assertThat(((LoadingPage) view.detail).what()).isEqualTo("Loading zone…");
+    // a page opened while one is loading drops the older one's delay
+    c.open(new ViewTarget.List(ZONE));
+    assertThat(loading.pending()).isZero();
   }
 }

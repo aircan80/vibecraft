@@ -342,6 +342,26 @@ class NpcPageTest {
   }
 
   @Test
+  void sectionOrder() {
+    // Edwin VanCleef drops loot and has a spawn point (inside The Deadmines, so no map)
+    var p = new NpcPage(repos.npcs().detail(639).get(), t -> {}, text -> {});
+    List<String> titles = p.sections().stream().map(SourceSection::title).toList();
+    assertThat(titles).first().isEqualTo("Drops");
+    assertThat(titles).contains("Location");
+    assertThat(titles.stream().filter(SectionOrder.NPC::contains).toList())
+        .isEqualTo(SectionOrder.NPC.stream().filter(titles::contains).toList());
+    // every kind: the listed ones in order, then the quest sections Task 14 merges into "Quests"
+    QuestSummary quest = new QuestSummary(2, "Sharptalon's Claw", 18, 15, "Elwynn Forest");
+    var all = new NpcPage(new NpcDetail(HOGGER, 0, null, List.of(loot(1, "Claw", 84.0, "both", "Quest")),
+        List.of(loot(9, "Bread", null, null, "Consumable")), List.of(quest), List.of(quest),
+        List.of(new Spawn(12, "Elwynn Forest", 25.0, 92.9))), t -> {}, text -> {});
+    assertThat(all.sections()).extracting(SourceSection::title).containsExactly("Drops", "Sells", "Location",
+        "Starts quests", "Ends quests");
+    List<java.awt.Component> onPage = List.of(all.sections().get(0).getParent().getComponents());
+    assertThat(all.sections()).as("laid out in that order").extracting(onPage::indexOf).isSorted();
+  }
+
+  @Test
   void sellsStartsAndEndsHaveSectionsAndEmptyOnesAreLeftOut() {
     QuestSummary quest = new QuestSummary(2, "Sharptalon's Claw", 18, 15, "Elwynn Forest");
     var d = new NpcDetail(HOGGER, 0, null, List.of(), List.of(loot(9, "Bread", null, null, "Consumable")),
@@ -394,7 +414,7 @@ class NpcPageTest {
     SpawnSection spawns = p.spawns();
     assertThat(map.getParent()).isSameAs(spawns.table().getParent());
     assertThat(map.getParent().getComponents()).containsExactly(map, spawns.table());
-    assertThat(javax.swing.SwingUtilities.isDescendingFrom(map, p.section("Spawns"))).isTrue();
+    assertThat(javax.swing.SwingUtilities.isDescendingFrom(map, p.section("Location"))).isTrue();
     assertThat(column(spawns.table().table(), 0)).hasSize(5);
     // the page's own pins open nothing
     map.setSize(1002, 668);
@@ -415,7 +435,7 @@ class NpcPageTest {
     assertThat(p.spawnMap().pins()).extracting(Pin::x).containsExactly(10.0, 50.0);
     var plain = new NpcPage(d, t -> {}, text -> {});
     assertThat(plain.spawnMap()).isNull();
-    assertThat(plain.spawns().table().getParent()).isSameAs(plain.section("Spawns"));
+    assertThat(plain.spawns().table().getParent()).isSameAs(plain.section("Location"));
     var noSpawns = new NpcPage(npc(HOGGER, List.of(), List.of(), List.of()), 12L, elwynn, t -> {}, text -> {});
     assertThat(noSpawns.spawnMap()).isNull();
   }

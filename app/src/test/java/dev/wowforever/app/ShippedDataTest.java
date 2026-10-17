@@ -142,7 +142,10 @@ class ShippedDataTest extends ShippedDataSupport {
     var hogger = (NpcPage) TestPages.render(loaded, repos, t -> {}, Runnable::run, StatusSink.NONE);
     compact.add(hogger);
     compact.setSize(420, 900);
-    LinkTable<?> spawns = hogger.section("Spawns").table();
+    // the compact window collapses every section but the first (Drops); the user opens Location
+    assertThat(hogger.section("Location").isCollapsed()).isTrue();
+    hogger.section("Location").setCollapsed(false);
+    LinkTable<?> spawns = hogger.section("Location").table();
     JTable table = spawns.table();
     Set<Integer> mapWidths = new HashSet<>();
     for (int pass = 1; pass <= 3; pass++) { // as the map's own revalidations lay the window out again
@@ -235,9 +238,25 @@ class ShippedDataTest extends ShippedDataSupport {
       horrorRows.add(horror.drops().table().getValueAt(r, 0));
     }
     assertThat(horrorRows).contains("Deviate Hide");
-    // Edwin VanCleef is a boss, whatever Questie's rank
-    assertThat(((NpcPage) TestPages.build(new EntityRef(NPC, 639), repos, t -> {})).rankChip().getText())
-        .isEqualTo("Boss");
+    // Edwin VanCleef is a boss, whatever Questie's rank; his drops lead the page
+    var vanCleef = (NpcPage) TestPages.build(new EntityRef(NPC, 639), repos, t -> {});
+    assertThat(vanCleef.rankChip().getText()).isEqualTo("Boss");
+    assertThat(vanCleef.sections().get(0).title()).isEqualTo("Drops");
+    // the item page's facts are positive only: Hogger drops the claw, and nothing says "no vendor". Wanted: "Hogger"
+    // asks for it only as its objective (quest_objective), which no item source reads yet: the item page's Quests
+    // section (Task 14) brings it, and with it "1 NPC · 1 quest"
+    assertThat(((ItemPage) TestPages.build(new EntityRef(EntityKind.ITEM, 1931), repos, t -> {})).summary())
+        .isEqualTo("1 NPC");
+    // The Deadmines lists the quests filed under its zone (1581), The Defias Brotherhood among them
+    var deadmines = (InstancePage) TestPages.build(new EntityRef(EntityKind.INSTANCE, 3), repos, t -> {});
+    assertThat(deadmines.header().title()).isEqualTo("The Deadmines");
+    JTable deadminesQuests = deadmines.questsSection().table().table();
+    List<Object> questNames = new ArrayList<>();
+    for (int r = 0; r < deadminesQuests.getRowCount(); r++) {
+      questNames.add(deadminesQuests.getValueAt(r, 0));
+    }
+    assertThat(questNames).contains("The Defias Brotherhood", "Red Silk Bandanas");
+    assertThat(deadmines.questsSection().heading().text()).isEqualTo("Quests (" + questNames.size() + ")");
     // the Dire Maul floors (sub-zones named like their zone) are one zone hit
     assertThat(repos.search().search("Dire Maul", Optional.of(ZONE), 50)).extracting(SearchHit::name)
         .filteredOn("Dire Maul"::equals).hasSize(1);

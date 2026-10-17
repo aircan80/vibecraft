@@ -121,7 +121,7 @@ class ZonePageTest {
         new ZoneSummary(95003, "Brackwell Pumpkin Patch", "subzone", 12L, "Elwynn Forest"))), opened::add);
     assertThat(gloomvale.subzoneLinks()).as("by zone or by name").extracting(JButton::getText)
         .containsExactly("Brackwell Pumpkin Patch");
-    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("NPCs", "Quests");
+    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Quests", "NPCs");
   }
 
   @Test
@@ -193,7 +193,7 @@ class ZonePageTest {
     var p = westfallPage(pins, Runnable::run, opened);
     MapView map = p.mapPanel().mapView();
     assertThat(map.image()).isSameAs(westfallMap);
-    // the map replaces the reserved area: below the header and link rows, above the sections
+    // the map leads the page under the header, above the link rows and the sections
     List<Component> top = List.of(p.mapPanel().getParent().getComponents());
     assertThat(top.indexOf(p.mapPanel())).isGreaterThan(top.indexOf(p.header()))
         .isLessThan(top.indexOf(p.sections().get(0)));
@@ -289,6 +289,27 @@ class ZonePageTest {
     compact.remove(p);
     assertThat(p.mapPanel().bossesToggle().getParent().isVisible()).isTrue();
     assertThat(p.mapPanel().pinsMenuButton().isVisible()).isFalse();
+  }
+
+  @Test
+  void sectionOrder() {
+    var p = westfallPage(new FakePins(), Runnable::run, new ArrayList<>());
+    List<Component> onPage = List.of(p.mapPanel().getParent().getComponents());
+    Component dungeons = p.instanceLinks().get(0).getParent();
+    assertThat(onPage.indexOf(p.header())).isLessThan(onPage.indexOf(p.mapPanel()));
+    assertThat(onPage.indexOf(p.mapPanel())).as("the map first").isLessThan(onPage.indexOf(dungeons));
+    assertThat(p.sections()).as("Westfall has quests and NPCs").extracting(SourceSection::title)
+        .contains("Quests", "NPCs");
+    assertThat(onPage.indexOf(dungeons)).as("then Dungeons & raids")
+        .isLessThan(onPage.indexOf(p.sections().get(0)));
+    List<String> titles = p.sections().stream().map(SourceSection::title).toList();
+    assertThat(titles).isEqualTo(SectionOrder.ZONE.stream().filter(titles::contains).toList());
+    assertThat(p.sections()).as("laid out in that order").extracting(onPage::indexOf).isSorted();
+    // with every kind: Quests, NPCs, Objects
+    var all = new ZonePage(new ZoneDetail(ELWYNN, List.of(npc(1, "Wolf", 5, 6, 0)),
+        List.of(new ObjectSummary(7, "Chest", "Elwynn Forest", 12L)),
+        List.of(new QuestSummary(4, "Aa", 12, 10, "Elwynn Forest")), List.of(), List.of()), t -> {});
+    assertThat(all.sections()).extracting(SourceSection::title).containsExactly("Quests", "NPCs", "Objects");
   }
 
   @Test

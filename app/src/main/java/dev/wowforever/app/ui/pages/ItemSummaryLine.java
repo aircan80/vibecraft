@@ -7,9 +7,9 @@ import java.util.Locale;
 import java.util.stream.Stream;
 
 /**
- * The item page's one-line summary of where an item comes from: {@code "3 NPCs · 2 loot lists · no vendor ·
- * 1 quest"}. Every kind with sources is counted; vendors and quests are always mentioned ("no vendor",
- * "no quests"), the other kinds only when there are some.
+ * The item page's one-line summary of where an item comes from, positive facts only: {@code "3 NPCs · 2 loot lists ·
+ * 1 quest"}. Every kind with sources is counted and a kind without any is left out (never "no vendor"); an item
+ * with no source at all reads empty.
  */
 final class ItemSummaryLine {
   private ItemSummaryLine() {}
@@ -22,8 +22,8 @@ final class ItemSummaryLine {
         count(d.droppedBy().size(), "NPC", "NPCs"),
         count(d.inInstanceLoot().size(), "loot list", "loot lists"),
         count(containers, "container", "containers"),
-        d.soldBy().isEmpty() ? "no vendor" : count(d.soldBy().size(), "vendor", "vendors"),
-        quests == 0 ? "no quests" : count(quests, "quest", "quests"));
+        count(d.soldBy().size(), "vendor", "vendors"),
+        count(quests, "quest", "quests"));
   }
 
   /** {@code "1 NPC"}, {@code "3 NPCs"}; null for none. */

@@ -53,7 +53,7 @@ class SourcesPageIconTest {
       assertThat(icon(page.section("Drops"))).isEqualTo(RailIcons.shared().small(RailTarget.ITEMS, 16));
       assertThat(icon(page.section("Sells"))).isEqualTo(RailIcons.shared().small(RailTarget.ITEMS, 16));
       // spawn points are places, not entities: their Zone column comes and goes with the page's zone
-      assertThat(icon(page.section("Spawns"))).isNull();
+      assertThat(icon(page.section("Location"))).isNull();
       return null;
     });
   }

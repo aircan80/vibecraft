@@ -10,6 +10,8 @@ import dev.wowforever.app.ui.TableLinks;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Insets;
 import java.awt.event.HierarchyEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
@@ -50,6 +52,8 @@ public final class LinkTable<T> extends JPanel {
   private ClipboardPort clipboard = ClipboardPort.system();
   private Function<T, Optional<String>> idText = this::entityIdText;
   private boolean compact;
+  /** How many rows an inline table shows before the rest is cut off; 0 for all. */
+  private int rowLimit;
 
   /** A link table in its own scroll pane. */
   public LinkTable(List<Columns.Column<T>> cols, Navigator nav) {
@@ -91,6 +95,39 @@ public final class LinkTable<T> extends JPanel {
   /** Whether this table has no scroll pane of its own ({@link #inline}). */
   public boolean isInline() {
     return inline;
+  }
+
+  /**
+   * Shows only the first {@code limit} rows of an inline table (the rest are there, below the cut): the table is as
+   * tall as those rows. 0 shows every row again.
+   */
+  public void setRowLimit(int limit) {
+    if (limit < 0) {
+      throw new IllegalArgumentException("limit " + limit);
+    }
+    rowLimit = limit;
+    revalidate();
+    repaint();
+  }
+
+  /** How many rows show: every row, or the first {@link #setRowLimit} rows when there are more. */
+  public int shownRows() {
+    int rows = table.getRowCount();
+    return rowLimit > 0 && inline ? Math.min(rows, rowLimit) : rows;
+  }
+
+  /** An inline table cut at its row limit is as tall as the header and the rows it shows. */
+  @Override
+  public Dimension getPreferredSize() {
+    Dimension d = super.getPreferredSize();
+    int shown = shownRows();
+    if (isPreferredSizeSet() || shown >= table.getRowCount()) {
+      return d;
+    }
+    Insets in = getInsets();
+    int header = table.getTableHeader().isVisible() ? table.getTableHeader().getPreferredSize().height : 0;
+    int rows = shown == 0 ? 0 : table.getCellRect(shown - 1, 0, true).y + table.getRowHeight(shown - 1);
+    return new Dimension(d.width, in.top + header + rows + in.bottom);
   }
 
   /** Replaces every row. */

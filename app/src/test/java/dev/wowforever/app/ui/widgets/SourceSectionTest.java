@@ -10,10 +10,14 @@ import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.theme.Tokens;
+import dev.wowforever.app.ui.detail.CompactColumns;
+import java.awt.Component;
 import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
 import java.util.List;
+import javax.swing.BoxLayout;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -84,6 +88,108 @@ class SourceSectionTest {
     body.doLayout();
     assertThat(lead.getHeight()).isZero();
     assertThat(s.table().getBounds()).isEqualTo(new Rectangle(0, 0, 300, tableHeight));
+  }
+
+  /** Whether {@code c} and every parent up to {@code top} is visible. */
+  private static boolean visibleIn(Component c, Component top) {
+    for (Component p = c; p != null; p = p.getParent()) {
+      if (!p.isVisible()) {
+        return false;
+      }
+      if (p == top) {
+        return true;
+      }
+    }
+    return true;
+  }
+
+  @Test
+  void eightRowsThenShowAll() {
+    SourceSection s = section(34);
+    JTable table = s.table().table();
+    int header = table.getTableHeader().getPreferredSize().height;
+    assertThat(SourceSection.ROW_LIMIT).isEqualTo(8);
+    assertThat(s.shownRows()).isEqualTo(8);
+    assertThat(s.table().getPreferredSize().height).isEqualTo(header + 8 * table.getRowHeight());
+    assertThat(table.getRowCount()).as("the rows are all there, the rest below the fold").isEqualTo(34);
+    assertThat(s.showAllButton().isVisible()).isTrue();
+    assertThat(s.showAllButton().getText()).isEqualTo("Show all 34");
+    s.showAllButton().doClick();
+    assertThat(s.shownRows()).isEqualTo(34);
+    assertThat(s.table().getPreferredSize().height).isEqualTo(header + 34 * table.getRowHeight());
+    assertThat(s.showAllButton().isVisible()).isFalse();
+    assertThat(s.heading().text()).isEqualTo("Sold by (34)");
+  }
+
+  @Test
+  void eightRowsOrFewerShowNoButton() {
+    SourceSection s = section(8);
+    assertThat(s.shownRows()).isEqualTo(8);
+    assertThat(s.showAllButton().isVisible()).isFalse();
+  }
+
+  @Test
+  void selectingARowBelowTheFoldShowsAll() {
+    SourceSection s = section(34);
+    s.table().table().changeSelection(8, 0, false, false); // arrowing down past the eighth row
+    assertThat(s.shownRows()).isEqualTo(34);
+    assertThat(s.showAllButton().isVisible()).isFalse();
+  }
+
+  @Test
+  void rowsGivenLaterFollowTheLimit() {
+    SourceSection s = section(3);
+    assertThat(s.showAllButton().isVisible()).isFalse();
+    @SuppressWarnings("unchecked")
+    LinkTable<ItemSource> t = (LinkTable<ItemSource>) s.table();
+    t.setRows(vendors(12));
+    s.setCount(12);
+    assertThat(s.shownRows()).isEqualTo(8);
+    assertThat(s.showAllButton().isVisible()).isTrue();
+    assertThat(s.showAllButton().getText()).isEqualTo("Show all 12");
+  }
+
+  @Test
+  void compactCollapsesAllButFirst() {
+    JPanel page = new JPanel();
+    page.setLayout(new BoxLayout(page, BoxLayout.PAGE_AXIS));
+    SourceSection first = section(3);
+    SourceSection second = section(4);
+    SourceSection third = section(12);
+    page.add(first);
+    page.add(second);
+    page.add(third);
+    assertThat(List.of(first, second, third)).as("the full window shows every section open")
+        .allSatisfy(s -> assertThat(s.isCollapsed()).isFalse());
+
+    JPanel compact = new JPanel();
+    compact.putClientProperty(CompactColumns.KEY, Boolean.TRUE);
+    compact.add(page);
+    assertThat(first.isCollapsed()).isFalse();
+    assertThat(visibleIn(first.table(), first)).isTrue();
+    for (SourceSection s : List.of(second, third)) {
+      assertThat(s.isCollapsible()).isTrue();
+      assertThat(s.isCollapsed()).isTrue();
+      assertThat(visibleIn(s.heading(), s)).as("the heading only").isTrue();
+      assertThat(visibleIn(s.table(), s)).isFalse();
+      assertThat(visibleIn(s.showAllButton(), s)).isFalse();
+    }
+    assertThat(second.heading().text()).as("with the count").isEqualTo("Sold by (4)");
+
+    second.heading().dispatchEvent(new MouseEvent(second.heading(), MouseEvent.MOUSE_CLICKED, 0, 0, 5, 5, 1, false,
+        MouseEvent.BUTTON1));
+    assertThat(second.isCollapsed()).as("a click expands it").isFalse();
+    assertThat(visibleIn(second.table(), second)).isTrue();
+    second.heading().dispatchEvent(new MouseEvent(second.heading(), MouseEvent.MOUSE_CLICKED, 0, 0, 5, 5, 1, false,
+        MouseEvent.BUTTON1));
+    assertThat(second.isCollapsed()).as("and another collapses it again").isTrue();
+
+    compact.remove(page);
+    assertThat(List.of(first, second, third)).as("back in the full window, every section opens")
+        .allSatisfy(s -> {
+          assertThat(s.isCollapsed()).isFalse();
+          assertThat(s.isCollapsible()).isFalse();
+        });
   }
 
   @Test

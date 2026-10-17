@@ -12,6 +12,7 @@ import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.widgets.LinkButton;
+import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.util.ArrayList;
@@ -25,13 +26,19 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 /**
- * The zone page, one scrolling page: the header (the kind unless it is a plain zone, the zone's level band, a parent
- * link), its dungeons and raids and its sub-zones (those that are not one of the dungeons) as compact rows of links,
- * the zone map with spawn pins ({@link ZoneMapPanel}, when the zone has a map), then the sections NPCs (hostile ones
- * first, bosses and rares leading; then the friendly ones), Objects and Quests (by level). Sections without rows are
- * left out.
+ * The zone page, one scrolling page, in {@link SectionOrder#ZONE} order: the header (a zones plate, the kind unless
+ * it is a plain zone, the zone's level band, a parent link), the zone map with spawn pins ({@link ZoneMapPanel}, when
+ * the zone has a map), its dungeons and raids and its sub-zones (those that are not one of the dungeons) as compact
+ * rows of links, then the sections Quests (by level), NPCs (hostile ones first, bosses and rares leading; then the
+ * friendly ones) and Objects. Sections without rows are left out.
  */
 public final class ZonePage extends SourcesPage {
+  private static final String MAP = "Map";
+  private static final String DUNGEONS = "Dungeons & raids";
+  private static final String SUBZONES = "Sub-zones";
+  /** {@link SectionOrder#ZONE}, the sub-zones row kept beside the dungeons row. */
+  private static final List<String> ORDER = SectionOrder.after(SectionOrder.ZONE, DUNGEONS, SUBZONES);
+
   private final HeaderPanel header;
   private final List<JButton> instanceLinks = new ArrayList<>();
   private final List<JButton> subzoneLinks = new ArrayList<>();
@@ -50,17 +57,19 @@ public final class ZonePage extends SourcesPage {
     header = new HeaderPanel(s.displayName(), Labels.join("Zone #" + s.id(), kindWord(s.kind()),
         d.levelBand().map(b -> Labels.levels(b.min(), b.max())).orElseGet(() -> levelRange(d.npcs()))));
     header.setAlignmentX(LEFT_ALIGNMENT);
+    header.setPlate(plateIcon(RailTarget.ZONES));
+    header.setKindWord(EntityKind.ZONE.label());
     if (s.parentId() != null) {
       EntityRef parent = new EntityRef(EntityKind.ZONE, s.parentId());
       header.addLink(parent.displayName(s.parentName()), parent, nav);
     }
     content.add(header);
-    addLinkRow("Dungeons & raids", d.instances(), i -> Labels.instanceTitle(i.displayName(), i.key()),
+    addLinkRow(DUNGEONS, d.instances(), i -> Labels.instanceTitle(i.displayName(), i.key()),
         InstanceSummary::ref, instanceLinks);
-    addLinkRow("Sub-zones", d.subzones().stream().filter(z -> !isInstance(z, d.instances())).toList(),
+    addLinkRow(SUBZONES, d.subzones().stream().filter(z -> !isInstance(z, d.instances())).toList(),
         ZoneSummary::displayName, ZoneSummary::ref, subzoneLinks);
     if (mapPanel != null) {
-      content.add(mapPanel);
+      addBlock(MAP, mapPanel);
     }
     List<NpcSummary> npcs = d.npcs().stream().sorted(Comparator.comparing(NpcSummary::friendly)
         .thenComparingInt((NpcSummary n) -> rankOrder(n.rank()))
@@ -74,6 +83,7 @@ public final class ZonePage extends SourcesPage {
         .thenComparing(QuestSummary::displayName, String.CASE_INSENSITIVE_ORDER)
         .thenComparingLong(QuestSummary::id)).toList();
     addSection("Quests", quests.size(), VisibleColumns.of(Columns.quests(), quests, s.name()), quests);
+    addSectionsInOrder(ORDER);
     bindJumpKeys();
   }
 
@@ -150,7 +160,7 @@ public final class ZonePage extends SourcesPage {
       links.add(link);
       row.add(link);
     }
-    content.add(row);
+    addBlock(label, row);
   }
 
   public HeaderPanel header() {

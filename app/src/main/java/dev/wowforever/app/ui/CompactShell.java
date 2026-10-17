@@ -22,7 +22,10 @@ import javax.swing.JToggleButton;
  *
  * <p>The search bar, the page holder and the status line are the window's own, shared with the full layout:
  * {@link #claim} moves them in. Tables on the page are compact while they are inside this shell
- * ({@link CompactColumns}).
+ * ({@link CompactColumns}), and so are a page's sections: every one but the first reads only
+ * {@code "Heading (count)"} until a click on the heading opens it
+ * ({@link dev.wowforever.app.ui.widgets.SourceSection}). This shell carries {@link CompactColumns#KEY}, which both
+ * follow.
  */
 public final class CompactShell extends JPanel {
   /** The accessible name of the pin button, which shows only an icon. */

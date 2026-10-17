@@ -102,6 +102,13 @@ public final class MainFrame extends JFrame implements MainView {
           controller.openHit(hit, search);
         }
       }
+
+      @Override
+      public void openHit(ViewTarget.Entity hit, ViewTarget.Search search, String title) {
+        if (controller != null) {
+          controller.openHit(hit, search, title);
+        }
+      }
     }, uiState);
     rail.onSelect(t -> {
       if (controller != null) {

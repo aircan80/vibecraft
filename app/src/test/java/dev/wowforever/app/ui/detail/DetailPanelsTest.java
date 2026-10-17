@@ -60,6 +60,17 @@ class DetailPanelsTest {
   }
 
   @Test
+  void anInstanceLoadsTheQuestsFiledUnderItsZone() {
+    var deadmines = (DetailPanels.LoadedInstance) DetailPanels.load(new EntityRef(INSTANCE, 2), repos).orElseThrow();
+    assertThat(deadmines.detail().summary().zoneId()).isEqualTo(1581L);
+    assertThat(deadmines.quests()).isEqualTo(repos.quests().byZone(1581));
+    var noZone = (DetailPanels.LoadedInstance) DetailPanels.load(new EntityRef(INSTANCE, 1), repos).orElseThrow();
+    assertThat(noZone.quests()).isEqualTo(noZone.detail().summary().zoneId() == null ? List.of()
+        : repos.quests().byZone(noZone.detail().summary().zoneId()));
+    assertThat(DetailPanels.name(deadmines)).isEqualTo("The Deadmines");
+  }
+
+  @Test
   void namesTheEntity() {
     assertThat(DetailPanels.name(DetailPanels.load(new EntityRef(ITEM, 14149), repos).orElseThrow()))
         .isEqualTo("Subterranean Cape");

@@ -100,6 +100,11 @@ public final class SearchBar extends JPanel {
     default void openHit(ViewTarget.Entity hit, ViewTarget.Search search) {
       accept(hit);
     }
+
+    /** {@link #openHit(ViewTarget.Entity, ViewTarget.Search)} of a hit called {@code title}; by default the same. */
+    default void openHit(ViewTarget.Entity hit, ViewTarget.Search search, String title) {
+      openHit(hit, search);
+    }
   }
 
   private final Opener onOpen;
@@ -453,7 +458,7 @@ public final class SearchBar extends JPanel {
     }
     state.addRecentSearch(entry.title() != null && !entry.title().isBlank() ? entry.title() : q);
     countsFor(q);
-    onOpen.openHit(hit, new ViewTarget.Search(q, chips.selected()));
+    onOpen.openHit(hit, new ViewTarget.Search(q, chips.selected()), entry.title());
   }
 
   /** Drops the pending and running lookups and closes the list. */

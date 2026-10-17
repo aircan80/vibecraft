@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.pages;
 
 import static dev.wowforever.app.model.EntityKind.ITEM;
 import static dev.wowforever.app.model.EntityKind.NPC;
+import static dev.wowforever.app.model.EntityKind.QUEST;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static dev.wowforever.app.ui.pages.Tables.boundsIn;
 import static dev.wowforever.app.ui.pages.Tables.column;
@@ -18,6 +19,7 @@ import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcFilter;
+import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Component;
@@ -281,6 +283,28 @@ class InstancePageTest {
     p.header().links().forEach(b -> b.doClick());
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(ZONE, 1581)),
         new ViewTarget.List(NPC, NpcFilter.ALL.withZone(1581L)));
+  }
+
+  @Test
+  void questsSection() {
+    // the fixture's Deadmines is instance 2 (the shipped database's is 3; ShippedDataTest reads that one); the
+    // quests are those filed under its zone, 1581, which DetailPanels.load reads with QuestRepository.byZone
+    QuestSummary defias = new QuestSummary(166, "The Defias Brotherhood", 22, 14, "The Deadmines");
+    QuestSummary bandanas = new QuestSummary(214, "Red Silk Bandanas", 17, 14, "The Deadmines");
+    List<ViewTarget> opened = new ArrayList<>();
+    var p = new InstancePage(repos.instances().detail(2).get(), List.of(bandanas, defias), repos, opened::add);
+    assertThat(p.questsSection().heading().text()).isEqualTo("Quests (2)");
+    JTable quests = p.questsSection().table().table();
+    assertThat(column(quests, 0)).containsExactly("Red Silk Bandanas", "The Defias Brotherhood");
+    assertThat(columnNames(quests)).as("every quest is in the instance's zone").doesNotContain("Zone");
+    p.questsSection().table().activateRow(1);
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(QUEST, 166)));
+    // after the loot, and still there once another encounter is picked
+    List<Component> pane = List.of(p.lootSection().getParent().getComponents());
+    assertThat(pane.indexOf(p.lootSection())).isLessThan(pane.indexOf(p.questsSection()));
+    p.selectBoss(1);
+    assertThat(List.of(p.lootSection().getParent().getComponents())).endsWith(p.questsSection());
+    assertThat(deadmines(new ArrayList<>()).questsSection()).as("no quests, no section").isNull();
   }
 
   @Test
