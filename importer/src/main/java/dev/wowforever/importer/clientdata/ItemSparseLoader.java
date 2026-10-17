@@ -78,10 +78,10 @@ public final class ItemSparseLoader {
    * @throws IllegalStateException when a table is missing or lacks a column this loader reads
    */
   public static Map<Long, ClientItem> load(ClientDataSource src, Set<Long> questieItemIds, ImportReport report) {
-    Map<Long, CsvTable.Row> items = index(src.table(ITEM), ITEM, ITEM_COLUMNS);
-    Map<Long, CsvTable.Row> forever = index(src.table(SPARSE), SPARSE, SPARSE_COLUMNS);
+    Map<Long, CsvTable.Row> items = index(src, ITEM, ITEM_COLUMNS);
+    Map<Long, CsvTable.Row> forever = index(src, SPARSE, SPARSE_COLUMNS);
     Optional<CsvTable> eraTable = src.optionalTable(ERA_SPARSE);
-    Map<Long, CsvTable.Row> era = eraTable.isPresent() ? index(eraTable.get(), ERA_SPARSE, ERA_COLUMNS) : Map.of();
+    Map<Long, CsvTable.Row> era = eraTable.isPresent() ? index(src, ERA_SPARSE, ERA_COLUMNS) : Map.of();
 
     Map<Long, ClientItem> out = new LinkedHashMap<>();
     long matchedForever = 0;
@@ -129,8 +129,8 @@ public final class ItemSparseLoader {
     if (eraTable.isEmpty()) {
       return Map.of();
     }
-    Map<Long, CsvTable.Row> items = index(src.table(ITEM), ITEM, ITEM_COLUMNS);
-    Map<Long, CsvTable.Row> era = index(eraTable.get(), ERA_SPARSE, ERA_COLUMNS);
+    Map<Long, CsvTable.Row> items = index(src, ITEM, ITEM_COLUMNS);
+    Map<Long, CsvTable.Row> era = index(src, ERA_SPARSE, ERA_COLUMNS);
     Map<Long, ClientItem> out = new LinkedHashMap<>();
     for (long id : new TreeSet<>(ids)) {
       if (items.containsKey(id) && era.containsKey(id)) {
@@ -140,14 +140,16 @@ public final class ItemSparseLoader {
     return Collections.unmodifiableMap(out);
   }
 
-  private static Map<Long, CsvTable.Row> index(CsvTable table, String name, List<String> columns) {
+  /** The table's shared id index ({@link ClientDataSource#indexById}), once its columns are checked. */
+  private static Map<Long, CsvTable.Row> index(ClientDataSource src, String name, List<String> columns) {
+    CsvTable table = src.table(name);
     for (String col : columns) {
       if (!table.hasColumn(col)) {
         throw new IllegalStateException("client table " + name + " (" + table.source() + ") has no column " + col
             + "; the item join needs " + columns);
       }
     }
-    return table.indexByLong("ID");
+    return src.indexById(name);
   }
 
   private static ClientItem item(long id, CsvTable.Row item, CsvTable.Row s, String source) {

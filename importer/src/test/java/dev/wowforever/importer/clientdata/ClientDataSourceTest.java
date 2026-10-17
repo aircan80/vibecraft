@@ -5,11 +5,14 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.wowforever.importer.Fixtures;
 import dev.wowforever.importer.ImportOptions;
+import dev.wowforever.importer.report.ImportReport;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -117,6 +120,20 @@ class ClientDataSourceTest {
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("--client-data-dir")
         .hasMessageContaining("--skip-client-data");
+  }
+
+  @Test
+  void idIndexesAreBuiltOnceAndReadOnly() {
+    ClientDataSource src = new ClientDataSource(Fixtures.clientDataRoot());
+    Map<Long, CsvTable.Row> sparse = src.indexById("ItemSparse");
+    assertThat(sparse).containsKey(17204L).doesNotContainKey(16800L);
+    assertThat(src.indexById("ItemSparse")).isSameAs(sparse);
+    assertThat(src.indexById("ItemSparse.era")).containsKey(16800L);
+    assertThatThrownBy(() -> sparse.clear()).isInstanceOf(UnsupportedOperationException.class);
+    // the item join reuses them: a second load (ItemTooltips' set pieces) builds no new index
+    ItemSparseLoader.load(src, Set.of(17204L), new ImportReport());
+    ItemSparseLoader.load(src, Set.of(16800L), new ImportReport());
+    assertThat(src.indexById("ItemSparse")).isSameAs(sparse);
   }
 
   @Test

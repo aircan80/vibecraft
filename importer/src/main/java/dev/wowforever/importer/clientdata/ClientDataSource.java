@@ -6,6 +6,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -28,6 +29,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class ClientDataSource {
   private final Path dir;
   private final Map<String, CsvTable> tables = new ConcurrentHashMap<>();
+  private final Map<String, Map<Long, CsvTable.Row>> idIndexes = new ConcurrentHashMap<>();
   private volatile BuildLock lock;
   private volatile List<MapInfo> maps;
 
@@ -86,6 +88,16 @@ public final class ClientDataSource {
       }
       return CsvTable.read(p);
     });
+  }
+
+  /**
+   * {@code table(name).indexByLong("ID")}, unmodifiable, built once: every loader joining on a table's ids shares one
+   * index (the item join runs twice, for the items and for the set pieces outside them).
+   *
+   * @throws IllegalStateException when the table is missing, has no ID column or repeats an id
+   */
+  public Map<Long, CsvTable.Row> indexById(String name) {
+    return idIndexes.computeIfAbsent(name, n -> Collections.unmodifiableMap(table(n).indexByLong("ID")));
   }
 
   /** The table {@code csv/{name}.csv} when the file exists (read once, like {@link #table}), else empty. */
