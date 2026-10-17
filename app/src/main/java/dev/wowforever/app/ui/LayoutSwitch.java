@@ -122,7 +122,8 @@ final class LayoutSwitch {
     return compact ? firstBrowsable(parts.holder()) : parts.list().jlist();
   }
 
-  private static Component firstBrowsable(Component c) {
+  /** The first focusable, visible, enabled table or list under {@code c}, or null. */
+  static Component firstBrowsable(Component c) {
     if ((c instanceof JTable || c instanceof JList) && c.isFocusable() && c.isVisible() && c.isEnabled()) {
       return c;
     }

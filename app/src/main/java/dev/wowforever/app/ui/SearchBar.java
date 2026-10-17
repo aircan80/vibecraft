@@ -124,6 +124,8 @@ public final class SearchBar extends JPanel {
   /** Bumped by every text change and lookup, so only the newest lookup's result is shown. */
   private int generation;
   private boolean focused;
+  /** Set by {@link #focus()} so the focus event it causes counts as a deliberate entry into the box. */
+  private boolean deliberateFocus;
   /** Set while the text is changed by code (a recent search or a pasted name), which then searches at once. */
   private boolean quiet;
 
@@ -168,7 +170,7 @@ public final class SearchBar extends JPanel {
     text.addFocusListener(new FocusAdapter() {
       @Override
       public void focusGained(FocusEvent e) {
-        focusChanged(true);
+        focusChanged(true, e.getCause());
       }
 
       @Override
@@ -211,10 +213,18 @@ public final class SearchBar extends JPanel {
     this.worker = Objects.requireNonNull(worker, "worker");
   }
 
-  /** Moves the keyboard focus to the search box and selects its text. */
+  /** Moves the keyboard focus to the search box and selects its text; an empty box then shows the recent searches. */
   public void focus() {
-    text.requestFocusInWindow();
+    markFocusDeliberate();
+    if (!text.requestFocusInWindow()) {
+      deliberateFocus = false;
+    }
     text.selectAll();
+  }
+
+  /** Makes the next focus gain count as a deliberate entry into the box (what {@link #focus()} does). */
+  void markFocusDeliberate() {
+    deliberateFocus = true;
   }
 
   /**
@@ -266,12 +276,27 @@ public final class SearchBar extends JPanel {
     return chips;
   }
 
-  /** Whether the search box has the focus changed: the empty focused box shows recents; leaving it closes the list. */
+  /**
+   * Whether the search box has the focus changed through a deliberate entry (a click into it, or {@link #focus()}):
+   * the empty box then shows the recent searches; leaving it closes the list.
+   */
   void focusChanged(boolean hasFocus) {
+    focusChanged(hasFocus, FocusEvent.Cause.MOUSE_EVENT);
+  }
+
+  /**
+   * Whether the search box has the focus changed, with how it got there. Only a deliberate entry (a click into the
+   * box, or {@link #focus()} for Ctrl+F and {@code /}) opens the recent searches: focus that merely falls into the
+   * box because the component that had it was removed (a page swap after a click on a link) or because the window
+   * was activated must not pop the list open.
+   */
+  void focusChanged(boolean hasFocus, FocusEvent.Cause cause) {
     focused = hasFocus;
+    boolean deliberate = deliberateFocus || cause == FocusEvent.Cause.MOUSE_EVENT;
+    deliberateFocus = false;
     if (!hasFocus) {
       dropdown.hide();
-    } else if (query().isEmpty()) {
+    } else if (deliberate && query().isEmpty()) {
       dropdown.showRecents(state.recentSearches());
     }
   }
