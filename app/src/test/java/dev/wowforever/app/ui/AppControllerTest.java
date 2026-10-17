@@ -126,8 +126,18 @@ class AppControllerTest {
     assertThat(c.current()).isEqualTo(new ViewTarget.Home());
     assertThat(view.detail).isNotNull();
     assertThat(list().entries()).isEmpty();
-    assertThat(view.status().info()).contains("b-42");
+    assertThat(list().isPlaceholderShown()).as("no 'Results (0)' heading on Home").isTrue();
+    assertThat(view.status().info()).isEqualTo("Data build b-42");
     assertThat(view.titleSuffix).isEmpty();
+  }
+
+  @Test
+  void theHomePageAndStatusShowTheShortBuildId() {
+    String hash = "6c9ed1fa2901b9ff63680623e8816bd3a748f7f8b1c38e480b29eb72f1113148";
+    AppController c = new AppController(repos, view, Runnable::run, Map.of("build_id", hash));
+    c.start();
+    assertThat(view.status().info()).isEqualTo("Data build 6c9ed1fa");
+    assertThat(((JLabel) view.detail).getText()).contains("Data build 6c9ed1fa").doesNotContain(hash);
   }
 
   @Test
@@ -141,6 +151,48 @@ class AppControllerTest {
     assertThat(hit.subtitle()).startsWith("NPC");
     assertThat(view.status().message()).isEqualTo("1 result");
     assertThat(view.titleSuffix).isEqualTo("Search: hogger");
+  }
+
+  @Test
+  void openingADropdownHitAlsoFillsTheListWithItsSearchUnderOneHistoryEntry() {
+    StubView probe = new StubView(); // where the plain search's rows are read, to pick a hit that is not the first
+    new AppController(repos, probe, Runnable::run).open(ITEMS_C);
+    EntityRef third = probe.masterList().entries().get(2).ref();
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.start();
+
+    c.openHit(new ViewTarget.Entity(third), ITEMS_C);
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(third));
+    assertThat(view.detail).isInstanceOf(ItemPage.class);
+    assertThat(list().isPlaceholderShown()).isFalse();
+    assertThat(list().heading()).isEqualTo(probe.masterList().heading()).startsWith("Search: c (");
+    assertThat(refs()).isEqualTo(probe.masterList().entries().stream().map(ListEntry::ref).toList());
+    assertThat(list().selected()).map(ListEntry::ref).contains(third);
+    assertThat(view.delay.pending()).as("the opened row is not previewed again").isZero();
+    assertThat(view.titleSuffix).as("the page's name, not the search's").isNotEqualTo("Search: c");
+
+    c.back(); // one step: the search took no history entry of its own
+    assertThat(c.current()).isEqualTo(new ViewTarget.Home());
+    assertThat(view.canBack).isFalse();
+  }
+
+  @Test
+  void anOpenedHitMissingFromItsSearchLeavesTheListUnselected() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.openHit(new ViewTarget.Entity(new EntityRef(NPC, 448)), new ViewTarget.Search("subterr", Optional.empty()));
+    assertThat(list().heading()).isEqualTo("Search: subterr (1)");
+    assertThat(list().selected()).isEmpty();
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
+  }
+
+  @Test
+  void anOpenedHitWithoutAMasterListKeepsItsPageInTheDetail() {
+    view.masterListShown = () -> false; // the compact window
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.openHit(new ViewTarget.Entity(new EntityRef(NPC, 448)), new ViewTarget.Search("hogger", Optional.of(NPC)));
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(NPC, 448)));
+    assertThat(view.titleSuffix).isEqualTo("Hogger");
   }
 
   @Test

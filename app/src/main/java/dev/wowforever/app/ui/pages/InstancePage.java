@@ -1,5 +1,7 @@
 package dev.wowforever.app.ui.pages;
 
+import com.formdev.flatlaf.util.UIScale;
+import dev.wowforever.app.db.InstanceRepository;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.BossSummary;
 import dev.wowforever.app.model.EntityKind;
@@ -34,15 +36,18 @@ import javax.swing.JToggleButton;
 import javax.swing.ListSelectionModel;
 
 /**
- * The dungeon or raid page: the header ({@code "Raid (40) · Level 60–63 · <zone> · NPCs in <zone>"}), then on the
- * left the numbered encounters ({@code "1. Lucifron  Lv 63  Boss"}) and AtlasLoot's extra lists under
- * "Other loot lists", on the right the loot of the selected one grouped by {@link SlotGroups} in slot order.
- * A difficulty switch shows only when the instance's loot has more than one difficulty. The first encounter is
- * selected on construction.
+ * The dungeon or raid page: the header ({@code "Raid (40) · Level 60–63 · <zone> · NPCs in <zone>"}), then the
+ * numbered encounters ({@code "1. Lucifron  Lv 63  Boss"}, the level left out when unknown) with AtlasLoot's extra
+ * lists under "Other loot lists", and the loot of the selected one grouped by {@link SlotGroups} in slot order. The
+ * encounters sit left of the loot, or above it while the page is narrower than {@value #STACK_BELOW} px (the compact
+ * window); the layout follows the width as the page is resized. A difficulty switch shows only when the instance's
+ * loot has more than one difficulty. The first encounter is selected on construction.
  */
 public final class InstancePage extends JPanel {
-  /** AtlasLoot's level for a boss shown with a skull. */
-  private static final int SKULL_LEVEL = 999;
+  /** The page width, in logical pixels, below which the encounters stack above the loot in one column. */
+  public static final int STACK_BELOW = 600;
+  /** The share of a stacked page's height the encounters start with. */
+  private static final double STACKED_LIST_SHARE = 0.4;
 
   private final BossLoot bossLoot;
   private final Navigator nav;
@@ -55,6 +60,7 @@ public final class InstancePage extends JPanel {
   private final List<String> difficulties;
   private final JPanel difficultyControl;
   private final PageContent lootPane = new PageContent();
+  private final JSplitPane split;
   private String difficulty;
   private BossSummary shown;
   private HeaderPanel bossHeader;
@@ -87,7 +93,7 @@ public final class InstancePage extends JPanel {
     JScrollPane right = new JScrollPane(lootPane);
     right.setBorder(BorderFactory.createEmptyBorder());
     right.getVerticalScrollBar().setUnitIncrement(16);
-    JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, encounterPane(), right);
+    split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, encounterPane(), right);
     split.setResizeWeight(0.3);
     split.setBorder(null);
     add(header, BorderLayout.NORTH);
@@ -95,6 +101,31 @@ public final class InstancePage extends JPanel {
     if (!d.bosses().isEmpty()) {
       selectBoss(0);
     }
+  }
+
+  /**
+   * Lays the page out, first turning the split to stack the encounters above the loot when the page has become
+   * narrower than {@value #STACK_BELOW} px, or back to side by side when it has grown wider. The split takes its new
+   * bounds before it turns, so its divider starts from the new size: the encounters get
+   * {@value #STACKED_LIST_SHARE} of a stacked page's height, or their preferred width side by side.
+   */
+  @Override
+  public void doLayout() {
+    super.doLayout();
+    boolean stack = getWidth() > 0 && getWidth() < UIScale.scale(STACK_BELOW);
+    if (stack != isStacked()) {
+      split.setOrientation(stack ? JSplitPane.VERTICAL_SPLIT : JSplitPane.HORIZONTAL_SPLIT);
+      if (stack) {
+        split.setDividerLocation(STACKED_LIST_SHARE);
+      } else {
+        split.resetToPreferredSizes();
+      }
+    }
+  }
+
+  /** Whether the encounters sit above the loot (a narrow page) rather than left of it. */
+  public boolean isStacked() {
+    return split.getOrientation() == JSplitPane.VERTICAL_SPLIT;
   }
 
   /** The instance name over its type, levels, a zone link and an "NPCs in" link to the same zone. */
@@ -117,12 +148,12 @@ public final class InstancePage extends JPanel {
     return number + ". " + b.displayName() + (level == null ? "" : "  Lv " + level) + "  " + kind;
   }
 
-  /** The level, {@code "??"} for AtlasLoot's skull level, null when unknown. */
+  /** The level; null when unknown, as AtlasLoot's skull level is (the repository fills it from the NPC if it can). */
   private static String levelText(Integer level) {
     if (level == null || level <= 0) {
       return null;
     }
-    return level >= SKULL_LEVEL ? "??" : String.valueOf(level);
+    return level >= InstanceRepository.SKULL_LEVEL ? null : String.valueOf(level);
   }
 
   private static String capitalised(String word) {

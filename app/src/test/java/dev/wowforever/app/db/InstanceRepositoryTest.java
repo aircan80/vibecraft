@@ -53,6 +53,16 @@ class InstanceRepositoryTest {
   }
 
   @Test
+  void aSkullBossLevelIsFilledFromItsNpc() {
+    var mc = repos.instances().detail(3).get().bosses();
+    assertThat(mc.get(0).name()).isEqualTo("Lucifron");
+    assertThat(mc.get(0).level()).isEqualTo(63); // AtlasLoot's 999, the NPC row's 63
+    assertThat(mc).filteredOn(b -> b.name().equals("Magmadar")).singleElement()
+        .satisfies(b -> assertThat(b.level()).isEqualTo(999)); // no NPC row: AtlasLoot's value stays
+    assertThat(repos.instances().detail(1).get().bosses().get(0).level()).isEqualTo(16); // AtlasLoot's own level
+  }
+
+  @Test
   void ragefireStartsWithTaragaman() {
     InstanceDetail rfc = repos.instances().detail(1).get();
     assertThat(rfc.summary().name()).isEqualTo("Ragefire Chasm");

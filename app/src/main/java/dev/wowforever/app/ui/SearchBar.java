@@ -37,11 +37,12 @@ import org.slf4j.LoggerFactory;
  * The search box with type-ahead, kind chips, recent searches and paste parsing. Typing looks up the top hits and
  * the per-kind counts on the worker {@value #DEBOUNCE_MILLIS} ms after the last keystroke and shows them in the
  * {@link SearchDropdown} (a lookup that newer text has overtaken is dropped); the focused empty box shows the recent
- * searches. Enter opens the chosen or top hit, or runs the full search when there is none (or the text changed
- * since the hits came); Shift+Enter and "Show all" run the full search. A kind chip filters the dropdown and the
- * full search, and re-runs the search at once while the dropdown is closed. Pasting a link, item string, Wowhead
- * URL or bare number over the whole text opens that page; pasting {@code [Name]} searches for the name
- * ({@link PasteParser}). Every search that runs, and the text of every hit opened, goes to the recent searches.
+ * searches. Enter opens the chosen or top hit ({@link Opener#openHit}, with the search for the text), or runs the
+ * full search when there is none (or the text changed since the hits came); Shift+Enter and "Show all" run the
+ * full search. A kind chip filters the dropdown and the full search, and re-runs the search at once while the
+ * dropdown is closed. Pasting a link, item string, Wowhead URL or bare number over the whole text opens that page;
+ * pasting {@code [Name]} searches for the name ({@link PasteParser}). Every search that runs, and the text of every
+ * hit opened, goes to the recent searches.
  * In the compact window ({@link #setCompact}) the "Search:" label goes and the chips fold into a {@link KindMenu}.
  */
 public final class SearchBar extends JPanel {
@@ -84,7 +85,19 @@ public final class SearchBar extends JPanel {
     }
   }
 
-  private final Consumer<ViewTarget> onOpen;
+  /**
+   * Where the search bar sends what the user picks: searches and pasted pages to {@link #accept}, a hit picked in
+   * the dropdown to {@link #openHit} with the search it was picked for.
+   */
+  @FunctionalInterface
+  public interface Opener extends Consumer<ViewTarget> {
+    /** Opens {@code hit}, picked in the dropdown for {@code search}; by default only the hit. */
+    default void openHit(ViewTarget.Entity hit, ViewTarget.Search search) {
+      accept(hit);
+    }
+  }
+
+  private final Opener onOpen;
   private final UiState state;
   private final MasterList.Delay delay;
   private final SearchDropdown dropdown;
@@ -112,11 +125,11 @@ public final class SearchBar extends JPanel {
   private boolean quiet;
 
   /** A search bar that opens what the user picks through {@code onOpen} and keeps recent searches in {@code state}. */
-  public SearchBar(Consumer<ViewTarget> onOpen, UiState state) {
+  public SearchBar(Opener onOpen, UiState state) {
     this(onOpen, state, MasterList.timerDelay(DEBOUNCE_MILLIS), new SearchDropdown());
   }
 
-  SearchBar(Consumer<ViewTarget> onOpen, UiState state, MasterList.Delay delay, SearchDropdown dropdown) {
+  SearchBar(Opener onOpen, UiState state, MasterList.Delay delay, SearchDropdown dropdown) {
     super(new BorderLayout(6, 0));
     this.onOpen = Objects.requireNonNull(onOpen, "onOpen");
     this.state = Objects.requireNonNull(state, "state");
@@ -163,7 +176,7 @@ public final class SearchBar extends JPanel {
     dropdown.install(text, new SearchDropdown.Listener() {
       @Override
       public void open(ListEntry hit) {
-        openTarget(new ViewTarget.Entity(hit.ref()));
+        openHit(new ViewTarget.Entity(hit.ref()));
       }
 
       @Override
@@ -375,15 +388,20 @@ public final class SearchBar extends JPanel {
     });
   }
 
-  /** Opens {@code target}, a hit picked for the text, which goes to the recent searches. */
-  private void openTarget(ViewTarget target) {
+  /**
+   * Opens {@code hit}, picked for the text, with the search for the text and the selected kind (so the list can
+   * show the hit among its search); the text goes to the recent searches.
+   */
+  private void openHit(ViewTarget.Entity hit) {
     stop();
     String q = query();
-    if (!q.isEmpty()) {
-      state.addRecentSearch(q);
-      countsFor(q);
+    if (q.isEmpty()) {
+      onOpen.accept(hit);
+      return;
     }
-    onOpen.accept(target);
+    state.addRecentSearch(q);
+    countsFor(q);
+    onOpen.openHit(hit, new ViewTarget.Search(q, chips.selected()));
   }
 
   /** Drops the pending and running lookups and closes the list. */

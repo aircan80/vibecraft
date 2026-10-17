@@ -1,10 +1,13 @@
 package dev.wowforever.app.ui.pages;
 
+import java.awt.Component;
+import java.awt.Container;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 
-/** Reads what a page's tables show, for assertions. */
+/** Reads what a page's tables show, and where its parts sit, for assertions. */
 final class Tables {
   private Tables() {}
 
@@ -24,5 +27,20 @@ final class Tables {
       names.add(t.getColumnName(c));
     }
     return names;
+  }
+
+  /** Lays out the whole tree top-down; headless components have no peer, so {@code validate()} does nothing. */
+  static void layOut(Container c) {
+    c.doLayout();
+    for (Component child : c.getComponents()) {
+      if (child instanceof Container cc) {
+        layOut(cc);
+      }
+    }
+  }
+
+  /** The bounds of {@code c} in the coordinates of its ancestor {@code root}. */
+  static java.awt.Rectangle boundsIn(Component c, Component root) {
+    return SwingUtilities.convertRectangle(c.getParent(), c.getBounds(), root);
   }
 }

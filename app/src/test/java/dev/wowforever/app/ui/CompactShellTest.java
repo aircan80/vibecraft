@@ -92,6 +92,13 @@ class CompactShellTest {
   }
 
   @Test
+  void theStatusLineHidesTheDataBuildInTheShell() {
+    status.setBuild("6c9ed1fa2901b9ff63680623e8816bd3a748f7f8b1c38e480b29eb72f1113148");
+    shell.claim(search, new JPanel(), status);
+    assertThat(status.infoLabel().isVisible()).isFalse();
+  }
+
+  @Test
   void anItemPagesDropTableShowsNameRateAndOriginWithTheRestInTheTooltip() {
     ItemPage page = itemPage();
     shell.claim(search, page, status);

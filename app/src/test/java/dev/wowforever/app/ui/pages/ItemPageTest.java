@@ -6,6 +6,8 @@ import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.OBJECT;
 import static dev.wowforever.app.model.EntityKind.QUEST;
 import static dev.wowforever.app.model.EntityKind.ZONE;
+import static dev.wowforever.app.ui.pages.Tables.boundsIn;
+import static dev.wowforever.app.ui.pages.Tables.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.FixtureDb;
@@ -25,6 +27,7 @@ import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.Component;
+import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
@@ -243,14 +246,24 @@ class ItemPageTest {
     assertThat(p.droppedBy().model().rowAt(0)).isInstanceOf(DropRow.Source.class);
   }
 
-  /** Lays out the whole tree top-down; headless components have no peer, so {@code validate()} does nothing. */
-  private static void layOut(java.awt.Container c) {
-    c.doLayout();
-    for (Component child : c.getComponents()) {
-      if (child instanceof java.awt.Container cc) {
-        layOut(cc);
-      }
-    }
+  @Test
+  void aShortPageStartsAtTheTopWithoutAGapUnderTheHeader() {
+    EntityRef sm = new EntityRef(INSTANCE, 9);
+    ItemDetail d = new ItemDetail(LETTER, 12, 0, null, List.of(),
+        List.of(new InstanceLoot(sm, "Scarlet Monastery", 70, "Trash", null, 24, null),
+            new InstanceLoot(sm, "Scarlet Monastery", 70, "Trash", null, 27, null)),
+        List.of(), List.of(), List.of(), List.of(), List.of());
+    var p = new ItemPage(d, t -> {});
+    p.setSize(1000, 800); // far taller than the page's content
+    layOut(p);
+    Rectangle header = boundsIn(p.header(), p);
+    Rectangle summary = boundsIn(p.summaryLabel(), p);
+    Rectangle first = boundsIn(p.sections().get(0), p);
+    assertThat(header.y).isZero();
+    assertThat(header.height).as("the header keeps its own height").isEqualTo(p.header().getPreferredSize().height);
+    assertThat(summary.y).as("the summary right under the header").isEqualTo(header.y + header.height);
+    assertThat(first.y).as("the first section within a header height of the header's bottom")
+        .isLessThanOrEqualTo(header.y + 2 * header.height);
   }
 
   private static int expectedTop(ItemPage p, int section) {

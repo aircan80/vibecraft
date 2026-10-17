@@ -3,8 +3,10 @@ package dev.wowforever.app.ui.pages;
 import static dev.wowforever.app.model.EntityKind.ITEM;
 import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.ZONE;
+import static dev.wowforever.app.ui.pages.Tables.boundsIn;
 import static dev.wowforever.app.ui.pages.Tables.column;
 import static dev.wowforever.app.ui.pages.Tables.columnNames;
+import static dev.wowforever.app.ui.pages.Tables.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.FixtureDb;
@@ -16,6 +18,7 @@ import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.nav.ViewTarget;
 import java.awt.Component;
+import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JLabel;
@@ -63,12 +66,16 @@ class InstancePageTest {
   }
 
   @Test
-  void aSkullLevelAndAnUnknownLevelReadAsSuch() {
+  void aSkullLevelTakesTheNpcLevelAndAnUnknownLevelIsLeftOut() {
     var mc = new InstancePage(repos.instances().detail(3).get(), repos, t -> {});
-    assertThat(rendered(mc.encounters(), 0)).isEqualTo("1. Lucifron  Lv ??  Boss");
+    assertThat(rendered(mc.encounters(), 0)).isEqualTo("1. Lucifron  Lv 63  Boss");
+    assertThat(mc.bossHeader().subtitle()).startsWith("Level 63");
     var unknown = new InstancePage(new InstanceDetail(new InstanceSummary(9, "X", "DUNGEON", null, null, null, null),
-        List.of(new BossSummary(1, "Nameless", null, null, null, false))), repos, t -> {});
-    assertThat(rendered(unknown.encounters(), 0)).isEqualTo("1. Nameless  Boss");
+        List.of(new BossSummary(1, "Nameless", null, null, null, false),
+            new BossSummary(2, "Skull", null, 999, null, false))), repos, t -> {});
+    assertThat(rendered(unknown.encounters())).containsExactly("1. Nameless  Boss", "2. Skull  Boss");
+    unknown.selectBoss(1);
+    assertThat(unknown.bossHeader().subtitle()).isEmpty();
   }
 
   @Test
@@ -176,5 +183,30 @@ class InstancePageTest {
     assertThat(p.header().links()).isEmpty();
     assertThat(p.encounters().getModel().getSize()).isZero();
     assertThat(p.lootTable()).isNull();
+  }
+
+  @Test
+  void aNarrowPageStacksTheEncountersAboveTheLootAndAWideOneSetsThemSideBySide() {
+    var p = new InstancePage(repos.instances().detail(3).get(), repos, t -> {});
+    p.setSize(420, 720); // the compact window
+    layOut(p);
+    assertThat(p.isStacked()).isTrue();
+    Rectangle list = boundsIn(p.encounters(), p);
+    Rectangle loot = boundsIn(p.lootSection(), p);
+    assertThat(list.width).as("the encounters are not clipped").isGreaterThanOrEqualTo(
+        p.encounters().getPreferredSize().width);
+    assertThat(loot.y).as("the loot is below the encounters").isGreaterThan(list.y);
+    assertThat(loot.width).as("one column, page wide").isGreaterThan(p.getWidth() / 2);
+
+    p.setSize(1000, 720); // resized: the columns come back
+    layOut(p);
+    assertThat(p.isStacked()).isFalse();
+    list = boundsIn(p.encounters(), p);
+    loot = boundsIn(p.lootSection(), p);
+    assertThat(loot.x).as("the loot is right of the encounters").isGreaterThan(list.x + list.width - 1);
+
+    p.setSize(420, 720);
+    layOut(p);
+    assertThat(p.isStacked()).isTrue();
   }
 }

@@ -88,9 +88,19 @@ public final class MainFrame extends JFrame implements MainView {
 
   public MainFrame() {
     super(APP_NAME);
-    searchBar = new SearchBar(t -> {
-      if (controller != null) {
-        controller.open(t);
+    searchBar = new SearchBar(new SearchBar.Opener() {
+      @Override
+      public void accept(ViewTarget t) {
+        if (controller != null) {
+          controller.open(t);
+        }
+      }
+
+      @Override
+      public void openHit(ViewTarget.Entity hit, ViewTarget.Search search) {
+        if (controller != null) {
+          controller.openHit(hit, search);
+        }
       }
     }, uiState);
     rail.onSelect(t -> {

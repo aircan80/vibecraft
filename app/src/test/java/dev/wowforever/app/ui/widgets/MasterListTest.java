@@ -51,6 +51,29 @@ class MasterListTest {
   }
 
   @Test
+  void anEmptyListBeforeAnySearchShowsAPlaceholderInsteadOfAHeading() {
+    assertThat(list.isPlaceholderShown()).isTrue();
+    assertThat(list.headingLabel().isVisible()).isFalse();
+    assertThat(list.placeholder().getText()).isEqualTo(MasterList.PLACEHOLDER).isEqualTo("Search results appear here");
+    assertThat(list.placeholder().getForeground()).isEqualTo(Theme.current().textMuted());
+
+    list.show("Search: westfall", entries(2), false);
+    assertThat(list.isPlaceholderShown()).isFalse();
+    assertThat(list.placeholder().isVisible()).isFalse();
+    assertThat(list.headingLabel().isVisible()).isTrue();
+    assertThat(list.heading()).isEqualTo("Search: westfall (2)");
+
+    list.show("Search: nothing", List.of(), false); // a search without hits keeps its heading
+    assertThat(list.isPlaceholderShown()).isFalse();
+    assertThat(list.heading()).isEqualTo("Search: nothing (0)");
+
+    list.clear();
+    assertThat(list.isPlaceholderShown()).isTrue();
+    assertThat(list.headingLabel().isVisible()).isFalse();
+    assertThat(list.entries()).isEmpty();
+  }
+
+  @Test
   void previewDelayIs120Millis() {
     assertThat(MasterList.PREVIEW_DELAY_MILLIS).isEqualTo(120);
   }

@@ -149,6 +149,30 @@ class SearchBarTest {
   }
 
   @Test
+  void anOpenedHitCarriesTheSearchForItsTextAndKind() {
+    List<String> hits = new ArrayList<>();
+    SearchBar withHits = new SearchBar(new SearchBar.Opener() {
+      @Override
+      public void accept(ViewTarget t) {
+        hits.add("open " + t);
+      }
+
+      @Override
+      public void openHit(ViewTarget.Entity hit, ViewTarget.Search search) {
+        hits.add("hit " + hit.ref() + " for " + search);
+      }
+    }, state, delay, dropdown);
+    withHits.attach(source, Runnable::run);
+    withHits.focusChanged(true);
+    withHits.textField().setText(" hog ");
+    delay.fire();
+    withHits.kindChips().chips().get(2).doClick(); // NPCs: the open dropdown re-filters
+    Keys.press(withHits.textField(), "ENTER");
+    assertThat(hits).containsExactly("hit " + new EntityRef(NPC, 448) + " for "
+        + new ViewTarget.Search("hog", Optional.of(NPC)));
+  }
+
+  @Test
   void enterBeforeTheHitsArriveRunsTheFullSearch() {
     attachInline();
     bar.focusChanged(true);

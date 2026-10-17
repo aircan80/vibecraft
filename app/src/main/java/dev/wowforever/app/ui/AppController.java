@@ -45,6 +45,9 @@ import org.slf4j.LoggerFactory;
  * commit (Enter, a click) or any other navigation keeps that slot, and the next preview takes a new one. A row
  * already on screen is neither previewed nor committed again: its history slot is kept and nothing reloads.
  *
+ * <p>A hit opened from the search box's dropdown ({@link #openHit}) also runs its search into the master list, with
+ * no history entry of its own, and selects the opened row there; Home empties the list to its placeholder.
+ *
  * <p>Where the view shows no master list (the compact window, {@link MainView#showsMasterList}), a full search's
  * results fill the detail area as a list of their own, without previews: Enter or a click opens a row.
  */
@@ -82,14 +85,14 @@ public final class AppController implements Navigator {
     this(repos, view, worker, Map.of());
   }
 
-  /** {@code meta} is the database's meta table (build id, source commits), shown on the home page. */
+  /** {@code meta} is the database's meta table (build id, source commits); the build shows on home and below. */
   public AppController(Repositories repos, MainView view, Executor worker, Map<String, String> meta) {
     this.repos = Objects.requireNonNull(repos, "repos");
     this.view = Objects.requireNonNull(view, "view");
     this.worker = Objects.requireNonNull(worker, "worker");
     this.meta = Map.copyOf(meta);
     String buildId = meta.get("build_id");
-    view.status().setInfo(buildId == null ? "" : "Database build " + buildId);
+    view.status().setBuild(buildId);
     view.masterList().onPreview(e -> preview(e.ref()));
     view.masterList().onCommit(e -> commit(e.ref()));
   }
@@ -175,6 +178,17 @@ public final class AppController implements Navigator {
     show(t);
   }
 
+  /**
+   * Opens {@code hit}, picked in the search box's dropdown for {@code search}, as {@link #open} does, and runs
+   * {@code search} (same text and kind) into the master list without a history entry of its own: the list stays
+   * under its "Search: ..." heading with the opened row selected when it is among the rows, and Back leaves the
+   * page in one step. The detail keeps the page, also in the compact window, where the list is not shown.
+   */
+  public void openHit(ViewTarget.Entity hit, ViewTarget.Search search) {
+    open(hit);
+    loadResults(() -> search(search), hit.ref());
+  }
+
   private boolean isCurrent(ViewTarget t) {
     return history.current().filter(t::equals).isPresent();
   }
@@ -248,7 +262,7 @@ public final class AppController implements Navigator {
           detailGeneration++; // the results take the detail area: drop a page still loading
           leaveListPage();
         }
-        loadResults(() -> search(s));
+        loadResults(() -> search(s), null);
       }
       case ViewTarget.List l -> showList(l);
       case ViewTarget.Entity e -> showEntity(e.ref());
@@ -256,17 +270,26 @@ public final class AppController implements Navigator {
     }
   }
 
-  private void loadResults(Supplier<Listing> work) {
+  /**
+   * Loads {@code work} into the master list (and, without a master list, into the detail). With {@code opened}, a
+   * page already opened for the search, only the list changes: the row of {@code opened} is selected there, and
+   * the detail and the window title keep the page.
+   */
+  private void loadResults(Supplier<Listing> work, EntityRef opened) {
     int generation = ++resultsGeneration;
     int detail = detailGeneration;
     view.status().setMessage("Loading…");
     Async.run(worker, work, listing -> {
       if (generation == resultsGeneration) {
         view.masterList().show(listing.title(), listing.entries(), listing.capped());
-        if (!view.showsMasterList() && detail == detailGeneration) {
-          view.setDetail(resultsPage(listing));
+        if (opened != null) {
+          view.masterList().selectQuietly(opened);
+        } else {
+          if (!view.showsMasterList() && detail == detailGeneration) {
+            view.setDetail(resultsPage(listing));
+          }
+          view.setTitleSuffix(cappedTitle(listing.title(), listing.entries().size(), listing.page()));
         }
-        view.setTitleSuffix(cappedTitle(listing.title(), listing.entries().size(), listing.page()));
         showCount(listing.entries().size());
       }
     }, e -> {
@@ -304,7 +327,7 @@ public final class AppController implements Navigator {
     resultsGeneration++; // drop loads still in flight
     detailGeneration++;
     leaveListPage();
-    view.masterList().show("Results", List.of(), false);
+    view.masterList().clear();
     view.setDetail(welcome(meta));
     view.setTitleSuffix("");
     view.status().setMessage("Ready");
@@ -418,14 +441,14 @@ public final class AppController implements Navigator {
     return rows.stream().map(toEntry).toList();
   }
 
-  /** The home page text. */
+  /** The home page text, ending in the short build id ({@link StatusBar#buildLabel}); About has the whole one. */
   static JComponent welcome(Map<String, String> meta) {
     String build = meta.get("build_id");
     return placeholder("<html><h2>WoW Forever Item &amp; Drop Browser</h2>"
         + "<p>Search with the box above (Ctrl+F) or browse with the icons on the left.</p>"
         + "<p>Arrow through the list to preview a row here; Enter or a click opens it.<br>"
         + "Ctrl+B hides or shows the list. Alt+Left and Alt+Right go back and forward.</p>"
-        + (build == null ? "" : "<p>Database build " + build + "</p>") + "</html>");
+        + (build == null ? "" : "<p>" + StatusBar.buildLabel(build) + "</p>") + "</html>");
   }
 
   private static JLabel placeholder(String text) {

@@ -5,6 +5,8 @@ import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
+import java.awt.Color;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
@@ -31,6 +33,7 @@ import javax.swing.KeyStroke;
 import javax.swing.ListCellRenderer;
 import javax.swing.ListSelectionModel;
 import javax.swing.ScrollPaneConstants;
+import javax.swing.SwingConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.Timer;
 
@@ -45,6 +48,10 @@ public final class MasterList extends JPanel {
   public static final int PREVIEW_DELAY_MILLIS = 120;
   /** The default width of the list, in logical pixels. */
   public static final int WIDTH = 300;
+  /** What the list shows before any search. */
+  public static final String PLACEHOLDER = "Search results appear here";
+  private static final String ROWS = "rows";
+  private static final String EMPTY = "empty";
 
   /** Runs a task once after a fixed delay; a seam so tests can let the delay elapse by hand. */
   public interface Delay {
@@ -92,6 +99,20 @@ public final class MasterList extends JPanel {
 
   private final Delay delay;
   private final JLabel heading = new JLabel(" ");
+  /** Shown in place of the rows (and the heading) before the first search: no "Results (0)" on Home. */
+  private final JLabel placeholder = new JLabel(PLACEHOLDER) {
+    @Override
+    public Color getForeground() { // looked up per paint, so theme changes apply
+      return Theme.current().textMuted();
+    }
+
+    @Override
+    public Color getBackground() { // the empty list's own background, not the panel's
+      return list == null ? super.getBackground() : list.getBackground();
+    }
+  };
+  private final CardLayout cards = new CardLayout();
+  private final JPanel body = new JPanel(cards);
   private final EntryRenderer renderer = new EntryRenderer();
   private final JList<ListEntry> list = new JList<>() {
     @Override
@@ -153,8 +174,14 @@ public final class MasterList extends JPanel {
     JScrollPane scroll = new JScrollPane(list, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
         ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
     scroll.setBorder(BorderFactory.createEmptyBorder());
+    body.add(scroll, ROWS);
+    body.add(placeholder, EMPTY);
+    placeholder.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+    placeholder.setVerticalAlignment(SwingConstants.TOP);
+    placeholder.setOpaque(true);
     add(heading, BorderLayout.NORTH);
-    add(scroll, BorderLayout.CENTER);
+    add(body, BorderLayout.CENTER);
+    clear();
     setPreferredSize(new Dimension(UIScale.scale(WIDTH), UIScale.scale(600)));
   }
 
@@ -180,7 +207,10 @@ public final class MasterList extends JPanel {
     setEntries(entries);
   }
 
-  /** Replaces the rows, unselected and scrolled to the top; a pending preview is dropped. */
+  /**
+   * Replaces the rows, unselected and scrolled to the top; a pending preview is dropped. The rows and the heading
+   * take the place of the {@link #PLACEHOLDER}.
+   */
   public void setEntries(List<ListEntry> entries) {
     model = new Entries(List.copyOf(entries));
     list.setModel(model); // clears the selection, which cancels the pending preview
@@ -188,12 +218,54 @@ public final class MasterList extends JPanel {
     if (!entries.isEmpty()) {
       list.ensureIndexIsVisible(0);
     }
+    heading.setVisible(true);
+    cards.show(body, ROWS);
+  }
+
+  /**
+   * Empties the list and shows the muted {@link #PLACEHOLDER} without a heading, as before any search; the next
+   * {@link #show} brings the heading back.
+   */
+  public void clear() {
+    setEntries(List.of());
+    heading.setText(" ");
+    heading.setVisible(false);
+    cards.show(body, EMPTY);
+  }
+
+  /** Whether the list shows the {@link #PLACEHOLDER} (no search yet) rather than rows under a heading. */
+  public boolean isPlaceholderShown() {
+    return placeholder.isVisible();
+  }
+
+  public JLabel placeholder() {
+    return placeholder;
+  }
+
+  public JLabel headingLabel() {
+    return heading;
   }
 
   /** Selects row {@code index} and scrolls to it, as the arrow keys do; the preview follows after the delay. */
   public void selectIndex(int index) {
     list.setSelectedIndex(index);
     list.ensureIndexIsVisible(index);
+  }
+
+  /**
+   * Selects the row of {@code ref} and scrolls to it without previewing it (its page is already shown); returns
+   * false, the selection left alone, when no row has {@code ref}.
+   */
+  public boolean selectQuietly(EntityRef ref) {
+    for (int i = 0; i < model.getSize(); i++) {
+      if (model.getElementAt(i).ref().equals(ref)) {
+        list.setSelectedIndex(i);
+        list.ensureIndexIsVisible(i);
+        delay.cancel();
+        return true;
+      }
+    }
+    return false;
   }
 
   /** Commits the selected row now, dropping its pending preview; nothing happens without a selection. */

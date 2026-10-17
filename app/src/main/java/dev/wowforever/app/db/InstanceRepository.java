@@ -14,6 +14,8 @@ import java.util.Optional;
 public final class InstanceRepository {
   /** The {@link LootRow#origin()} of boss loot, which always comes from AtlasLoot. */
   public static final String BOSS_LOOT_ORIGIN = "atlasloot";
+  /** AtlasLoot's level for a boss shown with a skull: no real level. */
+  public static final int SKULL_LEVEL = 999;
   /** The {@link #summary} columns of {@code instance i} with its zone's name; append WHERE and ORDER BY. */
   static final String SUMMARY_SELECT = """
       SELECT i.id, i.name, i.content_type, i.level_min, i.level_max, i.zone_id, z.name AS zone_name, i.key
@@ -38,7 +40,9 @@ public final class InstanceRepository {
 
   /**
    * The instance with its bosses (main list in AtlasLoot order, then extra lists) and its boss loot's
-   * {@linkplain #difficulties difficulties}, or empty.
+   * {@linkplain #difficulties difficulties}, or empty. A boss AtlasLoot gives no level, or its skull level
+   * ({@value #SKULL_LEVEL}), takes the level of its NPC row (the highest when the NPC has a range) when that is
+   * known; otherwise AtlasLoot's value stays.
    */
   public Optional<InstanceDetail> detail(long id) {
     return db.read(c -> {
@@ -49,8 +53,13 @@ public final class InstanceRepository {
         return Optional.empty();
       }
       List<BossSummary> bosses = Sql.list(c, """
-          SELECT id, name, npc_id, level, special_type, is_extra_list FROM boss
-          WHERE instance_id = ? ORDER BY is_extra_list, sort_order, id""",
+          SELECT b.id, b.name, b.npc_id,
+                 CASE WHEN (b.level IS NULL OR b.level >= %1$d)
+                       AND COALESCE(n.max_level, n.min_level) BETWEEN 1 AND %1$d - 1
+                      THEN COALESCE(n.max_level, n.min_level) ELSE b.level END AS level,
+                 b.special_type, b.is_extra_list
+          FROM boss b LEFT JOIN npc n ON n.id = b.npc_id
+          WHERE b.instance_id = ? ORDER BY b.is_extra_list, b.sort_order, b.id""".formatted(SKULL_LEVEL),
           rs -> new BossSummary(rs.getLong("id"), rs.getString("name"), Sql.longValue(rs, "npc_id"),
               Sql.integer(rs, "level"), rs.getString("special_type"), rs.getInt("is_extra_list") != 0),
           id);
