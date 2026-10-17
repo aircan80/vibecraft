@@ -210,6 +210,8 @@ class ShippedDataTest {
           .containsPattern("(?m)^clientdata\\.unverified\\." + kind + " = \\d+\\s*$");
     }
     assertThat(report).as("the Conflicts section").containsPattern("(?m)^== Conflicts ==\\s*$");
+    assertThat(report).as("Era effects whose spell Forever lacks")
+        .containsPattern("(?m)^clientdata\\.era\\.effectUnresolved = \\d+\\s*$");
   }
 
   private static String committedReport() throws Exception {
@@ -229,6 +231,38 @@ class ShippedDataTest {
           .isEqualTo(1);
     }
     assertThat(count("icon")).isGreaterThan(2_000);
+  }
+
+  @Test
+  void iconOnlyItemsCarryTheirEmbeddedIcon() {
+    // Illari's Key has only an Item row: no card, but its own icon
+    assertThat(scalar("select has_client_data from item where id = 212347")).isZero();
+    assertThat(scalar("select icon_id from item where id = 212347")).isEqualTo(134236L);
+    assertThat(scalar("select count(*) from item i where i.has_client_data = 0 and i.icon_id is not null"
+        + " and not exists (select 1 from icon c where c.id = i.icon_id)")).isZero();
+  }
+
+  @Test
+  void eraSourcedItemsShowTheirEraEffects() {
+    // Onslaught Girdle and Netherwind Crown: ItemSparse and effects from Classic Era, the text from Forever
+    assertThat(column("select text from item_tooltip_line where item_id = 19137 and kind = 'equip' order by ordinal"))
+        .containsExactly("Equip: Improves your chance to get a critical strike with melee attacks by 1.0%.",
+            "Equip: Improves your chance to hit by 1.0%.");
+    assertThat(column("select text from item_tooltip_line where item_id = 16914 and kind = 'equip'")).hasSize(2);
+    String eraEpics = "from item i where i.client_source = 'era' and i.quality >= 4 and i.class_id in (2, 4)";
+    long epics = scalar("select count(*) " + eraEpics);
+    long withEffects = scalar("select count(*) " + eraEpics + " and exists (select 1 from item_tooltip_line l"
+        + " where l.item_id = i.id and l.kind in ('use', 'equip', 'proc'))");
+    assertThat(withEffects * 100).as("%d of %d Era epic weapons and armour have effect lines", withEffects, epics)
+        .isGreaterThanOrEqualTo(85 * epics);
+  }
+
+  @Test
+  void schoolSpellDamageIsNamed() {
+    assertThat(scalar("select count(*) from item_tooltip_line where text like '%Stat #8_' and text not like '%#83'"))
+        .as("stat ids 84 to 89").isZero();
+    assertThat(column("select text from item_tooltip_line where item_id = 6365 and kind = 'equip'"))
+        .as("Strong Fishing Pole").containsExactly("Equip: Increased Fishing +5.");
   }
 
   @Test

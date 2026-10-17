@@ -10,8 +10,9 @@ clientdata.coverage.pct = 96
 clientdata.damage.items = 2359
 clientdata.damage.secondaryDropped = 11
 clientdata.disputed = 1
-clientdata.effects = 5429
+clientdata.effects = 6734
 clientdata.effects.otherTrigger = 32
+clientdata.era.effectUnresolved = 1
 clientdata.icons = 2925
 clientdata.icons.missing = 1
 clientdata.items.iconOnly = 791
@@ -25,9 +26,9 @@ clientdata.maps = 57
 clientdata.maps.missingTiles = 0
 clientdata.sets = 200
 clientdata.stats.items = 7067
-clientdata.stats.unknownId = 224
+clientdata.stats.unknownId = 8
 clientdata.tooltip.items = 20492
-clientdata.tooltip.lines = 160510
+clientdata.tooltip.lines = 161815
 clientdata.tooltip.missingKind.durability = 1
 clientdata.unformatted = 171
 clientdata.unverified.armor = 0
@@ -90,7 +91,7 @@ table.item_armor = 7603
 table.item_class = 17
 table.item_container_drop = 4095
 table.item_damage = 2359
-table.item_effect = 5429
+table.item_effect = 6734
 table.item_npc_drop = 164447
 table.item_object_drop = 26334
 table.item_related_quest = 690
@@ -99,7 +100,7 @@ table.item_set_bonus = 571
 table.item_set_item = 1119
 table.item_stat = 18471
 table.item_subclass = 100
-table.item_tooltip_line = 160510
+table.item_tooltip_line = 161815
 table.item_vendor = 15455
 table.meta = 13
 table.npc = 13392
@@ -172,7 +173,7 @@ questie-correction vs questie-wowhead: 94 disagreeing of 98 shared
 questie-wowhead vs atlasloot: 107 disagreeing of 242 shared
 == Notes ==
 clientdata.unmatched.ranges: 10000-19999 (5), 20000-29999 (57), 30000-39999 (71), 40000-49999 (52), 50000-59999 (24), 60000-69999 (30), 70000-79999 (17), 250000-259999 (4)
-clientdata.stats.unknownIds: 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 96, 98, 112, 113, 114, 115, 117, 124, 127, 128, 131, 132, 135, 136
+clientdata.stats.unknownIds: 83, 92, 98, 114, 115, 132
 clientdata.disputed: 19019 (Thunderfury, Blessed Blade of the Windseeker: damage 82 - 153 from Forever's item level 80 one-hand table (the Era row agrees and adds 16 - 30 Nature), Wowhead's Forever tooltip shows 44 - 115)
 clientdata.unformatted: 171 spells; first 50: 2006 ($q1), 2823 ($2818u), 2824 ($2819u), 2833 ($ec2 $ec1 $ecim), 7771 ($ec1), 8690 ($z), 10344 ($ec2 $ec1 $ecim), 11355 ($11353u), 11356 ($11354u), 11790 ($a1), 12766 ($a1), 13219 ($13218u), 13225 ($13222u), 13226 ($13223u), 13227 ($13224u), 13421 ($ec1), 13532 ($i), 13622 ($ec1), 13635 ($ec1), 13746 ($ec1), 16620 ($proccooldown), 17196 ($a1), 17315 ($u), 19057 ($ec2 $ec1 $ecim), 20015 ($ec1), 20707 ($3026q1), 20762 ($20758q1), 20763 ($20759q1), 20764 ($20760q1), 20765 ($20761q1), 21951 ($s2), 22725 ($ec1 $ecim), 25351 ($25349u), 27778 ($proccooldown), 27780 ($proccooldown), 27867 ($proccooldown), 370347 ($370877u), 398117 ($s2), 427020 ($q2), 428837 ($q2), 428838 ($q2), 428840 ($q2), 428842 ($q2), 428843 ($q2), 428844 ($q2), 428845 ($q2), 428846 ($q2), 428847 ($q2), 428848 ($q2), 428849 ($q2)
 clientdata.unformatted.tokens: $qN 100, $ecN 18, $<id>u 12, $proccooldown 12, $ecim 11, $<id>qN 5, $aN 4, ${...} 4, $<id>sN 3, $r 3, $<id>r 2, $sN 2, $U 1, $i 1, $n 1, $tN 1, $u 1, $v 1, $z 1
