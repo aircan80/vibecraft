@@ -18,9 +18,12 @@ import java.util.Objects;
  *     for the fallback table)
  * @param fallbackProduct the product whose ItemSparse was fetched as {@code ItemSparse.era} (ruling 17), or null
  * @param fallbackBuild that product's build, or null
+ * @param hotfixSha256 the SHA-256 of the newest hotfix cache snapshot ({@code hotfix.sha256}, fetch.py
+ *     --hotfix-cache), or null
+ * @param hotfixHeaderBuild that snapshot's header build ({@code hotfix.header_build}), or null
  */
 public record BuildLock(String product, String build, String fetchedAt, String baseUrl, Map<String, String> tableSha,
-    String fallbackProduct, String fallbackBuild) {
+    String fallbackProduct, String fallbackBuild, String hotfixSha256, Long hotfixHeaderBuild) {
 
   public BuildLock {
     Objects.requireNonNull(product, "product");
@@ -33,6 +36,12 @@ public record BuildLock(String product, String build, String fetchedAt, String b
   /** A lock without a fallback product. */
   public BuildLock(String product, String build, String fetchedAt, String baseUrl, Map<String, String> tableSha) {
     this(product, build, fetchedAt, baseUrl, tableSha, null, null);
+  }
+
+  /** A lock without a hotfix snapshot. */
+  public BuildLock(String product, String build, String fetchedAt, String baseUrl, Map<String, String> tableSha,
+      String fallbackProduct, String fallbackBuild) {
+    this(product, build, fetchedAt, baseUrl, tableSha, fallbackProduct, fallbackBuild, null, null);
   }
 
   /**
@@ -61,8 +70,18 @@ public record BuildLock(String product, String build, String fetchedAt, String b
       } else {
         throw new IllegalArgumentException("missing object field tables");
       }
+      String hotfixSha = null;
+      Long hotfixBuild = null;
+      Object hotfix = root.get("hotfix");
+      if (hotfix instanceof Map<?, ?> h) {
+        hotfixSha = HotfixInfo.str(h, "sha256");
+        hotfixBuild = HotfixInfo.num(h, "header_build");
+      } else if (hotfix != null) {
+        throw new IllegalArgumentException("field hotfix is not an object");
+      }
       return new BuildLock(str(root, "product"), str(root, "build"), str(root, "fetched_at"),
-          str(root, "base_url"), tables, optionalStr(root, "fallback_product"), optionalStr(root, "fallback_build"));
+          str(root, "base_url"), tables, optionalStr(root, "fallback_product"), optionalStr(root, "fallback_build"),
+          hotfixSha, hotfixBuild);
     } catch (IllegalArgumentException e) {
       throw new IllegalStateException(file + ": " + e.getMessage(), e);
     }

@@ -3,8 +3,8 @@ package dev.wowforever.importer.clientdata;
 import java.util.List;
 
 /**
- * One item's client data: Forever's {@code Item} row joined with an {@code ItemSparse} row, Forever's when it has
- * one, else the Era fallback's (ruling 17). Fields are null when the source cell is empty or holds the client's
+ * One item's client data: an {@code Item} row joined with an {@code ItemSparse} row, the hotfix overlay's when it
+ * has one (Task 19), else Forever's, else the Era fallback's (ruling 17). Fields are null when the source cell is empty or holds the client's
  * "none" value (see {@link ItemSparseLoader}).
  *
  * @param hasSparse    an ItemSparse row was found (Forever or Era); false for an Item-only ("icon only") item,
@@ -17,7 +17,8 @@ import java.util.List;
  * @param flags        {@code ItemSparse.Flags_0..4}, as 32-bit patterns
  * @param statShares   the slots of {@code StatModifier_bonusStat_n} that name a stat, with
  *                     {@code StatPercentEditor_n}; Era rows carry absolute amounts instead, so their shares are 0
- * @param clientSource {@link #FOREVER} or {@link #ERA} for the ItemSparse row's origin; null without one
+ * @param clientSource {@link #HOTFIX}, {@link #FOREVER} or {@link #ERA} for the ItemSparse row's origin; null
+ *                     without one
  * @param absolute     the Era row's absolute stat, damage, armour and resistance values; null for a Forever row
  *                     (whose values are computed from the budget tables) and without a sparse row
  * @param details      the remaining tooltip inputs; {@link Details#NONE} without a sparse row, never null
@@ -53,6 +54,8 @@ public record ClientItem(
     Absolute absolute,
     Details details) {
 
+  /** A row of the hotfix overlay (Task 19): Forever data revealed by a Blizzard hotfix, precedence over Forever's. */
+  public static final String HOTFIX = "hotfix";
   public static final String FOREVER = "forever";
   public static final String ERA = "era";
 

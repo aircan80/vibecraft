@@ -261,6 +261,10 @@ public final class SqliteWriter {
     if (lock.fallbackBuild() != null) {
       meta.put("client_fallback_build", lock.fallbackBuild());
     }
+    if (lock.hotfixSha256() != null) {
+      meta.put("client_hotfix_sha256", lock.hotfixSha256());
+      meta.put("client_hotfix_header_build", String.valueOf(lock.hotfixHeaderBuild()));
+    }
     try (Statement s = c.createStatement();
         ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM item WHERE has_client_data = 1")) {
       meta.put("client_item_count", String.valueOf(rs.next() ? rs.getLong(1) : 0));

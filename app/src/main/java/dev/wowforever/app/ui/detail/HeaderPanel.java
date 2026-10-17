@@ -71,6 +71,7 @@ public final class HeaderPanel extends JPanel {
   private final JPanel subtitleRow = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
   private final JPanel factsRow = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
   private final JLabel facts = mutedLabel();
+  private final JLabel note = mutedLabel();
   private final List<JButton> links = new ArrayList<>();
   private final List<JComponent> chips = new ArrayList<>();
   private String subtitle;
@@ -113,9 +114,29 @@ public final class HeaderPanel extends JPanel {
     factsRow.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
     factsRow.add(facts);
     factsRow.setVisible(false);
+    note.setAlignmentX(LEFT_ALIGNMENT);
+    note.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
+    note.setVisible(false);
     add(titleRow);
     add(subtitleRow);
     add(factsRow);
+    add(note);
+  }
+
+  /**
+   * Shows {@code text} muted on its own line under the facts (an item page's "Stats hidden until this item drops on a
+   * realm"); null or blank hides it.
+   */
+  public void setNote(String text) {
+    boolean shown = text != null && !text.isBlank();
+    note.setText(shown ? text : null);
+    note.setVisible(shown);
+    revalidate();
+  }
+
+  /** The note as read; null when there is none. */
+  public String note() {
+    return note.isVisible() ? note.getText() : null;
   }
 
   /** A label in the muted text colour, looked up per paint so theme changes apply. */

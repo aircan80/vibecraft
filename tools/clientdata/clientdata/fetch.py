@@ -8,8 +8,11 @@ import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, NamedTuple, Optional
+from typing import Dict, Iterable, List, NamedTuple, Optional
+from urllib.parse import urlsplit
 
+from . import dbd
+from . import hotfix as hf
 from . import ui_icons as ui
 from .http import Client, FetchError
 from .tables import FALLBACK_TABLES, REQUIRED_TABLES, fallback_name
@@ -187,7 +190,7 @@ def _cached_file_count(cache_dir, build):
 
 
 def write_lock(cache_dir, build, tables, files=None, product="", base_url="", missing_count=None, fallback=None,
-               ui_icons=None):
+               ui_icons=None, hotfix=None):
     """Writes {cache_dir}/{build}/build.lock, merged into the build's existing lock.
 
     ``tables`` maps the names this run fetched (or verified) to their CSV paths; their sha256 replaces the
@@ -198,7 +201,8 @@ def write_lock(cache_dir, build, tables, files=None, product="", base_url="", mi
     directory and ``missing_count`` the number of ids in missing.txt, whatever this run fetched; ``files``
     is accepted for compatibility and not counted. ``ui_icons`` is the resolved rail icon list
     ({name, path, fdid, choice} entries, see ``ui_icons.resolve``) of a ``--ui-icons`` run; without one the
-    existing ``ui_icons`` key is kept.
+    existing ``ui_icons`` key is kept. ``hotfix`` is the ``hotfix`` entry of a ``--hotfix-cache`` run
+    (``hotfix_lock_entry``); without one the existing ``hotfix`` key is kept.
     """
     previous = read_lock(cache_dir, build)
     if previous.get("build") not in (None, build):
@@ -226,10 +230,88 @@ def write_lock(cache_dir, build, tables, files=None, product="", base_url="", mi
         lock["ui_icons"] = list(ui_icons)
     elif previous.get("ui_icons"):
         lock["ui_icons"] = previous["ui_icons"]
+    if hotfix is not None:
+        lock["hotfix"] = hotfix
+    elif previous.get("hotfix"):
+        lock["hotfix"] = previous["hotfix"]
     path = Path(cache_dir) / build / "build.lock"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
     return path
+
+
+HOTFIX_DIR = "hotfix"
+HOTFIX_INDEX = "index.json"
+DBD_DIR = "wowdbdefs"
+
+
+def _now():
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _split_url(url):
+    """``(scheme://host, /path?query)`` of an absolute URL, for a Client on that host."""
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.netloc:
+        raise ValueError("not an http(s) URL: %r" % url)
+    return "%s://%s" % (parts.scheme, parts.netloc), (parts.path or "/") + ("?" + parts.query if parts.query else "")
+
+
+def read_hotfix_index(cache_dir) -> List[dict]:
+    """Every hotfix snapshot fetched into this cache, oldest first ({cache}/hotfix/index.json), or []."""
+    try:
+        data = json.loads((Path(cache_dir) / HOTFIX_DIR / HOTFIX_INDEX).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    return [e for e in data if isinstance(e, dict) and e.get("sha256")] if isinstance(data, list) else []
+
+
+def fetch_hotfix(client, url, cache_dir, now=None):
+    """Snapshot the hotfix cache at ``url`` into ``{cache}/hotfix/<sha256>.bin`` and record it in the index.
+
+    The file is overwritten upstream, so it is kept by content: a snapshot whose SHA-256 is already known keeps its
+    first record (``new`` False). The header is checked (magic, version) before anything is written. Returns
+    ``(record, new, index)``: the record holds url, sha256, header_build, last_modified (the response's
+    Last-Modified, "" without one), fetched_at and size; the index is every snapshot, oldest first.
+    """
+    _, path = _split_url(url)
+    resp = client.get_response(path)
+    data = resp.content
+    _, build = hf.header(data)
+    for _ in hf.entries(data):  # the whole file must parse before it is kept
+        pass
+    sha = hashlib.sha256(data).hexdigest()
+    target = Path(cache_dir) / HOTFIX_DIR / ("%s.bin" % sha)
+    if not (target.exists() and target.stat().st_size == len(data)):
+        _write_atomic(target, data)
+    index = read_hotfix_index(cache_dir)
+    for e in index:
+        if e["sha256"] == sha:
+            return e, False, index
+    record = {"url": url, "sha256": sha, "header_build": build,
+              "last_modified": resp.headers.get("Last-Modified", ""), "fetched_at": now or _now(), "size": len(data)}
+    index.append(record)
+    _write_atomic(Path(cache_dir) / HOTFIX_DIR / HOTFIX_INDEX, (json.dumps(index, indent=2) + "\n").encode("utf-8"))
+    return record, True, index
+
+
+def fetch_dbds(client, cache_dir, commit=dbd.DBD_COMMIT, tables=hf.OVERLAY_TABLES) -> Dict[str, Path]:
+    """The WoWDBDefs definitions of ``tables`` at ``commit``, cached as ``{cache}/wowdbdefs/<commit>/<T>.dbd``."""
+    if not re.fullmatch(r"[0-9a-f]{40}", commit or ""):
+        raise ValueError("WoWDBDefs commit %r is not a 40-digit hex sha" % (commit,))
+    out = {}
+    for t in tables:
+        path = Path(cache_dir) / DBD_DIR / commit / ("%s.dbd" % t)
+        if not (path.exists() and path.stat().st_size > 0):
+            _write_atomic(path, client.get_bytes(dbd.dbd_path(t, commit)))
+        out[t] = path
+    return out
+
+
+def hotfix_lock_entry(record, index, commit, dbds: Dict[str, Path]):
+    """The build.lock ``hotfix`` value: the newest snapshot's fields, every snapshot and the pinned definitions."""
+    return {**record, "snapshots": list(index), "wowdbdefs_commit": commit,
+            "dbd": {t: _sha256(p) for t, p in sorted(dbds.items())}}
 
 
 class MissingInputError(Exception):
@@ -276,6 +358,13 @@ def main(argv=None) -> int:
                          "for items absent from the main ItemSparse" % ", ".join(FALLBACK_TABLES))
     ap.add_argument("--fallback-build", metavar="BUILD",
                     help="pin the fallback product's build (default newest)")
+    ap.add_argument("--hotfix-cache", nargs="?", const=hf.RAIDBOTS_URL, metavar="URL",
+                    help="also snapshot the hotfix cache (default %s) into {cache}/%s/<sha256>.bin and fetch the "
+                         "WoWDBDefs definitions of %s; recorded in build.lock under hotfix"
+                         % (hf.RAIDBOTS_URL, HOTFIX_DIR, ", ".join(hf.OVERLAY_TABLES)))
+    ap.add_argument("--dbd-commit", default=dbd.DBD_COMMIT,
+                    help="the WoWDBDefs commit to read the definitions at (default %s)" % dbd.DBD_COMMIT)
+    ap.add_argument("--dbd-base-url", default=dbd.DBD_BASE_URL, help=argparse.SUPPRESS)
     args = ap.parse_args(argv)
     if args.fallback_build and not args.fallback_product:
         print("error: --fallback-build needs --fallback-product", file=sys.stderr)
@@ -343,8 +432,26 @@ def main(argv=None) -> int:
     if fdids:
         print("files cached: %d of %d" % (len(files), len(fdids)))
 
+    hotfix_entry = None
+    if args.hotfix_cache:
+        try:
+            host, _ = _split_url(args.hotfix_cache)
+            record, new, index = fetch_hotfix(Client(host, client.user_agent, rate_per_second=args.rate),
+                                              args.hotfix_cache, cache)
+            dbds = fetch_dbds(Client(args.dbd_base_url, client.user_agent, rate_per_second=args.rate), cache,
+                              args.dbd_commit)
+        except (ValueError, hf.HotfixError) as e:
+            print("error: --hotfix-cache: %s" % e, file=sys.stderr)
+            return 2
+        print("hotfix: header build %s, sha256 %s, Last-Modified %s (%s snapshot, %d kept)"
+              % (record["header_build"], record["sha256"], record["last_modified"] or "none",
+                 "new" if new else "known", len(index)))
+        if str(record["header_build"]) != b.build.rsplit(".", 1)[-1]:
+            print("warning: %s" % hf.mismatch_message(record["header_build"], b.build), file=sys.stderr)
+        hotfix_entry = hotfix_lock_entry(record, index, args.dbd_commit, dbds)
+
     lock = write_lock(cache, b.build, tables, files, product=b.product, base_url=client.base_url, fallback=fb,
-                      ui_icons=resolution.resolved if resolution is not None else None)
+                      ui_icons=resolution.resolved if resolution is not None else None, hotfix=hotfix_entry)
     print("lock: %s" % lock)
     return 0
 

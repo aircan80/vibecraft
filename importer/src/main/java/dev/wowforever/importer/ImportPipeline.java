@@ -1,6 +1,7 @@
 package dev.wowforever.importer;
 
 import dev.wowforever.importer.atlasloot.AtlasInstance;
+import dev.wowforever.importer.atlasloot.AtlasLootBaseline;
 import dev.wowforever.importer.atlasloot.AtlasLootLoader;
 import dev.wowforever.importer.clientdata.ClientDataBundle;
 import dev.wowforever.importer.clientdata.ClientDataStage;
@@ -9,6 +10,7 @@ import dev.wowforever.importer.corrections.CorrectionLayer;
 import dev.wowforever.importer.corrections.CorrectionLayers;
 import dev.wowforever.importer.corrections.CorrectionScope;
 import dev.wowforever.importer.corrections.EnumLoader;
+import dev.wowforever.importer.drops.DropRate;
 import dev.wowforever.importer.drops.DropRateLoader;
 import dev.wowforever.importer.drops.DropRates;
 import dev.wowforever.importer.entity.EntityKind;
@@ -26,6 +28,8 @@ import dev.wowforever.importer.sqlite.SqliteWriter;
 import dev.wowforever.importer.zones.Zone;
 import dev.wowforever.importer.zones.ZoneLoader;
 import dev.wowforever.lua.LuaTable;
+import dev.wowforever.lua.LuaValue;
+import dev.wowforever.lua.LuaValues;
 import dev.wowforever.lua.Problem;
 import dev.wowforever.lua.ProblemCollector;
 import java.io.IOException;
@@ -52,6 +56,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -104,7 +109,7 @@ public final class ImportPipeline {
       applier.applyLayer(layer, questieDb, tables, bound, corrections);
     }
 
-    DropRates rates = DropRateLoader.load(roots, stage(problems, "droprates"));
+    DropRates rates = DropRateLoader.load(roots, atlasSpec.rateSource(), stage(problems, "droprates"));
     Map<String, String> serverMeta =
         ServerDbStage.run(opts.serverDbDir(), tables.get(EntityKind.NPC)::contains, rates, report);
 
@@ -113,6 +118,14 @@ public final class ImportPipeline {
     Map<Long, String> areaNames = ZoneLoader.load(questieDb, constants, Set.of(), new ProblemCollector())
         .values().stream().collect(Collectors.toMap(Zone::id, Zone::name, (a, b) -> a));
     List<AtlasInstance> instances = AtlasLootLoader.load(roots.atlasLoot(), areaNames, stage(problems, "atlasloot"));
+    if (atlasSpec.baseline() != null) {
+      // the AtlasLoot pin replaced an earlier one (the Classic Forever fork, Hoizame's): keep the union (Task 19)
+      List<AtlasInstance> baseline = AtlasLootLoader.load(fetcher.resolve(atlasSpec.baseline(), Optional.empty()),
+          areaNames, new ProblemCollector());
+      EntityTable items = tables.get(EntityKind.ITEM);
+      instances = AtlasLootBaseline.merge(instances, baseline,
+          (npc, item) -> listedElsewhere(rates, items, npc, item), report);
+    }
     Set<Long> raidAreaIds = instances.stream()
         .filter(i -> RAID_CONTENT.contains(i.contentType()) && i.mapId() != null)
         .map(AtlasInstance::mapId)
@@ -125,7 +138,15 @@ public final class ImportPipeline {
     ClientDataBundle client =
         ClientDataStage.run(opts.clientData(), tables, zones, questieDb, atlasLootMapIds, report);
 
-    Map<String, String> meta = meta(questieSpec.commit(), atlasSpec.commit(), Instant.now());
+    Map<String, String> meta = meta(questieSpec.commit(), atlasSpec.pin(), Instant.now());
+    if (atlasSpec.zip() != null) {
+      meta.put("atlasloot_name", atlasSpec.zip().name());
+      meta.put("atlasloot_version", atlasSpec.zip().version());
+      meta.put("atlasloot_sha256", atlasSpec.zip().sha256());
+    }
+    if (atlasSpec.baseline() != null) {
+      meta.put("atlasloot_baseline_commit", atlasSpec.baseline().commit());
+    }
     meta.putAll(serverMeta);
     SqliteWriter.write(opts.out(), new ImportModel(tables, rates, zones, instances, meta), report, client);
     countRows(opts.out(), report);
@@ -137,6 +158,28 @@ public final class ImportPipeline {
     console.print(report.render());
     console.flush();
     return report;
+  }
+
+  /** Questie's or VMaNGOS' rates, or Questie's {@code npcDrops}, list {@code npc} dropping {@code item}. */
+  static boolean listedElsewhere(DropRates rates, EntityTable items, long npc, long item) {
+    for (DropRate r : rates.allSources(npc, item)) {
+      if (r.source().startsWith("questie") || r.source().equals(dev.wowforever.importer.serverdb.ServerDropRates.SOURCE)) {
+        return true;
+      }
+    }
+    if (items == null) {
+      return false;
+    }
+    LuaValue drops = items.contains(item) ? items.get(item, "npcDrops") : null;
+    if (drops instanceof LuaTable t) {
+      for (LuaValue v : t.array()) {
+        var id = LuaValues.asLong(v);
+        if (id.isPresent() && id.getAsLong() == npc) {
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   private static SourceSpec spec(String key) {

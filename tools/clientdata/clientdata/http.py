@@ -40,18 +40,27 @@ class Client:
                 now = time.monotonic()
             self._next_start = now + self._interval
 
-    def _get(self, path):
-        """GET with the throttle; a 5xx answer is retried after each of the retry delays, any other non-200 raises."""
+    def _get(self, path, headers=None, ok=(200,)):
+        """GET with the throttle; a 5xx answer is retried after each of the retry delays, any other status not in
+        ``ok`` raises. ``headers`` are sent with this request only."""
         delays = iter(self._retry_delays)
         while True:
             self._throttle()
-            resp = self._session.get(self.base_url + path, timeout=(10, 120))
-            if resp.status_code == 200:
+            if headers:
+                resp = self._session.get(self.base_url + path, timeout=(10, 120), headers=headers)
+            else:
+                resp = self._session.get(self.base_url + path, timeout=(10, 120))
+            if resp.status_code in ok:
                 return resp
             delay = next(delays, None) if 500 <= resp.status_code < 600 else None
             if delay is None:
                 raise FetchError(path, resp.status_code, self.base_url + path)
             self._sleep(delay)
+
+    def get_response(self, path, headers=None, ok=(200,)):
+        """The response itself, for its headers (Last-Modified); ``ok`` lists the accepted statuses (206 for a
+        range request)."""
+        return self._get(path, headers=headers, ok=ok)
 
     def get_text(self, path):
         resp = self._get(path)

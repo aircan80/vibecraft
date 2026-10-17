@@ -30,7 +30,10 @@ public final class TooltipBuilder {
   static final int UNIQUE_EQUIPPED = 0x80000;
   /** Cooldowns up to this are shared category cooldowns (food, drink, elixirs) the game does not print. */
   static final int SHOWN_COOLDOWN_MIN_MS = 3000;
-  public static final String SOURCE_NOTE = "Stats from Classic Era data; Forever values may differ";
+  /** The footer of an Era-sourced item (backlog decision 20, pm-data-sources.md). */
+  public static final String SOURCE_NOTE = "Classic Era values. Forever stats are still hidden.";
+  /** The footer of a hotfix item without the snapshot's build and date ({@link HotfixInfo#footer} has them). */
+  public static final String HOTFIX_NOTE = "Forever stats revealed by a Blizzard hotfix";
   /** Every kind, in tooltip order. */
   public static final List<String> KINDS = List.of("name", "binding", "unique", "begins_quest", "slot", "damage",
       "damage_extra", "speed", "dps", "armor", "block", "stat", "resist", "durability", "req_class", "req_race",
@@ -61,6 +64,16 @@ public final class TooltipBuilder {
    */
   public static List<TooltipLine> build(ClientItem item, List<ItemStat> stats, ItemDamage damage, ItemArmor armor,
       List<ItemSpellEffect> effects, ItemSetInfo set, TooltipNames names) {
+    return build(item, stats, damage, armor, effects, set, names, HOTFIX_NOTE);
+  }
+
+  /**
+   * One item's tooltip, a hotfix item's footer being {@code hotfixFooter} (the snapshot's {@link HotfixInfo#footer}).
+   * The footer ({@code source_note}, muted) names where the stats come from: a hotfix item's says the hotfix
+   * revealed them, an Era item's that Forever's are still hidden; a Forever item has none.
+   */
+  public static List<TooltipLine> build(ClientItem item, List<ItemStat> stats, ItemDamage damage, ItemArmor armor,
+      List<ItemSpellEffect> effects, ItemSetInfo set, TooltipNames names, String hotfixFooter) {
     Lines out = new Lines();
     ClientItem.Details d = item.details();
     out.add("name", item.name() != null ? item.name() : names.item(item.id()), TooltipLine.qualityColour(item.quality()));
@@ -163,6 +176,8 @@ public final class TooltipBuilder {
     }
     if (ClientItem.ERA.equals(item.clientSource())) {
       out.add("source_note", SOURCE_NOTE, MUTED);
+    } else if (ClientItem.HOTFIX.equals(item.clientSource())) {
+      out.add("source_note", hotfixFooter, MUTED);
     }
     return out.lines;
   }

@@ -328,6 +328,34 @@ class SqliteWriterClientDataTest {
   }
 
   @Test
+  void hotfixItemsAreWrittenAsHotfixWithQuestiesNameKeptAndTheSnapshotInMeta() throws Exception {
+    Items b = new Items();
+    b.item(25, "Worn Short Sword");
+    b.item(212347, "Illari's Key");
+    b.item(16806, "Felheart Belt");
+    ImportReport report = new ImportReport();
+    ClientDataSource source = new ClientDataSource(
+        dev.wowforever.importer.clientdata.HotfixFixture.standard(tmp.resolve("hf")).dir());
+    Map<Long, ClientItem> client = ItemSparseLoader.load(source, b.ids(), report);
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, b.model(), report, new ClientDataBundle(client, null, Map.of(), ItemTooltips.empty(),
+        Map.of(), ZoneMaps.EMPTY, source.lock(), Map.of()));
+
+    try (Connection c = open(db)) {
+      assertThat(row(c, "select name, client_source, has_client_data, icon_id from item where id = 25"))
+          .containsExactly("Worn Shortsword (hotfix)", "hotfix", 1, 135000);
+      assertThat(row(c, "select name, client_source, has_client_data from item where id = 212347"))
+          .containsExactly("Illari's Key", "hotfix", 1);
+      assertThat(scalar(c, "select client_source from item where id = 16806")).isEqualTo("era");
+      assertThat(column(c, "select item_id || ':' || field || ':' || value from item_alt_value where field = 'name'"))
+          .containsExactly("25:name:Worn Short Sword");
+      assertThat(scalar(c, "select value from meta where key = 'client_hotfix_sha256'"))
+          .isEqualTo(dev.wowforever.importer.clientdata.HotfixFixture.SHA);
+      assertThat(scalar(c, "select value from meta where key = 'client_hotfix_header_build'")).isEqualTo("70425");
+    }
+  }
+
+  @Test
   void iconsZoneMapsAndClientMetaAreEmbedded() throws Exception {
     Items b = new Items();
     b.item(17204, "Eye of Sulfuras");

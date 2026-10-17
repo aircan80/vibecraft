@@ -63,4 +63,13 @@ class DropRateLoaderTest {
     assertThat(r.get(1, 2)).contains(new DropRate(2.0, "questie-wowhead"));
     assertThat(r.size()).isEqualTo(1);
   }
+
+  @Test
+  void atlasLootRatesCarryThePinnedRateSourceName() {
+    // the AtlasLoot Classic Forever pin names its rates atlasloot-forever (sources.properties atlasloot.rateSource)
+    DropRates r = DropRateLoader.load(Fixtures.roots(), "atlasloot-forever", new ProblemCollector());
+    assertThat(r.allSources(11520, 14149)).extracting(DropRate::source).contains("atlasloot-forever")
+        .doesNotContain("atlasloot");
+    assertThat(r.allSources(11520, 14149)).extracting(DropRate::source).allMatch(s -> !s.equals("atlasloot-override"));
+  }
 }

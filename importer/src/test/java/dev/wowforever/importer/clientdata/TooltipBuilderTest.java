@@ -96,7 +96,7 @@ class TooltipBuilderTest {
     assertThat(lines.subList(20, lines.size())).containsExactly(
         "20 item_level #9d9d9d Item Level 37",
         "21 sell_price #9d9d9d Sell Price: 25s 7c",
-        "22 source_note #9d9d9d Stats from Classic Era data; Forever values may differ");
+        "22 source_note #9d9d9d Classic Era values. Forever stats are still hidden.");
   }
 
   @Test
@@ -106,7 +106,7 @@ class TooltipBuilderTest {
     assertThat(lines).filteredOn(l -> l.startsWith("equip ")).containsExactly(
         "equip #1eff00 Equip: Improves your chance to get a critical strike with melee attacks by 1.0%.",
         "equip #1eff00 Equip: Improves your chance to hit by 1.0%.");
-    assertThat(lines.getLast()).isEqualTo("source_note #9d9d9d Stats from Classic Era data; Forever values may differ");
+    assertThat(lines.getLast()).isEqualTo("source_note #9d9d9d Classic Era values. Forever stats are still hidden.");
   }
 
   @Test
@@ -287,7 +287,7 @@ class TooltipBuilderTest {
         "flavour \"Flavour\"",
         "item_level Item Level 80",
         "sell_price Sell Price: 1g 2s 3c",
-        "source_note Stats from Classic Era data; Forever values may differ");
+        "source_note Classic Era values. Forever stats are still hidden.");
   }
 
   @Test

@@ -65,6 +65,7 @@ public record ItemTooltips(Map<Long, List<ItemSpellEffect>> effects, Map<Long, I
       });
     }
     TooltipNames tooltipNames = TooltipNames.load(src, names);
+    String hotfixFooter = src.hotfix().map(HotfixInfo::footer).orElse(TooltipBuilder.HOTFIX_NOTE);
 
     Map<Long, List<TooltipLine>> lines = new LinkedHashMap<>();
     long count = 0;
@@ -75,7 +76,7 @@ public record ItemTooltips(Map<Long, List<ItemSpellEffect>> effects, Map<Long, I
       ItemValues v = values.get(item.id());
       List<TooltipLine> tooltip = TooltipBuilder.build(item, v == null ? List.of() : v.stats(),
           v == null ? null : v.damage(), v == null ? null : v.armor(), effects.getOrDefault(item.id(), List.of()),
-          item.itemSetId() == null ? null : sets.get(item.itemSetId()), tooltipNames);
+          item.itemSetId() == null ? null : sets.get(item.itemSetId()), tooltipNames, hotfixFooter);
       lines.put(item.id(), List.copyOf(tooltip));
       count += tooltip.size();
     }

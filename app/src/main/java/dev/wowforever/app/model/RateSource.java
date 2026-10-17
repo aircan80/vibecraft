@@ -7,16 +7,18 @@ import java.util.Map;
 /**
  * One drop rate source's value for an NPC and item ({@code drop_rate_source}): {@code source} is the importer's
  * name for it ({@code questie-wowhead}, {@code questie-correction}, {@code atlasloot}, {@code atlasloot-override},
- * {@code vmangos})
+ * {@code atlasloot-forever}, {@code atlasloot-forever-override}, {@code vmangos}; the AtlasLoot names follow the
+ * importer's {@code atlasloot.rateSource} pin, {@code atlasloot-forever} for the AtlasLoot Classic Forever fork)
  * and {@code pct} the rate in percent, null when the source gave none.
  */
 public record RateSource(String source, Double pct) {
   /** The order sources are listed in: Questie's, then AtlasLoot's, then any other by name. */
   private static final List<String> KNOWN = List.of("questie", "questie-wowhead", "questie-correction", "atlasloot",
-      "atlasloot-override");
+      "atlasloot-override", "atlasloot-forever", "atlasloot-forever-override");
   private static final Map<String, String> LABELS = Map.of("questie", "Questie", "questie-wowhead", "Questie",
       "questie-correction", "Questie correction", "atlasloot", "AtlasLoot", "atlasloot-override",
-      "AtlasLoot override", "vmangos", "Vanilla rate (VMaNGOS)");
+      "AtlasLoot override", "atlasloot-forever", "AtlasLoot Forever", "atlasloot-forever-override",
+      "AtlasLoot Forever override", "vmangos", "Vanilla rate (VMaNGOS)");
 
   /** Questie's sources first, then AtlasLoot's, then unknown sources by name. */
   public static final Comparator<RateSource> ORDER = Comparator
@@ -32,8 +34,8 @@ public record RateSource(String source, Double pct) {
   }
 
   /**
-   * The source as the tooltip names it: {@code "Questie"}, {@code "AtlasLoot override"}, {@code "Vanilla rate
-   * (VMaNGOS)"}; unknown ones as stored.
+   * The source as the tooltip names it: {@code "Questie"}, {@code "AtlasLoot override"}, {@code "AtlasLoot
+   * Forever"}, {@code "Vanilla rate (VMaNGOS)"}; unknown ones as stored.
    */
   public String label() {
     return LABELS.getOrDefault(source, source);

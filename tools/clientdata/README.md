@@ -39,18 +39,25 @@ Never install the requirements globally.
     # also the Classic Era ItemSparse and ItemEffect as a fallback for items Forever's ItemSparse lacks (ruling 17)
     ... --fallback-product wow_classic_era
 
+    # also a snapshot of the beta client's hotfix cache, mirrored by Raidbots (Task 19, "Hotfix overlay" below)
+    ... --hotfix-cache
+
 Flags: `--product` (required), `--build` (default newest), `--base-url` (default
 `http://localhost:5000`, wow.tools.local's port), `--cache` (required), `--tables A,B` (subset), `--icons-from ITEM_CSV`
 (path, or file name inside `{cache}/{build}/csv`), `--maps`, `--fdids 1,2,3` (exactly these files), `--ui-icons`,
 `--retry-missing`, `--rate` (default 4 req/s), `--fallback-product PRODUCT` (also fetch that product's newest
 `ItemSparse` and `ItemEffect`, and nothing else from it), `--fallback-build BUILD` (pin the fallback build; needs
-`--fallback-product`), `--user-agent CONTACT` (the contact part of the User-Agent, see "Politeness").
+`--fallback-product`), `--hotfix-cache [URL]` (snapshot the hotfix cache, by default Raidbots' `classic_beta` mirror,
+and fetch the WoWDBDefs definitions of `ItemSparse`, `Item` and `ItemEffect`), `--dbd-commit SHA` (the WoWDBDefs commit
+to read them at; default the pinned one in `clientdata/dbd.py`), `--user-agent CONTACT` (the contact part of the
+User-Agent, see "Politeness").
 
 Every build string, whether resolved from `/api/builds` or given with `--build` or `--fallback-build`, must be four
 dot-separated numbers (`^\d+(\.\d+){3}$`, e.g. `1.60.1.70425`) before it becomes a cache path; anything else
 stops the run with exit code 2.
 
-Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no network).
+Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no network). They cover
+`tools/build_watch.py` too.
 
 ## Cache layout
 
@@ -58,10 +65,16 @@ Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no
     {cache}/{build}/files/{fdid}.blp    BLP2 bytes; skipped when present
     {cache}/{build}/missing.txt         FileDataIDs that returned 404 (not fatal)
     {cache}/{build}/csv/{Table}.era.csv   the fallback product's ItemSparse and ItemEffect (--fallback-product)
+    {cache}/hotfix/{sha256}.bin         a hotfix cache snapshot, kept by content (--hotfix-cache)
+    {cache}/hotfix/index.json           every snapshot fetched into this cache, oldest first
+    {cache}/wowdbdefs/{commit}/{T}.dbd  the WoWDBDefs definitions the snapshots are decoded with
     {cache}/{build}/build.lock          {product, build, fetched_at, base_url, tables{name: sha256}, file_count, missing_count
                                          [, fallback_product, fallback_build][, ui_icons]}; the fallback tables are
                                          tables["ItemSparse.era"] and tables["ItemEffect.era"]; ui_icons is
-                                         [{name, path, fdid, choice}] (fetch.py --ui-icons)
+                                         [{name, path, fdid, choice}] (fetch.py --ui-icons); hotfix is the
+                                         newest snapshot {url, sha256, header_build, last_modified, fetched_at,
+                                         size} plus snapshots (every one, oldest first), wowdbdefs_commit and
+                                         dbd {table: sha256} (fetch.py --hotfix-cache)
 
 Re-running is idempotent: cached items and files already recorded in `missing.txt` cause no requests
 (only `/api/builds` is read each run, once). Pass `--retry-missing` to deliberately re-request the known-404 files.
@@ -69,8 +82,8 @@ A request answered with HTTP 5xx is retried three times, after 2, 4 and 8 second
 never retried.
 Each run merges into the build's existing `build.lock`: it replaces the hashes of the tables it fetched (or found
 cached) and keeps every other table entry and the `fallback_*` keys of earlier runs, so a `--tables` or `--fdids`
-run never drops what an earlier run recorded; the `ui_icons` key is kept the same way until a `--ui-icons` run
-replaces it. `file_count` counts the BLP files in `files/` and `missing_count`
+run never drops what an earlier run recorded; the `ui_icons` and `hotfix` keys are kept the same way until a
+`--ui-icons` or `--hotfix-cache` run replaces them. `file_count` counts the BLP files in `files/` and `missing_count`
 the ids in `missing.txt`, whatever the run fetched.
 The fallback tables (`ItemSparse.era.csv`, `ItemEffect.era.csv`) are cached under the Forever build. They are
 fetched again when the last `build.lock` names a different (or no) `fallback_build` than the one resolved now, so a
@@ -110,6 +123,73 @@ of them to a URL or address where the operator can be reached before a full run 
 never fills in personal data by itself.
 
     WOWFOREVER_CONTACT=https://github.com/<owner>/wow-forever-browser python tools/clientdata/fetch.py ...
+
+## Hotfix overlay
+
+Blizzard hides about 12,600 Forever items from the client tables until one drops on a realm. The server then sends
+the item's rows to every client as hotfixes, which the client keeps in its `DBCache.bin`. Raidbots mirrors the
+Forever beta client's cache at
+
+    https://storage.googleapis.com/raidbots-static/wow/classic_beta/enUS/DBCache.bin
+
+`fetch.py --hotfix-cache` downloads it whole, checks the header (magic `XFTH`, version 9) and that every entry
+parses, and keeps it as `{cache}/hotfix/{sha256}.bin`. The file is overwritten upstream, so it is kept by content and
+never re-read by URL: a snapshot whose SHA-256 is already known keeps its first record. The run also fetches the
+WoWDBDefs definitions (`ItemSparse.dbd`, `Item.dbd`, `ItemEffect.dbd`) at the pinned commit from
+raw.githubusercontent.com. `build.lock` records the newest snapshot (header build, SHA-256, Last-Modified, fetch
+time), every snapshot and the definitions' hashes. A header build other than the lock's is fetched with a warning;
+convert and import then stop.
+
+**Format.** After a 44-byte header (magic, version, build, 32 bytes) each entry has a 32-byte header (magic, region,
+push id, unique id, table hash, record id, data size, status and 3 bytes of padding) and the record bytes. The table
+hash is Blizzard's SStrHash of the table name (`ItemSparse` 0x919BE54E, `Item` 0x50238EC2, `ItemEffect` 0x4002A5B1).
+A record holds the fields of the build's WoWDBDefs layout in order, without the non-inline ID: integers
+little-endian at their size, floats 4 bytes, strings NUL-terminated. `clientdata/dbd.py` picks the layout and
+decodes; `clientdata/hotfix.py` reads the cache and builds the overlay.
+
+**Overlay rules** (pm-data-sources.md):
+
+- Only valid rows (status 1) are applied. Status 3 marks a push as invalidated: it removes only the row that push
+  supplied, and an older push's row of the same record applies again. Status 2 (removed) and 4 (not public) rows are
+  ignored.
+- Snapshots are read oldest first, each in file order; the newest snapshot, then the later entry, wins. Push ids do
+  not order entries: the per-record replies carry 0x1000000 plus the record id, more than real pushes.
+- A record a later snapshot omits keeps its row, so a revealed item is never hidden again.
+- A snapshot whose header build has another WoWDBDefs layout than the lock's build is skipped and counted.
+
+`convert.py` (full, or `--hotfix-only`, which writes only `build.lock`, the overlay and `hotfix.json`) writes:
+
+    OUT/csv/ItemSparse.hotfix.csv   the overlay rows, with the base table's header, in wago.tools' format
+    OUT/csv/Item.hotfix.csv
+    OUT/csv/ItemEffect.hotfix.csv
+    OUT/hotfix.json                 url, sha256, header_build, last_modified, fetched_at of the newest snapshot;
+                                    build, snapshots, snapshots_skipped, wowdbdefs_commit; per table rows, valid,
+                                    invalidated, undone and the CSV's sha256
+
+It stops (exit 2) when the newest snapshot's header build is not the lock build's last number, when a snapshot or
+definition does not match its recorded hash, or when a layout's columns differ from the base CSV's header. Without a
+`hotfix` entry in the lock it removes any overlay left in `OUT`.
+
+The importer checks the overlay against the lock (the same build, the snapshot the lock records, each CSV's hash) and
+applies it: an item's `ItemSparse` row is the overlay's, else Forever's, else Era's (`client_source` `hotfix`,
+`forever`, `era`); its `Item` row the overlay's, else Forever's; an `ItemEffect` row of the overlay replaces Forever's
+row of the same id. A hotfix item without a Forever effect link keeps the Era fallback's effects
+(`clientdata.era.effectsOnHotfixItems`). Report counters: `hotfix.itemsparse.valid`, `.invalidated` (from
+`hotfix.json`), `.applied`, `.notInItemTable`, `hotfix.fromForever`, `hotfix.fromEra`, `hotfix.fromNoClient`,
+`hotfix.item.applied` and `hotfix.itemeffect.applied`. The tooltip footer of a hotfix item reads "Forever stats
+revealed by a Blizzard hotfix · beta <header build> · cache <Last-Modified date>"; an Era item's "Classic Era values.
+Forever stats are still hidden."
+
+Build 70450's cache holds no `ItemEffect` or `ItemXItemEffect` rows, so `ItemEffect.hotfix.csv` is header-only and
+revealed items link their effects through Forever's own `ItemXItemEffect` when it has them. The cache also holds
+spell rows (`Spell`, `SpellName`, `SpellEffect`, `SpellMisc`, ...), which the overlay does not read yet.
+
+## build_watch.py: is anything upstream newer?
+
+`tools/build_watch.py` (see the main README, "Rebuild the data") reads `build.lock` and the importer's
+`sources.properties`, asks each upstream once (the pipeline's User-Agent, throttle and 5xx retries), prints one line
+per upstream and exits 1 when anything is stale, 2 when an upstream is unknown, else 0. It never fetches into a
+cache, imports or updates anything.
 
 ## needed_icons.py: the icons of the browser's items
 

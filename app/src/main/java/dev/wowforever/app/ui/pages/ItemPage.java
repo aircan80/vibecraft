@@ -51,6 +51,11 @@ import javax.swing.table.TableColumnModel;
  * lists are never filtered. A rate whose sources were loaded with the page lists them in its tooltip.
  */
 public final class ItemPage extends SourcesPage {
+  /**
+   * The header note of an item without client data (no tooltip card): the game shows nothing of it until a realm has
+   * seen it drop (pm-data-sources.md).
+   */
+  public static final String STATS_HIDDEN = "Stats hidden until this item drops on a realm";
   private final ItemCardPanel card;
   private final HeaderPanel header;
   private final LinkTable<DropRow> droppedBy;
@@ -85,6 +90,7 @@ public final class ItemPage extends SourcesPage {
     header.setFacts(ItemSummaryLine.of(d));
     if (d.card().lines().isEmpty()) {
       card = null;
+      header.setNote(STATS_HIDDEN);
     } else {
       card = new ItemCardPanel(d.card(), d.summary().displayName(), icon == null ? IconCache.empty(IconCache.CARD)
           : new ImageIcon(icon), nav);

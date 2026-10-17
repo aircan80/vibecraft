@@ -41,12 +41,23 @@ public final class DropRateLoader {
 
   private DropRateLoader() {}
 
+  /** Loads the rates, AtlasLoot's named {@code atlasloot} and {@code atlasloot-override}. */
   public static DropRates load(SourceRoots roots, ProblemCollector problems) {
+    return load(roots, "atlasloot", problems);
+  }
+
+  /**
+   * Loads the rates, AtlasLoot's drop table named {@code atlasSource} and its item overrides
+   * {@code atlasSource + "-override"}: the pin's {@code atlasloot.rateSource} ({@code atlasloot-forever} for the
+   * AtlasLoot Classic Forever fork, Task 19), so the app labels them by edition. Positions 2 and 5 are unchanged.
+   */
+  public static DropRates load(SourceRoots roots, String atlasSource, ProblemCollector problems) {
     DropRates rates = new DropRates();
     loadWowhead(roots.questieDb().resolve(QUESTIE_DROPS), rates, problems);
     loadCorrections(roots.questieDb().resolve(QUESTIE_CORRECTIONS), rates, problems);
-    loadAtlasLoot(roots.atlasLoot().resolve(ATLAS_DIR).resolve("droprate.lua"), rates, problems);
-    loadOverrides(roots.atlasLoot().resolve(ATLAS_DIR).resolve("droprate_override.lua"), rates, problems);
+    loadAtlasLoot(roots.atlasLoot().resolve(ATLAS_DIR).resolve("droprate.lua"), atlasSource, rates, problems);
+    loadOverrides(roots.atlasLoot().resolve(ATLAS_DIR).resolve("droprate_override.lua"), atlasSource + "-override",
+        rates, problems);
     return rates;
   }
 
@@ -88,7 +99,7 @@ public final class DropRateLoader {
   }
 
   /** {@code local DropRateData = {[npcId] = {[itemId] = pct}}}. */
-  private static void loadAtlasLoot(Path file, DropRates rates, ProblemCollector problems) {
+  private static void loadAtlasLoot(Path file, String source, DropRates rates, ProblemCollector problems) {
     LuaChunk chunk = LuaChunk.parse(file);
     Optional<Expr> data = chunk.localValue("DropRateData");
     if (data.isEmpty()) {
@@ -97,11 +108,11 @@ public final class DropRateLoader {
     }
     LuaValue table = new Evaluator(chunk.fileName(), new Scope(), CallHandler.NONE, problems).eval(data.get());
     forEachPair(table, (npcId, itemId, pct) ->
-        rates.put(npcId, itemId, new DropRate(pct, "atlasloot"), ATLASLOOT));
+        rates.put(npcId, itemId, new DropRate(pct, source), ATLASLOOT));
   }
 
   /** {@code DROPRATE_OV = {[itemId] = pct | false}}; a global in the real file, a local is tolerated too. */
-  private static void loadOverrides(Path file, DropRates rates, ProblemCollector problems) {
+  private static void loadOverrides(Path file, String source, DropRates rates, ProblemCollector problems) {
     LuaChunk chunk = LuaChunk.parse(file);
     Optional<Expr> data = chunk.assignedValue("DROPRATE_OV").or(() -> chunk.localValue("DROPRATE_OV"));
     if (data.isEmpty()) {
@@ -116,7 +127,7 @@ public final class DropRateLoader {
       var itemId = LuaValues.asLong(e.getKey());
       // A value of false means "ignore this item".
       if (itemId.isPresent() && e.getValue() instanceof LuaNumber pct) {
-        rates.putItem(itemId.getAsLong(), new DropRate(pct.value(), "atlasloot-override"), ATLASLOOT_OVERRIDE);
+        rates.putItem(itemId.getAsLong(), new DropRate(pct.value(), source), ATLASLOOT_OVERRIDE);
       }
     }
   }

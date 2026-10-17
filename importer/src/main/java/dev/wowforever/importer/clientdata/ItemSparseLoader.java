@@ -20,9 +20,10 @@ import java.util.stream.Stream;
 /**
  * Joins the client's {@code Item} and {@code ItemSparse} tables onto the Questie item ids.
  *
- * <p>Per item: Forever's {@code ItemSparse} row when present ({@code clientSource = "forever"}), else the Era
- * fallback's {@code ItemSparse.era} row when that table exists and has one ({@code "era"}, ruling 17); the
- * {@code Item} row (class, subclass, icon) always comes from Forever. The client's "none" values become null:
+ * <p>Per item, the lowest source with a row wins (Task 19, pm-data-sources.md): 1 the hotfix overlay's
+ * {@code ItemSparse.hotfix} row ({@code clientSource = "hotfix"}), 2 Forever's {@code ItemSparse} row
+ * ({@code "forever"}), 3 the Era fallback's {@code ItemSparse.era} row ({@code "era"}, ruling 17). The {@code Item}
+ * row (class, subclass, icon) is the overlay's {@code Item.hotfix} row when there is one, else Forever's. The client's "none" values become null:
  * {@code ItemSet}, {@code StartQuestID}, {@code IconFileDataID}, {@code RequiredSkill} and {@code ItemDelay} of 0, an
  * empty {@code Display_lang} or {@code Description_lang}; {@code RequiredSkillRank} is null without a skill. The
  * tooltip-only columns ({@link ClientItem.Details}) likewise: {@code MaxCount}, {@code ContainerSlots},
@@ -31,14 +32,21 @@ import java.util.stream.Stream;
  *
  * <p>Every column read is checked up front; a missing one fails naming the table and the column.
  *
- * <p>Counters: {@code clientdata.items.matched} (an ItemSparse row, either source), {@code .matched.forever},
- * {@code .matched.era}, {@code clientdata.items.iconOnly} (an Item row only) and {@code clientdata.items.unmatched}
- * (neither); the note {@code clientdata.unmatched.ranges} lists the unmatched ids per 10,000-id bucket.
+ * <p>Counters: {@code clientdata.items.matched} (an ItemSparse row, any source), {@code .matched.hotfix},
+ * {@code .matched.forever}, {@code .matched.era}, {@code clientdata.items.iconOnly} (an Item row only) and
+ * {@code clientdata.items.unmatched} (neither); the note {@code clientdata.unmatched.ranges} lists the unmatched ids
+ * per 10,000-id bucket. With an overlay: {@code hotfix.itemsparse.valid} and {@code .invalidated} (from
+ * {@code hotfix.json}), {@code .applied} (items given their hotfix row), {@code .notInItemTable} (overlay rows of
+ * ids that are not among the items), {@code hotfix.fromForever}, {@code hotfix.fromEra} and
+ * {@code hotfix.fromNoClient} (what the applied items would have had without the overlay) and
+ * {@code hotfix.item.applied} (items whose Item row is the overlay's).
  */
 public final class ItemSparseLoader {
   public static final String ITEM = "Item";
   public static final String SPARSE = "ItemSparse";
   public static final String ERA_SPARSE = "ItemSparse.era";
+  public static final String HOTFIX_SPARSE = "ItemSparse" + ClientDataSource.HOTFIX_SUFFIX;
+  public static final String HOTFIX_ITEM = "Item" + ClientDataSource.HOTFIX_SUFFIX;
   private static final int FLAG_COLUMNS = 5;
   private static final int STAT_SLOTS = 10;
   private static final long BUCKET = 10_000;
@@ -82,25 +90,51 @@ public final class ItemSparseLoader {
     Map<Long, CsvTable.Row> forever = index(src, SPARSE, SPARSE_COLUMNS);
     Optional<CsvTable> eraTable = src.optionalTable(ERA_SPARSE);
     Map<Long, CsvTable.Row> era = eraTable.isPresent() ? index(src, ERA_SPARSE, ERA_COLUMNS) : Map.of();
+    Map<Long, CsvTable.Row> hotfix =
+        src.hasTable(HOTFIX_SPARSE) ? index(src, HOTFIX_SPARSE, SPARSE_COLUMNS) : Map.of();
+    Map<Long, CsvTable.Row> hotfixItems =
+        src.hasTable(HOTFIX_ITEM) ? index(src, HOTFIX_ITEM, ITEM_COLUMNS) : Map.of();
 
     Map<Long, ClientItem> out = new LinkedHashMap<>();
+    long matchedHotfix = 0;
     long matchedForever = 0;
     long matchedEra = 0;
     long iconOnly = 0;
+    long fromForever = 0;
+    long fromEra = 0;
+    long fromNoClient = 0;
+    long itemApplied = 0;
     List<Long> unmatched = new ArrayList<>();
     for (long id : new TreeSet<>(questieItemIds)) {
-      CsvTable.Row item = items.get(id);
-      CsvTable.Row sparse = forever.get(id);
-      String source = ClientItem.FOREVER;
+      CsvTable.Row item = hotfixItems.get(id);
+      if (item != null) {
+        itemApplied++;
+      } else {
+        item = items.get(id);
+      }
+      CsvTable.Row sparse = hotfix.get(id);
+      String source = ClientItem.HOTFIX;
+      if (sparse != null) {
+        if (forever.containsKey(id)) {
+          fromForever++;
+        } else if (era.containsKey(id)) {
+          fromEra++;
+        } else {
+          fromNoClient++;
+        }
+      } else {
+        sparse = forever.get(id);
+        source = ClientItem.FOREVER;
+      }
       if (sparse == null) {
         sparse = era.get(id);
         source = ClientItem.ERA;
       }
       if (sparse != null) {
-        if (source.equals(ClientItem.FOREVER)) {
-          matchedForever++;
-        } else {
-          matchedEra++;
+        switch (source) {
+          case ClientItem.HOTFIX -> matchedHotfix++;
+          case ClientItem.FOREVER -> matchedForever++;
+          default -> matchedEra++;
         }
       } else if (item != null) {
         iconOnly++;
@@ -110,12 +144,23 @@ public final class ItemSparseLoader {
       }
       out.put(id, item(id, item, sparse, sparse == null ? null : source));
     }
-    report.count("clientdata.items.matched", matchedForever + matchedEra);
+    report.count("clientdata.items.matched", matchedHotfix + matchedForever + matchedEra);
+    report.count("clientdata.items.matched.hotfix", matchedHotfix);
     report.count("clientdata.items.matched.forever", matchedForever);
     report.count("clientdata.items.matched.era", matchedEra);
     report.count("clientdata.items.iconOnly", iconOnly);
     report.count("clientdata.items.unmatched", unmatched.size());
     report.note("clientdata.unmatched.ranges: " + ranges(unmatched));
+    HotfixInfo.Table sparseInfo = src.hotfix().map(h -> h.table(SPARSE)).orElse(new HotfixInfo.Table(0, 0, 0, 0, ""));
+    report.count("hotfix.itemsparse.valid", sparseInfo.valid());
+    report.count("hotfix.itemsparse.invalidated", sparseInfo.invalidated());
+    report.count("hotfix.itemsparse.applied", matchedHotfix);
+    report.count("hotfix.itemsparse.notInItemTable",
+        hotfix.keySet().stream().filter(id -> !questieItemIds.contains(id)).count());
+    report.count("hotfix.fromForever", fromForever);
+    report.count("hotfix.fromEra", fromEra);
+    report.count("hotfix.fromNoClient", fromNoClient);
+    report.count("hotfix.item.applied", itemApplied);
     return Collections.unmodifiableMap(out);
   }
 

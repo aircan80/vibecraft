@@ -26,6 +26,8 @@ import java.util.stream.Stream;
  *   maps.json              [{ui_map_id, name, width, height, tiles, overlays, missing_tiles}]
  *   ui_icons/{name}.png    client UI textures (the rail icons) at native size, ui_icons/{name}@24.png at 24 px
  *   build.lock             the client build the tables came from
+ *   hotfix.json            with csv/{Table}.hotfix.csv: the hotfix overlay and the cache snapshot it came from
+ *                          (Task 19; ItemSparse.hotfix, Item.hotfix, ItemEffect.hotfix)
  * </pre>
  *
  * Tables, the lock and the map index are read on first use and cached.
@@ -33,11 +35,14 @@ import java.util.stream.Stream;
 public final class ClientDataSource {
   /** The name suffix of a fallback (Classic Era) table: {@code ItemSparse.era}, {@code ItemEffect.era}. */
   public static final String ERA_SUFFIX = ".era";
+  /** The name suffix of a hotfix overlay table: {@code ItemSparse.hotfix}, {@code Item.hotfix}. */
+  public static final String HOTFIX_SUFFIX = ".hotfix";
   private final Path dir;
   private final Map<String, CsvTable> tables = new ConcurrentHashMap<>();
   private final Map<String, Map<Long, CsvTable.Row>> idIndexes = new ConcurrentHashMap<>();
   private volatile BuildLock lock;
   private volatile List<MapInfo> maps;
+  private volatile Optional<HotfixInfo> hotfix;
 
   /** One entry of {@code maps.json}. */
   public record MapInfo(long uiMapId, String name, int width, int height, int tiles, int overlays, int missingTiles) {}
@@ -67,9 +72,89 @@ public final class ClientDataSource {
       }
       l = BuildLock.read(p);
       checkFallback(l, p);
+      hotfix = checkHotfix(l, p);
       lock = l;
     }
     return l;
+  }
+
+  /**
+   * The hotfix overlay's {@code hotfix.json}, when the directory has one; read and checked with the lock
+   * ({@link #lock}).
+   */
+  public Optional<HotfixInfo> hotfix() {
+    if (!Files.isRegularFile(dir.resolve(HotfixInfo.FILE)) && tablesEndingWith(HOTFIX_SUFFIX).isEmpty()) {
+      return Optional.empty(); // no overlay: no lock needed (loader tests run without one)
+    }
+    lock();
+    return hotfix;
+  }
+
+  /**
+   * The message of an import whose hotfix cache is of another build than the client tables: the client moved on and
+   * the build watch says what to refresh.
+   */
+  public static String buildMismatch(long headerBuild, String lockBuild) {
+    return "hotfix cache header build " + headerBuild + " differs from build.lock build " + lockBuild
+        + ": the client moved on. Run tools/build_watch.py, fetch the client tables of the new build"
+        + " (fetch.py --build ... --hotfix-cache) and convert again before importing";
+  }
+
+  /**
+   * Checks the overlay against the lock: overlay CSVs need a {@code hotfix.json}; its header build (and the lock's
+   * {@code hotfix.header_build}) must be the lock build's last number; it must name the lock's build and the
+   * snapshot the lock records; every overlay CSV must have the SHA-256 {@code hotfix.json} gives it.
+   */
+  private Optional<HotfixInfo> checkHotfix(BuildLock l, Path lockFile) {
+    List<String> overlays = tablesEndingWith(HOTFIX_SUFFIX);
+    Path json = dir.resolve(HotfixInfo.FILE);
+    if (!Files.isRegularFile(json)) {
+      if (!overlays.isEmpty()) {
+        throw new IllegalStateException(overlays.getFirst() + ".csv present but " + HotfixInfo.FILE
+            + " is missing; re-run convert.py, or delete the stale " + tablePath(overlays.getFirst()));
+      }
+      return Optional.empty();
+    }
+    HotfixInfo info = HotfixInfo.read(json);
+    String lockBuildNumber = l.build().substring(l.build().lastIndexOf('.') + 1);
+    for (Long header : new Long[] {info.headerBuild(), l.hotfixHeaderBuild()}) {
+      if (header != null && !String.valueOf(header).equals(lockBuildNumber)) {
+        throw new IllegalStateException(buildMismatch(header, l.build()));
+      }
+    }
+    if (!info.build().equals(l.build())) {
+      throw new IllegalStateException(HotfixInfo.FILE + " was converted for build " + info.build() + ", build.lock is "
+          + l.build() + "; re-run convert.py (lock: " + lockFile + ")");
+    }
+    if (l.hotfixSha256() == null || !l.hotfixSha256().equals(info.sha256())) {
+      throw new IllegalStateException(HotfixInfo.FILE + " was converted from snapshot " + abbrev(info.sha256())
+          + " but build.lock records " + (l.hotfixSha256() == null ? "none" : abbrev(l.hotfixSha256()))
+          + "; re-run convert.py (fetch.py --hotfix-cache records the snapshot) (lock: " + lockFile + ")");
+    }
+    for (String overlay : overlays) {
+      String table = overlay.substring(0, overlay.length() - HOTFIX_SUFFIX.length());
+      HotfixInfo.Table t = info.tables().get(table);
+      if (t == null || !t.sha256().equals(sha256(tablePath(overlay)))) {
+        throw new IllegalStateException(overlay + ".csv does not match " + HotfixInfo.FILE
+            + "; re-run convert.py");
+      }
+    }
+    return Optional.of(info);
+  }
+
+  private static String abbrev(String sha) {
+    return sha.length() > 12 ? sha.substring(0, 12) : sha;
+  }
+
+  private static String sha256(Path p) {
+    try {
+      return java.util.HexFormat.of().formatHex(
+          java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(p)));
+    } catch (IOException e) {
+      throw new UncheckedIOException("cannot read " + p + ": " + e.getMessage(), e);
+    } catch (java.security.NoSuchAlgorithmException e) {
+      throw new IllegalStateException("SHA-256 is unavailable", e);
+    }
   }
 
   private void checkFallback(BuildLock l, Path lockFile) {
@@ -84,13 +169,18 @@ public final class ClientDataSource {
 
   /** The names of the fallback tables present, {@code csv/*.era.csv} without {@code .csv}, sorted. */
   private List<String> eraTables() {
+    return tablesEndingWith(ERA_SUFFIX);
+  }
+
+  /** The tables present whose name ends with {@code suffix}, {@code csv/*{suffix}.csv} without {@code .csv}. */
+  private List<String> tablesEndingWith(String suffix) {
     Path csv = dir.resolve("csv");
     if (!Files.isDirectory(csv)) {
       return List.of();
     }
     try (Stream<Path> files = Files.list(csv)) {
       return files.map(p -> p.getFileName().toString())
-          .filter(n -> n.endsWith(ERA_SUFFIX + ".csv"))
+          .filter(n -> n.endsWith(suffix + ".csv"))
           .map(n -> n.substring(0, n.length() - ".csv".length()))
           .filter(this::hasTable)
           .sorted()
