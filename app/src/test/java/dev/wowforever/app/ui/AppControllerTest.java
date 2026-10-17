@@ -308,7 +308,7 @@ class AppControllerTest {
     assertThat(AppController.target(RailTarget.ITEMS)).isEqualTo(new ViewTarget.List(ITEM, ItemFilter.ALL));
     assertThat(AppController.target(RailTarget.NPCS)).isEqualTo(new ViewTarget.List(NPC, NpcFilter.ALL));
     assertThat(AppController.target(RailTarget.QUESTS)).isEqualTo(new ViewTarget.List(QUEST));
-    assertThat(AppController.target(RailTarget.ZONES)).isEqualTo(new ViewTarget.List(ZONE));
+    assertThat(AppController.target(RailTarget.ZONES)).isEqualTo(new ViewTarget.WorldMap(947));
     assertThat(AppController.target(RailTarget.INSTANCES)).isEqualTo(new ViewTarget.List(INSTANCE));
   }
 
@@ -316,7 +316,7 @@ class AppControllerTest {
   void eachRailTargetOpensItsListPageWithTheDefaultFilterAndLeavesTheMasterList() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(new ViewTarget.Search("hogger", Optional.of(NPC)));
-    for (RailTarget t : List.of(RailTarget.ITEMS, RailTarget.NPCS, RailTarget.QUESTS, RailTarget.ZONES,
+    for (RailTarget t : List.of(RailTarget.ITEMS, RailTarget.NPCS, RailTarget.QUESTS,
         RailTarget.INSTANCES)) {
       c.open(AppController.target(t));
       ViewTarget.List target = (ViewTarget.List) AppController.target(t);

@@ -30,11 +30,12 @@ public final class ObjectRepository {
       }
       return Optional.of(new ObjectDetail(summary.get(),
           Sql.list(c, "SELECT d.item_id, " + NpcRepository.ITEM_COLUMNS
+              + ", " + CollectorFacts.observed(c, "object-drop", "object", "d.object_id") + " AS observed_in_game"
               + " FROM item_object_drop d " + NpcRepository.itemJoin("d") + """
 
               WHERE d.object_id = ?
               ORDER BY i.name IS NULL, i.name COLLATE NOCASE, d.item_id""",
-              NpcRepository::plainLoot, id),
+              rs -> NpcRepository.plainLoot(rs).withObservation(rs.getBoolean("observed_in_game")), id),
           QuestRepository.givenBy(c, "object", id, "start"), QuestRepository.givenBy(c, "object", id, "end"),
           NpcRepository.spawns(c, "object_spawn", "object_id", id)));
     });

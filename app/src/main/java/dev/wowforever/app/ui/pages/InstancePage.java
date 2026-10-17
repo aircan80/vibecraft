@@ -118,7 +118,7 @@ public final class InstancePage extends JPanel implements PageState {
   /** The app supplies client loot and build metadata already loaded off the EDT. */
   public InstancePage(InstanceDetail d, List<QuestSummary> quests, Repositories repos, String clientBuild,
       BossLoot clientLoot, Navigator nav) {
-    this(d, quests, InstanceSummary.CLIENT.equals(d.summary().source()) && clientLoot != null ? clientLoot : BossLoot.of(repos),
+    this(d, quests, clientLoot != null ? clientLoot : BossLoot.of(repos),
         clientBuild, nav);
   }
 
@@ -141,7 +141,10 @@ public final class InstancePage extends JPanel implements PageState {
     coverage = !client ? null : new WrappingText(clientNoLoot
         ? COVERAGE_LINE.formatted(d.bosses().stream().filter(b -> !b.extraList()).count(), 0, build)
         : "Bosses: " + d.bosses().stream().filter(b -> !b.extraList()).count()
-            + " named in client data · Loot: recorded (unverified) · Client build " + build, "Dungeon data coverage");
+            + " named in client data · Loot: "
+            + (d.difficulties().contains(InstanceRepository.OBSERVED_DIFFICULTY)
+                ? "in-game observations available; difficulty unknown" : "recorded (unverified)")
+            + " · Client build " + build, "Dungeon data coverage");
     encounterCaption = client ? new WrappingText(ENCOUNTER_CAPTION, "Encounter order source") : null;
     bossesNote = client ? new WrappingText(BOSSES_NOTE, "Boss data source") : null;
     this.bossLoot = bossLoot;
@@ -475,7 +478,13 @@ public final class InstancePage extends JPanel implements PageState {
         boss.npcId() == null ? LootTables.NO_SOURCES : LootTables.sourcesOf(boss.npcId(), sources),
         dungeonBosses, nav);
     lootSection = new SourceSection(LOOT, loot.size(), lootTable);
-    if (client) lootSection.setNote("Recorded loot is unverified.");
+    if (InstanceRepository.OBSERVED_DIFFICULTY.equals(difficulty)) {
+      lootSection.setNote("Observed in game; difficulty unknown.");
+    } else if (client && !loot.stream().allMatch(LootRow::observedInGame)) {
+      lootSection.setNote(loot.stream().anyMatch(LootRow::observedInGame)
+          ? "Some drops were observed in game; other recorded loot is unverified."
+          : "Recorded loot is unverified.");
+    }
     lootSection.setRowLimited(false); // the page's main content, rebuilt for every encounter: never cut
     lootPane.removeAll();
     lootPane.add(bossHeader);

@@ -69,13 +69,15 @@ public final class ItemRepository {
           droppedBy(c, id),
           inInstanceLoot(c, id),
           sources(c, ItemSource.OBJECT, EntityKind.OBJECT, """
-              SELECT d.object_id AS ref_id, o.name, NULL AS quality, NULL AS icon_id FROM item_object_drop d
+              SELECT d.object_id AS ref_id, o.name, NULL AS quality, NULL AS icon_id,
+              """ + CollectorFacts.observed(c, "object-drop", "object", "d.object_id") + " AS observed_in_game FROM item_object_drop d " + """
               LEFT JOIN game_object o ON o.id = d.object_id WHERE d.item_id = ?""", id),
           sources(c, ItemSource.CONTAINER, EntityKind.ITEM, """
               SELECT d.container_item_id AS ref_id, ci.name, ci.quality, ci.icon_id FROM item_container_drop d
               LEFT JOIN item ci ON ci.id = d.container_item_id WHERE d.item_id = ?""", id),
           sources(c, ItemSource.VENDOR, EntityKind.NPC, """
-              SELECT v.npc_id AS ref_id, n.name, NULL AS quality, NULL AS icon_id FROM item_vendor v
+              SELECT v.npc_id AS ref_id, n.name, NULL AS quality, NULL AS icon_id,
+              """ + CollectorFacts.observed(c, "vendor", "npc", "v.npc_id", "v.item_id") + " AS observed_in_game FROM item_vendor v " + """
               LEFT JOIN npc n ON n.id = v.npc_id WHERE v.item_id = ?""", id),
           sources(c, ItemSource.REWARD, EntityKind.QUEST, """
               SELECT r.quest_id AS ref_id, q.name, NULL AS quality, NULL AS icon_id FROM quest_reward_item r
@@ -238,7 +240,8 @@ public final class ItemRepository {
   private static List<DropSource> droppedBy(Connection c, long itemId) throws SQLException {
     return Sql.list(c, """
         SELECT d.npc_id, n.name, n.min_level, n.max_level, n.zone_id, z.name AS zone_name,
-               d.drop_pct, d.pct_source, d.origin, d.disagrees, d.source_count
+               d.drop_pct, d.pct_source, d.origin, d.disagrees, d.source_count,
+        """ + CollectorFacts.observed(c, "npc-drop", "npc", "d.npc_id") + " AS observed_in_game " + """
         FROM item_npc_drop d
         LEFT JOIN npc n ON n.id = d.npc_id
         LEFT JOIN zone z ON z.id = n.zone_id
@@ -247,7 +250,7 @@ public final class ItemRepository {
         rs -> new DropSource(new EntityRef(EntityKind.NPC, rs.getLong("npc_id")), rs.getString("name"),
             Sql.integer(rs, "min_level"), Sql.integer(rs, "max_level"), rs.getString("zone_name"),
             Sql.longValue(rs, "zone_id"), Sql.doubleValue(rs, "drop_pct"), rs.getString("pct_source"),
-            rs.getString("origin"), rs.getInt("disagrees") != 0, rs.getInt("source_count")),
+            rs.getString("origin"), rs.getInt("disagrees") != 0, rs.getInt("source_count"), rs.getBoolean("observed_in_game")),
         itemId);
   }
 
@@ -256,7 +259,7 @@ public final class ItemRepository {
    * in AtlasLoot order), then slot.
    */
   private static List<InstanceLoot> inInstanceLoot(Connection c, long itemId) throws SQLException {
-    return Sql.list(c, """
+    List<InstanceLoot> rows = new ArrayList<>(Sql.list(c, """
         SELECT i.id AS instance_id, i.name AS instance_name, b.id AS boss_id, b.name AS boss_name, b.npc_id,
                bl.slot, bl.drop_pct, bl.disagrees, bl.source_count, bl.pct_source
         FROM boss_loot bl
@@ -269,7 +272,24 @@ public final class ItemRepository {
             rs.getString("instance_name"), rs.getLong("boss_id"), rs.getString("boss_name"),
             Sql.longValue(rs, "npc_id"), Sql.integer(rs, "slot"), Sql.doubleValue(rs, "drop_pct"),
             rs.getInt("disagrees") != 0, rs.getInt("source_count"), rs.getString("pct_source")),
-        itemId);
+        itemId));
+    if (Sql.hasTable(c, "collector_fact")) {
+      List<InstanceLoot> observed = Sql.list(c, """
+          SELECT DISTINCT i.id AS instance_id, i.name AS instance_name, b.id AS boss_id,
+                 b.name AS boss_name, b.npc_id
+          FROM collector_fact cf JOIN boss b ON b.id = cf.entity_id JOIN instance i ON i.id = b.instance_id
+          WHERE cf.category = 'boss-drop' AND cf.entity_type = 'boss' AND cf.item_id = ?
+          ORDER BY i.id, b.id""",
+          rs -> new InstanceLoot(new EntityRef(EntityKind.INSTANCE, rs.getLong("instance_id")),
+              rs.getString("instance_name"), rs.getLong("boss_id"), rs.getString("boss_name"),
+              Sql.longValue(rs, "npc_id"), null, null, false, 0, null, true), itemId);
+      var observedBosses = observed.stream().map(InstanceLoot::bossId).collect(java.util.stream.Collectors.toSet());
+      rows.replaceAll(l -> new InstanceLoot(l.instance(), l.instanceName(), l.bossId(), l.bossName(), l.bossNpcId(),
+          l.slot(), l.dropPct(), l.disagrees(), l.sourceCount(), l.pctSource(), observedBosses.contains(l.bossId())));
+      var existingBosses = rows.stream().map(InstanceLoot::bossId).collect(java.util.stream.Collectors.toSet());
+      observed.stream().filter(l -> !existingBosses.contains(l.bossId())).forEach(rows::add);
+    }
+    return List.copyOf(rows);
   }
 
   /**
@@ -374,7 +394,8 @@ public final class ItemRepository {
       throws SQLException {
     return Sql.list(c, sql + " ORDER BY name IS NULL, name COLLATE NOCASE, ref_id",
         rs -> new ItemSource(kind, new EntityRef(refKind, rs.getLong("ref_id")), rs.getString("name"),
-            Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id")), itemId);
+            Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id"),
+            (ItemSource.OBJECT.equals(kind) || ItemSource.VENDOR.equals(kind)) && rs.getBoolean("observed_in_game")), itemId);
   }
 
   private static ItemSummary summary(ResultSet rs) throws SQLException {

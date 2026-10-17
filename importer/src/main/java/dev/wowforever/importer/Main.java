@@ -36,12 +36,26 @@ public final class Main {
   }
 
   static int run(String[] args, PrintStream out, PrintStream err) {
-    if (args.length > 0 && args[0].equals("ingest-collector")) {
-      if (args.length != 5 || !args[1].equals("--database") || !args[3].equals("--collector-file")) {
-        err.println("Usage: ingest-collector --database <file.sqlite> --collector-file <SavedVariables.lua>"); return 1;
+    if (args.length > 0 && args[0].equals("project-collector")) {
+      if (args.length != 5 || !args[1].equals("--database") || !args[3].equals("--ingestion")) {
+        err.println("Usage: project-collector --database <file.sqlite> --ingestion <id>"); return 1;
       }
       try {
-        String id = CollectorArchiveWorkflow.ingest(java.nio.file.Path.of(args[2]),java.nio.file.Path.of(args[4]));
+        CollectorProjection.project(java.nio.file.Path.of(args[2]), args[4]);
+        out.println("Collector presence projected offline; real-capture acceptance requires owner evidence."); return 0;
+      } catch (Exception e) { err.println(e.getMessage()); return 1; }
+    }
+    if (args.length > 0 && args[0].equals("ingest-collector")) {
+      if (args.length < 5 || args.length % 2 != 1 || !args[1].equals("--database")) {
+        err.println("Usage: ingest-collector --database <file.sqlite> --collector-file <SavedVariables.lua> [--collector-file <file> ...]"); return 1;
+      }
+      var files = new java.util.ArrayList<java.nio.file.Path>();
+      try {
+        for (int i=3;i<args.length;i+=2) {
+          if (!args[i].equals("--collector-file")) throw new IllegalArgumentException("Expected --collector-file");
+          files.add(java.nio.file.Path.of(args[i+1]));
+        }
+        String id = CollectorArchiveWorkflow.ingest(java.nio.file.Path.of(args[2]),files);
         out.println("Captured archive-only collector ingestion: " + id);
         out.println("No application facts projected; real-observation acceptance remains pending.");
         return 0;

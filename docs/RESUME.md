@@ -1,5 +1,43 @@
 # Resume development — current checkpoint
 
+
+## Latest continuation — collector projection and world-map drill-down
+
+Codex, 2026-10-17. This section supersedes the historical checkpoint below.
+
+- Primary checkout remains `feature/phase3b-quest-ui`. Parallel work was integrated and independently reviewed.
+- Collector tooling now accepts repeatable explicit `--collector-file` inputs, archives each capture, and offers
+  `project-collector --database FILE --ingestion ID` for separate offline projection. See README.
+- Only direct known corpse sources become presence facts. Existing rates/origins remain intact. Noncorpse,
+  hidden-source, unknown-entity and mixed-build evidence remains raw. Direct boss evidence additionally requires
+  a matching known creature and client map; difficulty remains explicitly unknown. The app shows collector evidence
+  on NPC/object/item/vendor/instance views without database work on the EDT.
+- No synthetic collector facts are shipped. Real beta capture acceptance, AtlasLoot/hotfix data gates and releases remain open.
+- The next roadmap slice now has Zones → Azeroth → continent → zone navigation, keyboard bindings, focus/history
+  restoration and a remembered Map/List preference. See `WORLD_MAP_IMPORT.md` for acquisition/offline replay.
+- The shipped hierarchy has 54 maps and 53 links from client **1.60.1.70374**, separately labelled from the main
+  client **1.60.1.70450**. Zephras Isle and Darkspear Islands remain explicitly unplaced. Territory and
+  New-in-Forever badges are omitted pending verified source comparisons. Later map layers remain future work.
+- Shipped build ID: `241b1f205e1dd4843092c2ce61e5eca62a497edfb8107c179dcde26435cb1def`.
+  It retains 248 archived artifacts and 114,477 structured records. All 47 existing application-data tables
+  and all original archive/history rows were preserved; SQLite integrity passed.
+- Additive map/collector updates share a stable content-based build identity and active composite input history.
+  Ordinary core projection refuses applied overlays until explicit replay is supported, preventing silent loss.
+- Full Maven verify passed: **1,710 tests, six skipped, zero failures/errors** (Lua 61, importer 535, app 1,114).
+  Exact JAR SHA-256: `8921e766c611d04c998bf510b220b901da175f15ab5d1cb27318fcb9ccdee74e`.
+- Final-JAR evidence is under `.local/collector-map-acceptance/`: 46 standard captures with zero geometry failures,
+  warm main-page p95 maximum 100.891 ms; 12 map captures with compact bounds/Enter-route checks and map p95 31.06 ms;
+  16 synthetic collector page captures with visible provenance and unknown-difficulty qualification.
+  Timing is informational. Python suites were unchanged and not rerun. Native Robot input was unreliable
+  under Wayland (intended and delivered click coordinates differed; frame capture blocked), so native interaction
+  acceptance remains open. Headless Enter/bounds checks do not replace that gate.
+- The previous Windows/addon branches and historical task worktrees remain available. Two older worktrees,
+  `att-overlay` and `att-workflow`, contain uncommitted changes; preserve them. New temporary worktrees may be
+  removed only after their commits and evidence are retained. No game-install files were touched.
+
+The historical checkpoint below remains useful for environment and architectural constraints. Its old verification,
+shipped build and active-work descriptions have been superseded by this section.
+
 Saved by Codex, 2026-10-17. This is the current continuation checkpoint; older Windows instructions in
 HANDOVER.md are historical. No further feature work was started after this checkpoint.
 

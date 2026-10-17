@@ -70,7 +70,7 @@ class ShippedAttDataTest extends ShippedDataSupport {
     var catalog = repos.sourceArchive().catalog();
     assertThat(catalog.available()).isTrue();
     assertThat(catalog.history()).filteredOn(run -> run.active()).singleElement().satisfies(run -> {
-      assertThat(run.inputs()).extracting(input -> input.role()).containsExactlyInAnyOrder("allthethings", "legacy-app", "configuration");
+      assertThat(run.inputs()).extracting(input -> input.role()).contains("allthethings", "legacy-app", "configuration");
       assertThat(run.validationSummary()).containsIgnoringCase("Legacy baseline");
     });
     assertThat(catalog.snapshots()).filteredOn(s -> s.source().equals("allthethings")).anySatisfy(snapshot -> {

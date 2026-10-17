@@ -51,6 +51,13 @@ public final class ListPage extends SourcesPage {
   private final String emptyText;
   private ViewTarget.List target;
 
+  /** Adds the remembered geographical Map/List switch to the Zones list header. */
+  public void showMapToggle(Runnable showMap) {
+    if (target.kind() == EntityKind.ZONE) {
+      content.add(WorldMapPage.viewToggle(false, showMap, () -> {}), 0);
+    }
+  }
+
   /**
    * A page showing {@code rows} ({@link ListRows#load} of {@code target}), its filter bar set from {@code options};
    * level changes reach {@code onFilter} once the spinners rest for {@link FilterBar#LEVEL_DELAY_MILLIS}.

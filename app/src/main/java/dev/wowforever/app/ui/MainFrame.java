@@ -115,7 +115,7 @@ public final class MainFrame extends JFrame implements MainView {
     }, uiState);
     rail.onSelect(t -> {
       if (controller != null) {
-        controller.open(AppController.target(t));
+        controller.openRail(t);
       }
     });
     searchBar.setEnabled(false);
@@ -617,6 +617,9 @@ public final class MainFrame extends JFrame implements MainView {
   public void setTitleSuffix(String s) {
     setTitle(s == null || s.isEmpty() ? APP_NAME : APP_NAME + " — " + s);
   }
+
+  @Override
+  public BooleanSetting zonesMap() { return uiState.zonesMapSetting(); }
 
   @Override
   public void selectRail(RailTarget target) {

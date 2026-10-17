@@ -68,19 +68,21 @@ public final class NpcRepository {
       // dropper_count: how many NPCs drop the item (a primary-key prefix count), which tells the world drops
       List<LootRow> drops = Sql.list(c, "SELECT d.item_id, " + ITEM_COLUMNS
           + ", d.drop_pct, d.pct_source, d.origin, d.disagrees, d.source_count,"
+          + CollectorFacts.observed(c, "npc-drop", "npc", "d.npc_id") + " AS observed_in_game,"
           + " (SELECT count(*) FROM item_npc_drop x WHERE x.item_id = d.item_id) AS dropper_count"
           + " FROM item_npc_drop d " + itemJoin("d") + """
 
           WHERE d.npc_id = ?
           ORDER BY d.drop_pct IS NULL, d.drop_pct DESC, i.name IS NULL, i.name COLLATE NOCASE, d.item_id""",
-          rs -> withDropperCount(ratedLoot(rs, rs.getString("origin"), null), rs.getInt("dropper_count")),
+          rs -> withDropperCount(ratedLoot(rs, rs.getString("origin"), null), rs.getInt("dropper_count")).withObservation(rs.getBoolean("observed_in_game")),
           id);
       List<LootRow> sells = Sql.list(c, "SELECT v.item_id, " + ITEM_COLUMNS
+          + ", " + CollectorFacts.observed(c, "vendor", "npc", "v.npc_id", "v.item_id") + " AS observed_in_game"
           + " FROM item_vendor v " + itemJoin("v") + """
 
           WHERE v.npc_id = ?
           ORDER BY i.name IS NULL, i.name COLLATE NOCASE, v.item_id""",
-          NpcRepository::plainLoot, id);
+          rs -> plainLoot(rs).withObservation(rs.getBoolean("observed_in_game")), id);
       return Optional.of(new NpcDetail(h.summary(), h.npcFlags(), h.friendlyTo(), drops, sells,
           QuestRepository.givenBy(c, "npc", id, "start"), QuestRepository.givenBy(c, "npc", id, "end"),
           spawns(c, "npc_spawn", "npc_id", id)));

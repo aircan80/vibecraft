@@ -50,6 +50,39 @@ class DetailPanelsTest {
   }
 
   @Test
+  void collectorLootOnHistoricalInstancesIsFrozenBeforeEdtRendering(
+      @org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+    var copy = temp.resolve("collector-loot.sqlite");
+    java.nio.file.Files.copy(FixtureDb.path(), copy);
+    long bossId;
+    try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + copy);
+        var statement = connection.createStatement()) {
+      try (var result = statement.executeQuery("SELECT id FROM boss WHERE npc_id=639 LIMIT 1")) {
+        result.next(); bossId = result.getLong(1);
+      }
+      statement.executeUpdate("CREATE TABLE collector_fact(snapshot_id TEXT,category TEXT,ordinal INTEGER,"
+          + "item_id INTEGER,entity_type TEXT,entity_id INTEGER)");
+      statement.executeUpdate("INSERT INTO collector_fact VALUES('synthetic','boss-drop',1,2874,'boss'," + bossId + ")");
+    }
+    DetailPanels.LoadedInstance loaded;
+    Repositories source;
+    try (var database = dev.wowforever.app.db.Database.open(copy)) {
+      source = Repositories.of(database);
+      loaded = (DetailPanels.LoadedInstance) DetailPanels.load(new EntityRef(INSTANCE, 2), source).orElseThrow();
+      assertThat(loaded.clientLoot()).isNotNull();
+      assertThat(loaded.clientLoot().lookup(bossId,
+          dev.wowforever.app.db.InstanceRepository.OBSERVED_DIFFICULTY)).hasSize(1);
+    }
+    javax.swing.SwingUtilities.invokeAndWait(() -> {
+      var page = new InstancePage(loaded.detail(), loaded.quests(), source,
+          loaded.clientBuild(), loaded.clientLoot(), target -> {});
+      page.selectBoss(1);
+      page.selectBoss(0);
+      assertThat(page.lootTable()).isNotNull();
+    });
+  }
+
+  @Test
   void clientLootAndBuildAreLoadedBeforeRendering(@org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
     java.nio.file.Path copy = temp.resolve("client-loot.sqlite");
     java.nio.file.Files.copy(FixtureDb.path(), copy);

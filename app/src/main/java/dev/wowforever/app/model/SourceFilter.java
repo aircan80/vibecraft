@@ -2,8 +2,7 @@ package dev.wowforever.app.model;
 
 /**
  * Which drop rows the item and NPC pages show, by where a row comes from ({@link DropSource#origin()},
- * {@link LootRow#origin()}: {@code questie}, {@code atlasloot} or {@code both}). A row both sources know is always
- * shown.
+ * {@link LootRow#origin()}: {@code questie}, {@code atlasloot} or {@code both}). Rows confirmed by in-game captures, and rows both sources know, are always shown.
  */
 public enum SourceFilter {
   ALL("All sources", null),

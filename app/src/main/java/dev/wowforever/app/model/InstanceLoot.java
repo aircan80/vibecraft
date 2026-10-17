@@ -10,7 +10,12 @@ import java.util.Optional;
  */
 public record InstanceLoot(
     EntityRef instance, String instanceName, long bossId, String bossName, Long bossNpcId, Integer slot,
-    Double dropPct, boolean disagrees, int sourceCount, String pctSource) {
+    Double dropPct, boolean disagrees, int sourceCount, String pctSource, boolean observedInGame) {
+
+  public InstanceLoot(EntityRef instance, String instanceName, long bossId, String bossName, Long bossNpcId,
+      Integer slot, Double dropPct, boolean disagrees, int sourceCount, String pctSource) {
+    this(instance, instanceName, bossId, bossName, bossNpcId, slot, dropPct, disagrees, sourceCount, pctSource, false);
+  }
 
   /** A loot table entry without a headline rate source. */
   public InstanceLoot(EntityRef instance, String instanceName, long bossId, String bossName, Long bossNpcId,

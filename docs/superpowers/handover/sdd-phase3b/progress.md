@@ -198,3 +198,32 @@ Packaged CLI also captured the separate addon branch's synthetic sample successf
 The verified review app was reopened under `wowforever-browser.service`.
 Task 20 remains partial: observation projection and real beta-session acceptance remain open.
 The addon branch is still separate, and release gates 19/20 remain open.
+
+
+## Collector projection and next-roadmap world map (Codex, 2026-10-17)
+
+Parallel implementation plus independent contract/code review integrated repeatable collector capture,
+separate offline observation projection and application provenance. Synthetic tests prove presence-only
+NPC/object/vendor projection, direct known boss+client-map evidence, preservation of existing rates,
+raw unknown/mixed-build evidence and transactional rollback. Encounter hints never establish boss identity.
+Source snapshots and execution history are retained; shared additive identities compose map and collector
+inputs in either order without build churn. Ordinary core rebuilds refuse applied overlays rather than erase them.
+Real beta-session acceptance remains open, and no synthetic collector facts entered the shipped database.
+
+The next roadmap slice adds world-map drill-down under Zones, with breadcrumbs, keyboard/focus/history,
+remembered Map/List, compact scaling and collision-free passive label plates. The planning memo's blanket
+UiMin/UiMax assumption was corrected: root continent bounds are authored on Azeroth, while zone rectangles
+require swapped/reversed world-axis projection through compatible parent Region records.
+Local exact CSVs are hash-qualified, archived before projection and replayable after deleting inputs.
+The map hierarchy source is 70374, distinct from main client 70450. Unplaced islands remain accessible without
+invented coordinates; Era comparison badges and subsequent map layers are not claimed complete.
+
+Shipped data adds 54 maps / 53 links, retaining all 47 original app-data tables and original archive/history rows.
+Integrity passed. Full combined Maven verify: 1,710 tests, 6 skipped, zero failures/errors (61+535+1,114).
+Final JAR SHA-256: 8921e766c611d04c998bf510b220b901da175f15ab5d1cb27318fcb9ccdee74e.
+Evidence `.local/collector-map-acceptance/`: 46 standard captures, zero geometry failures, max warm p95 = 100.891 ms;
+12 map captures with compact bounds/Enter-route acceptance, map p95 = 31.06 ms; 16 synthetic collector page captures.
+Task 19/20 real-data gates remain open; no v0.3/v0.3.1 release or merge-to-main is authorized by these results.
+
+Native interaction acceptance remains open: Robot delivered different coordinates than requested, and
+Wayland frame capture blocked. Scratch automation was closed; no product defect or native pass is claimed.

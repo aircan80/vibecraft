@@ -133,7 +133,7 @@ public final class ItemPage extends SourcesPage {
       Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
       QuestInvolvement.Result involvement, Navigator nav, ClipboardPort clipboard) {
     super(nav);
-    SourceFilters.Filtered<DropSource> drops = SourceFilters.apply(all.droppedBy(), DropSource::origin, filter);
+    SourceFilters.Filtered<DropSource> drops = SourceFilters.apply(all.droppedBy(), DropSource::displayOrigin, filter);
     ItemDetail d = new ItemDetail(all.summary(), all.classId(), all.subclassId(), all.startQuestId(), drops.rows(),
         all.inInstanceLoot(), all.containedInObjects(), all.containedInItems(), all.soldBy(), all.rewardFrom(),
         all.relatedQuests(), all.card());
@@ -179,9 +179,9 @@ public final class ItemPage extends SourcesPage {
     }
     List<ItemSource> containedIn = Stream.concat(d.containedInObjects().stream(), d.containedInItems().stream())
         .toList();
-    addSection("Contained in", containedIn.size(), Columns.itemSources(), containedIn);
-    addSection("Sold by", d.soldBy().size(), Columns.sourceNames(), d.soldBy());
-    addSection("Quest reward", d.rewardFrom().size(), Columns.sourceNames(), d.rewardFrom());
+    addSection("Contained in", containedIn.size(), VisibleColumns.of(Columns.itemSources(), containedIn, null), containedIn);
+    addSection("Sold by", d.soldBy().size(), VisibleColumns.of(Columns.sourceNames(), d.soldBy(), null), d.soldBy());
+    addSection("Quest reward", d.rewardFrom().size(), VisibleColumns.of(Columns.sourceNames(), d.rewardFrom(), null), d.rewardFrom());
     addQuestInvolvements(involvement, EntityKind.ITEM, null);
     addSectionsInOrder(SectionOrder.ITEM);
     bindJumpKeys();

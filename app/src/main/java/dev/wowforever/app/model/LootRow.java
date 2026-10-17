@@ -15,7 +15,21 @@ package dev.wowforever.app.model;
  */
 public record LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
     Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
-    Long iconId, String skillLine, Integer allowableClass, int dropperCount, String pctSource) {
+    Long iconId, String skillLine, Integer allowableClass, int dropperCount, String pctSource, boolean observedInGame) {
+
+  public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
+      Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
+      Long iconId, String skillLine, Integer allowableClass, int dropperCount, String pctSource) {
+    this(item, itemName, itemLevel, dropPct, origin, slot, classId, className, subclassId, disagrees, sourceCount,
+        quality, iconId, skillLine, allowableClass, dropperCount, pctSource, false);
+  }
+
+  public String displayOrigin() { return observedInGame ? "collector" : origin; }
+
+  public LootRow withObservation(boolean observed) {
+    return new LootRow(item, itemName, itemLevel, dropPct, origin, slot, classId, className, subclassId,
+        disagrees, sourceCount, quality, iconId, skillLine, allowableClass, dropperCount, pctSource, observed);
+  }
 
   /** A row without a headline rate source. */
   public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,

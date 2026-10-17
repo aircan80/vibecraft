@@ -361,18 +361,43 @@ GPL-2.0-or-later, see `LICENSE`. Data credits are in `NOTICE.md`.
 
 ### Archive collector observations
 
-Capture an explicitly selected schema-1 Forever SavedVariables file locally:
+Capture explicitly selected schema-1 Forever SavedVariables files locally:
 
 ```sh
 java -jar importer/target/importer.jar ingest-collector --database research.sqlite --collector-file /path/to/WowForeverCollector.lua
 ```
 
-The importer accepts one literal `WowForeverCollectorDB` assignment and requires Forever 1.60 build,
+Repeat `--collector-file <path>` to capture multiple files in one ingestion. File order and repeated identical
+captures do not change its identity. Every file is validated before the database is opened; each distinct
+capture retains its own exact bytes and session metadata.
+
+The importer accepts one literal `WowForeverCollectorDB` assignment per file and requires Forever 1.60 build,
 interface 16001, addon version and locale metadata. It never executes Lua. Exact original bytes,
 unknown fields and versioned structured records are retained; malformed UTF-8 is replaced only in
 the index and reported as partial. Identical captures are idempotent. Input/output aliases and
 symbolic paths are refused. Existing app facts and build identity remain unchanged.
 
-This command is archive-only: `project` explicitly refuses collector ingestions. Observation
-projection and acceptance using a real beta-session capture remain pending; synthetic fixtures
-verify tooling only. The addon remains on its separate `feature/collector-addon` branch.
+Acquisition is archive-only. Project a selected archived ingestion explicitly, without reading
+its original files or accessing the network:
+
+```sh
+java -jar importer/target/importer.jar project-collector --database research.sqlite --ingestion INGESTION_ID
+```
+
+Only direct corpse loot from known creatures/objects becomes presence facts, with no estimated
+rate. Pickpocket, gather, fishing, hidden-source and ambiguous multi-build rows remain raw.
+Vendor presence is projected; costs, stock, trainers, quests, encounters and API failures remain
+raw observations. Boss evidence additionally requires a direct known NPC and matching client map;
+nearby encounter hints never identify a boss. The app labels confirmed relationships "Observed
+in game", with explicit unknown difficulty; existing rates keep their own sources.
+Unknown entity IDs remain unresolved rather than creating fabricated entities. Numeric/string
+Lua keys may share JSON display keys, and nonfinite numeric display values are tagged strings;
+exact archived bytes remain authoritative.
+
+Applied collector/map overlays are protected from ordinary core rebuilds, which refuse instead
+of silently removing them. Real beta-session acceptance remains pending; synthetic fixtures verify
+tooling only. The addon remains on its separate `feature/collector-addon` branch.
+
+The next roadmap slice adds [world-map drill-down](docs/WORLD_MAP_IMPORT.md) through archived
+client geography in the same database. Its hierarchy source build is labelled separately from
+the main client data; Era comparison badges and later map layers remain open.

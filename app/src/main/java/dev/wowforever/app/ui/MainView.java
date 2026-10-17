@@ -64,6 +64,9 @@ public interface MainView {
     return BooleanSetting.inMemory(false);
   }
 
+  /** Saved Map/List choice for the Zones rail, defaulting to Map. */
+  default BooleanSetting zonesMap() { return BooleanSetting.inMemory(true); }
+
   /** Saved zone-map patrol route setting. */
   default BooleanSetting routes() {
     return BooleanSetting.inMemory(false);

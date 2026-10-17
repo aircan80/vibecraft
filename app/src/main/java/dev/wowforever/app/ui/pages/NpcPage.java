@@ -118,7 +118,7 @@ public final class NpcPage extends SourcesPage {
       header.addBadge(rankChip);
     }
     content.add(header);
-    SourceFilters.Filtered<LootRow> shown = SourceFilters.apply(d.drops(), LootRow::origin, filter);
+    SourceFilters.Filtered<LootRow> shown = SourceFilters.apply(d.drops(), LootRow::displayOrigin, filter);
     if (d.drops().isEmpty()) {
       drops = null;
     } else {

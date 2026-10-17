@@ -277,6 +277,12 @@ public final class ZoneRepository {
         rs.getDouble("y"));
   }
 
+  /** Art for a hierarchy map, independent of whether a zone record refers to it. */
+  public Optional<ZoneMap> mapByUiMap(long uiMapId) {
+    return db.read(c -> Sql.one(c, "SELECT ui_map_id,width,height,jpeg FROM zone_map WHERE ui_map_id=?",
+        rs -> new ZoneMap(rs.getLong(1),rs.getInt(2),rs.getInt(3),rs.getBytes(4)),uiMapId));
+  }
+
   private static Optional<ZoneMap> map(Connection c, long zoneId) throws SQLException {
     return Sql.one(c, """
         SELECT m.ui_map_id, m.width, m.height, m.jpeg

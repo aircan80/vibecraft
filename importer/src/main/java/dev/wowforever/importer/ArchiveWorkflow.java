@@ -118,9 +118,22 @@ public final class ArchiveWorkflow {
             PreparedStatement statement = connection.prepareStatement("SELECT role,snapshot_id FROM source_ingestion_input WHERE ingestion_id=?")) {
           statement.setString(1,ingestion);
           try (ResultSet rows = statement.executeQuery()) { while(rows.next()) selection.put(rows.getString(1), rows.getString(2)); }
+          try(var overlays=connection.createStatement();var present=overlays.executeQuery(
+              "SELECT count(*) FROM sqlite_master WHERE type='table' AND name='collector_observation'")) {
+            if(present.next() && present.getInt(1)>0) {
+              try(var rows=connection.createStatement();var observations=rows.executeQuery("SELECT 1 FROM collector_observation LIMIT 1")) {
+                if(observations.next()) throw new IllegalArgumentException("Core projection refused: collector overlay requires explicit replay; existing database preserved");
+              }
+            }
+          }
+          try(var tables=connection.createStatement();var present=tables.executeQuery("SELECT 1 FROM sqlite_master WHERE name='meta'")) {
+            if(present.next())try(var metadata=connection.createStatement();var map=metadata.executeQuery("SELECT value FROM meta WHERE key='world_map_snapshot_id'")) {
+              if(map.next() && !map.getString(1).isBlank())throw new IllegalArgumentException("Core projection refused: world map overlay requires explicit replay; existing database preserved");
+            }
+          }
           boolean legacy=selection.containsKey("legacy-app");
-          if (selection.containsKey("collector"))
-            throw new IllegalArgumentException("Collector ingestion is archive-only; observation projection is not implemented");
+          if (selection.keySet().stream().anyMatch(role -> role.equals("collector") || role.startsWith("collector-")))
+            throw new IllegalArgumentException("Collector ingestion is archive-only until explicit project-collector; use that command to project observations");
           if (!(legacy ? selection.keySet().containsAll(List.of("configuration","legacy-app","allthethings"))
               : selection.keySet().containsAll(List.of("configuration", "questiedb", "atlasloot"))))
             throw new IllegalArgumentException("Unknown or incomplete ingestion: " + ingestion);

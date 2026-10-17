@@ -49,6 +49,11 @@ public sealed interface ViewTarget {
     }
   }
 
+  /** A geographical map; the selected region is restored when returning from a zone. */
+  record WorldMap(long uiMapId, Long focusedChildId) implements ViewTarget {
+    public WorldMap(long uiMapId) { this(uiMapId, null); }
+  }
+
   /** The landing page. */
   record Home() implements ViewTarget {}
 }

@@ -26,6 +26,7 @@ class OriginChipTest {
 
   @Test
   void otherOriginsShowAChip() {
+    assertThat(render("collector").chipText()).isEqualTo("Observed in game");
     assertThat(render("atlasloot").chipText()).isEqualTo("AtlasLoot");
     assertThat(render("atlasloot").getText()).isEqualTo("AtlasLoot");
     assertThat(render("both").chipText()).isEqualTo("Questie + AtlasLoot");

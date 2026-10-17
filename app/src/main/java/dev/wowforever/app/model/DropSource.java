@@ -7,7 +7,14 @@ package dev.wowforever.app.model;
  */
 public record DropSource(
     EntityRef ref, String name, Integer levelMin, Integer levelMax, String zoneName, Long zoneId,
-    Double dropPct, String pctSource, String origin, boolean disagrees, int sourceCount) {
+    Double dropPct, String pctSource, String origin, boolean disagrees, int sourceCount, boolean observedInGame) {
+
+  public DropSource(EntityRef ref, String name, Integer levelMin, Integer levelMax, String zoneName, Long zoneId,
+      Double dropPct, String pctSource, String origin, boolean disagrees, int sourceCount) {
+    this(ref, name, levelMin, levelMax, zoneName, zoneId, dropPct, pctSource, origin, disagrees, sourceCount, false);
+  }
+
+  public String displayOrigin() { return observedInGame ? "collector" : origin; }
 
   /** A drop without rate provenance. */
   public DropSource(EntityRef ref, String name, Integer levelMin, Integer levelMax, String zoneName, Long zoneId,

@@ -250,3 +250,8 @@ allthethings.questLinksSelected = 257
 == First 50 skips ==
 == Notes ==
 Legacy baseline retained; core data was not regenerated or revalidated for client coverage.
+
+Additive world-map projection (core data retained; not a full data refresh)
+Hierarchy source build: 1.60.1.70374; main client build: 1.60.1.70450
+54 maps; 53 hierarchy links; 2 unplaced islands. Local CSV bytes are hash-qualified in the source archive.
+Existing app facts and previous source/history rows verified unchanged.

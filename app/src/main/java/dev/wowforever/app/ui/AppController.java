@@ -13,6 +13,10 @@ import dev.wowforever.app.ui.detail.DetailPanels;
 import dev.wowforever.app.ui.pages.ListOptions;
 import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.pages.ListRows;
+import dev.wowforever.app.ui.pages.WorldMapPage;
+import java.io.ByteArrayInputStream;
+import java.awt.image.BufferedImage;
+import javax.imageio.ImageIO;
 import dev.wowforever.app.ui.pages.LoadingPage;
 import dev.wowforever.app.ui.pages.PageState;
 import dev.wowforever.app.ui.widgets.ListEntries;
@@ -154,9 +158,20 @@ public final class AppController implements Navigator {
       case ITEMS -> new ViewTarget.List(EntityKind.ITEM);
       case NPCS -> new ViewTarget.List(EntityKind.NPC);
       case QUESTS -> new ViewTarget.List(EntityKind.QUEST);
-      case ZONES -> new ViewTarget.List(EntityKind.ZONE);
+      case ZONES -> new ViewTarget.WorldMap(947);
       case INSTANCES -> new ViewTarget.List(EntityKind.INSTANCE);
     };
+  }
+
+  /** Opens the rail, respecting the saved Zones Map/List choice. */
+  public void openRail(RailTarget target) {
+    open(target == RailTarget.ZONES && !view.zonesMap().isOn()
+        ? new ViewTarget.List(EntityKind.ZONE) : target(target));
+  }
+
+  private void zonesView(boolean map) {
+    view.zonesMap().set(map);
+    open(map ? new ViewTarget.WorldMap(947) : new ViewTarget.List(EntityKind.ZONE));
   }
 
   /**
@@ -166,6 +181,7 @@ public final class AppController implements Navigator {
   public static RailTarget railSection(ViewTarget t) {
     return switch (t) {
       case ViewTarget.Home h -> RailTarget.HOME;
+      case ViewTarget.WorldMap w -> RailTarget.ZONES;
       case ViewTarget.List l -> switch (l.kind()) {
         case ITEM -> RailTarget.ITEMS;
         case NPC -> RailTarget.NPCS;
@@ -416,6 +432,7 @@ public final class AppController implements Navigator {
         loadResults(() -> search(s), null);
       }
       case ViewTarget.List l -> showList(l);
+      case ViewTarget.WorldMap w -> showWorldMap(w);
       case ViewTarget.Entity e -> showEntity(e.ref(), captureSearchEdit);
       case ViewTarget.Home h -> showHome();
     }
@@ -545,7 +562,12 @@ public final class AppController implements Navigator {
         self.set(page);
         listPage = page;
         listTarget = t;
-        setPage(t, page);
+        if (t.kind() == EntityKind.ZONE) {
+          page.showMapToggle(() -> zonesView(true));
+          setPage(t, page);
+        } else {
+          setPage(t, page);
+        }
         showCount(loaded.rows().size());
       }
     }, e -> {
@@ -554,6 +576,46 @@ public final class AppController implements Navigator {
       }
     });
   }
+
+  /** Loads the hierarchy and decodes its art on the worker, then builds accessible regions on the EDT. */
+  private void showWorldMap(ViewTarget.WorldMap target) {
+    int generation = ++detailGeneration;
+    leaveListPage();
+    view.setTitleSuffix("Zones · Map");
+    view.status().setMessage("Loading…");
+    Async.run(worker, () -> {
+      var catalog = repos.worldMaps().catalog();
+      var map = repos.zones().mapByUiMap(target.uiMapId());
+      BufferedImage image = null;
+      if (map.isPresent()) {
+        try { image = ImageIO.read(new ByteArrayInputStream(map.get().jpeg())); }
+        catch (java.io.IOException failure) { throw new IllegalStateException("Could not decode world map", failure); }
+      }
+      return new LoadedWorldMap(catalog, image);
+    }, data -> {
+      if (generation != detailGeneration) return;
+      setPage(target, new WorldMapPage(target, data.catalog(), data.image(), region -> {
+        if (!data.catalog().children(region.uiMapId()).isEmpty()) {
+          open(new ViewTarget.WorldMap(region.uiMapId()));
+        } else if (region.zoneId() != null) {
+          open(new ViewTarget.Entity(new EntityRef(EntityKind.ZONE, region.zoneId())));
+        }
+      }, child -> {
+        if (current() instanceof ViewTarget.WorldMap current && current.uiMapId() == target.uiMapId()) {
+          var focused = new ViewTarget.WorldMap(target.uiMapId(), child);
+          history.replaceCurrent(focused);
+          pageTarget = focused;
+          lastPage = focused;
+        }
+      }, () -> open(new ViewTarget.WorldMap(947)), () -> {
+        if (target.uiMapId() != 947) open(new ViewTarget.WorldMap(947, target.uiMapId()));
+        else back();
+      }, () -> zonesView(false)));
+      view.status().setMessage("Choose a region");
+    }, failure -> { if (generation == detailGeneration) fail(failure); });
+  }
+
+  private record LoadedWorldMap(dev.wowforever.app.model.WorldMapCatalog catalog, BufferedImage image) {}
 
   /** A list page's filter options and rows, loaded together on the worker. */
   private record LoadedList(ListOptions options, List<?> rows) {}

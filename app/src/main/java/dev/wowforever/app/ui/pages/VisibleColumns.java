@@ -42,6 +42,10 @@ final class VisibleColumns {
     if (values.stream().allMatch(VisibleColumns::empty)) {
       return true;
     }
+    if (ORIGIN.equals(c.title()) && values.stream().anyMatch(v ->
+        "collector".equals(v) || "Observed in game".equals(v))) {
+      return false;
+    }
     if (HIDDEN_WHEN_UNIFORM.contains(c.title())) {
       return values.stream().distinct().count() == 1;
     }

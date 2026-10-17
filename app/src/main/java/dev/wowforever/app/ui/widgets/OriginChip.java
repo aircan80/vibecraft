@@ -31,6 +31,7 @@ public final class OriginChip extends DefaultTableCellRenderer {
   public static void install(TableColumn column) {
     column.setCellRenderer(new OriginChip());
     column.setPreferredWidth(UIScale.scale(150));
+    column.setMinWidth(UIScale.scale(140));
   }
 
   /** The chip text for {@code origin}; null when no chip is shown (Questie only, or unknown). */
@@ -40,6 +41,7 @@ public final class OriginChip extends DefaultTableCellRenderer {
     }
     return switch (origin.strip().toLowerCase(Locale.ROOT)) {
       case "questie" -> null;
+      case "collector" -> "Observed in game";
       case "atlasloot" -> "AtlasLoot";
       case "both" -> "Questie + AtlasLoot";
       default -> origin.strip();

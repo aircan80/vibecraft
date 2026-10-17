@@ -213,7 +213,9 @@ public final class DetailPanels {
       case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)))
           .map(d -> new LoadedInstance(d, d.summary().zoneId() == null ? List.of()
               : repos.quests().byZone(d.summary().zoneId()), repos.instances().clientBuild(),
-              InstanceSummary.CLIENT.equals(d.summary().source()) ? BossLoot.preloaded(d, repos) : null));
+              (InstanceSummary.CLIENT.equals(d.summary().source())
+                  || d.difficulties().contains(dev.wowforever.app.db.InstanceRepository.OBSERVED_DIFFICULTY))
+                  ? BossLoot.preloaded(d, repos) : null));
       case BOSS -> Optional.empty();
     };
     return detail.map(Object.class::cast);

@@ -6,7 +6,13 @@ package dev.wowforever.app.model;
  * When {@code ref} is an item (a container, a quest's related item), {@code quality} and {@code iconId} are its
  * quality and icon (null without client data); otherwise both are null.
  */
-public record ItemSource(String kind, EntityRef ref, String name, Integer quality, Long iconId) {
+public record ItemSource(String kind, EntityRef ref, String name, Integer quality, Long iconId, boolean observedInGame) {
+  public ItemSource(String kind, EntityRef ref, String name, Integer quality, Long iconId) {
+    this(kind, ref, name, quality, iconId, false);
+  }
+
+  public String displayOrigin() { return observedInGame ? "Observed in game" : null; }
+
   /** The item is found in a game object. */
   public static final String OBJECT = "object";
   /** The item is found in a container item. */

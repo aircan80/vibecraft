@@ -27,6 +27,15 @@ class UiStateTest {
   }
 
   @Test
+  void zonesDefaultToMapAndRememberListChoice() {
+    assertThat(new UiState(node).zonesMapShown()).isTrue();
+    new UiState(node).zonesMapSetting().set(false);
+    assertThat(new UiState(node).zonesMapShown()).isFalse();
+    new UiState(node).setZonesMapShown(true);
+    assertThat(new UiState(node).zonesMapSetting().isOn()).isTrue();
+  }
+
+  @Test
   void dividerDefaultsTo300LogicalPixels() {
     assertThat(new UiState(node).dividerLocation()).isEqualTo(UIScale.scale(300));
   }

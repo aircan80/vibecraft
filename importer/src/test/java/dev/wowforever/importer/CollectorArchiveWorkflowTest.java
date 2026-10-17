@@ -34,6 +34,7 @@ class CollectorArchiveWorkflowTest {
       assertThat(scalar(c,"SELECT count(*) FROM source_projection")).isEqualTo("0");
       assertThat(scalar(c,"SELECT count(*) FROM source_ingestion")).isEqualTo("1");
       var snapshot=SourceArchive.snapshots(c).getFirst();
+      assertThat(first).isEqualTo(ArchiveWorkflow.hash("collector="+snapshot.id()));
       assertThat(snapshot.metadata().build()).isEqualTo("1.60.1.70450");
       assertThat(SourceArchive.artifacts(c,snapshot.id()).getFirst().bytes()).isEqualTo(Files.readAllBytes(file));
       assertThat(SourceArchive.artifacts(c,snapshot.id()).getFirst().path()).isEqualTo("WowForeverCollector.lua");
@@ -43,6 +44,38 @@ class CollectorArchiveWorkflowTest {
     Files.writeString(file,"\r\n-- another capture\r\n",StandardOpenOption.APPEND);
     assertThat(CollectorArchiveWorkflow.ingest(db,file)).isNotEqualTo(first);
     try(var c=connect(db)) { assertThat(scalar(c,"SELECT count(*) FROM source_archive_snapshot")).isEqualTo("2"); }
+  }
+  @Test void multipleCapturesAreOrderIndependentAndPreserveEachSnapshot() throws Exception {
+    Path first=input(SAMPLE), second=Files.writeString(tmp.resolve("second.lua"),
+        SAMPLE.replace("70450","70451").replace("enUS","deDE"));
+    Path db=tmp.resolve("multi.sqlite");
+    String id=CollectorArchiveWorkflow.ingest(db,java.util.List.of(first,second));
+    assertThat(CollectorArchiveWorkflow.ingest(db,java.util.List.of(second,first,first))).isEqualTo(id);
+    try(var c=connect(db)) {
+      assertThat(scalar(c,"SELECT count(*) FROM source_ingestion")).isEqualTo("1");
+      assertThat(scalar(c,"SELECT count(*) FROM source_ingestion_input WHERE role LIKE 'collector-%'" )).isEqualTo("2");
+      var snapshots=SourceArchive.snapshots(c);
+      assertThat(snapshots).hasSize(2);
+      assertThat(snapshots).extracting(snap -> snap.metadata().build()).containsExactlyInAnyOrder("1.60.1.70450","1.60.1.70451");
+      for(var snapshot:snapshots) {
+        byte[] expected=Files.readAllBytes(snapshot.metadata().locale().equals("enUS") ? first : second);
+        assertThat(SourceArchive.artifacts(c,snapshot.id()).getFirst().bytes()).isEqualTo(expected);
+        assertThat(SourceRecords.statuses(c,snapshot.id()).getFirst().status()).isEqualTo("complete");
+      }
+    }
+    Path single=tmp.resolve("single.sqlite");
+    assertThat(CollectorArchiveWorkflow.ingest(single,java.util.List.of(first,first)))
+        .isEqualTo(CollectorArchiveWorkflow.ingest(single,first));
+  }
+  @Test void invalidLaterCaptureDoesNotCreateOrModifyDatabase() throws Exception {
+    Path first=input(SAMPLE), bad=Files.writeString(tmp.resolve("bad.lua"),SAMPLE.replace("schema=1","schema=2"));
+    Path db=tmp.resolve("all-or-none.sqlite");
+    assertThatThrownBy(() -> CollectorArchiveWorkflow.ingest(db,java.util.List.of(first,bad))).hasMessageContaining("schema");
+    assertThat(db).doesNotExist();
+    CollectorArchiveWorkflow.ingest(db,first);
+    byte[] before=Files.readAllBytes(db);
+    assertThatThrownBy(() -> CollectorArchiveWorkflow.ingest(db,java.util.List.of(first,bad))).hasMessageContaining("schema");
+    assertThat(Files.readAllBytes(db)).isEqualTo(before);
   }
   @Test void preservesBadUtf8AndIndexesWithExplicitPartialDiagnostic() throws Exception {
     Path file=input(SAMPLE.replace("kept","badBYTE"));
@@ -86,6 +119,9 @@ class CollectorArchiveWorkflowTest {
     assertThat(Main.run(new String[]{"ingest-collector","--database",db.toString(),"--collector-file",file.toString()},
         new PrintStream(output),new PrintStream(error))).isZero();
     assertThat(output.toString(StandardCharsets.UTF_8)).contains("archive-only","No application facts projected");
+    Path second=Files.writeString(tmp.resolve("cli-second.lua"),SAMPLE.replace("70450","70451"));
+    assertThat(Main.run(new String[]{"ingest-collector","--database",db.toString(),"--collector-file",file.toString(),
+        "--collector-file",second.toString()},new PrintStream(output),new PrintStream(error))).isZero();
     assertThat(Main.run(new String[]{"ingest-collector"},new PrintStream(output),new PrintStream(error))).isEqualTo(1);
   }
 }

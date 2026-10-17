@@ -248,8 +248,8 @@ public final class Columns {
             r -> r.drop().flatMap(s -> zoneRef(s.zoneId()))),
         rate(DropRow::pct, r -> r.drop().map(DropSource::disagrees).orElse(false)
             || r.loot().map(InstanceLoot::disagrees).orElse(false)),
-        plain("Origin", String.class, r -> r instanceof DropRow.Loot ? ATLASLOOT
-            : r.drop().map(DropSource::origin).orElse(null)));
+        plain("Origin", String.class, r -> r.loot().map(InstanceLoot::observedInGame).orElse(false) ? "collector"
+            : r instanceof DropRow.Loot ? ATLASLOOT : r.drop().map(DropSource::displayOrigin).orElse(null)));
   }
 
   /**
@@ -260,12 +260,14 @@ public final class Columns {
     return List.of(
         itemLink("Name", ItemSource::displayName, s -> Optional.of(s.ref()), ItemSource::quality,
             s -> s.ref().kind() == EntityKind.ITEM ? iconOrFallback(s.iconId()) : null),
-        plain("Kind", String.class, s -> sourceKindText(s.kind())));
+        plain("Kind", String.class, s -> sourceKindText(s.kind())),
+        plain("Origin", String.class, ItemSource::displayOrigin));
   }
 
   /** Vendors or quests linked to an item, when a table holds one kind only: the name alone. */
   public static List<Column<ItemSource>> sourceNames() {
-    return List.of(link("Name", ItemSource::displayName, s -> Optional.of(s.ref())));
+    return List.of(link("Name", ItemSource::displayName, s -> Optional.of(s.ref())),
+        plain("Origin", String.class, ItemSource::displayOrigin));
   }
 
   /** Items an NPC drops or sells, an object contains or a quest rewards. */
@@ -274,7 +276,7 @@ public final class Columns {
         lootItem(),
         plain("Item level", Integer.class, LootRow::itemLevel),
         numeric("Drop %", l -> rateText(l.dropPct(), l.disagrees())),
-        plain("Origin", String.class, LootRow::origin),
+        plain("Origin", String.class, LootRow::displayOrigin),
         plain(LOOT_ORDER, Integer.class, LootRow::slot));
   }
 
@@ -289,7 +291,7 @@ public final class Columns {
         plain(CLASSES, String.class, l -> Labels.classes(l.allowableClass())),
         plain("Item level", Integer.class, LootRow::itemLevel),
         rate(LootRow::dropPct, LootRow::disagrees),
-        plain("Origin", String.class, LootRow::origin),
+        plain("Origin", String.class, LootRow::displayOrigin),
         plain(LOOT_ORDER, Integer.class, LootRow::slot));
   }
 

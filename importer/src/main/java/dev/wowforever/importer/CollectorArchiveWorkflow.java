@@ -13,6 +13,8 @@ import java.nio.file.*;
 import java.sql.*;
 import java.time.Instant;
 import java.util.List;
+import java.util.ArrayList;
+import java.util.TreeMap;
 
 /** Explicit, local, archive-only capture. No observation is promoted into application facts. */
 public final class CollectorArchiveWorkflow {
@@ -20,7 +22,57 @@ public final class CollectorArchiveWorkflow {
   private CollectorArchiveWorkflow() {}
 
   public static String ingest(Path databasePath, Path inputPath) throws Exception {
+    return ingest(databasePath, List.of(inputPath));
+  }
+
+  public static String ingest(Path databasePath, List<Path> inputPaths) throws Exception {
+    if (inputPaths.isEmpty()) throw new IllegalArgumentException("At least one collector file is required");
     Path database = databasePath.toAbsolutePath().normalize();
+    var inputs = new ArrayList<CaptureInput>();
+    // Validate every capture before opening or creating the archive database.
+    for (Path inputPath : inputPaths) inputs.add(validate(database, inputPath));
+    Files.createDirectories(database.getParent());
+    Path lockPath = database.resolveSibling(database.getFileName()+".lock");
+    rejectSymlinks(lockPath);
+    try (FileChannel channel = FileChannel.open(lockPath,StandardOpenOption.CREATE,StandardOpenOption.WRITE);
+         var lock = channel.tryLock()) {
+      if (lock == null) throw new IOException("Another import is using " + database);
+      try (Connection connection = DriverManager.getConnection("jdbc:sqlite:"+database)) {
+        connection.setAutoCommit(false);
+        ArchiveWorkflow.initialize(connection);
+        var snapshots = new TreeMap<String,CaptureInput>();
+        for (CaptureInput input : inputs) {
+          String snapshot = SourceArchive.capture(connection, input.metadata(),
+              List.of(new SourceArchive.Artifact(ARTIFACT,"",input.bytes())));
+          snapshots.put(snapshot,input);
+        }
+        var selection = new TreeMap<String,String>();
+        for (String snapshot : snapshots.keySet())
+          selection.put(snapshots.size() == 1 ? "collector" : "collector-"+snapshot,snapshot);
+        String identity = selection.entrySet().stream().map(e -> e.getKey()+"="+e.getValue())
+            .collect(java.util.stream.Collectors.joining("\n"));
+        String ingestion = ArchiveWorkflow.hash(identity);
+        try (var statement = connection.prepareStatement("INSERT OR IGNORE INTO source_ingestion(id,captured_at) VALUES (?,?)")) {
+          statement.setString(1,ingestion); statement.setString(2,Instant.now().toString()); statement.executeUpdate();
+        }
+        try (var statement = connection.prepareStatement("INSERT OR IGNORE INTO source_ingestion_input VALUES (?,?,?)")) {
+          for (var entry : selection.entrySet()) {
+            statement.setString(1,ingestion); statement.setString(2,entry.getKey()); statement.setString(3,entry.getValue()); statement.addBatch();
+          }
+          statement.executeBatch();
+        }
+        connection.commit();
+        for (var entry : snapshots.entrySet())
+          SourceRecords.capture(connection,entry.getKey(),List.of(new SourceRecords.SourceInput(ARTIFACT,entry.getValue().bytes(),true)));
+        connection.commit();
+        return ingestion;
+      }
+    }
+  }
+
+  private record CaptureInput(byte[] bytes, SourceArchive.Snapshot metadata) {}
+
+  private static CaptureInput validate(Path database, Path inputPath) throws Exception {
     Path input = inputPath.toAbsolutePath().normalize();
     rejectSymlinks(input);
     rejectSymlinks(database);
@@ -50,34 +102,11 @@ public final class CollectorArchiveWorkflow {
         || LuaValues.asLong(session.get("interface")).orElse(-1L) != 16001L)
       throw new IllegalArgumentException("Collector input must identify a Forever 1.60 client (interface 16001)");
     String addon = required(session,"addonVersion"), locale = required(session,"locale");
-    Files.createDirectories(database.getParent());
-    Path lockPath = database.resolveSibling(database.getFileName()+".lock");
-    rejectSymlinks(lockPath);
-    try (FileChannel channel = FileChannel.open(lockPath,StandardOpenOption.CREATE,StandardOpenOption.WRITE);
-         var lock = channel.tryLock()) {
-      if (lock == null) throw new IOException("Another import is using " + database);
-      try (Connection connection = DriverManager.getConnection("jdbc:sqlite:"+database)) {
-        connection.setAutoCommit(false);
-        ArchiveWorkflow.initialize(connection);
-        String snapshot = SourceArchive.capture(connection,
-            new SourceArchive.Snapshot("wowforever-collector","schema 1; addon "+addon,"forever",build+"."+number,locale),
-            List.of(new SourceArchive.Artifact(ARTIFACT,"",bytes)));
-        String ingestion = ArchiveWorkflow.hash("collector="+snapshot);
-        try (var statement = connection.prepareStatement("INSERT OR IGNORE INTO source_ingestion(id,captured_at) VALUES (?,?)")) {
-          statement.setString(1,ingestion); statement.setString(2,Instant.now().toString()); statement.executeUpdate();
-        }
-        try (var statement = connection.prepareStatement("INSERT OR IGNORE INTO source_ingestion_input VALUES (?,?,?)")) {
-          statement.setString(1,ingestion); statement.setString(2,"collector"); statement.setString(3,snapshot); statement.executeUpdate();
-        }
-        connection.commit();
-        SourceRecords.capture(connection,snapshot,List.of(new SourceRecords.SourceInput(ARTIFACT,bytes,true)));
-        connection.commit();
-        return ingestion;
-      }
-    }
+    return new CaptureInput(bytes,
+        new SourceArchive.Snapshot("wowforever-collector","schema 1; addon "+addon,"forever",build+"."+number,locale));
   }
 
-  private static LuaTable read(String text) {
+  static LuaTable read(String text) {
     var chunk = LuaChunk.parse(text,ARTIFACT);
     if (chunk.statements().size()!=1 || !(chunk.statements().getFirst() instanceof Stmt.Assign assignment)
         || !(assignment.target() instanceof Expr.Name name) || !name.name().equals("WowForeverCollectorDB")

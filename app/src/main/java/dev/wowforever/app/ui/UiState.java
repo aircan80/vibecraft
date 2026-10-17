@@ -29,6 +29,7 @@ public final class UiState {
   static final String PINNED = "pinned";
   static final String RECENT = "search.recent";
   static final String SOURCE_FILTER = "view.sourceFilter";
+  static final String ZONES_MAP = "view.zonesMap";
   static final String ROUTES = "map.routes";
   static final String QUEST_PINS = "map.questPins";
   /** The smallest text size, in percent of the theme's font. */
@@ -280,6 +281,15 @@ public final class UiState {
   /** {@link #questPinsShown()} as a setting a zone map reads and writes. */
   public BooleanSetting questPinsSetting() {
     return BooleanSetting.of(this::questPinsShown, this::setQuestPinsShown);
+  }
+
+  /** The Zones rail opens on the geographical map on first use. */
+  public boolean zonesMapShown() { return prefs.getBoolean(ZONES_MAP, true); }
+
+  public void setZonesMapShown(boolean shown) { prefs.putBoolean(ZONES_MAP, shown); }
+
+  public BooleanSetting zonesMapSetting() {
+    return BooleanSetting.of(this::zonesMapShown, this::setZonesMapShown);
   }
 
   /** Whether zone maps draw patrol routes; off unless set. */

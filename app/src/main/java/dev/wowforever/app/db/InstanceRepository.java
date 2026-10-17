@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.ArrayList;
 import java.util.Optional;
 
 /**
@@ -76,17 +77,37 @@ public final class InstanceRepository {
     });
   }
 
+  /** Capture presence has no safely normalized difficulty. */
+  public static final String OBSERVED_DIFFICULTY = "Observed (difficulty unknown)";
+
+  /** Distinct capture-confirmed items, without inferred rates or difficulty. */
+  private static List<LootRow> observedLoot(Connection c, long bossId) throws SQLException {
+    if (!Sql.hasTable(c, "collector_fact")) return List.of();
+    return Sql.list(c, "SELECT d.item_id, " + NpcRepository.ITEM_COLUMNS
+        + " FROM (SELECT DISTINCT item_id FROM collector_fact WHERE category = 'boss-drop'"
+        + " AND entity_type = 'boss' AND entity_id = ?) d " + NpcRepository.itemJoin("d")
+        + " ORDER BY i.name IS NULL, i.name COLLATE NOCASE, d.item_id",
+        rs -> NpcRepository.plainLoot(rs).withObservation(true), bossId);
+  }
+
   /** The loot table of a boss in slot order, every difficulty. */
   public List<LootRow> bossLoot(long bossId) {
-    return db.read(c -> Sql.list(c, BOSS_LOOT + """
-
-        WHERE bl.boss_id = ?
-        ORDER BY bl.slot IS NULL, bl.slot, bl.difficulty, bl.item_id""",
-        InstanceRepository::bossLootRow, bossId));
+    return db.read(c -> {
+      List<LootRow> observed = observedLoot(c, bossId);
+      var observedIds = observed.stream().map(l -> l.item().id()).collect(java.util.stream.Collectors.toSet());
+      List<LootRow> rows = new ArrayList<>(Sql.list(c, BOSS_LOOT + " " + """
+          WHERE bl.boss_id = ?
+          ORDER BY bl.slot IS NULL, bl.slot, bl.difficulty, bl.item_id""",
+          rs -> bossLootRow(rs).withObservation(observedIds.contains(rs.getLong("item_id"))), bossId));
+      var existing = rows.stream().map(l -> l.item().id()).collect(java.util.stream.Collectors.toSet());
+      observed.stream().filter(l -> !existing.contains(l.item().id())).forEach(rows::add);
+      return List.copyOf(rows);
+    });
   }
 
   /** The loot table of a boss in one {@code difficulty} (a {@link #difficulties} value), in slot order. */
   public List<LootRow> bossLoot(long bossId, String difficulty) {
+    if (OBSERVED_DIFFICULTY.equals(difficulty)) return db.read(c -> observedLoot(c, bossId));
     return db.read(c -> Sql.list(c, BOSS_LOOT + """
 
         WHERE bl.boss_id = ? AND bl.difficulty = ?
@@ -103,11 +124,16 @@ public final class InstanceRepository {
   }
 
   private static List<String> difficulties(Connection c, long instanceId) throws SQLException {
-    return Sql.list(c, """
+    List<String> values = new ArrayList<>(Sql.list(c, """
         SELECT DISTINCT bl.difficulty FROM boss_loot bl JOIN boss b ON b.id = bl.boss_id
         WHERE b.instance_id = ?
         ORDER BY bl.difficulty <> 'NORMAL', bl.difficulty""",
-        rs -> rs.getString("difficulty"), instanceId);
+        rs -> rs.getString("difficulty"), instanceId));
+    if (Sql.hasTable(c, "collector_fact") && Sql.one(c,
+        "SELECT 1 FROM collector_fact cf JOIN boss b ON b.id = cf.entity_id"
+        + " WHERE cf.category = 'boss-drop' AND cf.entity_type = 'boss' AND b.instance_id = ? LIMIT 1",
+        rs -> true, instanceId).orElse(false)) values.add(OBSERVED_DIFFICULTY);
+    return List.copyOf(values);
   }
 
   private static LootRow bossLootRow(ResultSet rs) throws SQLException {
