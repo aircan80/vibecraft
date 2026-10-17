@@ -13,6 +13,20 @@ import org.junit.jupiter.api.Test;
 
 class PinLegendTest {
   @Test
+  void togglesHideKinds() {
+    var map = new MapView(new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB), target -> {});
+    map.setPins(java.util.List.of(MapView.Pin.objective(
+        new dev.wowforever.app.model.EntityRef(dev.wowforever.app.model.EntityKind.NPC, 1),
+        "Target", 50, 50, PinKind.KILL, 1)));
+    var legend = PinLegend.interactive(map);
+    assertThat(legend.texts()).containsExactly("Kill");
+    ((javax.swing.JToggleButton) legend.getComponent(0)).doClick();
+    assertThat(map.visiblePins()).isEmpty();
+    ((javax.swing.JToggleButton) legend.getComponent(0)).doClick();
+    assertThat(map.visiblePins()).hasSize(1);
+  }
+
+  @Test
   void theLegendTellsEveryPinKindTheZoneMapDraws() {
     PinLegend legend = new PinLegend();
     assertThat(legend.texts()).containsExactly("Boss", "Rare", "NPC", "Object", "Starts a quest", "Ends a quest");

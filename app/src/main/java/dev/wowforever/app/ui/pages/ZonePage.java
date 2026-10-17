@@ -69,6 +69,7 @@ public final class ZonePage extends SourcesPage {
     addLinkRow(SUBZONES, d.subzones().stream().filter(z -> !isInstance(z, d.instances())).toList(),
         ZoneSummary::displayName, ZoneSummary::ref, subzoneLinks);
     if (mapPanel != null) {
+      mapPanel.mapView().setZoneName(s.displayName());
       addBlock(MAP, mapPanel);
     }
     List<NpcSummary> npcs = d.npcs().stream().sorted(Comparator.comparing(NpcSummary::friendly)

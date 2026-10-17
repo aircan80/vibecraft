@@ -187,6 +187,21 @@ class ZonePageTest {
   }
 
   @Test
+  void bossesAndRaresPresetHidesOtherLayers() throws Exception {
+    var page = westfallPage(new FakePins(), Runnable::run, new ArrayList<>());
+    var panel = page.mapPanel();
+    panel.objectsToggle().doClick();
+    panel.questsToggle().doClick();
+    javax.swing.SwingUtilities.invokeAndWait(() -> {});
+    panel.bossesToggle().doClick();
+    javax.swing.SwingUtilities.invokeAndWait(() -> {});
+    assertThat(panel.objectsToggle().isSelected()).isFalse();
+    assertThat(panel.questsToggle().isSelected()).isFalse();
+    assertThat(panel.mapView().visiblePins()).allSatisfy(pin ->
+        assertThat(pin.kind()).isIn(PinKind.BOSS, PinKind.RARE));
+  }
+
+  @Test
   void mapShownWithPins() {
     var pins = new FakePins();
     List<ViewTarget> opened = new ArrayList<>();
@@ -205,7 +220,7 @@ class ZonePageTest {
     assertThat(map.bossesAndRaresOnly()).isTrue();
     ZoneMapPanel panel = p.mapPanel();
     assertThat(SwingUtilities.isDescendingFrom(panel.legend(), panel)).as("a legend under the map").isTrue();
-    assertThat(panel.legend().texts()).startsWith("Boss", "Rare", "NPC", "Object");
+    assertThat(panel.legend().texts()).containsExactly("Boss", "Rare");
     assertThat(List.of(panel.bossesToggle(), panel.allNpcsToggle(), panel.objectsToggle()))
         .extracting(JToggleButton::getText)
         .containsExactly("Bosses & rares", "All NPCs", "Objects");
@@ -248,6 +263,7 @@ class ZonePageTest {
     p.mapPanel().allNpcsToggle().doClick(); // off and on again: nothing more to load
     p.mapPanel().bossesToggle().doClick();
     p.mapPanel().allNpcsToggle().doClick();
+    p.mapPanel().objectsToggle().doClick(); // add it back after the bosses preset; reuse its in-flight load
     assertThat(pins.calls).as("nothing runs on the calling thread").isEmpty();
     assertThat(queued).hasSize(2);
     assertThat(p.mapPanel().mapView().pins()).hasSize(3);

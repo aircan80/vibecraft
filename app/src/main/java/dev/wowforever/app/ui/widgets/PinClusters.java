@@ -24,9 +24,17 @@ final class PinClusters {
    * {@code threshold} px of it, else starts a marker of its own there.
    */
   static List<Cluster> of(List<Pin> pins, Projection projection, double threshold) {
-    List<Cluster> out = new ArrayList<>(
-        clusterLayer(pins.stream().filter(p -> p.kind().quest()).toList(), projection, threshold));
-    out.addAll(clusterLayer(pins.stream().filter(p -> !p.kind().quest()).toList(), projection, threshold));
+    List<Cluster> out = new ArrayList<>();
+    for (MapView.Layer layer : MapView.Layer.values()) {
+      Map<Integer, List<Pin>> groups = new java.util.LinkedHashMap<>();
+      for (Pin pin : pins) {
+        if (pin.kind().layer() == layer) {
+          groups.computeIfAbsent(layer == MapView.Layer.OBJECTIVES ? pin.number() : 0,
+              k -> new ArrayList<>()).add(pin);
+        }
+      }
+      groups.values().forEach(group -> out.addAll(clusterLayer(group, projection, threshold)));
+    }
     return out;
   }
 

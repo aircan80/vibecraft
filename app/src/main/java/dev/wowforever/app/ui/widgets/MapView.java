@@ -11,6 +11,12 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.HtmlText;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.BasicStroke;
+import java.awt.AlphaComposite;
+import java.awt.Composite;
+import java.util.EnumSet;
+import java.util.Optional;
+import java.util.Locale;
+import dev.wowforever.app.ui.WayCommand;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
@@ -75,8 +81,17 @@ public final class MapView extends JComponent {
    * What a pin stands for, most important first: a marker of several pins takes the first kind among them. The
    * quest kinds are quest givers, drawn as glyphs ({@link PinGlyphs}) in a layer of their own above the others.
    */
+  public enum Layer { GIVERS, OBJECTIVES, SPAWNS }
+
   public enum PinKind {
-    SELF, BOSS, RARE, OBJECT, NPC, QUEST_START, QUEST_END;
+    SELF, BOSS, RARE, OBJECT, NPC, QUEST_START, QUEST_END, KILL, COLLECT, INTERACT, EXPLORE;
+
+    public Layer layer() {
+      return quest() ? Layer.GIVERS : switch (this) {
+        case KILL, COLLECT, INTERACT, EXPLORE -> Layer.OBJECTIVES;
+        default -> Layer.SPAWNS;
+      };
+    }
 
     /** Whether pins of this kind are quest givers, which cluster only among themselves. */
     public boolean quest() {
@@ -90,7 +105,18 @@ public final class MapView extends JComponent {
    * opens; an {@code emphasised} one is drawn larger.
    */
   public record Pin(EntityRef ref, String name, double x, double y, PinKind kind, List<QuestRef> quests,
-      boolean emphasised) {
+      boolean emphasised, int number) {
+    public Pin(EntityRef ref, String name, double x, double y, PinKind kind, List<QuestRef> quests, boolean emphasised) {
+      this(ref, name, x, y, kind, quests, emphasised, 0);
+    }
+
+    public static Pin objective(EntityRef ref, String name, double x, double y, PinKind kind, int number) {
+      if (kind.layer() != Layer.OBJECTIVES || number < 1) {
+        throw new IllegalArgumentException("Objective kind and positive number required");
+      }
+      return new Pin(ref, name, x, y, kind, List.of(), false, number);
+    }
+
     public Pin {
       Objects.requireNonNull(ref, "ref");
       Objects.requireNonNull(name, "name");
@@ -148,9 +174,23 @@ public final class MapView extends JComponent {
    * Where an image {@code imageWidth} x {@code imageHeight} is drawn in a component {@code componentWidth} wide: from
    * the top left corner, as wide as the component but never wider than the image, keeping the aspect ratio.
    */
-  public record Projection(int imageWidth, int imageHeight, int componentWidth) {
+  public record Projection(int imageWidth, int imageHeight, int componentWidth, double scale) {
+    public Projection {
+      if (!Double.isFinite(scale) || scale <= 0) throw new IllegalArgumentException("Positive UI scale required");
+    }
+    public Projection(int imageWidth, int imageHeight, int componentWidth) {
+      this(imageWidth, imageHeight, componentWidth, UIScale.getUserScaleFactor());
+    }
+
+    public Optional<Point2D.Double> toMap(double cx, double cy) {
+      if (drawnWidth() <= 0 || drawnHeight() <= 0 || cx < 0 || cy < 0
+          || cx > drawnWidth() || cy > drawnHeight()) {
+        return Optional.empty();
+      }
+      return Optional.of(new Point2D.Double(100 * cx / drawnWidth(), 100 * cy / drawnHeight()));
+    }
     public int drawnWidth() {
-      return Math.max(0, Math.min(componentWidth, imageWidth));
+      return Math.max(0, Math.min(componentWidth, (int) Math.round(imageWidth * scale)));
     }
 
     public int drawnHeight() {
@@ -204,6 +244,12 @@ public final class MapView extends JComponent {
     }
   }
 
+  private String zoneName;
+  private ClipboardPort clipboard = ClipboardPort.system();
+  private Integer focus;
+  private final EnumSet<PinKind> hiddenKinds = EnumSet.noneOf(PinKind.class);
+  private String coordinatesText = "";
+
   private final BufferedImage image;
   private final Navigator nav;
   private List<Pin> pins = List.of();
@@ -220,6 +266,8 @@ public final class MapView extends JComponent {
 
   public MapView(BufferedImage image, Navigator nav) {
     this.image = Objects.requireNonNull(image, "image");
+    MapLayer.REGISTERED.stream().filter(layer -> !layer.defaultVisible())
+        .forEach(layer -> hiddenKinds.addAll(layer.kinds()));
     this.nav = Objects.requireNonNull(nav, "nav");
     setMinimumSize(new Dimension(0, 0)); // the map shrinks with the detail area rather than holding it open
     ToolTipManager.sharedInstance().registerComponent(this);
@@ -234,12 +282,30 @@ public final class MapView extends JComponent {
     MouseAdapter mouse = new MouseAdapter() {
       @Override
       public void mouseMoved(MouseEvent e) {
+        coordinatesText = coordinatesAt(e.getX(), e.getY())
+            .map(p -> String.format(Locale.ROOT, "%.1f, %.1f", p.x, p.y)).orElse("");
+        repaint();
         setHovered(clusterAt(e.getX(), e.getY()));
       }
 
       @Override
       public void mouseExited(MouseEvent e) {
+        coordinatesText = "";
+        repaint();
         setHovered(null);
+      }
+
+      @Override
+      public void mousePressed(MouseEvent e) { popup(e); }
+
+      @Override
+      public void mouseReleased(MouseEvent e) { popup(e); }
+
+      private void popup(MouseEvent e) {
+        if (e.isPopupTrigger() && isShowing()) {
+          JPopupMenu menu = contextMenuAt(e.getX(), e.getY());
+          if (menu.getComponentCount() > 0) menu.show(MapView.this, e.getX(), e.getY());
+        }
       }
 
       @Override
@@ -252,6 +318,41 @@ public final class MapView extends JComponent {
     };
     addMouseListener(mouse);
     addMouseMotionListener(mouse);
+  }
+
+  public void setZoneName(String name) { zoneName = name == null || name.isBlank() ? null : name; repaint(); }
+
+  public void setClipboard(ClipboardPort clipboard) { this.clipboard = Objects.requireNonNull(clipboard); }
+
+  public void setFocus(Integer number) { focus = number; invalidateClusters(); }
+
+  public void setKindVisible(PinKind kind, boolean visible) {
+    if (visible) hiddenKinds.remove(kind); else hiddenKinds.add(kind);
+    invalidateClusters();
+    firePropertyChange("kindVisibility", null, kind);
+  }
+
+  public void applyPreset(String preset) {
+    for (MapLayer layer : MapLayer.REGISTERED) {
+      for (PinKind kind : layer.kinds()) setKindVisible(kind, layer.presets().contains(preset));
+    }
+  }
+
+  public boolean isKindVisible(PinKind kind) { return !hiddenKinds.contains(kind); }
+
+  public Optional<Point2D.Double> coordinatesAt(int x, int y) { return projection().toMap(x, y); }
+
+  public String coordinatesText() { return coordinatesText; }
+
+  public JPopupMenu contextMenuAt(int x, int y) {
+    JPopupMenu menu = new JPopupMenu();
+    coordinatesAt(x, y).ifPresent(point -> {
+      String command = WayCommand.of(zoneName, point.x, point.y);
+      JMenuItem copy = new JMenuItem("Copy " + command);
+      copy.addActionListener(e -> clipboard.copy(command));
+      menu.add(copy);
+    });
+    return menu;
   }
 
   public BufferedImage image() {
@@ -270,7 +371,8 @@ public final class MapView extends JComponent {
 
         @Override
         public String getAccessibleDescription() {
-          return pins.size() == 1 ? "1 pin" : pins.size() + " pins";
+          return (zoneName == null ? "" : zoneName + ", ") +
+              (visiblePins().size() == 1 ? "1 pin" : visiblePins().size() + " pins");
         }
       };
       accessibleContext.setAccessibleName(ACCESSIBLE_NAME);
@@ -280,7 +382,9 @@ public final class MapView extends JComponent {
 
   /** Shows {@code pins} in place of the current ones. */
   public void setPins(List<Pin> pins) {
+    List<Pin> old = this.pins;
     this.pins = List.copyOf(pins);
+    firePropertyChange("pins", old, this.pins);
     invalidateClusters();
   }
 
@@ -293,6 +397,7 @@ public final class MapView extends JComponent {
     if (this.bossesAndRaresOnly != bossesAndRaresOnly) {
       this.bossesAndRaresOnly = bossesAndRaresOnly;
       invalidateClusters();
+      firePropertyChange("pinFilter", !bossesAndRaresOnly, bossesAndRaresOnly);
     }
   }
 
@@ -302,7 +407,9 @@ public final class MapView extends JComponent {
 
   /** The pins the filter lets through, in order. */
   public List<Pin> visiblePins() {
-    return bossesAndRaresOnly ? pins.stream().filter(p -> p.kind() != PinKind.NPC).toList() : pins;
+    return pins.stream().filter(p -> !hiddenKinds.contains(p.kind()))
+        .filter(p -> !bossesAndRaresOnly || p.kind() != PinKind.NPC)
+        .filter(p -> focus == null || p.kind().layer() != Layer.OBJECTIVES || p.number() == focus).toList();
   }
 
   /** The height the map is drawn at in a component {@code width} pixels wide. */
@@ -361,8 +468,8 @@ public final class MapView extends JComponent {
     double bestDistance = Double.MAX_VALUE;
     for (Cluster c : clusters()) {
       double d = c.position().distance(at);
-      boolean above = best != null && c.kind().quest() && !best.kind().quest();
-      boolean below = best != null && !c.kind().quest() && best.kind().quest();
+      boolean above = best != null && c.kind().layer().ordinal() < best.kind().layer().ordinal();
+      boolean below = best != null && c.kind().layer().ordinal() > best.kind().layer().ordinal();
       if (d <= limit && !below && (above || d < bestDistance)) {
         best = c;
         bestDistance = d;
@@ -532,6 +639,7 @@ public final class MapView extends JComponent {
     return UIScale.scale(switch (c.kind()) {
       case SELF -> SELF_RADIUS;
       case BOSS -> BOSS_RADIUS;
+      case KILL, COLLECT, INTERACT, EXPLORE -> 9;
       case QUEST_START, QUEST_END -> c.emphasised() ? PinGlyphs.EMPHASISED_RADIUS : PinGlyphs.RADIUS;
       default -> RADIUS;
     });
@@ -590,6 +698,14 @@ public final class MapView extends JComponent {
       Stroke ring = new BasicStroke(UIScale.scale(1.5f));
       g2.setFont(badgeFont());
       FontMetrics fm = g2.getFontMetrics();
+      g2.setFont(getFont() != null ? getFont() : new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+      paintLabel(g2, zoneName, UIScale.scale(6), UIScale.scale(6));
+      if (!coordinatesText.isEmpty()) {
+        paintLabel(g2, coordinatesText,
+            Math.max(0, p.drawnWidth() - g2.getFontMetrics().stringWidth(coordinatesText) - UIScale.scale(14)),
+            Math.max(0, p.drawnHeight() - g2.getFontMetrics().getHeight() - UIScale.scale(10)));
+      }
+      g2.setFont(badgeFont());
       List<Cluster> all = clusters();
       for (int i = all.size() - 1; i >= 0; i--) { // the most important on top
         paintCluster(g2, all.get(i), outline, ring, fm);
@@ -600,13 +716,37 @@ public final class MapView extends JComponent {
   }
 
   private void paintCluster(Graphics2D g2, Cluster c, Stroke outline, Stroke ring, FontMetrics fm) {
+    if (focus != null && c.kind().quest()) {
+      Rectangle bounds = markerBounds(c);
+      BufferedImage marker = new BufferedImage(bounds.width, bounds.height, BufferedImage.TYPE_INT_ARGB);
+      Graphics2D local = marker.createGraphics();
+      try {
+        local.setRenderingHints(g2.getRenderingHints());
+        local.setFont(g2.getFont());
+        local.translate(-bounds.x, -bounds.y);
+        paintClusterContents(local, c, outline, ring, fm);
+      } finally { local.dispose(); }
+      Composite before = g2.getComposite();
+      g2.setComposite(AlphaComposite.SrcOver.derive(0.5f));
+      g2.drawImage(marker, bounds.x, bounds.y, null);
+      g2.setComposite(before);
+    } else {
+      paintClusterContents(g2, c, outline, ring, fm);
+    }
+  }
+
+  private void paintClusterContents(Graphics2D g2, Cluster c, Stroke outline, Stroke ring, FontMetrics fm) {
     double r = radius(c);
     double x = c.position().x;
     double y = c.position().y;
     Color fill;
     if (c.kind().quest()) {
       fill = PinGlyphs.fill(c.kind());
-      PinGlyphs.paint(g2, glyphFont(c.emphasised()), c.kind(), x, y);
+      if (c.emphasised()) PinGlyphs.paintDisc(g2, glyphFont(true), c.kind(), x, y);
+      else PinGlyphs.paint(g2, glyphFont(false), c.kind(), x, y);
+    } else if (c.kind().layer() == Layer.OBJECTIVES) {
+      fill = colour(c.kind());
+      PinGlyphs.paintObjective(g2, badgeFont(), c.kind(), c.pins().get(0).number(), x, y, r);
     } else {
       Ellipse2D.Double dot = new Ellipse2D.Double(x - r, y - r, 2 * r, 2 * r);
       fill = colour(c.kind());
@@ -622,10 +762,19 @@ public final class MapView extends JComponent {
       g2.setStroke(ring);
       g2.draw(new Ellipse2D.Double(x - h, y - h, 2 * h, 2 * h));
     }
-    if (c.count() > 1) {
+    if (c.count() > 1 && c.kind().layer() != Layer.OBJECTIVES) {
       g2.setStroke(outline);
       paintBadge(g2, fm, String.valueOf(c.count()), x + r * 0.6, y - r * 0.6, fill);
     }
+  }
+
+  private static void paintLabel(Graphics2D g, String text, int x, int y) {
+    if (text == null || text.isEmpty()) return;
+    FontMetrics fm = g.getFontMetrics();
+    g.setColor(PinGlyphs.OUTLINE);
+    g.fillRoundRect(x, y, fm.stringWidth(text) + 8, fm.getHeight() + 4, 4, 4);
+    g.setColor(PinGlyphs.HALO);
+    g.drawString(text, x + 4, y + fm.getAscent() + 2);
   }
 
   /** The count badge: a small dark pill outlined in the marker's colour, its lower left corner at {@code x, y}. */
@@ -651,6 +800,9 @@ public final class MapView extends JComponent {
       case RARE -> SILVER;
       case OBJECT -> t.link();
       case NPC -> t.textMuted();
+      case KILL -> new Color(0xE5705C);
+      case COLLECT -> new Color(0x7CC46B);
+      case INTERACT, EXPLORE -> new Color(0x6FA8DC);
       case QUEST_START, QUEST_END -> PinGlyphs.fill(kind);
     };
   }

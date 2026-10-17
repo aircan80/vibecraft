@@ -46,6 +46,46 @@ final class PinGlyphs {
     return kind == PinKind.QUEST_START ? START : END;
   }
 
+  static void paintDisc(Graphics2D g, Font font, PinKind kind, double x, double y) {
+    double r = UIScale.scale(9f);
+    Shape disc = new java.awt.geom.Ellipse2D.Double(x-r, y-r, 2*r, 2*r);
+    paintShape(g, disc, START, true);
+    GlyphVector gv = font.deriveFont(font.getSize2D() * 0.8f).createGlyphVector(g.getFontRenderContext(), glyph(kind));
+    Rectangle2D bounds = gv.getVisualBounds();
+    g.setColor(OUTLINE);
+    g.fill(gv.getOutline((float)(x-bounds.getCenterX()), (float)(y-bounds.getCenterY())));
+  }
+
+  static void paintObjective(Graphics2D g, Font font, PinKind kind, int number, double x, double y, double r) {
+    Shape shape;
+    if (kind == PinKind.COLLECT) {
+      java.awt.geom.Path2D diamond = new java.awt.geom.Path2D.Double();
+      diamond.moveTo(x, y-r); diamond.lineTo(x+r, y); diamond.lineTo(x, y+r);
+      diamond.lineTo(x-r, y); diamond.closePath(); shape = diamond;
+    } else if (kind == PinKind.INTERACT) {
+      shape = new java.awt.geom.RoundRectangle2D.Double(x-r, y-r, 2*r, 2*r, r/2, r/2);
+    } else {
+      shape = new java.awt.geom.Ellipse2D.Double(x-r, y-r, 2*r, 2*r);
+    }
+    paintShape(g, shape, MapView.colour(kind), kind != PinKind.EXPLORE);
+    if (kind == PinKind.KILL) {
+      g.setFont(font); g.setColor(OUTLINE);
+      String text = Integer.toString(number);
+      java.awt.FontMetrics fm = g.getFontMetrics();
+      g.drawString(text, (float)(x-fm.stringWidth(text)/2.0), (float)(y+(fm.getAscent()-fm.getDescent())/2.0));
+    }
+  }
+
+  private static void paintShape(Graphics2D g, Shape shape, Color fill, boolean solid) {
+    Stroke before = g.getStroke();
+    g.setColor(HALO); g.setStroke(new BasicStroke(UIScale.scale(5f))); g.draw(shape);
+    g.setColor(OUTLINE); g.setStroke(new BasicStroke(UIScale.scale(3f))); g.draw(shape);
+    g.setColor(fill);
+    if (solid) g.fill(shape);
+    else { g.setStroke(new BasicStroke(UIScale.scale(1f))); g.draw(shape); }
+    g.setStroke(before);
+  }
+
   /** Paints the glyph of {@code kind} in {@code font}, its visual bounds centred on {@code x}, {@code y}. */
   static void paint(Graphics2D g2, Font font, PinKind kind, double x, double y) {
     GlyphVector gv = font.createGlyphVector(g2.getFontRenderContext(), glyph(kind));

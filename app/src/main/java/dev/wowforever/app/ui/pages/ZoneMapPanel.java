@@ -103,7 +103,7 @@ public final class ZoneMapPanel extends JPanel {
   private final JToggleButton questsToggle = new JToggleButton("Quests");
   private final JButton pinsMenuButton = new JButton("Pins ▾");
   private final JPopupMenu pinsMenu = new JPopupMenu();
-  private final PinLegend legend = new PinLegend();
+  private final PinLegend legend;
   private final JLabel capNote = PageContent.mutedLabel(String.format(Locale.ROOT,
       "Showing the first %,d points of a kind: the zone has more.", ZoneRepository.PIN_CAP));
   private final List<Pin> defaultPins;
@@ -141,6 +141,7 @@ public final class ZoneMapPanel extends JPanel {
     this.status = Objects.requireNonNull(status, "status");
     this.defaultPins = pins(pins);
     mapView = new MapView(map, nav);
+    legend = PinLegend.interactive(mapView);
     ButtonGroup npcs = new ButtonGroup();
     npcs.add(bossesToggle);
     npcs.add(allNpcsToggle);
@@ -162,9 +163,30 @@ public final class ZoneMapPanel extends JPanel {
     // set before its listener: opening a page is not a change to save (the quest pins load below)
     questsToggle.setSelected(questsShown.isOn());
     // one of the pair always changes when the selection moves between them
-    allNpcsToggle.addItemListener(e -> pinsChanged());
-    objectsToggle.addItemListener(e -> pinsChanged());
+    bossesToggle.addActionListener(e -> {
+      if (reverting) return;
+      objectsToggle.setSelected(false);
+      questsToggle.setSelected(false);
+      mapView.applyPreset(dev.wowforever.app.ui.widgets.MapLayer.BOSSES_AND_RARES);
+      pinsChanged();
+    });
+    allNpcsToggle.addItemListener(e -> {
+      if (allNpcsToggle.isSelected()) {
+        mapView.setKindVisible(MapView.PinKind.NPC, true);
+        mapView.setKindVisible(MapView.PinKind.BOSS, true);
+        mapView.setKindVisible(MapView.PinKind.RARE, true);
+      }
+      pinsChanged();
+    });
+    objectsToggle.addItemListener(e -> {
+      if (objectsToggle.isSelected()) mapView.setKindVisible(MapView.PinKind.OBJECT, true);
+      pinsChanged();
+    });
     questsToggle.addItemListener(e -> {
+      if (questsToggle.isSelected()) {
+        mapView.setKindVisible(MapView.PinKind.QUEST_START, true);
+        mapView.setKindVisible(MapView.PinKind.QUEST_END, true);
+      }
       questsShown.set(questsToggle.isSelected());
       pinsChanged();
     });

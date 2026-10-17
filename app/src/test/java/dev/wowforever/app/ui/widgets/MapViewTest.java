@@ -46,6 +46,133 @@ class MapViewTest {
   }
 
   @Test
+  void focusDimsGiversAndHidesOtherObjectives() {
+    var view = new MapView(new BufferedImage(100, 100, BufferedImage.TYPE_INT_ARGB), opened::add);
+    view.setSize(100, 100);
+    EntityRef ref = new EntityRef(EntityKind.NPC, 1);
+    view.setPins(List.of(Pin.giver(ref, "Giver", 50, 50, true),
+        Pin.objective(ref, "Hidden", 20, 20, PinKind.KILL, 1),
+        Pin.objective(ref, "Shown", 80, 80, PinKind.KILL, 2)));
+    view.setFocus(2);
+    assertThat(view.visiblePins()).hasSize(2).noneMatch(p -> p.number() == 1);
+    BufferedImage image = painted(view);
+    assertThat(image.getRGB(57, 50) >>> 24).isBetween(126, 130);
+  }
+
+  @Test
+  void questPageGiverIsAGoldDisc() {
+    Theme saved = Theme.current();
+    try {
+      for (Theme theme : new Theme[] {dev.wowforever.app.ui.theme.Tokens.DARK,
+          dev.wowforever.app.ui.theme.Tokens.PARCHMENT}) {
+        Theme.setCurrent(theme);
+        BufferedImage image = new BufferedImage(50, 50, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        PinGlyphs.paintDisc(g, PinGlyphs.font(new java.awt.Font("SansSerif", 0, 12), true),
+            PinKind.QUEST_START, 25, 25);
+        g.dispose();
+        assertThat(image.getRGB(32, 25) & 0xFFFFFF).isEqualTo(0xFFD100);
+        assertThat(paintedNear(image, 25, 25, 0x0C1424)).isTrue();
+      }
+    } finally { Theme.setCurrent(saved); }
+  }
+
+  @Test
+  void objectiveShapes() {
+    for (PinKind kind : List.of(PinKind.KILL, PinKind.COLLECT, PinKind.INTERACT, PinKind.EXPLORE)) {
+      BufferedImage image = new BufferedImage(60, 60, BufferedImage.TYPE_INT_ARGB);
+      Graphics2D g = image.createGraphics();
+      PinGlyphs.paintObjective(g, new java.awt.Font("SansSerif", java.awt.Font.BOLD, 10), kind, 3, 30, 30, 9);
+      g.dispose();
+      boolean outline = false, halo = false, fill = false;
+      for (int x = 15; x < 45; x++) for (int y = 15; y < 45; y++) {
+        fill |= image.getRGB(x, y) == MapView.colour(kind).getRGB();
+        outline |= image.getRGB(x, y) == PinGlyphs.OUTLINE.getRGB();
+        halo |= image.getRGB(x, y) == PinGlyphs.HALO.getRGB();
+      }
+      assertThat(fill).as(kind + " fill").isTrue();
+      assertThat(outline).as(kind + " outline").isTrue();
+      assertThat(halo).as(kind + " halo").isTrue();
+      if (kind == PinKind.EXPLORE) assertThat(image.getRGB(30, 30) >>> 24).isZero();
+      if (kind == PinKind.COLLECT) assertThat(image.getRGB(22, 22) >>> 24).isZero();
+    }
+    BufferedImage three = new BufferedImage(60, 60, BufferedImage.TYPE_INT_ARGB);
+    BufferedImage eight = new BufferedImage(60, 60, BufferedImage.TYPE_INT_ARGB);
+    Graphics2D a = three.createGraphics(), b = eight.createGraphics();
+    java.awt.Font font = new java.awt.Font("SansSerif", java.awt.Font.BOLD, 10);
+    PinGlyphs.paintObjective(a, font, PinKind.KILL, 3, 30, 30, 9);
+    PinGlyphs.paintObjective(b, font, PinKind.KILL, 8, 30, 30, 9);
+    a.dispose(); b.dispose();
+    assertThat(three.getRGB(20, 20, 20, 20, null, 0, 20))
+        .isNotEqualTo(eight.getRGB(20, 20, 20, 20, null, 0, 20));
+  }
+
+  @Test
+  void cursorCoordinatesInvertTheProjection() {
+    java.util.Random random = new java.util.Random(8);
+    for (double scale : new double[] {1, 1.5}) {
+      for (int width : new int[] {640, 1002}) {
+        Projection projection = new Projection(1002, 668, width, scale);
+        for (int i = 0; i < 20; i++) {
+          double x = random.nextDouble() * 100, y = random.nextDouble() * 100;
+          Point2D.Double point = projection.toComponent(x, y);
+          var coordinates = projection.toMap(Math.round(point.x), Math.round(point.y)).orElseThrow();
+          assertThat(coordinates.x).isCloseTo(x, org.assertj.core.data.Offset.offset(0.2));
+          assertThat(coordinates.y).isCloseTo(y, org.assertj.core.data.Offset.offset(0.2));
+        }
+      }
+    }
+  }
+
+  @Test
+  void pointerBelowTheImageHasNoCoordinates() {
+    var view = natural(List.of());
+    view.setSize(1002, 800);
+    int below = view.projection().drawnHeight() + 5;
+    assertThat(view.coordinatesAt(20, below)).isEmpty();
+    view.dispatchEvent(mouse(view, MouseEvent.MOUSE_MOVED, 20, below));
+    assertThat(view.coordinatesText()).isEmpty();
+    assertThat(view.contextMenuAt(20, below).getComponentCount()).isZero();
+  }
+
+  @Test
+  void rightClickCopiesWay() {
+    var view = natural(List.of());
+    view.setZoneName("Elwynn Forest");
+    List<String> copied = new ArrayList<>();
+    view.setClipboard(copied::add);
+    var point = view.projection().toComponent(42.1, 65.9);
+    JMenuItem item = (JMenuItem) view.contextMenuAt((int)Math.round(point.x), (int)Math.round(point.y)).getComponent(0);
+    assertThat(item.getText()).isEqualTo("Copy /way Elwynn Forest 42.1 65.9");
+    item.doClick();
+    assertThat(copied).containsExactly("/way Elwynn Forest 42.1 65.9");
+  }
+
+  @Test
+  void objectivePinsClusterPerObjective() {
+    EntityRef ref = new EntityRef(EntityKind.NPC, 1);
+    var view = natural(List.of(Pin.objective(ref, "A", 50, 50, PinKind.KILL, 1),
+        Pin.objective(ref, "A", 50.1, 50, PinKind.KILL, 1),
+        Pin.objective(ref, "B", 50, 50, PinKind.KILL, 2),
+        Pin.giver(ref, "Giver", 50, 50, true)));
+    assertThat(view.clusters()).extracting(Cluster::count).containsExactly(1, 2, 1);
+    assertThat(view.clusterAt(501, 334).kind()).isEqualTo(PinKind.QUEST_START);
+    view.setFocus(2);
+    assertThat(view.visiblePins()).hasSize(2).noneMatch(p -> p.number() == 1);
+  }
+
+  @Test
+  void zoneCaptionShown() {
+    var view = natural(List.of(pin(1, "A", 10, 10, PinKind.NPC),
+        pin(2, "B", 20, 20, PinKind.NPC), pin(3, "C", 30, 30, PinKind.NPC)));
+    view.setZoneName("Westfall");
+    assertThat(view.getAccessibleContext().getAccessibleDescription()).isEqualTo("Westfall, 3 pins");
+    BufferedImage painted = new BufferedImage(1002, 668, BufferedImage.TYPE_INT_ARGB);
+    Graphics2D g = painted.createGraphics(); view.paint(g); g.dispose();
+    assertThat(painted.getRGB(10, 10) & 0xFFFFFF).isEqualTo(0x0C1424);
+  }
+
+  @Test
   void theMapAsksForALayoutWhenItsHeightNoLongerFollowsItsWidthWithoutBouncingAScrollbar() {
     var v = new MapView(westfall, opened::add);
     int narrow = 379; // the page with its vertical scrollbar

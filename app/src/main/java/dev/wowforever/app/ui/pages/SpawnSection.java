@@ -12,7 +12,7 @@ import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.FlowLayout;
 import java.awt.image.BufferedImage;
 import java.util.List;
-import java.util.Locale;
+import dev.wowforever.app.ui.WayCommand;
 import java.util.Optional;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
@@ -72,14 +72,16 @@ final class SpawnSection {
     } else {
       this.map = new MapView(map, nav);
       this.map.setPins(pins);
+      this.map.setClipboard(clipboard);
+      this.map.setZoneName(spawns.stream().filter(s -> s.zoneId() == mapZoneId)
+          .map(Spawn::zoneName).filter(java.util.Objects::nonNull).findFirst().orElse(null));
       section.addAboveTable(this.map);
     }
   }
 
   /** {@code "/way Westfall 42.3 67.4"}; without the zone when its name is unknown. */
   static String wayCommand(Spawn s) {
-    String coordinates = String.format(Locale.ROOT, "%.1f %.1f", s.x(), s.y());
-    return s.zoneName() == null ? "/way " + coordinates : "/way " + s.zoneName() + " " + coordinates;
+    return WayCommand.of(s.zoneName(), s.x(), s.y());
   }
 
   /** The selected spawn point, else the first; null without spawns. */
