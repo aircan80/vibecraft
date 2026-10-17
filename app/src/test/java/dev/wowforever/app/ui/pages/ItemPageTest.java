@@ -25,6 +25,8 @@ import dev.wowforever.app.ui.LinkRenderer;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.widgets.IconCache;
+import dev.wowforever.app.ui.widgets.ItemCardPanel;
 import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import dev.wowforever.app.ui.widgets.SourceSection;
@@ -303,6 +305,60 @@ class ItemPageTest {
     var p = new ItemPage(repos.items().detail(17204).get(), t -> {});
     assertThat(p.header().title()).isEqualTo("Eye of Sulfuras");
     assertThat(p.header().titleColor()).isEqualTo(QualityColors.text(5, FlatLaf.isLafDark()));
+  }
+
+  private java.awt.image.BufferedImage icon(long iconId) {
+    return dev.wowforever.app.ui.widgets.Images.decode(repos.assets().icon(iconId).orElseThrow()).orElseThrow();
+  }
+
+  @Test
+  void cardShown() {
+    var p = new ItemPage(repos.items().detail(17204).get(), icon(134124), t -> {});
+    ItemCardPanel card = p.card();
+    assertThat(card).isNotNull();
+    assertThat(card.name().getText()).isEqualTo("Eye of Sulfuras");
+    assertThat(card.name().getForeground()).isEqualTo(QualityColors.canonical(5));
+    assertThat(card.lines().texts()).startsWith("Binds when picked up").contains("Sell Price: 20g");
+    assertThat(card.icon().getIcon().getIconWidth()).isEqualTo(56);
+    assertThat(card.icon().getIcon().getIconHeight()).isEqualTo(56);
+    // the card leads the page, the facts line (title hidden: the card has the name) and the summary follow
+    assertThat(p.header().isTitleShown()).isFalse();
+    assertThat(p.header().subtitle()).startsWith("Item #17204");
+    p.scrollPane().setSize(700, 900);
+    layOut(p.scrollPane());
+    int cardY = boundsIn(card, p.scrollPane().getViewport().getView()).y;
+    int headerY = boundsIn(p.header(), p.scrollPane().getViewport().getView()).y;
+    int summaryY = boundsIn(p.summaryLabel(), p.scrollPane().getViewport().getView()).y;
+    assertThat(cardY).isLessThan(headerY);
+    assertThat(headerY).isLessThan(summaryY);
+    assertThat(card.getWidth()).isLessThanOrEqualTo(ItemCardPanel.maxWidth());
+    assertThat(card.getHeight()).isGreaterThan(56);
+  }
+
+  @Test
+  void cardShownWithoutAnIconShowsAnEmptyOneOfTheSameSize() {
+    var p = new ItemPage(repos.items().detail(17204).get(), t -> {});
+    assertThat(p.card().icon().getIcon()).isSameAs(IconCache.empty(IconCache.CARD));
+  }
+
+  @Test
+  void cardAbsentWithoutClientData() {
+    for (long id : new long[] {1176, 212347}) { // no client data; an Item row (icon) but no tooltip lines
+      var p = new ItemPage(repos.items().detail(id).get(), icon(0), t -> {});
+      assertThat(p.card()).as("item " + id).isNull();
+      assertThat(p.header().isTitleShown()).isTrue();
+    }
+  }
+
+  @Test
+  void theJumpKeysStillReachTheSectionsUnderTheCard() {
+    var p = new ItemPage(repos.items().detail(14149).get(), icon(0), t -> {});
+    assertThat(p.card()).isNotNull();
+    assertThat(p.sections()).hasSize(2);
+    for (int key : new int[] {KeyEvent.VK_1, KeyEvent.VK_2}) {
+      assertThat(p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+          .get(KeyStroke.getKeyStroke(key, InputEvent.CTRL_DOWN_MASK))).isNotNull();
+    }
   }
 
   @Test

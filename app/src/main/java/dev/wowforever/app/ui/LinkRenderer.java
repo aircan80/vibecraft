@@ -1,7 +1,9 @@
 package dev.wowforever.app.ui;
 
 import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.ui.theme.QualityColors;
+import dev.wowforever.app.ui.widgets.IconCache;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
@@ -15,14 +17,21 @@ import javax.swing.table.DefaultTableCellRenderer;
  * Renders link cells in the look-and-feel's link colour (looked up per paint, so theme changes apply); a cell
  * of a {@link ResultsTableModel} link column that links nowhere (a boss without an NPC, say) renders as plain
  * text, and a cell with an item quality in that quality's colour for the installed (dark or light) look-and-feel.
+ * A cell of an item column shows the item's {@value IconCache#ROW} px icon before its text, from the
+ * {@linkplain IconCache#shared shared cache} only (the page warmed it while loading; a miss is fetched in the
+ * background and repaints the table).
  */
 public final class LinkRenderer extends DefaultTableCellRenderer {
   private static final Color FALLBACK = new Color(0x22, 0x6F, 0xC9);
+  private static final int ICON_GAP = 4;
 
   @Override
   public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
       int row, int column) {
     super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+    Long icon = icon(table, row, column);
+    setIcon(icon == null ? null : IconCache.shared().forRenderer(icon, IconCache.ROW, table));
+    setIconTextGap(UIScale.scale(ICON_GAP));
     setFont(TableLinks.isHoveredLink(table, row, column)
         ? table.getFont().deriveFont(Map.of(TextAttribute.UNDERLINE, TextAttribute.UNDERLINE_ON))
         : table.getFont());
@@ -35,6 +44,14 @@ public final class LinkRenderer extends DefaultTableCellRenderer {
       }
     }
     return this;
+  }
+
+  /** The item icon of the cell, or null when it has none (or the table is not a {@link ResultsTableModel}). */
+  private static Long icon(JTable table, int viewRow, int viewColumn) {
+    if (!(table.getModel() instanceof ResultsTableModel<?> model) || viewRow < 0 || viewColumn < 0) {
+      return null;
+    }
+    return model.iconAt(table.convertRowIndexToModel(viewRow), table.convertColumnIndexToModel(viewColumn));
   }
 
   /** The item quality of the cell, or null when it has none (or the table is not a {@link ResultsTableModel}). */

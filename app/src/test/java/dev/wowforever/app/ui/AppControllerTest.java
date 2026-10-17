@@ -8,6 +8,7 @@ import static dev.wowforever.app.model.EntityKind.QUEST;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.db.AssetRepository;
 import dev.wowforever.app.db.Database;
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
@@ -22,6 +23,7 @@ import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.pages.NpcPage;
 import dev.wowforever.app.ui.pages.ZonePage;
+import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.ListEntry;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
@@ -89,6 +91,35 @@ class AppControllerTest {
     c.open(new ViewTarget.Search("subterr", Optional.empty()));
     assertThat(c.current()).isEqualTo(new ViewTarget.Search("subterr", Optional.empty()));
     assertThat(list().entries()).hasSize(1);
+  }
+
+  @Test
+  void aSearchWarmsTheIconsOfItsItemHitsAndCarriesTheirQuality() {
+    IconCache cache = new IconCache(repos.assets()::icon, 100, null);
+    IconCache before = IconCache.install(cache);
+    try {
+      AppController c = new AppController(repos, view, Runnable::run);
+      c.open(new ViewTarget.Search("bloodvine", Optional.empty()));
+    } finally {
+      IconCache.install(before);
+    }
+    ListEntry vest = list().entries().stream().filter(e -> e.ref().id() == 19682).findFirst().orElseThrow();
+    assertThat(vest.quality()).isEqualTo(3);
+    assertThat(vest.iconId()).isEqualTo(132648L);
+    assertThat(cache.cached(132648L, IconCache.LIST)).as("warmed on the worker").isPresent();
+  }
+
+  @Test
+  void anItemListWarmsTheIconsOfItsFirstRows() {
+    IconCache cache = new IconCache(repos.assets()::icon, 100, null);
+    IconCache before = IconCache.install(cache);
+    try {
+      new AppController(repos, view, Runnable::run).open(new ViewTarget.List(ITEM));
+    } finally {
+      IconCache.install(before);
+    }
+    assertThat(cache.cached(132648L, IconCache.ROW)).as("Bloodvine Vest").isPresent();
+    assertThat(cache.cached(AssetRepository.FALLBACK_ICON_ID, IconCache.ROW)).isPresent();
   }
 
   @Test

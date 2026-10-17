@@ -67,8 +67,8 @@ final class GroupedRows {
   }
 
   /**
-   * {@code cols} over grouped rows: entries read, link, colour and flag their rates as before; a heading fills the
-   * first column only.
+   * {@code cols} over grouped rows: entries read, link, colour, show icons and flag their rates as before; a heading
+   * fills the first column only.
    */
   static <T> List<Column<Row<T>>> columns(List<Column<T>> cols) {
     List<Column<Row<T>>> out = new ArrayList<>();
@@ -86,7 +86,9 @@ final class GroupedRows {
           : r -> r instanceof Entry<T> e ? c.qualityFor(e.value()) : null;
       Function<Row<T>, Boolean> disagrees = c.disagrees() == null ? null
           : r -> r instanceof Entry<T> e && c.disagreesFor(e.value());
-      out.add(new Columns.Column<>(c.title(), c.type(), value, link, c.order(), quality, disagrees));
+      Function<Row<T>, Long> icon = c.icon() == null ? null
+          : r -> r instanceof Entry<T> e ? c.iconFor(e.value()) : null;
+      out.add(new Columns.Column<>(c.title(), c.type(), value, link, c.order(), quality, disagrees, icon));
     }
     return List.copyOf(out);
   }

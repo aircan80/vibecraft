@@ -33,6 +33,20 @@ class GroupedRowsTest {
   }
 
   @Test
+  void groupedItemColumnsShowTheIconsOfTheirEntriesAndNoneOnHeadings() {
+    LootRow vest = new LootRow(new EntityRef(ITEM, 19682), "Bloodvine Vest", 65, 10.0, "both", 1, 4, "Armor", 1,
+        false, 1, 3, 132648L);
+    Column<GroupedRows.Row<LootRow>> item = GroupedRows.columns(Columns.lootRated()).get(0);
+    List<GroupedRows.Row<LootRow>> rows = GroupedRows.of(List.of(vest, SWORD), l -> "All", List.of("All"), null);
+    assertThat(item.hasIcon()).isTrue();
+    assertThat(item.iconFor(rows.get(0))).as("heading").isNull();
+    assertThat(item.iconFor(rows.get(1))).isEqualTo(132648L);
+    assertThat(item.iconFor(rows.get(2))).as("no client data: the question mark").isZero();
+    assertThat(item.qualityFor(rows.get(1))).isEqualTo(3);
+    assertThat(GroupedRows.columns(Columns.lootRated()).get(1).hasIcon()).as("item level").isFalse();
+  }
+
+  @Test
   void groupedColumnsKeepTheQualityOfTheirEntries() {
     Column<LootRow> name = new Column<>("Item", String.class, LootRow::displayName,
         l -> Optional.of(l.item()), null, l -> l.item().id() == 2874 ? 1 : 4);

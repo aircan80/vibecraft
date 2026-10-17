@@ -20,6 +20,7 @@ import dev.wowforever.app.ui.pages.ObjectPage;
 import dev.wowforever.app.ui.pages.QuestPage;
 import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.db.AssetRepository;
+import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Images;
 import java.awt.image.BufferedImage;
 import java.util.Arrays;
@@ -79,6 +80,34 @@ class DetailPanelsTest {
     assertThat(page.detail().card().quality()).isEqualTo(5);
     assertThat(page.detail().card().lines()).hasSize(5);
     assertThat(DetailPanels.render(page, repos, t -> {})).isInstanceOf(ItemPage.class);
+  }
+
+  /** Runs {@code body} with an empty shared icon cache over the fixture database; returns the cache. */
+  private IconCache withEmptyCache(Runnable body) {
+    IconCache cache = new IconCache(repos.assets()::icon, 100, null);
+    IconCache before = IconCache.install(cache);
+    try {
+      body.run();
+    } finally {
+      IconCache.install(before);
+    }
+    return cache;
+  }
+
+  @Test
+  void anNpcPageWarmsTheIconsOfItsDropsInLoad() {
+    IconCache cache = withEmptyCache(() -> DetailPanels.load(new EntityRef(NPC, 639), repos));
+    assertThat(cache.cached(135325L, IconCache.ROW)).as("Cruel Barb").isPresent();
+    assertThat(cache.cached(133471L, IconCache.ROW)).as("An Unsent Letter").isPresent();
+    assertThat(cache.cached(AssetRepository.FALLBACK_ICON_ID, IconCache.ROW)).as("items without client data")
+        .isPresent();
+  }
+
+  @Test
+  void anInstancePageWarmsTheIconsOfTheBossItShowsFirst() {
+    IconCache cache = withEmptyCache(() -> DetailPanels.load(new EntityRef(INSTANCE, 1), repos));
+    assertThat(cache.cached(135648L, IconCache.ROW)).as("Cursed Felblade").isPresent();
+    assertThat(cache.cached(133770L, IconCache.ROW)).as("Subterranean Cape").isPresent();
   }
 
   @Test

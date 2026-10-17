@@ -429,6 +429,7 @@ public final class AppController implements Navigator {
 
   private Listing search(ViewTarget.Search s) {
     var hits = repos.search().search(s.text(), s.kind(), SEARCH_LIMIT);
+    ListEntries.warmIcons(hits); // on the worker: the list's renderer only looks in the cache
     return new Listing("Search: " + s.text(), entries(hits, ListEntries::of), SEARCH_LIMIT);
   }
 

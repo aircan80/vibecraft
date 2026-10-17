@@ -7,8 +7,10 @@ import static dev.wowforever.app.model.EntityKind.QUEST;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.FlatLaf;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.widgets.SearchDropdown.Row;
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -242,6 +244,23 @@ class SearchDropdownTest {
     var one = list.getCellRenderer().getListCellRendererComponent(list, new Row.ShowAll(1), 0, false, false);
     assertThat(one).isInstanceOfSatisfying(javax.swing.JLabel.class,
         l -> assertThat(l.getText()).isEqualTo("Show 1 result"));
+  }
+
+  @Test
+  void anItemHitShowsItsIconAndQualityColour() {
+    MasterListTest.withIcons(() -> {
+      dropdown.showHits(List.of(new ListEntry(new EntityRef(ITEM, 17204), "Eye of Sulfuras", "Item", 5, 134124L)),
+          1);
+      var list = dropdown.jlist();
+      int row = dropdown.rows().indexOf(dropdown.rows().stream().filter(Row.Hit.class::isInstance).findFirst()
+          .orElseThrow());
+      var c = list.getCellRenderer().getListCellRendererComponent(list, list.getModel().getElementAt(row), row,
+          false, false);
+      assertThat(c).isInstanceOfSatisfying(MasterList.EntryRenderer.class, r -> {
+        assertThat(r.title().getForeground()).isEqualTo(QualityColors.text(5, FlatLaf.isLafDark()));
+        assertThat(r.icon().getIcon()).isSameAs(IconCache.shared().cached(134124L, IconCache.LIST).orElseThrow());
+      });
+    }, 134124L);
   }
 
   /** The summed preferred heights of the rows shown, as the list lays them out. */

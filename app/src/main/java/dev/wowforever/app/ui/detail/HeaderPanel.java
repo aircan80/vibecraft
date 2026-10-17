@@ -82,6 +82,19 @@ public final class HeaderPanel extends JPanel {
     return title.getText();
   }
 
+  /**
+   * Shows or hides the title row (the title and its badges), leaving the subtitle line: for a page that shows the
+   * name elsewhere, such as an item's tooltip card.
+   */
+  public void setTitleShown(boolean shown) {
+    titleRow.setVisible(shown);
+  }
+
+  /** Whether the title row is shown. */
+  public boolean isTitleShown() {
+    return titleRow.isVisible();
+  }
+
   /** Colours the title with {@code colour}, asked on every paint; null restores the look-and-feel colour. */
   public void setTitleColor(Supplier<Color> colour) {
     titleColor = colour;

@@ -5,10 +5,19 @@ package dev.wowforever.app.model;
  * the list has no such notion; {@code itemName} is null for unknown or nameless items. {@code classId},
  * {@code className} ({@code item_class.name}: Weapon, Armor, Recipe, ...) and {@code subclassId} are null when
  * the item or its class is unknown. {@code sourceCount} is how many drop rate sources gave a rate and
- * {@code disagrees} whether they disagree on it (false and 0 for lists without drop rates).
+ * {@code disagrees} whether they disagree on it (false and 0 for lists without drop rates). {@code quality} and
+ * {@code iconId} come from the client data and are null for items without it.
  */
 public record LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
-    Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount) {
+    Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
+    Long iconId) {
+
+  /** A row without client data (quality and icon). */
+  public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
+      Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount) {
+    this(item, itemName, itemLevel, dropPct, origin, slot, classId, className, subclassId, disagrees, sourceCount,
+        null, null);
+  }
 
   /** A row whose item class is unknown and without rate provenance. */
   public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot) {

@@ -21,8 +21,9 @@ public final class NpcRepository {
              n.npc_flags, n.friendly_to
       FROM npc n LEFT JOIN zone nz ON nz.id = n.zone_id""";
 
-  /** The item columns a {@link LootRow} reads ({@link #itemJoin} must be joined): name, item level and class. */
-  static final String ITEM_COLUMNS = "i.name, i.item_level, i.class_id, ic.name AS class_name, i.subclass_id";
+  /** The item columns a {@link LootRow} reads ({@link #itemJoin} must be joined): name, level, class, quality, icon. */
+  static final String ITEM_COLUMNS =
+      "i.name, i.item_level, i.class_id, ic.name AS class_name, i.subclass_id, i.quality, i.icon_id";
 
   private final Database db;
 
@@ -113,7 +114,8 @@ public final class NpcRepository {
   static LootRow loot(ResultSet rs, Double dropPct, String origin, Integer slot) throws SQLException {
     return new LootRow(new EntityRef(EntityKind.ITEM, rs.getLong("item_id")), rs.getString("name"),
         Sql.integer(rs, "item_level"), dropPct, origin, slot, Sql.integer(rs, "class_id"),
-        rs.getString("class_name"), Sql.integer(rs, "subclass_id"));
+        rs.getString("class_name"), Sql.integer(rs, "subclass_id"), false, 0, Sql.integer(rs, "quality"),
+        Sql.longValue(rs, "icon_id"));
   }
 
   /**
@@ -123,7 +125,8 @@ public final class NpcRepository {
   static LootRow ratedLoot(ResultSet rs, String origin, Integer slot) throws SQLException {
     LootRow row = loot(rs, Sql.doubleValue(rs, "drop_pct"), origin, slot);
     return new LootRow(row.item(), row.itemName(), row.itemLevel(), row.dropPct(), row.origin(), row.slot(),
-        row.classId(), row.className(), row.subclassId(), rs.getInt("disagrees") != 0, rs.getInt("source_count"));
+        row.classId(), row.className(), row.subclassId(), rs.getInt("disagrees") != 0, rs.getInt("source_count"),
+        row.quality(), row.iconId());
   }
 
   /** The spawn points of an NPC or object from {@code table} (npc_spawn or object_spawn), in import order. */

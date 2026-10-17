@@ -1,5 +1,6 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.db.AssetRepository;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
@@ -30,15 +31,23 @@ public final class Columns {
    * columns, the entity a cell points at. {@code link} is null for plain columns; {@code order} sorts the cell
    * values and is null for the sorter's default order of {@code type}. {@code quality} gives the item quality
    * a cell's text is coloured by (null, or a null quality, for the usual colour). {@code disagrees} tells, for a
-   * {@linkplain #RATE rate} column, whether a cell's drop rate sources disagree (null: never).
+   * {@linkplain #RATE rate} column, whether a cell's drop rate sources disagree (null: never). {@code icon} gives
+   * the item icon a cell shows before its text ({@link AssetRepository#FALLBACK_ICON_ID} for the question mark,
+   * null for none; a null function for a column without icons).
    */
   public record Column<T>(String title, Class<?> type, Function<T, Object> value,
       Function<T, Optional<EntityRef>> link, Comparator<?> order, Function<T, Integer> quality,
-      Function<T, Boolean> disagrees) {
+      Function<T, Boolean> disagrees, Function<T, Long> icon) {
     public Column {
       Objects.requireNonNull(title, "title");
       Objects.requireNonNull(type, "type");
       Objects.requireNonNull(value, "value");
+    }
+
+    /** A column without item icons. */
+    public Column(String title, Class<?> type, Function<T, Object> value, Function<T, Optional<EntityRef>> link,
+        Comparator<?> order, Function<T, Integer> quality, Function<T, Boolean> disagrees) {
+      this(title, type, value, link, order, quality, disagrees, null);
     }
 
     /** A column without rate provenance. */
@@ -66,6 +75,16 @@ public final class Columns {
     /** Whether the rate in the cell of {@code row} has sources that disagree; false for other columns. */
     public boolean disagreesFor(T row) {
       return disagrees != null && Boolean.TRUE.equals(disagrees.apply(row));
+    }
+
+    /** Whether the cells of this column show item icons. */
+    public boolean hasIcon() {
+      return icon != null;
+    }
+
+    /** The icon id the cell of {@code row} shows (0: the question mark); null for none. */
+    public Long iconFor(T row) {
+      return icon == null ? null : icon.apply(row);
     }
 
     /** Whether the cells of this column link to an entity. */
@@ -123,7 +142,8 @@ public final class Columns {
 
   public static List<Column<ItemSummary>> items() {
     return List.of(
-        qualityLink("Name", ItemSummary::displayName, i -> Optional.of(i.ref()), ItemSummary::quality),
+        itemLink("Name", ItemSummary::displayName, i -> Optional.of(i.ref()), ItemSummary::quality,
+            i -> iconOrFallback(i.iconId())),
         plain("Item level", Integer.class, ItemSummary::itemLevel),
         plain("Required level", Integer.class, ItemSummary::requiredLevel),
         plain("Class", String.class, ItemSummary::className),
@@ -172,7 +192,8 @@ public final class Columns {
 
   public static List<Column<SearchHit>> searchHits() {
     return List.of(
-        qualityLink("Name", SearchHit::displayName, h -> Optional.of(h.ref()), SearchHit::quality),
+        itemLink("Name", SearchHit::displayName, h -> Optional.of(h.ref()), SearchHit::quality,
+            h -> h.ref().kind() == EntityKind.ITEM ? iconOrFallback(h.iconId()) : null),
         plain("Details", String.class, SearchHit::subtitle));
   }
 
@@ -219,7 +240,7 @@ public final class Columns {
   /** Items an NPC drops or sells, an object contains or a quest rewards. */
   public static List<Column<LootRow>> lootRows() {
     return List.of(
-        link("Item", LootRow::displayName, l -> Optional.of(l.item())),
+        lootItem(),
         plain("Item level", Integer.class, LootRow::itemLevel),
         numeric("Drop %", l -> rateText(l.dropPct(), l.disagrees())),
         plain("Origin", String.class, LootRow::origin),
@@ -232,7 +253,7 @@ public final class Columns {
    */
   public static List<Column<LootRow>> lootRated() {
     return List.of(
-        link("Item", LootRow::displayName, l -> Optional.of(l.item())),
+        lootItem(),
         plain("Item level", Integer.class, LootRow::itemLevel),
         rate(LootRow::dropPct, LootRow::disagrees),
         plain("Origin", String.class, LootRow::origin),
@@ -354,9 +375,23 @@ public final class Columns {
     return new Column<>(RATE, Double.class, pct::apply, null, null, null, disagrees);
   }
 
-  /** A link column whose text is coloured by the row's item quality. */
-  private static <T> Column<T> qualityLink(String title, Function<T, Object> value,
-      Function<T, Optional<EntityRef>> link, Function<T, Integer> quality) {
-    return new Column<>(title, String.class, value, link, null, quality);
+  /**
+   * An item link column: the text coloured by the row's item quality, after the item's icon ({@code icon}: null
+   * for none).
+   */
+  private static <T> Column<T> itemLink(String title, Function<T, Object> value,
+      Function<T, Optional<EntityRef>> link, Function<T, Integer> quality, Function<T, Long> icon) {
+    return new Column<>(title, String.class, value, link, null, quality, null, icon);
+  }
+
+  /** The Item column of loot rows: name in its quality colour after its icon. */
+  private static Column<LootRow> lootItem() {
+    return itemLink("Item", LootRow::displayName, l -> Optional.of(l.item()), LootRow::quality,
+        l -> iconOrFallback(l.iconId()));
+  }
+
+  /** {@code iconId}, or the question mark for an item without one. */
+  private static Long iconOrFallback(Long iconId) {
+    return iconId != null ? iconId : AssetRepository.FALLBACK_ICON_ID;
   }
 }

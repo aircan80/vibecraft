@@ -40,6 +40,11 @@ public final class ResultsTableModel<T> extends AbstractTableModel {
     return columns.get(col).qualityFor(rows.get(row));
   }
 
+  /** The item icon id the cell shows (0: the question mark); null for none. */
+  public Long iconAt(int row, int col) {
+    return columns.get(col).iconFor(rows.get(row));
+  }
+
   /** Whether the cell's drop rate has sources that disagree; false outside rate columns. */
   public boolean disagreesAt(int row, int col) {
     return columns.get(col).disagreesFor(rows.get(row));

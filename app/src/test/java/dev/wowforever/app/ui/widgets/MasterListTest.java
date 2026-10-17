@@ -3,7 +3,10 @@ package dev.wowforever.app.ui.widgets;
 import static dev.wowforever.app.model.EntityKind.ITEM;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.FlatLaf;
+import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Component;
 import java.awt.Rectangle;
@@ -173,6 +176,70 @@ class MasterListTest {
     assertThat(jlist.getFixedCellHeight())
         .isGreaterThanOrEqualTo(c.getPreferredSize().height)
         .isGreaterThan(jlist.getFontMetrics(jlist.getFont()).getHeight() * 2 - 1);
+  }
+
+  /** Runs {@code body} with a shared icon cache over the fixture database, warmed with {@code ids} at list size. */
+  static void withIcons(Runnable body, Long... ids) {
+    IconCache cache = new IconCache(FixtureDb.repositories().assets()::icon, 100, null);
+    cache.warm(java.util.Arrays.asList(ids), IconCache.LIST);
+    IconCache before = IconCache.install(cache);
+    try {
+      body.run();
+    } finally {
+      IconCache.install(before);
+    }
+  }
+
+  @Test
+  void anItemRowShowsItsIconAndItsNameInItsQualityColour() {
+    withIcons(() -> {
+      ListEntry vest = new ListEntry(new EntityRef(ITEM, 19682), "Bloodvine Vest", "Armor Â· Cloth", 3, 132648L);
+      list.setEntries(List.of(vest));
+      JList<ListEntry> jlist = list.jlist();
+      var r = (MasterList.EntryRenderer) jlist.getCellRenderer().getListCellRendererComponent(jlist, vest, 0, false,
+          false);
+      assertThat(r.title().getForeground()).isEqualTo(QualityColors.text(3, FlatLaf.isLafDark()));
+      assertThat(r.icon().isVisible()).isTrue();
+      assertThat(r.icon().getIcon()).isSameAs(IconCache.shared().cached(132648L, IconCache.LIST).orElseThrow());
+      assertThat(r.icon().getIcon().getIconWidth()).isEqualTo(28);
+      assertThat(jlist.getFixedCellHeight()).as("rows fit the icon").isGreaterThanOrEqualTo(28);
+      var selected = (MasterList.EntryRenderer) jlist.getCellRenderer().getListCellRendererComponent(jlist, vest, 0,
+          true, false);
+      assertThat(selected.title().getForeground()).isEqualTo(jlist.getSelectionForeground());
+    }, 132648L);
+  }
+
+  @Test
+  void anItemWithoutAnIconShowsTheQuestionMarkAndOtherKindsNoIcon() {
+    withIcons(() -> {
+      ListEntry salts = new ListEntry(new EntityRef(ITEM, 1176), "Smelling Salts", "Item", null, null);
+      ListEntry hogger = new ListEntry(new EntityRef(dev.wowforever.app.model.EntityKind.NPC, 448), "Hogger",
+          "NPC", null, null);
+      JList<ListEntry> jlist = list.jlist();
+      var r = (MasterList.EntryRenderer) jlist.getCellRenderer().getListCellRendererComponent(jlist, salts, 0, false,
+          false);
+      assertThat(r.icon().getIcon()).isSameAs(IconCache.shared().cached(0L, IconCache.LIST).orElseThrow());
+      assertThat(r.title().getForeground()).as("no quality").isEqualTo(Theme.current().textPrimary());
+      r = (MasterList.EntryRenderer) jlist.getCellRenderer().getListCellRendererComponent(jlist, hogger, 0, false,
+          false);
+      assertThat(r.icon().isVisible()).isFalse();
+    }, 0L);
+  }
+
+  @Test
+  void anIconNotYetCachedRendersEmptyWithoutReadingTheDatabase() {
+    IconCache before = IconCache.install(new IconCache(id -> {
+      throw new AssertionError("read on the EDT");
+    }, 10, null));
+    try {
+      ListEntry vest = new ListEntry(new EntityRef(ITEM, 19682), "Bloodvine Vest", "Armor", 3, 132648L);
+      JList<ListEntry> jlist = list.jlist();
+      var r = (MasterList.EntryRenderer) jlist.getCellRenderer().getListCellRendererComponent(jlist, vest, 0, false,
+          false);
+      assertThat(r.icon().getIcon()).isSameAs(IconCache.empty(IconCache.LIST));
+    } finally {
+      IconCache.install(before);
+    }
   }
 
   @Test

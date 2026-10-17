@@ -9,6 +9,7 @@ import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.Async;
 import dev.wowforever.app.ui.MainFrame;
 import dev.wowforever.app.ui.ThemeManager;
+import dev.wowforever.app.ui.widgets.IconCache;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -90,6 +91,7 @@ public final class Main {
     frame.setVisible(true);
     Async.run(Main::load, loaded -> runOrFail(() -> {
       open.set(loaded.db());
+      IconCache.install(new IconCache(loaded.repos().assets()));
       AppController controller = new AppController(loaded.repos(), frame, Async.SWING_WORKER, loaded.meta());
       frame.attach(controller);
       controller.start();

@@ -82,6 +82,8 @@ class InstanceRepositoryTest {
         .satisfies(l -> {
           assertThat(l.disagrees()).isFalse();
           assertThat(l.sourceCount()).isEqualTo(1);
+          assertThat(l.quality()).as("rated rows keep the client data").isEqualTo(3);
+          assertThat(l.iconId()).isEqualTo(135325L);
         });
   }
 }

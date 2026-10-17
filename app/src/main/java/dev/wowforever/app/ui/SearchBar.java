@@ -74,7 +74,9 @@ public final class SearchBar extends JPanel {
       return new Source() {
         @Override
         public Lookup lookup(String text, Optional<EntityKind> kind) {
-          return new Lookup(repo.search(text, kind, SearchDropdown.MAX_HITS), repo.countsByKind(text));
+          List<SearchHit> hits = repo.search(text, kind, SearchDropdown.MAX_HITS);
+          ListEntries.warmIcons(hits); // on the worker: the dropdown's renderer only looks in the cache
+          return new Lookup(hits, repo.countsByKind(text));
         }
 
         @Override

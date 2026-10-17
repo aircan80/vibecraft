@@ -5,11 +5,13 @@ import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.widgets.FakeDropdownHost;
+import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Keys;
 import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.SearchDropdown;
@@ -100,6 +102,19 @@ class SearchBarTest {
 
   private List<String> chipTexts() {
     return bar.kindChips().chips().stream().map(AbstractButton::getText).toList();
+  }
+
+  @Test
+  void theDatabaseLookupWarmsTheIconsOfItsItemHits() {
+    IconCache cache = new IconCache(FixtureDb.repositories().assets()::icon, 100, null);
+    IconCache before = IconCache.install(cache);
+    try {
+      var found = SearchBar.Source.of(FixtureDb.repositories().search()).lookup("eye of sulfuras", Optional.empty());
+      assertThat(found.hits()).anySatisfy(h -> assertThat(h.iconId()).isEqualTo(134124L));
+    } finally {
+      IconCache.install(before);
+    }
+    assertThat(cache.cached(134124L, IconCache.LIST)).as("warmed on the worker").isPresent();
   }
 
   @Test

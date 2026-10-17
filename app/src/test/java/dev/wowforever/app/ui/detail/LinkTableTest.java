@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.FlatLightLaf;
+import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceLoot;
@@ -21,6 +22,7 @@ import dev.wowforever.app.ui.DropRow;
 import dev.wowforever.app.ui.LinkRenderer;
 import dev.wowforever.app.ui.LootListRow;
 import dev.wowforever.app.ui.theme.QualityColors;
+import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Keys;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import java.awt.Component;
@@ -352,6 +354,85 @@ class LinkTableTest {
     } finally {
       UIManager.setLookAndFeel(saved);
     }
+  }
+
+  /** Runs {@code body} with a shared icon cache over the fixture database, warmed with {@code ids} at row size. */
+  private static void withIcons(Runnable body, Long... ids) {
+    IconCache cache = new IconCache(FixtureDb.repositories().assets()::icon, 100, null);
+    cache.warm(java.util.Arrays.asList(ids), IconCache.ROW);
+    IconCache before = IconCache.install(cache);
+    try {
+      body.run();
+    } finally {
+      IconCache.install(before);
+    }
+  }
+
+  private static JLabel rendered(JTable table, int row, int column) {
+    return (JLabel) table.prepareRenderer(table.getCellRenderer(row, column), row, column);
+  }
+
+  @Test
+  void itemListRowsShowTheirIconAtRowSize() {
+    withIcons(() -> {
+      var t = new LinkTable<>(Columns.items(), v -> {});
+      t.setRows(List.of(new ItemSummary(17204, "Eye of Sulfuras", 60, null, "Quest", "Quest", 0, 5, 134124L),
+          new ItemSummary(1176, "Smelling Salts", null, null, null, null, 0)));
+      JTable table = t.table();
+      JLabel eye = rendered(table, 0, 0);
+      assertThat(eye.getIcon()).isSameAs(IconCache.shared().cached(134124L, IconCache.ROW).orElseThrow());
+      assertThat(eye.getIcon().getIconWidth()).isEqualTo(18);
+      assertThat(eye.getForeground()).isEqualTo(QualityColors.text(5, FlatLaf.isLafDark()));
+      assertThat(rendered(table, 1, 0).getIcon()).as("no client data: the question mark")
+          .isSameAs(IconCache.shared().cached(0L, IconCache.ROW).orElseThrow());
+    }, 134124L, 0L);
+  }
+
+  @Test
+  void lootRowsAreColouredByQualityAndShowTheirIcon() {
+    withIcons(() -> {
+      var t = new LinkTable<>(Columns.lootRated(), v -> {});
+      t.setRows(List.of(new LootRow(new EntityRef(ITEM, 5191), "Cruel Barb", 24, 12.0, "both", null, 2, "Weapon",
+          7, false, 1, 3, 135325L)));
+      JLabel barb = rendered(t.table(), 0, 0);
+      assertThat(barb.getForeground()).isEqualTo(QualityColors.text(3, FlatLaf.isLafDark()));
+      assertThat(barb.getIcon()).isSameAs(IconCache.shared().cached(135325L, IconCache.ROW).orElseThrow());
+    }, 135325L);
+  }
+
+  @Test
+  void onlyItemSearchHitsShowAnIcon() {
+    withIcons(() -> {
+      var t = new LinkTable<>(Columns.searchHits(), v -> {});
+      t.setRows(List.of(new SearchHit(new EntityRef(ITEM, 17204), "Eye of Sulfuras", "Item", 1, 5, 134124L),
+          new SearchHit(new EntityRef(NPC, 448), "Hogger", "NPC")));
+      assertThat(rendered(t.table(), 0, 0).getIcon()).isNotNull();
+      assertThat(rendered(t.table(), 1, 0).getIcon()).isNull();
+    }, 134124L);
+  }
+
+  @Test
+  void anIconNotYetCachedRendersEmptyInsteadOfReadingTheDatabase() {
+    IconCache cache = new IconCache(id -> {
+      throw new AssertionError("read on the EDT");
+    }, 10, null);
+    IconCache before = IconCache.install(cache);
+    try {
+      var t = new LinkTable<>(Columns.items(), v -> {});
+      t.setRows(List.of(new ItemSummary(17204, "Eye of Sulfuras", 60, null, "Quest", "Quest", 0, 5, 134124L)));
+      assertThat(rendered(t.table(), 0, 0).getIcon()).isSameAs(IconCache.empty(IconCache.ROW));
+    } finally {
+      IconCache.install(before);
+    }
+  }
+
+  @Test
+  void otherLinkColumnsShowNoIcon() {
+    var npcs = new LinkTable<>(Columns.npcs(), v -> {});
+    npcs.setRows(List.of(
+        new dev.wowforever.app.model.NpcSummary(448, "Hogger", null, 11, 11, 1, "Elwynn Forest", 12L)));
+    assertThat(rendered(npcs.table(), 0, 0).getIcon()).isNull();
+    assertThat(rendered(npcs.table(), 0, 4).getIcon()).isNull();
   }
 
   @Test

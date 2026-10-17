@@ -1,8 +1,10 @@
 package dev.wowforever.app.ui.widgets;
 
+import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
@@ -39,9 +41,10 @@ import javax.swing.Timer;
 
 /**
  * The narrow results list left of the detail: a heading with the row count over two-line rows (name; kind and key
- * facts). Moving the selection with the keyboard previews the row once it has rested for
- * {@value #PREVIEW_DELAY_MILLIS} ms, so holding an arrow key through thousands of rows loads one page, not
- * thousands; Enter or a click on a row commits it at once (the further clicks of a double-click are ignored).
+ * facts), an item row after its icon and with its name in its quality colour. Moving the selection with the
+ * keyboard previews the row once it has rested for {@value #PREVIEW_DELAY_MILLIS} ms, so holding an arrow key
+ * through thousands of rows loads one page, not thousands; Enter or a click on a row commits it at once (the
+ * further clicks of a double-click are ignored).
  */
 public final class MasterList extends JPanel {
   /** How long the selection must rest before the row is previewed. */
@@ -348,18 +351,28 @@ public final class MasterList extends JPanel {
     }
   }
 
-  /** Draws an entry as its title over a smaller, muted subtitle. */
+  /**
+   * Draws an entry as its title over a smaller, muted subtitle; an item entry after its {@value IconCache#LIST} px
+   * icon (the question mark without one), from the {@linkplain IconCache#shared shared cache} only, its title in
+   * its quality colour for the installed (dark or light) look-and-feel.
+   */
   public static final class EntryRenderer extends JPanel implements ListCellRenderer<ListEntry> {
+    private static final int ICON_GAP = 8;
+    private final JLabel icon = new JLabel();
+    private final JPanel text = new JPanel(new BorderLayout(0, 1));
     private final JLabel title = new JLabel();
     private final JLabel subtitle = new JLabel();
     private Font base;
     private Font small;
 
     EntryRenderer() {
-      super(new BorderLayout(0, 1));
+      super(new BorderLayout(UIScale.scale(ICON_GAP), 0));
       setBorder(BorderFactory.createEmptyBorder(4, 10, 5, 10));
-      add(title, BorderLayout.NORTH);
-      add(subtitle, BorderLayout.CENTER);
+      text.setOpaque(false);
+      text.add(title, BorderLayout.NORTH);
+      text.add(subtitle, BorderLayout.CENTER);
+      add(icon, BorderLayout.WEST); // an invisible icon takes no room and no gap
+      add(text, BorderLayout.CENTER);
     }
 
     @Override
@@ -374,6 +387,9 @@ public final class MasterList extends JPanel {
       subtitle.setFont(small);
       title.setText(value == null ? "" : value.title());
       subtitle.setText(value == null || value.subtitle().isEmpty() ? " " : value.subtitle());
+      boolean item = value != null && value.ref().kind() == EntityKind.ITEM;
+      icon.setVisible(item);
+      icon.setIcon(item ? IconCache.shared().forRenderer(value.iconId(), IconCache.LIST, list) : null);
       Theme theme = Theme.current();
       if (isSelected) {
         setBackground(list.getSelectionBackground());
@@ -381,7 +397,8 @@ public final class MasterList extends JPanel {
         subtitle.setForeground(list.getSelectionForeground());
       } else {
         setBackground(list.getBackground());
-        title.setForeground(theme.textPrimary());
+        Integer quality = value == null ? null : value.quality();
+        title.setForeground(quality != null ? QualityColors.text(quality, FlatLaf.isLafDark()) : theme.textPrimary());
         subtitle.setForeground(theme.textMuted());
       }
       setOpaque(true);
@@ -389,12 +406,18 @@ public final class MasterList extends JPanel {
     }
 
     /**
-     * Lays the two labels out directly: a renderer is validated by the list's cell renderer pane before each
-     * paint, and a plain container skips layout while it has no native peer (headless printing, tests).
+     * Lays the icon and the two labels out directly: a renderer is validated by the list's cell renderer pane
+     * before each paint, and a plain container skips layout while it has no native peer (headless printing, tests).
      */
     @Override
     public void validate() {
       doLayout();
+      text.doLayout();
+    }
+
+    /** The item icon; hidden for other kinds. */
+    public JLabel icon() {
+      return icon;
     }
 
     public JLabel title() {

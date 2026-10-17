@@ -21,6 +21,19 @@ class NpcRepositoryTest {
   }
 
   @Test
+  void lootRowsCarryTheItemQualityAndIcon() {
+    NpcDetail d = repos.npcs().detail(639).get();
+    assertThat(d.drops()).filteredOn(l -> l.item().id() == 5191).singleElement().satisfies(l -> {
+      assertThat(l.quality()).isEqualTo(3);
+      assertThat(l.iconId()).isEqualTo(135325L);
+    });
+    assertThat(d.drops()).filteredOn(l -> l.item().id() == 5193).singleElement().satisfies(l -> {
+      assertThat(l.quality()).as("no client data").isNull();
+      assertThat(l.iconId()).isNull();
+    });
+  }
+
+  @Test
   void lootRowsCarryTheItemClass() {
     NpcDetail d = repos.npcs().detail(639).get();
     assertThat(d.drops()).filteredOn(l -> l.item().id() == 5191).singleElement().satisfies(l -> {

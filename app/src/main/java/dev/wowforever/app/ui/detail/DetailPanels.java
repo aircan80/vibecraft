@@ -4,6 +4,7 @@ import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.ItemDetail;
+import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
@@ -16,8 +17,10 @@ import dev.wowforever.app.ui.pages.ObjectPage;
 import dev.wowforever.app.ui.pages.QuestPage;
 import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
+import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Images;
 import java.awt.image.BufferedImage;
+import java.util.List;
 import java.util.Optional;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
@@ -32,8 +35,8 @@ public final class DetailPanels {
   private DetailPanels() {}
 
   /**
-   * What {@link #load} returns for an item: the item and its decoded icon (null when there is none). The page
-   * does not show the icon yet (the tooltip card and icons arrive with Part 2).
+   * What {@link #load} returns for an item: the item and its decoded icon (null when there is none), which the
+   * page's tooltip card shows.
    */
   public record LoadedItem(ItemDetail detail, BufferedImage icon) {}
 
@@ -47,22 +50,47 @@ public final class DetailPanels {
    * The detail record of {@code ref} ({@link LoadedItem}, {@link NpcDetail}, {@link LoadedZone}, ...), or empty when
    * there is no such entity. Bosses have no page of their own (they are shown inside their instance), so they load
    * empty. An item's icon (or the question-mark fallback) and a zone's map are read and decoded here, off the EDT.
-   * The icon id is the summary's, which an item with only an {@code Item} row (no tooltip card) has too.
+   * The icon id is the summary's, which an item with only an {@code Item} row (no tooltip card) has too. The item
+   * icons the page's tables show first are loaded into the {@linkplain IconCache#shared shared cache} here too:
+   * an NPC's drops and wares, an object's contents, a quest's rewards, an instance's first boss's loot.
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
     Optional<?> detail = switch (ref.kind()) {
       case ITEM -> repos.items().detail(id).map(d -> new LoadedItem(d,
           repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode).orElse(null)));
-      case NPC -> repos.npcs().detail(id);
-      case OBJECT -> repos.objects().detail(id);
-      case QUEST -> repos.quests().detail(id);
+      case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells()));
+      case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains()));
+      case QUEST -> repos.quests().detail(id).map(d -> warmed(d, d.rewards()));
       case ZONE -> repos.zones().detail(id)
           .map(d -> new LoadedZone(d, d.map().flatMap(m -> Images.decode(m.jpeg())).orElse(null)));
-      case INSTANCE -> repos.instances().detail(id);
+      case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)));
       case BOSS -> Optional.empty();
     };
     return detail.map(Object.class::cast);
+  }
+
+  /** {@code detail}, once the {@value IconCache#ROW} px icons of the items in {@code lists} are cached. */
+  @SafeVarargs
+  private static <T> T warmed(T detail, List<LootRow>... lists) {
+    for (List<LootRow> rows : lists) {
+      IconCache.shared().warm(rows.stream().map(LootRow::iconId).toList(), IconCache.ROW);
+    }
+    return detail;
+  }
+
+  /**
+   * The loot the instance page shows on opening: the first main encounter's (else the first extra list's) in the
+   * first difficulty, as {@link InstancePage} selects them; empty without bosses or difficulties.
+   */
+  private static List<LootRow> firstBossLoot(InstanceDetail d, Repositories repos) {
+    if (d.difficulties().isEmpty()) {
+      return List.of();
+    }
+    return d.bosses().stream().filter(b -> !b.extraList()).findFirst()
+        .or(() -> d.bosses().stream().findFirst())
+        .map(b -> repos.instances().bossLoot(b.id(), d.difficulties().get(0)))
+        .orElse(List.of());
   }
 
   /** The summary's icon id, else the card's (null when neither has one). */
@@ -74,7 +102,7 @@ public final class DetailPanels {
   /** The page for a record from {@link #load}. */
   public static JComponent render(Object detail, Repositories repos, Navigator nav) {
     return switch (detail) {
-      case LoadedItem p -> new ItemPage(p.detail(), nav);
+      case LoadedItem p -> new ItemPage(p.detail(), p.icon(), nav);
       case NpcDetail d -> new NpcPage(d, nav, ClipboardPort.system());
       case ObjectDetail d -> new ObjectPage(d, nav, ClipboardPort.system());
       case QuestDetail d -> new QuestPage(d, nav);

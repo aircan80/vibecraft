@@ -46,6 +46,7 @@ public final class SearchRepository {
       SELECT s.kind, s.id, s.name,
              sole.id AS sole_id, sole.name AS sole_name,
              ic.name AS class_name, isc.name AS subclass_name, i.item_level, i.required_level, i.quality,
+             i.icon_id,
              n.rank, n.min_level, n.max_level, nz.name AS npc_zone,
              oz.name AS object_zone,
              q.quest_level, qz.name AS quest_zone,
@@ -237,7 +238,7 @@ public final class SearchRepository {
     };
     String name = kind.get() == EntityKind.INSTANCE ? instanceTitle(rs, rs.getString("name")) : rs.getString("name");
     return new SearchHit(new EntityRef(kind.get(), rs.getLong("id")), name, Labels.withKind(kind.get(), facts),
-        Sql.integer(rs, "quality"));
+        1, Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id"));
   }
 
   /** {@code name} with the instance's wing when another instance has the same name. */
