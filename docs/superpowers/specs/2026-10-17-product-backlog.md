@@ -1,11 +1,13 @@
-# Product backlog and decisions, v4
+# Product backlog and decisions, v5
 
 Date: 2026-10-17. Owner: product manager. Inputs: phase 3 design spec (incl. addenda §10–11), ROADMAP, memos from the
 WoW expert, BA and UI designers 1–3, plans 2B and 3A, the three research reviews (loot/raids, professions/economy,
 lore/exploration), the owner's Forever direction ("let's make this the best WoW companion app ever"), and the
 Forever round: the analyst's new-systems memo, the verified data-feasibility memo for build 1.60.1.70425 (it wins
-where memos disagree), and the WoW experts' Forever systems and content ideation memos. Ids marked "verify" are
-named in a memo but not yet checked against the shipped DB.
+where memos disagree), and the WoW experts' Forever systems and content ideation memos. v5 adds the PM memos in
+`.superpowers/sdd/2026-10-17-phase3b-quest-page-and-wow-look/` (pm-forever-dungeons, pm-map-layers, pm-world-map,
+pm-data-sources, pm-instance-maps), the data-source review, and the owner's decisions on them. Ids marked "verify"
+are named in a memo but not yet checked against the shipped DB.
 
 ## 1. Product principles
 1. A **research and learning tool** in the spirit of Wowhead: it describes the world (what exists, where, who, how
@@ -30,7 +32,9 @@ shipped DB; small text ≥ 4.5:1 in both themes; no unexplained new unsupported/
 | Release | Theme | Scope | Must be true to ship |
 |---|---|---|---|
 | **v0.2.0** (2B) | Companion-app foundation | Phase 2B as planned, ending with zone "!" giver pins | Gates; README screenshots; the quality fixes in §3 are closed or listed as v0.3.0 blockers |
-| **v0.3.0** (3A + 3B) | Quests on the map, the WoW look | Quest page redesign, quest chain, objective pins, giver/turn-in pins, "Involved in quests", patrol routes, client-art rail icons, WoW chrome + Marcellus, Parchment theme, IA clean-up, merged Dropped by, master-list auto-collapse, community drop rates, coordinates + copy-to-game | Scan test on the five acceptance quests; chain tests cover AND/OR, exclusive, breadcrumb, cycle, missing id; icons verified; VMaNGOS licence in NOTICE; every VMaNGOS rate reads "Vanilla rate" (decision 19); every §3 fix closed |
+| **v0.3.0** (3A + 3B) | Quests on the map, the WoW look | Quest page redesign, quest chain, objective pins, giver/turn-in pins, "Involved in quests", patrol routes, client-art rail icons, WoW chrome + Marcellus, Parchment theme, IA clean-up, merged Dropped by, master-list auto-collapse, community drop rates, coordinates + copy-to-game; exceptions (decision 7): client refresh to 70450 + Forever dungeons slice (T17, T18) with encounter-order badges, hidden-item overlay + build-watch + AtlasLoot Classic Forever (T19), collector addon + import (T20) | Scan test on the five acceptance quests; chain tests cover AND/OR, exclusive, breadcrumb, cycle, missing id; icons verified; VMaNGOS licence in NOTICE; every VMaNGOS rate reads "Vanilla rate" (decision 19); 286978 and 869 read hotfix stats and 16806 stays Classic Era (decision 25); City of Dalaran (2959) lists its 9 bosses with "Level 28+"; every §3 fix closed |
+| **v0.3.1** | Maps | World map drill-down (Azeroth › continent › zone), then map layers: world-to-map transform, instance entrances and exits, flight paths | Zones rail › Eastern Kingdoms › Westfall in three clicks, also keyboard-only; 20 NPCs agree within 1 point between VMaNGOS world spawns and Questie map percentages; Westfall shows The Deadmines entrance and Sentinel Hill with Thor 523. If it runs long, the layers ship separately and the world map never slips |
+| **v0.3.2** | Dungeon maps | Atlas floor maps on instance pages: floor tabs, legend, credit caption (decision 26) | GPL-2.0 text shipped; NOTICE and every caption credit Dan Gilbert, Lothaer, Arith Hsu and the Atlas Team; the four Forever beta dungeons that Atlas draws show their maps |
 | **v0.4.0** | **WoW: Forever systems** | Forever foundation, talent browser + calculator + Classic diff, races grid + race pages, Legacy page, camping page + composer, stat glossary + "has stat" filter, class spells by level, DBCache import spike | Foundation tests in §4.1; every Classic-vs-Forever diff names both builds; Legacy calculator stops at 16 points and the talent calculator at 51; Skyborne ChrRaces 95 and 96 each show five classes; re-imported on the live build if it exists at release time |
 | **v0.4.1** | **WoW: Forever content** | New/Changed chips + context strip + Forever hub, dungeon & raid ladder with opening dates, instance discovery pages, item set pages with Compare with Classic, situational trinket finder, new recipes + XP food list, zone Forever header, PvP pages (Darkspear Islands + its two factions), appearance panel | Hyjal Summit (map 2981) shows The Wild King as Reported, never Known; Rotmender's Raiment (set 2133) lists its five pieces with a Hidden chip each; no name-match block on any instance page (decision 18) |
 | **v0.5.0** | Loot research | Loot filter (class, slot, resistance), loot pools + world-drop bucket, dungeon & raid prep tab | Molten Core filtered to Warlock + Waist shows Felheart Belt with its "Classic Era value" label; items whose class or slot is hidden are counted, never silently included; Hogger's own drops lead and world drops are a separate bucket |
@@ -72,7 +76,7 @@ Questie, with no client data. Item sets 2133 and 2135 are absent. The stat map a
 | 4 | Camping page (profession × tier matrix, campfire tiers, Blueprints) + composer (hypothetical party → coverage) | 36 summon-object spells 1307172–1307397 (SpellEffect Effect 76), SpellName, Spell descriptions, 56 placing items, 29 Blueprint items (RequiredSkill/Rank; 17 hidden), QuestSort 666 | M + S |
 | 5 | Stat glossary + "has stat" filter + Classic→Forever stat mapping | F3; ItemSparse | S |
 | 6 | Class spells by level ("new", "now baseline", "was a talent") | SkillLineAbility, Spell levels (verify table), Era baseline | M |
-| 7 | DBCache import spike: format, opt-in flow, size, legal note; decision memo only | the user's WoW install, read-only | S |
+| 7 | DBCache import spike, reduced to a fallback note: the Raidbots overlay (T19) already covers hidden items | the user's WoW install, read-only | S |
 Cut line: if v0.4.0 runs over, item 6 moves to v0.4.1; items 1–5 never move.
 
 ### 4.3 v0.4.1 features, ranked
@@ -92,8 +96,9 @@ Cut line: items 8–9 move to v0.5.0 if v0.4.1 runs over.
 ### 4.4 Not until data exists (parking lot)
 These enter only through a data update, as Reported first and Known once corroborated. The crowd-data paths are:
 (a) Questie Forever updates, already our quest/NPC source; (b) an AtlasLoot Forever module when published;
-(c) public hotfix-cache aggregators (foreverchanges.pro, wowsims/gamedata, Raidbots) after a licence check;
-(d) the opt-in DBCache import if the spike says yes; (e) the live-build re-import from 4 Nov 2026.
+(c) public hotfix-cache aggregators, adopted for Raidbots' cache in T19 (others remain cross-check only);
+(d) our own collector addon (T20), with the opt-in DBCache import as a fallback; (e) the live-build re-import from
+4 Nov 2026.
 - Launch-instance bosses beyond DungeonEncounter and the achievement leaks; all Forever boss and trash loot: (a)(b)(c).
 - Blueprint drop sources for the 29 Blueprints: (a)(b).
 - Stats, names and quality of the 12,618 hidden items (2,433 new): (c)(d), one data update at a time.
@@ -122,6 +127,17 @@ sized in §4 and listed here once.
 | Master-list auto-collapse | M | S | none | 0.3 | In | Gives the page 300 px |
 | Community drop rates ("Vanilla rate") | H | M | VM loot templates | 0.3 | In | Replaces "rate unknown"; labelled vanilla |
 | Coordinates + /way + in-game links | H | S | none | 0.3 | In | Bridges research to the game |
+| Client refresh to 70450 + Forever dungeons slice | H | M | Map, LFGDungeons, ContentTuning, DungeonEncounter | 0.3 (T17, T18) | In | Owner bug report; boss names exist in the client, loot does not |
+| Encounter-order badges on boss lists | M | S | DungeonEncounter, AtlasLoot | 0.3 (T18) | In | "Encounter order in the game client", never "kill order" |
+| Hidden-item overlay (Raidbots DBCache) | H | M | Raidbots mirror, pinned by SHA-256 | 0.3 (T19) | In | Reveals 3,173 Era-fallback and 626 no-data items today |
+| Build-watch script | H | S | patch service, wago, Raidbots, QuestieDB | 0.3 (T19) | In | Our data lagged because nothing said a build moved |
+| AtlasLoot Classic Forever replaces Hoizame | H | S | fork, GPL-2.0 | 0.3 (T19) | In | Forever boss loot, labelled "AtlasLoot Forever, unverified" |
+| Collector addon + import | H | M | own observations | 0.3 (T20) | In | Server-side facts only players can see; beta run before ~22 Oct |
+| QuestieDB re-pin weekly and at launch | H | S | QuestieDB | process | In | The gap was the pin's age |
+| World map drill-down | H | M | UiMap, UiMapArt, UiMapAssignment | 0.3.1 | In | Owner: "more intuitive than having to search" |
+| World-to-map transform | H | M | UiMapAssignment | 0.3.1 | In | Enables entrances and flight paths |
+| Instance entrances and exits on zone maps | H | S | VM areatrigger_teleport, client AreaTrigger (verify) | 0.3.1 | In | Owner request; moved from v0.4.1 |
+| Dungeon floor maps (Atlas) | H | M | Atlas map module, GPL-2.0 | 0.3.2 | In | Owner approved with credit (decision 26) |
 | Forever foundation (F1–F4) | H | L | §4.1 | 0.4.0 | In | Without it every Forever page lies or looks broken |
 | Talent browser + calculator + diff | H | L | Trait* (§4.2) | 0.4.0 | In | Every returning player's first question |
 | Races grid + race pages | H | M | ChrRaces, CharBaseInfo, ChrRaceRacialAbility | 0.4.0 | In | Small, certain data; showcases Skyborne |
@@ -129,7 +145,7 @@ sized in §4 and listed here once.
 | Camping page + composer | H | M | camp spells, Blueprint items | 0.4.0 | In | No Classic analogue; client-backed |
 | Stat glossary + "has stat" filter | H | S | ItemSparse | 0.4.0 | In | Merged hit/crit misreads otherwise |
 | Class spells by level | M | M | SkillLineAbility | 0.4.0 | In | Below the cut line |
-| DBCache import spike | M | S | user's install | 0.4.0 | In (spike) | Main lever for hidden items; decision memo only |
+| DBCache import spike | L | S | user's install | 0.4.0 | In (fallback note) | The Raidbots overlay covers hidden items; kept as the fallback if Raidbots disappears |
 | Forever v0.4.1 content (§4.3, 9 features) | H | L | §4.3 | 0.4.1 | In | Places new content among Classic, with states |
 | Loot filter: class, slot, resistance | H | S | ItemSparse (shipped) | 0.5 | In | "What drops for me here"; hidden fields counted |
 | Loot pools + world-drop bucket | H | M | VM reference ids, groupid | 0.5 | In | A mob's own loot vs a shared pool is a trust issue |
@@ -142,7 +158,7 @@ sized in §4 and listed here once.
 | Gathering nodes | H | M | VM gameobject loot, Lock | 0.6 | In | "Gathered from" + node map |
 | Disenchanting | M | M | VM disenchant loot | 0.6 | In | Enchanters' core question |
 | Zone gazetteer | H | M | AreaTable, TaxiNodes | 0.7 | In | Zone page as hub; extends the v0.4.1 header |
-| Flight-path layer | H | M | TaxiNodes, TaxiPath | 0.7 | In | Orientation |
+| Flight-path layer | H | M | TaxiNodes, TaxiPath, TaxiPathNode | 0.3.1 | In | Owner request; moved from v0.7.0 |
 | Storylines browser | M | M | quest_relation, QuestLineXQuest | 0.7 | In | Follow an arc as one piece |
 | Faction pages | M | M | Faction DB2 | 0.7 | In | Reputation sources; PvP pair ships in v0.4.1 |
 | "Mentioned in" + quest-text search | M | M | quest text index | 0.7 | In | Learning by name |
@@ -158,11 +174,18 @@ sized in §4 and listed here once.
 | Collections browser (mounts, companions) | M | M | Mount (141), sources server-side | — | Later | Sources unknown at launch |
 | Hardcore ruleset note | L | S | cited curated text | — | Later | Hardcore arrives in winter 2026/27 |
 | Legendary component tree | M | L | chain + crafting + sources | — | Later | Composes three features; legendary details unannounced |
+| CDN/CASC mining (port the wowsims db2tool design) | M | L | patch service, CDN | — | Later | Design page now; build only if wago fails or changes terms |
+| Rates from aggregated collector data | M | M | collector files | — | Later | After launch |
+| Boss positions from the collector | M | M | collector | — | Later | Probably blocked: no dungeon UiMaps (verify in the T20 beta run) |
+| CMaNGOS disagreement report | L | M | GPL-3.0 | — | Later | Build-time report only, never in the shipped file |
 | Spawn-cluster facts | M | M | spawns, VM respawn | — | Later | After gathering nodes |
 | Mini tooltip window | M | M | none | — | Later | After pinned tabs |
 | Upgrade finder | M | L | stat weights | — | Later | Needs a character; loot filter covers the research half |
 | Localisation, 3D models | L | L | locales, asset pack | — | Later | Size, art redistribution |
 | Name-matched items on instance pages | M | S | name match | — | Out | A guess, not provenance (decision 18) |
+| Retail-client dungeon floor art | — | — | retail client | — | Out | Wrong layouts for reworked dungeons; nothing for Forever's |
+| Wowhead, fan sites, Blizzard Game Data API as shipped sources | — | — | — | — | Out | Test oracle or cross-check only |
+| Travel times, fastest route, recommended flight path | — | — | — | — | Out | Guide features (decision 8) |
 | Challenge checklist ticks, collected appearances, death tracking | — | — | account data | — | Out | Stores or reads progress (decision 17) |
 | "Best alt for points", "best perks", "best camp", recommended talent builds | L | M | opinion | — | Out | Recommenders (decision 17) |
 | Farming route loop, yield/hour | L | M | estimates | — | Out | Prescriptive estimate (decision 9) |
@@ -173,11 +196,16 @@ sized in §4 and listed here once.
 ## 6. Decisions log
 1. **Objectives + map above Given by / Turned in to.** The stepper and "!"/"?" pins above the fold meet the BA's concern.
 2. **No objective counts.** Questie has none.
-3. **Rail icons from client art on navy plates**; SVG only as fallback. Client art is for icons only (owner).
+3. **Rail icons from client art on navy plates**; SVG only as fallback. Client art is for icons only (owner), with
+   one explicit exception: Atlas's community-drawn dungeon maps (decision 26).
 4. **Marcellus SC headings, Inter body.** Cinzel fallback; Friz Quadrata never ships.
 5. **Parchment replaces the current light theme**; dark "Slate" stays the default.
 6. **Merged Dropped by**: instance loot joins NPC drops as chips; the source filter applies to NPC rows only.
-7. **v0.3.0 scope is frozen and ships as one release**, apart from the vanilla label in decision 19.
+7. **v0.3.0 scope is frozen and ships as one release.** Recorded exceptions:
+   - the vanilla label (decision 19);
+   - the client refresh to 70450 and the Forever dungeons slice, from the owner's bug report;
+   - the data-source task T19 and the collector T20, by controller ruling, because the beta ends about 22 Oct.
+   New owner requests go to v0.3.1 and later.
 8. **What "leveling guide" means here**: Out when a feature needs your character, your progress or a recommended
    order. Describing quests, talents and races as they exist is research.
 9. **Farming**: facts In; route loops and yield-per-hour estimates Out (owner confirmed).
@@ -207,18 +235,33 @@ sized in §4 and listed here once.
     - "What changed in this build" shrinks to S because it reuses the foundation diff.
 22. **Talents read Trait* tables only.** Era Talent/TalentTab rows (ClassID 0 in Forever) are the Classic baseline,
     nothing more. Beta tooltips above level 30 carry "Seen in beta 70425" until the live build confirms them.
-23. **DBCache.bin is a spike, not a feature.** It is read-only, per-machine and optional, and only an explicit import
+23. **DBCache.bin from the user's install is a fallback, not a feature**, now that the Raidbots overlay exists. It is read-only, per-machine and optional, and only an explicit import
     the user starts may read it. Principle 3 now states this exception.
 24. **Curated facts** (opening dates, announced level bands, Hardcore rules) live in one reviewed data file. Each
     fact carries a citation and a state (Known from Blizzard, Unannounced or Reported) and is never mixed into a diff.
+25. **Item data precedence**: Blizzard hotfix rows (Raidbots cache, header build = `build.lock` build) > Forever
+    base ItemSparse > Classic Era fallback > Questie name. Revealed rows accumulate across snapshots.
+    - Footers: "Forever stats revealed by a Blizzard hotfix · beta 70450 · cache <date>", "Classic Era values.
+      Forever stats are still hidden." or "Stats hidden until this item drops on a realm". Beta data is never called "live".
+    - The six-source drop-rate order is unchanged. The AtlasLoot Classic Forever fork takes the two AtlasLoot slots,
+      labelled "AtlasLoot Forever". Its Forever boss loot is Reported ("unverified") until Questie or the
+      collector confirms a row.
+26. **Atlas dungeon maps approved by the owner (2026-10-17)** for v0.3.2. They are an explicit exception to
+    decision 3, because they are community-drawn maps, though based on Blizzard minimap data.
+    - Conditions: the GPL-2.0 text ships with them; NOTICE and every map caption credit Dan Gilbert, Lothaer,
+      Arith Hsu and the Atlas Team; no courtesy email for now (owner).
+    - Our boss list stays the authority, and we draw no pins of our own on Atlas images.
+27. **Encounter order is a fact, not advice.** Boss lists carry numbered badges in the client's encounter order,
+    captioned "Encounter order in the game client" (T18).
 
 ## 7. Open questions for the owner
 Answered and recorded: no character profile (decision 17); VMaNGOS headline rate, labelled (decisions 10, 19); no
-yield per hour (9); client art for icons only (3); Forever at v0.4 ahead of loot (12).
+yield per hour (9); client art for icons only (3), except Atlas maps (26); Forever at v0.4 ahead of loot (12).
+Settled by controller ruling and reported to the owner: Raidbots' hotfix cache is adopted (decision 25).
 1. After the DBCache spike, do you want an opt-in "import from my WoW install" step in a later release?
    **Default:** decide on the spike memo; nothing reads the install until you say yes.
-2. May community aggregators (foreverchanges.pro, wowsims/gamedata) feed hidden stats and boss loot if their
-   licences allow? **Default:** yes, labelled by source and Reported until a second source agrees.
+2. At launch (4 Nov), if Raidbots publishes no cache path for the launch product, should we fall back to your own
+   client's cache through the opt-in import? **Default:** yes, as a one-off import you start.
 3. Should hidden items keep their Classic Era stats on screen? **Default:** yes, labelled (decision 20).
 4. Should v0.4.0 wait for the live build (4 Nov 2026)? **Default:** no; ship on the current build with the beta label.
    The live re-import is a data update.
@@ -231,7 +274,11 @@ yield per hour (9); client art for icons only (3); Forever at v0.4 ahead of loot
 - Every feature carries BA-format acceptance criteria (numbered, testable, edge cases) and a named example:
   - **v0.3.0:** quest 176 (starts at Wanted Poster objects 68/156561, ends at NPC 240, item objective 1931); 166 (Defias
     chain); 6502/6602; 7787 (after 7785/7786); 7791 (repeatable); NPC 550 (patrol route).
-  - **v0.4.0:** items 286978 (Rotmender's Garb, Hidden) and 16806 (Felheart Belt, Classic Era value); TraitSystem 10
+  - **v0.3.0 data exceptions:** 286978 and 869 (hotfix), 16806 (stays Classic Era), 273643 (hotfix); City of Dalaran
+    2959 (9 bosses, Level 28+).
+  - **v0.3.1:** Westfall 40 (The Deadmines entrance, Sentinel Hill with Thor 523), Eastern Kingdoms 1415.
+  - **v0.3.2:** City of Dalaran (Atlas floors A/B), The Deadmines.
+  - **v0.4.0:** items 286978 (Rotmender's Garb, Hidden until T19 reveals it; pick another hidden item then) and 16806 (Felheart Belt, Classic Era value); TraitSystem 10
     with currency 3820 (51 points); TraitSystem 45 with trees 1187–1189 and currency 4225 (16 points); RenownRewards
     CovenantID 48 (ranks 25/40/55); ChrRaces 95 and 96; camp spells 1307172–1307397 and Blueprint: Fermenter (Alchemy
     140); stat ids 31/32 and 128.
@@ -266,3 +313,15 @@ yield per hour (9); client art for icons only (3); Forever at v0.4 ahead of loot
   - Decisions 15–24 added, including the name-match ruling (no block, a search link instead). Principle 3 gains the
     opt-in import exception and principle 4 the per-field knowledge rule.
   - Owner answers recorded; five new open questions.
+- v5 (2026-10-17): owner requests and data sources after the Forever round.
+  - v0.3.0 gains recorded exceptions (decision 7): the client refresh to 70450 and the Forever dungeons slice,
+    encounter-order badges, the hidden-item overlay, build-watch and AtlasLoot Classic Forever (T19), and the
+    collector addon (T20).
+  - New v0.3.1 "Maps": the world map drill-down first, then the transform, entrances and exits, and flight paths.
+    The flight-path layer moves from v0.7.0 and entrance pins from v0.4.1.
+  - New v0.3.2 "Dungeon maps": Atlas floor maps, approved by the owner with credit and without the email
+    (decision 26, an exception to decision 3).
+  - Decisions 25 (item data precedence and footers), 26 and 27 added; decisions 3, 7 and 23 amended.
+  - Backlog rows added for the above, plus Later rows (CDN/CASC design, collector rates, collector boss positions,
+    CMaNGOS report) and Out rows (retail floor art, third-party shipped sources, travel-time advice).
+  - The DBCache spike shrinks to a fallback note; parking-lot paths (c) and (d) updated; open question 2 replaced.
