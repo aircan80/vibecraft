@@ -698,6 +698,69 @@ Tables and lists sit on raised, not surface. Measured on surface, poor reads 3.9
   - The scan test is confirmed visually at 1280×800.
 - [ ] **Step 4: full verify.** Run `./mvnw -B -q verify`, then commit `docs: v0.3.0 screenshots, usage guide and roadmap`.
 
+### Task 17: Client data 70450 and the Forever dungeons (data)
+
+Added 2026-10-17 as an owner-bug exception to backlog decision 7 (frozen v0.3.0 scope): the owner reported that the new WoW: Forever dungeons do not appear and asked whether the data is current. Facts verified on wago.tools (builds 1.60.1.70425 and 1.60.1.70450, identical for these tables): `Map` rows with `InstanceType = 1` and `ExpansionID = 0` for City of Dalaran 2959, Excavation Site: Wetlands 2998, Ruins of Lordaeron 2999 and The Hall of Thanes 3065; `LFGDungeons` 3271 "City of Dalaran" (ContentTuningID 4512), 3272 "Ruins of Lordaeron" (5256), 3273 "Hall of Thanes" (7000), 3274 "Excavation Site: Wetlands" (6874), all with `MapID = 0`; `ContentTuning.MinLevelSquish` 4512 → 28, 5256 → 15, 7000 → 13, 6874 → 26 (`MaxLevelSquish` equal, `LfgMin/MaxLevel` 0 or inconsistent — ignore them); `DungeonEncounter` (columns `Name_lang,ID,MapID,DifficultyID,OrderIndex,CompleteWorldStateID,Bit,Flags,SpellIconFileID,Faction,ItemSequenceLevel`) names 9 bosses for 2959, 4 for 2998, 7 for 2999 and 4 for 3065, all `DifficultyID 0`; map 3002 has encounters but no name (excluded). No loot exists client-side. The installed client is 1.60.1.70450. Runs after Task 5 and before Task 6 so later shipped-data tests and screenshots pin final data.
+
+**Files:**
+- Modify `tools/clientdata/fetch.py` / `convert.py` table lists (+ `DungeonEncounter`, `LFGDungeons`, `ContentTuning`; `Map` is already fetched), `tools/clientdata/build.lock` (build `1.60.1.70450`), `tools/clientdata/README.md`.
+- Modify `importer/src/main/resources/dev/wowforever/importer/schema.sql` (`instance` + `source TEXT NOT NULL DEFAULT 'atlasloot'`, `client_map_id INTEGER`, `tuned_min_level INTEGER`, `bosses_state TEXT`, `loot_state TEXT`), `SqliteWriter.SCHEMA_VERSION = 4`.
+- Create `importer/src/main/java/dev/wowforever/importer/clientdata/ClientInstanceLoader.java` and `ClientInstance` / `ClientEncounter` records; modify `ImportPipeline` (after the AtlasLoot instances; ids continue the AtlasLoot sequence), `AtlasWriter` or a new `ClientInstanceWriter`, `report/UiFields` if instances are UI-field checked.
+- Modify `app/src/main/java/dev/wowforever/app/model/InstanceSummary.java` (+ `String source`, `Integer tunedMinLevel`, `String bossesState`, `String lootState`), `app/.../db/InstanceRepository.java` and `SearchRepository` (client instances are searchable like AtlasLoot ones).
+- Regenerate `app/src/main/resources/data/wowforever.sqlite`, `build-id.txt`, `import-report.txt`.
+- Tests: create `importer/.../clientdata/ClientInstanceLoaderTest.java` (fixture CSVs with the four maps, the 3002 unnamed map, one LFGDungeons row without a matching map); modify `SchemaTest` (v4 columns), `InstanceRepositoryTest`, `ShippedDataTest`, `ShippedProvenanceDataTest`.
+
+**Interfaces:**
+- Consumes: the client CSVs in `out/current/csv/`; the optional-table pattern from 3A Task 8 (`optionalTable`: absent tables → the loader is skipped with `clientdata.instances.skipped = 1` and a note).
+- Produces:
+  - `ClientInstanceLoader.load(Path csvDir, ImportReport) -> List<ClientInstance>` with `record ClientInstance(long mapId, String name, Integer tunedMinLevel, Integer areaTableId, List<ClientEncounter> encounters)` and `record ClientEncounter(long id, String name, int orderIndex)`.
+    - A `Map` row qualifies when `InstanceType = 1`, `ExpansionID = 0` and its `MapName_lang` equals an `LFGDungeons.Name_lang` after both are lower-cased and a leading `"the "` is removed. Unmatched dungeon maps are counted as `clientdata.instances.unmatched` (3002 today).
+    - `tunedMinLevel` = `ContentTuning.MinLevelSquish` of the LFG row's `ContentTuningID`; null when 0 or absent (counted `clientdata.instances.noTuning`).
+    - Encounters: every `DungeonEncounter` row with that `MapID` and `DifficultyID = 0`, sorted by `OrderIndex` then `ID`.
+  - Writer: one `instance` row per `ClientInstance` with `key = "client:" + mapId`, `name` from `Map.MapName_lang` (so "The Hall of Thanes"), `map_id = mapId`, `content_type = 'dungeon'`, `level_min = tunedMinLevel`, `level_max = NULL`, `zone_id` = the AtlasLoot/Questie zone whose name equals the Map's `AreaTableID` area name when one exists, else NULL; `source = 'client'`, `client_map_id = mapId`, `tuned_min_level`, `bosses_state = 'client_named'`, `loot_state = 'none'`. One `boss` row per encounter: `name`, `npc_id NULL`, `level NULL`, `is_extra_list 0`, `sort_order` = position from 1. No `boss_loot`. AtlasLoot rows keep `source = 'atlasloot'`, `bosses_state = 'atlasloot'`, `loot_state = 'atlasloot'`.
+  - Report counters: `clientdata.instances` (4), `clientdata.encounters` (24), `clientdata.instances.unmatched`, `clientdata.instances.noTuning`, `clientdata.instances.skipped`.
+  - `InstanceSummary` carries the four new fields; `InstanceRepository.list/summary` read them.
+
+- [ ] **Step 1: failing tests.**
+  - `ClientInstanceLoaderTest.fourDungeonsWithTheirEncountersInOrder`: the fixture gives 4 instances; 2959 has 9 encounters starting "Arcane Anomaly" and ending "Mana Wraith"; 2998's order is Saltspine, Shadetooth, Highland Horror, Relic Guardian (OrderIndex 0, 1000, 1500, 2000); 3065 has `tunedMinLevel 13`; the unnamed map 3002 is counted unmatched, not loaded.
+  - `ClientInstanceLoaderTest.theArticleDoesNotBreakTheJoin`: `Map` "The Hall of Thanes" matches LFG "Hall of Thanes".
+  - `ClientInstanceLoaderTest.missingTablesSkipTheLoader`: a copy of the fixture without `DungeonEncounter.csv` yields no instances and `clientdata.instances.skipped = 1`.
+  - `SchemaTest.v4InstanceColumns`.
+  - `InstanceRepositoryTest.clientInstanceCarriesItsState` on the fixture DB.
+  - `ShippedDataTest.foreverDungeonsAreShipped`: `instance` rows with `source = 'client'` are exactly the client map ids {2959, 2998, 2999, 3065}; 2959 has 9 bosses, `tuned_min_level 28`, first boss "Arcane Anomaly"; 3065's first boss is "Faldrim Anvilmar"; none has `boss_loot`; each is found by `SearchRepository` by name.
+  - `ShippedProvenanceDataTest.clientBuildIsCurrent`: `meta.client_build = "1.60.1.70450"`, `client_item_count ≥ 20492` (a floor, not an equality), `schema_version = 4`.
+- [ ] **Step 2:** run the importer tests and expect FAIL; implement; run again and expect PASS.
+- [ ] **Step 3: refresh and regenerate.** Bump `build.lock` to `1.60.1.70450`, fetch every table (plus the three new ones, the Era fallback and UI icons as the README describes), convert, run `./mvnw -B -pl importer -am -Pimport-data verify`, copy `build.lock`, update `README.md` (build line, "Dungeons & raids" sentence) and `tools/clientdata/README.md`. Record in the report every shipped count that changed (items, quests, drop rows) and the import-report deltas.
+- [ ] **Step 4:** full `./mvnw -B -q verify`; fix shipped tests that pinned totals by turning them into floors or ids (never by loosening a fact about a named entity).
+- [ ] **Step 5:** commit `data: client build 1.60.1.70450 and the four Forever dungeons from Map, LFGDungeons and DungeonEncounter`.
+
+### Task 18: Forever dungeon pages (UI)
+
+Runs after Task 17 and before Task 16, so the screenshots include it. Copy is the product manager's (memo `pm-forever-dungeons.md`): describe what the data knows, name its source, say what is not recorded yet; never a recommendation, a progress tick or guessed loot.
+
+**Files:**
+- Modify `{main}ui/pages/InstancePage.java`, `{main}ui/pages/ListPage.java` (Dungeons & raids list), `{main}ui/Labels.java` (+ `tunedLevel(Integer)` → "Level 28+"), `{main}ui/detail/HeaderPanel.java` callers, `README.md` ("Using the app": Forever dungeons).
+- Tests: modify `InstancePageTest`, `ListPageTest`, `ShippedDataTest` (page facts for City of Dalaran).
+
+**Interfaces:**
+- Consumes: Task 17 `InstanceSummary.source/tunedMinLevel/bossesState/lootState`; Task 2 `Chip`; Task 5 `HeaderPanel.addChip/setFacts`, `SectionOrder.INSTANCE`.
+- Produces, for an instance with `source = 'client'`:
+  - Header chips, in order: `Chip.Style.PLAIN "New in Forever"`, `PLAIN "Level 28+"` (tooltip "Tuning level from the game client"); no player-count chip (the client gives none).
+  - `InstancePage.COVERAGE_LINE = "Bosses: %d named in client data · Loot: %d confirmed items · Client build %s"` rendered under the header from the boss count, the confirmed loot count (0) and `meta.client_build`.
+  - The "Encounters" section lists the bosses in `sort_order` with the muted note "Loot not recorded yet" per row and the section note `InstancePage.BOSSES_NOTE = "Boss names come from the game client. WoW: Forever has no Dungeon Journal, so abilities and loot are recorded only after players meet these bosses."`.
+  - The "Loot" section shows `InstancePage.NO_LOOT_NOTE = "No loot recorded yet for this dungeon. Drops appear here when a data update records them."` and no table; "Other loot lists" is absent.
+  - The Dungeons & raids list sorts client dungeons among the Classic ones by `level_min`, shows "Level 28+" in the level column and a "New in Forever" chip, and ends with the footnote `ListPage.FOREVER_FOOTNOTE = "Announced by Blizzard, not yet in this client build: Drowned City, Krol'dok Stronghold, Alcaz Island Prison, Blackmaw Hold, The Shaper's Terrace; raids Barrow Deeps and Hyjal Summit (open 9 Dec 2026)."` with one source link (the announcement URL recorded in the research memo, opened in the browser like other external links).
+  - AtlasLoot instances are unchanged.
+
+- [ ] **Step 1: failing tests.**
+  - `InstancePageTest.foreverDungeonReadsItsState`: a fixture client instance with 2 bosses shows both chips, `COVERAGE_LINE` with "2 named", "0 confirmed", the fixture build; the Encounters rows carry "Loot not recorded yet"; the Loot section shows `NO_LOOT_NOTE`; no "Other loot lists" section; no boss loot table.
+  - `InstancePageTest.atlasLootInstanceIsUnchanged` (The Deadmines fixture: no Forever chips, no coverage line).
+  - `ListPageTest.foreverDungeonsSortAmongClassicByLevel`: a client dungeon at 28 sits between Classic dungeons at 26 and 30; its level cell reads "Level 28+"; the footnote is the last row.
+  - `ShippedDataTest.cityOfDalaranReadsAsPlanned`: the page for `client_map_id 2959` shows "New in Forever", "Level 28+", 9 encounter rows (first "Arcane Anomaly"), and the coverage line "Bosses: 9 named in client data · Loot: 0 confirmed items · Client build 1.60.1.70450"; in `CompactColumns` the page lays out within 420 px.
+  - `LabelsTest.tunedLevel`: 28 → "Level 28+", null → null.
+- [ ] **Step 2:** run the tests and expect FAIL; implement; run and expect PASS, then the full verify.
+- [ ] **Step 3:** commit `feat(ui): Forever dungeon pages with client-named bosses and no-loot states`.
+
 ---
 
 ## Self-review
