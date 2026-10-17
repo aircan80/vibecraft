@@ -22,8 +22,8 @@ class QuestMapPanelTest {
     assertThat(map.mapView().pins()).filteredOn(p -> p.kind() == PinKind.QUEST_START)
         .extracting(p -> p.ref().id()).contains(68L, 156561L);
     assertThat(map.mapView().pins()).filteredOn(p -> p.kind() == PinKind.QUEST_END).hasSize(1);
-    assertThat(map.mapView().pins()).allMatch(p -> p.emphasised());
-    assertThat(map.tabs()).extracting(Object::toString).containsExactly("Elwynn Forest ! ?");
+    assertThat(map.mapView().pins()).filteredOn(p -> p.kind().quest()).allMatch(p -> p.emphasised());
+    assertThat(map.tabs()).extracting(Object::toString).containsExactly("Elwynn Forest ! ? ①");
     assertThat(map.banner().isVisible()).isFalse();
   }
 

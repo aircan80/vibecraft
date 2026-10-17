@@ -138,9 +138,11 @@ public final class DetailPanels {
   /**
    * What {@link #load} returns for a quest: all page data and its decoded zone maps, loaded off the EDT.
    */
-  public record LoadedQuest(QuestPageData data, Map<Long, BufferedImage> maps) {
+  public record LoadedQuest(QuestPageData data, Map<Long, BufferedImage> maps, Map<Long, String> zoneNames) {
+    public LoadedQuest(QuestPageData data, Map<Long, BufferedImage> maps) { this(data, maps, Map.of()); }
     public LoadedQuest {
       maps = Map.copyOf(maps);
+      zoneNames = Map.copyOf(zoneNames);
     }
 
     public QuestDetail detail() {
@@ -194,7 +196,7 @@ public final class DetailPanels {
             maps.put(zone, map);
           }
         }
-        return new LoadedQuest(data, maps);
+        return new LoadedQuest(data, maps, repos.zones().names(data.mapZones()));
       });
       case ZONE -> repos.zones().detail(id).map(d -> loadedZone(d, repos));
       case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)))
@@ -303,7 +305,7 @@ public final class DetailPanels {
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), p.bossNpcs(), filter,
           onFilterChange, p.involvement(), nav, ClipboardPort.system(), p.routes());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), p.involvement(), nav, ClipboardPort.system());
-      case LoadedQuest p -> new QuestPage(p.data(), p.maps(), nav, ClipboardPort.system());
+      case LoadedQuest p -> new QuestPage(p.data(), p.maps(), p.zoneNames(), nav, ClipboardPort.system());
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
               worker, status, nav, questPins, routes), nav);

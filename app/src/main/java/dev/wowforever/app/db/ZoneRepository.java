@@ -76,6 +76,18 @@ public final class ZoneRepository {
     return db.read(c -> Sql.list(c, ZONES_WITH_CONTENT, ZoneRepository::summary));
   }
 
+  /** Known names for a small loaded page's map zones, read in one indexed batch. */
+  public Map<Long, String> names(List<Long> zoneIds) {
+    if (zoneIds.isEmpty()) return Map.of();
+    return db.read(c -> {
+      Map<Long, String> names = new LinkedHashMap<>();
+      String parameters = String.join(",", java.util.Collections.nCopies(zoneIds.size(), "?"));
+      Sql.list(c, "SELECT id, name FROM zone WHERE id IN (" + parameters + ") AND name IS NOT NULL",
+          rs -> { names.put(rs.getLong("id"), rs.getString("name")); return 0; }, zoneIds.toArray());
+      return Map.copyOf(names);
+    });
+  }
+
   /**
    * The zone page, or empty when there is no such zone. Instances are those in this zone or in one of its
    * direct subzones; every list holds at most {@link #DETAIL_LIST_CAP} rows. The map is the zone's {@link #map}, the

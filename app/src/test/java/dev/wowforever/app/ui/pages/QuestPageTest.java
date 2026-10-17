@@ -116,11 +116,11 @@ class QuestPageTest {
     String longText = "Bring Sharptalon's Claw to Senani Thunderheart at Splintertree Post in Ashenvale. ".repeat(6);
     var d = new QuestDetail(new QuestSummary(9, "Q", 30, 20, null), longText, List.of(), List.of(), List.of());
     var p = new QuestPage(d, t -> {});
-    p.setSize(900, 700);
+    p.setSize(1216, 700);
     layOut(p);
     int wide = p.objectives().getWidth();
     int wideHeight = p.objectives().getHeight();
-    assertThat(wide).isLessThanOrEqualTo(900).isGreaterThan(300);
+    assertThat(wide).isLessThanOrEqualTo(1216).isGreaterThan(300);
     p.setSize(420, 700);
     layOut(p);
     assertThat(p.objectives().getWidth()).as("never wider than the page").isLessThanOrEqualTo(420);

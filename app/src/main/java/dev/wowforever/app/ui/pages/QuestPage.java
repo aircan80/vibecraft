@@ -15,6 +15,7 @@ import dev.wowforever.app.ui.pages.quest.ChainPanel;
 import dev.wowforever.app.ui.pages.quest.GiverSections;
 import dev.wowforever.app.ui.pages.quest.QuestHeader;
 import dev.wowforever.app.ui.pages.quest.QuestMapPanel;
+import dev.wowforever.app.ui.pages.quest.ObjectivesPanel;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.BorderLayout;
@@ -39,16 +40,22 @@ public final class QuestPage extends SourcesPage {
   private final Body body = new Body();
   private final JTextArea objectives = new JTextArea();
   private final SourceSection objectiveSection;
+  private final ObjectivesPanel objectiveRows;
 
   public QuestPage(QuestPageData data, Map<Long, BufferedImage> maps, Navigator nav, ClipboardPort clipboard) {
+    this(data, maps, Map.of(), nav, clipboard);
+  }
+
+  public QuestPage(QuestPageData data, Map<Long, BufferedImage> maps, Map<Long, String> zoneNames,
+      Navigator nav, ClipboardPort clipboard) {
     super(nav);
     header = QuestHeader.create(data, nav);
     stepper = new ChainStepper(data.chain(), nav);
     chainPanel = new ChainPanel(data.chain(), nav);
-    mapPanel = new QuestMapPanel(data, maps, nav, clipboard);
+    mapPanel = new QuestMapPanel(data, maps, zoneNames, nav, clipboard);
     content.add(header);
     content.add(stepper);
-    objectives.setText(data.detail().objectivesText() == null ? "" : data.detail().objectivesText().strip());
+    objectives.setText(dev.wowforever.app.ui.pages.quest.ObjectiveText.description(data.detail().objectivesText()));
     objectives.setVisible(!objectives.getText().isBlank());
     objectives.setEditable(false);
     objectives.setLineWrap(true);
@@ -57,7 +64,18 @@ public final class QuestPage extends SourcesPage {
     objectives.setCaretPosition(0);
     objectives.getAccessibleContext().setAccessibleName("Quest objectives");
     objectivesPanel.setOpaque(false);
-    objectivesPanel.add(objectives, BorderLayout.CENTER);
+    objectiveRows = new ObjectivesPanel(data.objectives(), data.sourceItems(), nav, mapPanel::focus,
+        mapPanel::showAllSources);
+    if (data.objectives().isEmpty()) {
+      JPanel fallback = new JPanel(new BorderLayout());
+      fallback.setOpaque(false);
+      fallback.add(objectives, BorderLayout.CENTER);
+      fallback.add(new JLabel("No objective locations in the quest database."), BorderLayout.SOUTH);
+      objectivesPanel.add(fallback, BorderLayout.NORTH);
+      objectivesPanel.add(objectiveRows, BorderLayout.SOUTH);
+    } else {
+      objectivesPanel.add(objectiveRows, BorderLayout.CENTER);
+    }
     objectiveSection = panelSection("Objectives", objectivesPanel);
     addSection(objectiveSection);
     content.remove(objectiveSection);
@@ -122,6 +140,17 @@ public final class QuestPage extends SourcesPage {
     super.doLayout();
   }
 
+  @Override
+  public void jumpTo(int index) {
+    if (index == 0) {
+      objectivesPanel.scrollRectToVisible(new java.awt.Rectangle(0, 0, 1, objectivesPanel.getHeight()));
+      if (!objectiveRows.rows().isEmpty()) objectiveRows.rows().getFirst().focusButton().requestFocusInWindow();
+    } else {
+      super.jumpTo(index);
+    }
+  }
+
+  public ObjectivesPanel objectiveRows() { return objectiveRows; }
   public HeaderPanel header() { return header; }
   public ChainStepper stepper() { return stepper; }
   public QuestMapPanel mapPanel() { return mapPanel; }
