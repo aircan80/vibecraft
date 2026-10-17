@@ -21,6 +21,8 @@ import javax.swing.JTable;
 import javax.swing.SwingConstants;
 import javax.swing.table.TableColumn;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 class RateBarRendererTest {
   private final JTable table = new JTable(1, 1);
@@ -121,8 +123,19 @@ class RateBarRendererTest {
     return Math.sqrt(dr * dr + dg * dg + db * db);
   }
 
-  @Test
-  void theDisagreementMarkerAloneIsPaintedInTheWarningColour() {
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void theDisagreementMarkerAloneIsPaintedInTheWarningColour(boolean dark) {
+    Theme saved = Theme.current();
+    Theme.setCurrent(dark ? Tokens.DARK : Tokens.LIGHT);
+    try {
+      assertMarkerAloneIsAmber();
+    } finally {
+      Theme.setCurrent(saved);
+    }
+  }
+
+  private void assertMarkerAloneIsAmber() {
     RateBarRenderer r = new RateBarRenderer();
     JTable t = lootTable(loot(1, 60.0, true, 2), r);
     int w = UIScale.scale(200);

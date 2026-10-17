@@ -59,7 +59,18 @@ class NpcPageTest {
 
   private static List<LootRow> mixedDrops() {
     return List.of(loot(1, "Both Sword", 5.0, "both", "Weapon"), loot(2, "Questie Helm", 3.0, "questie", "Armor"),
-        loot(3, "Atlas Ring", 2.0, "atlasloot", "Armor"), loot(4, "Atlas Axe", 1.0, "atlasloot", "Weapon"));
+        loot(3, "Atlas Dust", 2.0, "atlasloot", "Reagent"), loot(4, "Atlas Axe", 1.0, "atlasloot", "Weapon"));
+  }
+
+  /** The group headings of the drop table, with their counts. */
+  private static List<String> headings(NpcPage p) {
+    List<String> headings = new java.util.ArrayList<>();
+    for (int r = 0; r < p.drops().rowCount(); r++) {
+      if (p.drops().model().rowAt(r) instanceof GroupedRows.Heading<LootRow> h) {
+        headings.add(h.text());
+      }
+    }
+    return headings;
   }
 
   private static NpcPage filtered(SourceFilter filter) {
@@ -83,15 +94,18 @@ class NpcPageTest {
     var all = filtered(SourceFilter.ALL);
     assertThat(all.section("Drops").heading().getText()).isEqualTo("Drops (4)");
     assertThat(all.section("Drops").note()).isNull();
+    assertThat(headings(all)).containsExactly("Gear (3)", "Trade goods (1)");
 
     var noAtlas = filtered(SourceFilter.HIDE_ATLASLOOT_ONLY);
     assertThat(noAtlas.section("Drops").heading().getText()).isEqualTo("Drops (2)");
     assertThat(itemNames(noAtlas)).containsExactlyInAnyOrder("Both Sword", "Questie Helm");
+    assertThat(headings(noAtlas)).as("the group counts follow, an emptied group goes").containsExactly("Gear (2)");
     assertThat(noAtlas.section("Drops").note().getText()).isEqualTo("2 rows hidden by the source filter");
 
     var noQuestie = filtered(SourceFilter.HIDE_QUESTIE_ONLY);
     assertThat(noQuestie.section("Drops").heading().getText()).isEqualTo("Drops (3)");
-    assertThat(itemNames(noQuestie)).containsExactlyInAnyOrder("Both Sword", "Atlas Ring", "Atlas Axe");
+    assertThat(itemNames(noQuestie)).containsExactlyInAnyOrder("Both Sword", "Atlas Dust", "Atlas Axe");
+    assertThat(headings(noQuestie)).containsExactly("Gear (2)", "Trade goods (1)");
     assertThat(noQuestie.section("Drops").note().getText()).isEqualTo("1 row hidden by the source filter");
   }
 

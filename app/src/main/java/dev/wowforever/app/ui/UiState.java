@@ -20,8 +20,7 @@ import javax.swing.SortOrder;
  * node (the one {@link ThemeManager} uses): the window bounds, maximised state and screen; the list | detail
  * divider and whether the list shows; the compact window's bounds and mode; always on top; the text size; column
  * widths and sort per table kind; the last search kind; pinned pages; the last searches; and the drop source
- * filter. A value that cannot be
- * read (say, edited by hand) reads as its default.
+ * filter. A value that cannot be read (say, edited by hand) reads as its default.
  */
 public final class UiState {
   static final String BOUNDS = "window.bounds";

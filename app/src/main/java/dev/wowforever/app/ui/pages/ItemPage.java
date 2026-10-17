@@ -1,11 +1,9 @@
 package dev.wowforever.app.ui.pages;
 
 import com.formdev.flatlaf.FlatLaf;
-import dev.wowforever.app.db.InstanceRepository;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
-import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
@@ -45,9 +43,9 @@ import javax.swing.table.TableColumnModel;
  * Contained in, Sold by, Quest reward, Related quests (kinds without rows are left out). Drops are ranked by rate,
  * the unknown rates last under a divider. Ctrl+1 to Ctrl+6 jump to the first six sections ({@link SourcesPage}).
  *
- * <p>The drop source filter ({@link SourceFilter}) applies to Dropped by and In instance loot (AtlasLoot's lists, so
- * AtlasLoot-only rows): their headings and the summary count the rows shown, and a note under a section says how
- * many it hid. A rate whose sources were loaded with the page lists them in its tooltip.
+ * <p>The drop source filter ({@link SourceFilter}) applies to the NPC drops (Dropped by) only: its heading and the
+ * summary's NPC count count the drops shown, and a note under the section says how many it hid. The instance loot
+ * lists are never filtered. A rate whose sources were loaded with the page lists them in its tooltip.
  */
 public final class ItemPage extends SourcesPage {
   private final ItemCardPanel card;
@@ -77,10 +75,8 @@ public final class ItemPage extends SourcesPage {
       SourceFilter filter, Navigator nav) {
     super(nav);
     SourceFilters.Filtered<DropSource> drops = SourceFilters.apply(all.droppedBy(), DropSource::origin, filter);
-    SourceFilters.Filtered<InstanceLoot> lists = SourceFilters.apply(all.inInstanceLoot(),
-        l -> InstanceRepository.BOSS_LOOT_ORIGIN, filter);
     ItemDetail d = new ItemDetail(all.summary(), all.classId(), all.subclassId(), all.startQuestId(), drops.rows(),
-        lists.rows(), all.containedInObjects(), all.containedInItems(), all.soldBy(), all.rewardFrom(),
+        all.inInstanceLoot(), all.containedInObjects(), all.containedInItems(), all.soldBy(), all.rewardFrom(),
         all.relatedQuests(), all.card());
     long itemId = all.summary().id();
     header = ItemHeader.of(d, nav);
@@ -104,7 +100,7 @@ public final class ItemPage extends SourcesPage {
       OriginChip.install(column(droppedBy, "Origin"));
       DividerRows.install(droppedBy, DropRow.Divider.class::isInstance);
     }
-    LinkTable<LootListRow> loot = addFilteredSection("In instance loot", lists, Columns.lootLists(),
+    LinkTable<LootListRow> loot = addSection("In instance loot", d.inInstanceLoot().size(), Columns.lootLists(),
         LootListRow.of(d.inInstanceLoot()));
     if (loot != null) {
       RateBarRenderer.install(column(loot, Columns.RATE), row -> row instanceof LootListRow r

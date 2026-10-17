@@ -19,11 +19,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.ToLongFunction;
 
 /** Items: detail pages, filtered lists, the class tree and drop rate sources. */
 public final class ItemRepository {
@@ -178,23 +178,42 @@ public final class ItemRepository {
   }
 
   /**
-   * {@link #sources(long, long)} of each pair in {@code pairs}, read on one connection; pairs without a source are
-   * left out.
+   * The rate sources of NPC {@code npcId}'s drops of the items in {@code itemIds} (a page's rated rows), by pair, each
+   * in {@link RateSource#ORDER}: one query over the NPC's sources ({@code WHERE npc_id = ?}). Pairs of other items
+   * and pairs without sources are left out; no items, no query.
    */
-  public Map<RateSource.Key, List<RateSource>> sources(Collection<RateSource.Key> pairs) {
-    if (pairs.isEmpty()) {
+  public Map<RateSource.Key, List<RateSource>> sourcesOfNpc(long npcId, Collection<Long> itemIds) {
+    return grouped("npc_id", npcId, itemIds, RateSource.Key::itemId);
+  }
+
+  /**
+   * The rate sources of item {@code itemId} dropped by the NPCs in {@code npcIds} (a page's rated rows), by pair, as
+   * {@link #sourcesOfNpc}: one query over the item's sources ({@code WHERE item_id = ?}).
+   */
+  public Map<RateSource.Key, List<RateSource>> sourcesOfItem(long itemId, Collection<Long> npcIds) {
+    return grouped("item_id", itemId, npcIds, RateSource.Key::npcId);
+  }
+
+  /** The sources {@code WHERE <column> = id}, by pair, of the pairs whose other id ({@code otherId}) is wanted. */
+  private Map<RateSource.Key, List<RateSource>> grouped(String column, long id, Collection<Long> wanted,
+      ToLongFunction<RateSource.Key> otherId) {
+    if (wanted.isEmpty()) {
       return Map.of();
     }
-    return db.read(c -> {
-      Map<RateSource.Key, List<RateSource>> byPair = new LinkedHashMap<>();
-      for (RateSource.Key k : new LinkedHashSet<>(pairs)) {
-        List<RateSource> sources = sources(c, k.npcId(), k.itemId());
-        if (!sources.isEmpty()) {
-          byPair.put(k, sources);
-        }
+    Set<Long> keep = new HashSet<>(wanted);
+    record Row(RateSource.Key key, RateSource source) {}
+    List<Row> rows = db.read(c -> Sql.list(c,
+        "SELECT npc_id, item_id, source, pct FROM drop_rate_source WHERE " + column + " = ?",
+        rs -> new Row(new RateSource.Key(rs.getLong("npc_id"), rs.getLong("item_id")),
+            new RateSource(rs.getString("source"), Sql.doubleValue(rs, "pct"))), id));
+    Map<RateSource.Key, List<RateSource>> byPair = new LinkedHashMap<>();
+    for (Row r : rows) {
+      if (keep.contains(otherId.applyAsLong(r.key()))) {
+        byPair.computeIfAbsent(r.key(), k -> new ArrayList<>()).add(r.source());
       }
-      return Map.copyOf(byPair);
-    });
+    }
+    byPair.replaceAll((k, sources) -> sources.stream().sorted(RateSource.ORDER).toList());
+    return Map.copyOf(byPair);
   }
 
   private static List<RateSource> sources(Connection c, long npcId, long itemId) throws SQLException {

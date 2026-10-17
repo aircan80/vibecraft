@@ -37,6 +37,11 @@ final class GroupedRows {
     Entry {
       Objects.requireNonNull(value, "value");
     }
+
+    /** The value of {@code row} when it is an entry whose value is a {@code type}; null otherwise (a heading). */
+    static <V> V valueOf(Object row, Class<V> type) {
+      return row instanceof Entry<?> e && type.isInstance(e.value()) ? type.cast(e.value()) : null;
+    }
   }
 
   static boolean isHeading(Row<?> row) {

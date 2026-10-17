@@ -161,6 +161,29 @@ class InstancePageTest {
   }
 
   @Test
+  void aBossSelectionAsksForItsSourcesOnceForItsRatedItems() {
+    BossLoot real = BossLoot.of(repos);
+    List<String> calls = new ArrayList<>();
+    BossLoot counting = new BossLoot() {
+      @Override
+      public List<LootRow> lookup(long bossId, String difficulty) {
+        return real.lookup(bossId, difficulty);
+      }
+
+      @Override
+      public java.util.Map<dev.wowforever.app.model.RateSource.Key, List<dev.wowforever.app.model.RateSource>>
+          sources(long npcId, List<Long> itemIds) {
+        calls.add(npcId + " " + itemIds.stream().sorted().toList());
+        return real.sources(npcId, itemIds);
+      }
+    };
+    var p = new InstancePage(repos.instances().detail(2).get(), counting, t -> {});
+    calls.clear();
+    selectVanCleef(p);
+    assertThat(calls).containsExactly("639 [2874, 5191, 5193, 5202, 10399]");
+  }
+
+  @Test
   void aFakeBossLootWithoutSourcesShowsNoRateTooltips() {
     var d = repos.instances().detail(2).get();
     var p = new InstancePage(d, (bossId, difficulty) -> repos.instances().bossLoot(bossId, difficulty), t -> {});

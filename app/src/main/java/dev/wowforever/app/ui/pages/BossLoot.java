@@ -3,7 +3,6 @@ package dev.wowforever.app.ui.pages;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.RateSource;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -16,8 +15,11 @@ public interface BossLoot {
   /** The loot of boss {@code bossId} in {@code difficulty} (a {@code boss_loot.difficulty} value), in slot order. */
   List<LootRow> lookup(long bossId, String difficulty);
 
-  /** The drop rate sources of each of {@code pairs} that has any; none unless overridden. */
-  default Map<RateSource.Key, List<RateSource>> sources(Collection<RateSource.Key> pairs) {
+  /**
+   * The drop rate sources of NPC {@code npcId}'s drops of {@code itemIds}, by pair, in one query
+   * ({@link dev.wowforever.app.db.ItemRepository#sourcesOfNpc}); none unless overridden.
+   */
+  default Map<RateSource.Key, List<RateSource>> sources(long npcId, List<Long> itemIds) {
     return Map.of();
   }
 
@@ -30,8 +32,8 @@ public interface BossLoot {
       }
 
       @Override
-      public Map<RateSource.Key, List<RateSource>> sources(Collection<RateSource.Key> pairs) {
-        return repos.items().sources(pairs);
+      public Map<RateSource.Key, List<RateSource>> sources(long npcId, List<Long> itemIds) {
+        return repos.items().sourcesOfNpc(npcId, itemIds);
       }
     };
   }

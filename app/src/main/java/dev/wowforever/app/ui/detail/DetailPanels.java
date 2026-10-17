@@ -94,7 +94,8 @@ public final class DetailPanels {
    * icons the page's tables show first are loaded into the {@linkplain IconCache#shared shared cache} here too:
    * an NPC's drops and wares, an object's contents, a quest's item givers and rewards, an instance's first boss's
    * loot. So are the drop rate sources of the rates with any ({@code sourceCount > 0}) of an item's drops and loot
-   * lists and an NPC's drops, which the rate tooltips list (the instance page loads its bosses' as it shows them).
+   * lists and an NPC's drops, in one query per page, which the rate tooltips list (the instance page loads its
+   * bosses' as it shows them).
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
@@ -102,10 +103,11 @@ public final class DetailPanels {
       case ITEM -> repos.items().detail(id).map(d -> new LoadedItem(d,
           repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
               .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
-          repos.items().sources(rateKeys(d))));
+          repos.items().sourcesOfItem(id, ratedNpcs(d))));
       case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells())).map(d -> {
         Long zone = mapZone(d.spawns());
-        return new LoadedNpc(d, zone, zoneMap(zone, repos), repos.items().sources(RateSource.keys(id, d.drops())));
+        return new LoadedNpc(d, zone, zoneMap(zone, repos),
+            repos.items().sourcesOfNpc(id, RateSource.ratedItems(d.drops())));
       });
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains())).map(d -> {
         Long zone = mapZone(d.spawns());
@@ -119,15 +121,13 @@ public final class DetailPanels {
     return detail.map(Object.class::cast);
   }
 
-  /** The NPC and item of each drop of item {@code d} and of each of its loot lists' bosses with rate sources. */
-  private static List<RateSource.Key> rateKeys(ItemDetail d) {
-    long item = d.summary().id();
-    List<RateSource.Key> keys = new ArrayList<>();
-    d.droppedBy().stream().filter(s -> s.sourceCount() > 0)
-        .forEach(s -> keys.add(new RateSource.Key(s.ref().id(), item)));
+  /** The NPCs of item {@code d}'s drops and loot lists' bosses whose rate has sources. */
+  private static List<Long> ratedNpcs(ItemDetail d) {
+    List<Long> npcs = new ArrayList<>();
+    d.droppedBy().stream().filter(s -> s.sourceCount() > 0).forEach(s -> npcs.add(s.ref().id()));
     d.inInstanceLoot().stream().filter(l -> l.sourceCount() > 0 && l.bossNpcId() != null)
-        .forEach(l -> keys.add(new RateSource.Key(l.bossNpcId(), item)));
-    return keys;
+        .forEach(l -> npcs.add(l.bossNpcId()));
+    return npcs;
   }
 
   /** The zone with its decoded map and, when it has one, the pins of its bosses and rares. */

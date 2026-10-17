@@ -25,9 +25,9 @@ public record RateSource(String source, Double pct) {
   /** The NPC and item a drop rate is for. */
   public record Key(long npcId, long itemId) {}
 
-  /** The NPC and item of each of NPC {@code npcId}'s {@code loot} rows with rate sources ({@code sourceCount > 0}). */
-  public static List<Key> keys(long npcId, List<LootRow> loot) {
-    return loot.stream().filter(l -> l.sourceCount() > 0).map(l -> new Key(npcId, l.item().id())).toList();
+  /** The items of the {@code loot} rows with rate sources ({@code sourceCount > 0}). */
+  public static List<Long> ratedItems(List<LootRow> loot) {
+    return loot.stream().filter(l -> l.sourceCount() > 0).map(l -> l.item().id()).toList();
   }
 
   /** The source as the tooltip names it: {@code "Questie"}, {@code "AtlasLoot override"}; unknown ones as stored. */

@@ -28,14 +28,14 @@ final class LootTables {
 
   private LootTables() {}
 
-  /** A row's rate sources when none are known. */
-  static final Function<LootRow, List<RateSource>> NO_SOURCES = row -> null;
+  /** The rate sources of any row when none are known. */
+  static final Function<Object, List<RateSource>> NO_SOURCES = row -> null;
 
   /** A sortable table of {@code loot}. */
   static LinkTable<LootRow> plain(List<LootRow> loot, Navigator nav) {
     LinkTable<LootRow> table = LinkTable.inline(VisibleColumns.of(Columns.lootRated(), loot, null), nav);
     table.setRows(loot);
-    decorate(table, row -> null);
+    decorate(table, NO_SOURCES);
     return table;
   }
 
@@ -53,21 +53,23 @@ final class LootTables {
    * {@code sources} gives for a row (looked up while rendering: only sources loaded beforehand).
    */
   static LinkTable<GroupedRows.Row<LootRow>> grouped(List<LootRow> loot, Function<LootRow, String> groupOf,
-      List<String> order, Comparator<LootRow> within, Function<LootRow, List<RateSource>> sources, Navigator nav) {
+      List<String> order, Comparator<LootRow> within, Function<? super LootRow, List<RateSource>> sources,
+      Navigator nav) {
     List<Column<LootRow>> cols = VisibleColumns.of(Columns.lootRated(), loot, null);
     LinkTable<GroupedRows.Row<LootRow>> table = LinkTable.inline(GroupedRows.columns(cols), nav);
     table.setRows(GroupedRows.of(loot, groupOf, order, within));
-    @SuppressWarnings("unchecked")
-    Function<Object, List<RateSource>> ofRow = row -> row instanceof GroupedRows.Entry<?> e
-        ? sources.apply(((GroupedRows.Entry<LootRow>) e).value()) : null;
-    decorate(table, ofRow);
+    decorate(table, row -> {
+      LootRow entry = GroupedRows.Entry.valueOf(row, LootRow.class);
+      return entry == null ? null : sources.apply(entry);
+    });
     DividerRows.install(table, GroupedRows::isHeading);
     return table;
   }
 
   /**
-   * The loaded rate sources of a loot row of NPC {@code npcId}'s loot, from {@code sources}; null when the row has
-   * none ({@code sourceCount} 0) or none were loaded.
+   * The loaded rate sources of a loot row of NPC {@code npcId}'s loot, from {@code sources} (as
+   * {@link dev.wowforever.app.db.ItemRepository#sourcesOfNpc} groups them); null when the row has none
+   * ({@code sourceCount} 0) or none were loaded.
    */
   static Function<LootRow, List<RateSource>> sourcesOf(long npcId, Map<RateSource.Key, List<RateSource>> sources) {
     return row -> row.sourceCount() > 0 ? sources.get(new RateSource.Key(npcId, row.item().id())) : null;

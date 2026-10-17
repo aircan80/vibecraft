@@ -251,14 +251,15 @@ public final class InstancePage extends JPanel {
    * Shows the loot of {@code boss} in the selected difficulty (none when the instance has no difficulty), under a
    * header linking the boss's NPC page. Runs on the EDT and loads the loot synchronously, with the drop rate sources
    * its rate tooltips list: the one documented exception to loading off the EDT. A boss loot query is a single
-   * indexed lookup returning a few dozen rows (and its sources a primary-key lookup per rated row), and the page
-   * would otherwise need its own async plumbing and stale-load guard for a load users never notice.
+   * indexed lookup returning a few dozen rows, and its sources one more (a primary-key prefix lookup on the boss's
+   * NPC, only when some rate has sources); the page would otherwise need its own async plumbing and stale-load
+   * guard for a load users never notice.
    */
   private void showLoot(BossSummary boss) {
     shown = boss;
     List<LootRow> loot = difficulty == null ? List.of() : bossLoot.lookup(boss.id(), difficulty);
     Map<RateSource.Key, List<RateSource>> sources = boss.npcId() == null ? Map.of()
-        : bossLoot.sources(RateSource.keys(boss.npcId(), loot));
+        : bossLoot.sources(boss.npcId(), RateSource.ratedItems(loot));
     String level = levelText(boss.level());
     bossHeader = new HeaderPanel(boss.displayName(), Labels.join(level == null ? null : "Level " + level));
     bossHeader.setAlignmentX(LEFT_ALIGNMENT);

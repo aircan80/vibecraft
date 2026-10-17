@@ -111,9 +111,12 @@ abstract class SourcesPage extends JPanel {
     content.add(section);
   }
 
-  /** Ctrl+n jumps to section n (in the window, wherever the focus is). Call once, after the sections are added. */
+  /**
+   * Ctrl+n jumps to section n (in the window, wherever the focus is), counting only the sections whose table shows
+   * ({@link #jumpTargets}). Call once, after the sections are added.
+   */
   void bindJumpKeys() {
-    for (int i = 0; i < Math.min(sections.size(), MAX_JUMP_KEYS); i++) {
+    for (int i = 0; i < Math.min(jumpTargets().size(), MAX_JUMP_KEYS); i++) {
       int index = i;
       String key = "jumpToSection" + (i + 1);
       getInputMap(WHEN_IN_FOCUSED_WINDOW)
@@ -128,11 +131,19 @@ abstract class SourcesPage extends JPanel {
   }
 
   /**
-   * Scrolls section {@code index} (0-based) to the top of the page, selects its first row when nothing is
-   * selected there yet, and focuses its table.
+   * The sections Ctrl+n jumps to, in page order: those whose table shows (a section the source filter emptied has
+   * only its heading and note).
+   */
+  private List<SourceSection> jumpTargets() {
+    return sections.stream().filter(s -> s.table().isVisible()).toList();
+  }
+
+  /**
+   * Scrolls jump target {@code index} (0-based, {@link #jumpTargets}) to the top of the page, selects its first row
+   * when nothing is selected there yet, and focuses its table.
    */
   public void jumpTo(int index) {
-    SourceSection section = sections.get(index);
+    SourceSection section = jumpTargets().get(index);
     content.scrollRectToVisible(new Rectangle(0, section.getY(), 1, scroll.getViewport().getHeight()));
     JTable table = section.table().table();
     if (table.getSelectedRow() < 0 && table.getRowCount() > 0) {

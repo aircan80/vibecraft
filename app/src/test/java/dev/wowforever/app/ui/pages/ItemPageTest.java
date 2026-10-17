@@ -151,7 +151,7 @@ class ItemPageTest {
   }
 
   @Test
-  void hidingAtlasLootOnlyRowsKeepsQuestieAndBothAndCountsWhatIsLeft() {
+  void hidingAtlasLootOnlyDropsKeepsQuestieAndBothAndNeverTouchesTheLootLists() {
     var p = filtered(mixedOrigins(), SourceFilter.HIDE_ATLASLOOT_ONLY);
     SourceSection dropped = p.section("Dropped by");
     assertThat(dropped.heading().getText()).isEqualTo("Dropped by (3)");
@@ -159,13 +159,28 @@ class ItemPageTest {
         .doesNotContain("Atlas Only");
     assertThat(dropped.note().getText()).isEqualTo("1 row hidden by the source filter");
     assertThat(dropped.note().getForeground()).isEqualTo(Theme.current().textMuted());
-    // AtlasLoot's loot lists are AtlasLoot-only rows: the section stays to say so, its table empty and hidden
+    // the filter is for NPC drops: the instance loot lists stay as they are
     SourceSection loot = p.section("In instance loot");
-    assertThat(loot.heading().getText()).isEqualTo("In instance loot (0)");
-    assertThat(loot.note().getText()).isEqualTo("1 row hidden by the source filter");
-    assertThat(loot.table().rowCount()).isZero();
-    assertThat(loot.table().isVisible()).isFalse();
-    assertThat(p.summary()).as("the summary counts what is shown").isEqualTo("3 NPCs · no vendor · no quests");
+    assertThat(loot.heading().getText()).isEqualTo("In instance loot (1)");
+    assertThat(loot.note()).isNull();
+    assertThat(loot.table().rowCount()).isEqualTo(1);
+    assertThat(p.summary()).as("the NPCs shown, every loot list")
+        .isEqualTo("3 NPCs · 1 loot list · no vendor · no quests");
+  }
+
+  @Test
+  void jumpKeysSkipASectionTheFilterEmptied() {
+    var d = new ItemDetail(LETTER, 12, 0, null, List.of(drop(1, "Defias Pirate", 2.0, "questie")), List.of(),
+        List.of(), List.of(), List.of(src(ItemSource.VENDOR, new EntityRef(NPC, 3), "Vendor")), List.of(),
+        List.of());
+    var p = filtered(d, SourceFilter.HIDE_QUESTIE_ONLY);
+    assertThat(p.section("Dropped by").table().isVisible()).isFalse();
+    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Dropped by", "Sold by");
+    JTable sold = p.section("Sold by").table().table();
+    press(p, KeyStroke.getKeyStroke(KeyEvent.VK_1, InputEvent.CTRL_DOWN_MASK));
+    assertThat(sold.getSelectedRow()).as("Ctrl+1 goes to the first section with rows").isZero();
+    assertThat(p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
+        .get(KeyStroke.getKeyStroke(KeyEvent.VK_2, InputEvent.CTRL_DOWN_MASK))).isNull();
   }
 
   @Test

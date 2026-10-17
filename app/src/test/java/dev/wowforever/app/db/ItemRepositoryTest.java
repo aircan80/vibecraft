@@ -63,15 +63,26 @@ class ItemRepositoryTest {
   }
 
   @Test
-  void sourcesOfManyPairsComeBackByPairLeavingOutPairsWithoutRates() {
-    var vanCleef = new RateSource.Key(639, 2874);
-    var bag = new RateSource.Key(11520, 14149);
-    var none = new RateSource.Key(126, 730);
-    assertThat(repos.items().sources(List.of(vanCleef, bag, none)))
-        .containsOnlyKeys(vanCleef, bag)
-        .hasEntrySatisfying(vanCleef, l -> assertThat(l).hasSize(4).first()
-            .isEqualTo(new RateSource("questie-wowhead", 56.07)));
-    assertThat(repos.items().sources(List.of())).isEmpty();
+  void anNpcsSourcesComeBackByPairForTheItemsAskedForOnly() {
+    var letter = new RateSource.Key(639, 2874);
+    var barb = new RateSource.Key(639, 5191);
+    // 5193 has sources too, but the page did not ask for it; 730 has none
+    assertThat(repos.items().sourcesOfNpc(639, List.of(2874L, 5191L, 730L)))
+        .containsOnlyKeys(letter, barb)
+        .hasEntrySatisfying(letter, l -> assertThat(l).extracting(RateSource::source).containsExactly(
+            "questie-wowhead", "questie-correction", "atlasloot", "atlasloot-override"))
+        .hasEntrySatisfying(barb, l -> assertThat(l).containsExactly(new RateSource("atlasloot", 15.7)));
+    assertThat(repos.items().sourcesOfNpc(639, List.of())).isEmpty();
+    assertThat(repos.items().sourcesOfNpc(126, List.of(730L))).isEmpty();
+  }
+
+  @Test
+  void anItemsSourcesComeBackByPairForTheNpcsAskedForOnly() {
+    assertThat(repos.items().sourcesOfItem(14149, List.of(11520L, 639L)))
+        .containsOnlyKeys(new RateSource.Key(11520, 14149))
+        .containsEntry(new RateSource.Key(11520, 14149), List.of(new RateSource("atlasloot", 33.3)));
+    assertThat(repos.items().sourcesOfItem(2874, List.of(1L))).as("an NPC without sources").isEmpty();
+    assertThat(repos.items().sourcesOfItem(2874, List.of())).isEmpty();
   }
 
   @Test

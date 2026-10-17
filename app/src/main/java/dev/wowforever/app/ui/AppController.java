@@ -196,9 +196,8 @@ public final class AppController implements Navigator {
   /**
    * Shows the current target again without touching the history, say after the window switched between its full
    * and compact layouts or the drop source filter changed; nothing happens before the first {@link #open}. A search
-   * shown where there is a master
-   * list leaves the detail area as a search does: the last page shown there comes back (the home page when there
-   * was none), and the search runs again into the list.
+   * shown where there is a master list leaves the detail area as a search does: the last page shown there comes back
+   * (the home page when there was none), and the search runs again into the list.
    */
   public void rerender() {
     ViewTarget t = current();
