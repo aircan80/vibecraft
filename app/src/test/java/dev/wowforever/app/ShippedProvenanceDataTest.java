@@ -114,6 +114,10 @@ class ShippedProvenanceDataTest extends ShippedDataSupport {
     assertThat(scalar("select count(*) from item_npc_drop d join drop_rate_source s on s.npc_id = d.npc_id"
         + " and s.item_id = d.item_id and s.source = 'vmangos' and s.quest_only = 1 where d.pct_source = 'vmangos'"
         + " and d.source_count > 1")).isZero();
+    // ... and such headlines exist: 208 at the pinned inputs
+    assertThat(scalar("select count(*) from item_npc_drop d join drop_rate_source s on s.npc_id = d.npc_id"
+        + " and s.item_id = d.item_id and s.source = 'vmangos' and s.quest_only = 1 where d.pct_source = 'vmangos'"))
+        .as("quest-only headlines").isBetween(100L, 400L);
     assertThat(scalar("select count(*) from drop_rate_source where quest_only = 1")).isGreaterThan(1_000);
     assertThat(db.meta().get("serverdb_asset")).isEqualTo("db-sqlite-4641790.zip");
     assertThat(db.meta().get("serverdb_commit")).startsWith("4641790");

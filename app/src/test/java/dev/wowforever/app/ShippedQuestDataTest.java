@@ -151,7 +151,7 @@ class ShippedQuestDataTest extends ShippedDataSupport {
         try (var ps = db.connection().prepareStatement("select png from ui_asset where name = ?")) {
           ps.setString(1, name);
           try (ResultSet rs = ps.executeQuery()) {
-            rs.next();
+            assertThat(rs.next()).as(name).isTrue();
             png = rs.getBytes(1);
           }
         }
