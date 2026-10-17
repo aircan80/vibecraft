@@ -3,6 +3,10 @@ package dev.wowforever.app.ui.pages.quest;
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.QuestChain;
 import dev.wowforever.app.model.QuestChain.Step;
+import dev.wowforever.app.model.QuestRelationEvidence;
+import dev.wowforever.app.ui.widgets.WrappingText;
+import java.net.URI;
+import java.util.function.Consumer;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.detail.CompactColumns;
@@ -26,6 +30,7 @@ import javax.swing.JPanel;
 public final class ChainPanel extends JPanel {
   private final QuestChain chain;
   private final Navigator nav;
+  private final Consumer<URI> sourceOpener;
   private final Set<String> expandedFans = new HashSet<>();
   private final JPanel body = new JPanel();
   private final JButton heading = new JButton();
@@ -36,9 +41,14 @@ public final class ChainPanel extends JPanel {
   private List<ChainRows.Row> rows = List.of();
 
   public ChainPanel(QuestChain chain, Navigator nav) {
+    this(chain, nav, ChainPanel::browse);
+  }
+
+  public ChainPanel(QuestChain chain, Navigator nav, Consumer<URI> sourceOpener) {
     super(new BorderLayout());
     this.chain = chain;
     this.nav = nav;
+    this.sourceOpener = sourceOpener;
     setOpaque(false);
     body.setOpaque(false);
     body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
@@ -49,6 +59,11 @@ public final class ChainPanel extends JPanel {
     });
     add(heading, BorderLayout.NORTH);
     add(body, BorderLayout.CENTER);
+    if (chain.attUnsupportedConditions() > 0) {
+      var warning = new WrappingText("Some AllTheThings conditions were not imported.", "AllTheThings import coverage");
+      warning.setToolTipText("Dataset-wide coverage note; this does not establish whether this quest has additional requirements.");
+      add(warning, BorderLayout.SOUTH);
+    }
     addHierarchyListener(e -> {
       if ((e.getChangeFlags() & HierarchyEvent.PARENT_CHANGED) != 0) {
         updateCompact();
@@ -83,9 +98,9 @@ public final class ChainPanel extends JPanel {
   private void updateVisibility() {
     heading.setText("Quest chain (" + chain.steps().size() + ")");
     heading.getAccessibleContext().setAccessibleName(heading.getText() + (collapsed ? ", collapsed" : ", expanded"));
-    heading.setVisible(compact && !chain.standalone() && !chain.isEmpty());
+    heading.setVisible(compact && (!chain.standalone() || chain.attUnsupportedConditions() > 0) && !chain.isEmpty());
     body.setVisible(!collapsed);
-    setVisible(!chain.isEmpty() && !(compact && chain.standalone()));
+    setVisible(!chain.isEmpty() && !(compact && chain.standalone() && chain.attUnsupportedConditions() == 0));
     revalidate();
     repaint();
   }
@@ -149,9 +164,53 @@ public final class ChainPanel extends JPanel {
         }
         line.add(label);
       }
+      if (row.step() != null && row.step().parentQuestId() != null) {
+        var evidence = chain.evidenceFor(row.step());
+        if (!evidence.isEmpty()) {
+          JPanel sources = new JPanel();
+          sources.setOpaque(false);
+          sources.setLayout(new BoxLayout(sources, BoxLayout.Y_AXIS));
+          for (var source : evidence) {
+            JButton open = new JButton(source.sourceLabel() + " ↗");
+            open.setHorizontalAlignment(JButton.LEADING);
+            open.setBorderPainted(false);
+            open.setContentAreaFilled(false);
+            open.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
+            open.setAlignmentX(Component.LEFT_ALIGNMENT);
+            open.getAccessibleContext().setAccessibleName("Source " + source.sourceLabel()
+                + " for quest relationship " + source.questId() + " " + source.kind() + " " + source.relatedId());
+            String detail = source.sourceLabel() + " · " + source.qualification() + " · " + source.kind()
+                + " · Snapshot " + source.snapshotId() + " · " + source.artifactPath();
+            open.setToolTipText(detail);
+            line.setToolTipText(detail);
+            open.setEnabled(source.uri().isPresent());
+            open.addActionListener(e -> source.uri().ifPresent(uri -> {
+              try { sourceOpener.accept(uri); }
+              catch (RuntimeException failure) { open.setToolTipText("Could not open source: " + failure.getMessage()); }
+            }));
+            sources.add(open);
+          }
+          line.add(sources, BorderLayout.SOUTH);
+        }
+      }
       line.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, line.getPreferredSize().height));
       body.add(line);
     }
+    if (!chain.evidence().isEmpty()) {
+      String names = chain.evidence().stream().map(QuestRelationEvidence::sourceLabel).distinct()
+          .collect(java.util.stream.Collectors.joining(", "));
+      body.add(new WrappingText("Relationship sources: " + names + ". Authored data; not in-game verified.",
+          "Quest relationship provenance"));
+    }
     updateVisibility();
+  }
+
+  private static void browse(URI uri) {
+    if (!java.awt.Desktop.isDesktopSupported()
+        || !java.awt.Desktop.getDesktop().isSupported(java.awt.Desktop.Action.BROWSE)) {
+      throw new IllegalStateException("Browser opening is unavailable");
+    }
+    try { java.awt.Desktop.getDesktop().browse(uri); }
+    catch (java.io.IOException e) { throw new IllegalStateException(e.getMessage(), e); }
   }
 }

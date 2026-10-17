@@ -74,7 +74,7 @@ class ChainRowsTest {
   void standaloneAndEmpty() {
     assertThat(ChainRows.of(chain(List.of(CURRENT)), Set.of(), false, false))
         .singleElement().extracting(ChainRows.Row::text)
-        .isEqualTo("Standalone quest — no prerequisites or follow-ups.");
+        .isEqualTo("No prerequisites or follow-ups recorded.");
     assertThat(ChainRows.of(QuestChain.EMPTY, Set.of(), false, false)).isEmpty();
   }
 }

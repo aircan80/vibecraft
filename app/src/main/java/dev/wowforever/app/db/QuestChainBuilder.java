@@ -4,6 +4,7 @@ import dev.wowforever.app.model.QuestChain;
 import dev.wowforever.app.model.QuestChain.Connector;
 import dev.wowforever.app.model.QuestChain.Step;
 import dev.wowforever.app.model.QuestRelation;
+import dev.wowforever.app.model.QuestRelationEvidence;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayDeque;
@@ -112,7 +113,43 @@ final class QuestChainBuilder {
     for (Node kid : root.after) {
       emitForward(kid, steps);
     }
-    return new QuestChain(steps, currentIndex, spine(root), truncated);
+    return new QuestChain(steps, currentIndex, spine(root), truncated, evidence(steps), unsupportedConditions());
+  }
+
+  private int unsupportedConditions() throws SQLException {
+    try (var s = c.prepareStatement("SELECT value FROM meta WHERE key='att_unsupported_conditions'");
+        var r = s.executeQuery()) {
+      if (!r.next()) return 0;
+      try { return Math.max(0, Integer.parseInt(r.getString(1))); }
+      catch (NumberFormatException ignored) { return 0; }
+    }
+  }
+
+  private List<QuestRelationEvidence> evidence(List<Step> steps) throws SQLException {
+    try (var s = c.prepareStatement("SELECT 1 FROM sqlite_master WHERE type='table' AND name='quest_relation_source'");
+        var r = s.executeQuery()) {
+      if (!r.next()) return List.of(); // existing shipped databases predate relationship evidence
+    }
+    var out = new java.util.LinkedHashSet<QuestRelationEvidence>();
+    String sql = "SELECT e.quest_id,e.related_id,e.kind,e.source,e.snapshot_id,e.artifact_path,e.source_url,e.evidence_status"
+        + " FROM quest_relation_source e JOIN quest_relation r ON r.quest_id=e.quest_id"
+        + " AND r.related_id=e.related_id AND r.kind=e.kind"
+        + " WHERE (e.quest_id=? AND e.related_id=?) OR (e.quest_id=? AND e.related_id=?)";
+    try (var s = c.prepareStatement(sql)) {
+      for (Step step : steps) {
+        if (step.parentQuestId() == null) continue;
+        s.setLong(1, step.questId()); s.setLong(2, step.parentQuestId());
+        s.setLong(3, step.parentQuestId()); s.setLong(4, step.questId());
+        try (var r = s.executeQuery()) {
+          while (r.next()) {
+            var evidence = new QuestRelationEvidence(r.getLong(1), r.getLong(2), r.getString(3), r.getString(4),
+                r.getString(5), r.getString(6), r.getString(7), r.getString(8));
+            if (evidence.supports(step)) out.add(evidence);
+          }
+        }
+      }
+    }
+    return List.copyOf(out);
   }
 
   /**

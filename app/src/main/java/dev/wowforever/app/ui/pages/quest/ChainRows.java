@@ -30,7 +30,7 @@ public final class ChainRows {
       return List.of();
     }
     if (chain.standalone()) {
-      return List.of(new Row(Kind.NOTE, 0, "Standalone quest — no prerequisites or follow-ups.", null, null, 0));
+      return List.of(new Row(Kind.NOTE, 0, "No prerequisites or follow-ups recorded.", null, null, 0));
     }
     List<Step> visible = chain.steps().stream()
         .filter(s -> (expandEarlier || s.depth() >= -WINDOW) && (expandLater || s.depth() <= WINDOW)).toList();

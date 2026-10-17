@@ -27,14 +27,30 @@ import java.util.Optional;
  * direction with quests left beyond. The {@link #EMPTY} chain (no steps, {@code currentIndex} -1) stands for a quest
  * the database does not have.
  */
-public record QuestChain(List<Step> steps, int currentIndex, List<Step> spine, boolean truncated) {
+public record QuestChain(List<Step> steps, int currentIndex, List<Step> spine, boolean truncated,
+    List<QuestRelationEvidence> evidence, int attUnsupportedConditions) {
   /** How many steps the chain reaches before and after the current quest. */
   public static final int MAX_DEPTH = 50;
 
   /** The chain of a quest the database does not have. */
   public static final QuestChain EMPTY = new QuestChain(List.of(), -1, List.of(), false);
 
+  public QuestChain(List<Step> steps, int currentIndex, List<Step> spine, boolean truncated) {
+    this(steps, currentIndex, spine, truncated, List.of(), 0);
+  }
+
+  public QuestChain(List<Step> steps, int currentIndex, List<Step> spine, boolean truncated,
+      List<QuestRelationEvidence> evidence) {
+    this(steps, currentIndex, spine, truncated, evidence, 0);
+  }
+
+  public List<QuestRelationEvidence> evidenceFor(Step step) {
+    return evidence.stream().filter(e -> e.supports(step)).toList();
+  }
+
   public QuestChain {
+    if (attUnsupportedConditions < 0) throw new IllegalArgumentException("negative unsupported condition count");
+    evidence = List.copyOf(evidence);
     steps = List.copyOf(steps);
     spine = List.copyOf(spine);
     if (steps.isEmpty()) {
