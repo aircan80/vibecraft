@@ -80,6 +80,16 @@ class ThemeManagerTest {
   }
 
   @Test
+  void focusRingIsTwoPixelsOfGoldInBothThemes() {
+    ThemeManager.apply(ThemeManager.Mode.DARK);
+    assertEquals(2, UIManager.getInt("Component.focusWidth"));
+    assertEquals(Tokens.DARK.accentGold(), rgb("Component.focusColor"));
+    ThemeManager.apply(ThemeManager.Mode.LIGHT);
+    assertEquals(2, UIManager.getInt("Component.focusWidth"));
+    assertEquals(Tokens.LIGHT.accentGold(), rgb("Component.focusColor"));
+  }
+
+  @Test
   void propertiesResourcesContainTokens() throws Exception {
     assertProps("WowForeverDarkLaf.properties", "#14171C", "#1B2027", "#D6B25E", "#9CC3E6");
     assertProps("WowForeverLightLaf.properties", "#F4F5F7", "#FFFFFF", "#9A7419", "#1F5FA8");

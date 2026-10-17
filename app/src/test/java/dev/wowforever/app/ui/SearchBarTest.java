@@ -264,6 +264,33 @@ class SearchBarTest {
   }
 
   @Test
+  void escapeChainClosesTheDropdownThenClearsTheTextThenPassesOn() {
+    state.addRecentSearch("deadmines");
+    attachInline();
+    typeAndWait("hog");
+    assertThat(bar.escape()).isTrue();
+    assertThat(dropdown.isShowing()).isFalse();
+    assertThat(bar.textField().getText()).isEqualTo("hog");
+    assertThat(bar.escape()).isTrue();
+    assertThat(bar.textField().getText()).isEmpty();
+    assertThat(dropdown.isShowing()).isTrue(); // the focused empty box shows the recent searches
+    assertThat(bar.escape()).isTrue();
+    assertThat(dropdown.isShowing()).isFalse();
+    assertThat(bar.escape()).isFalse(); // nothing left: the window moves the focus to the list
+    assertThat(opened).isEmpty();
+  }
+
+  @Test
+  void escapeClearsTextEvenWithoutTheFocus() {
+    attachInline();
+    bar.textField().setText("hogger");
+    assertThat(bar.escape()).isTrue();
+    assertThat(bar.textField().getText()).isEmpty();
+    assertThat(dropdown.isShowing()).isFalse();
+    assertThat(bar.escape()).isFalse();
+  }
+
+  @Test
   void aKindChipFiltersTheOpenDropdownAndTheCommittedSearch() {
     attachInline();
     typeAndWait("hog");

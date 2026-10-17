@@ -12,6 +12,7 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.DropRow;
 import dev.wowforever.app.ui.LinkRenderer;
+import dev.wowforever.app.ui.widgets.Keys;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -113,6 +114,53 @@ class LinkTableTest {
     assertThat(t.table().getColumnModel().getColumn(0).getCellRenderer()).isInstanceOf(LinkRenderer.class);
     assertThat(t.table().getColumnModel().getColumn(2).getCellRenderer()).isInstanceOf(LinkRenderer.class);
     assertThat(t.table().getColumnModel().getColumn(1).getCellRenderer()).isNull();
+  }
+
+  @Test
+  void ctrlCCopiesTheSelectedRowsNameAndCtrlShiftCItsId() {
+    List<String> copied = new ArrayList<>();
+    var t = new LinkTable<>(Columns.lootRows(), v -> {});
+    t.setClipboard(copied::add);
+    t.setRows(List.of(loot(19019, 5.0), loot(2, 1.0)));
+    t.table().changeSelection(1, 0, false, false);
+    assertThat(Keys.press(t.table(), "ctrl C")).isTrue();
+    assertThat(Keys.press(t.table(), "shift ctrl C")).isTrue();
+    assertThat(copied).containsExactly("Item 2", "item:2");
+  }
+
+  @Test
+  void rowCopyKeysPassOnWithoutASelectedRow() {
+    List<String> copied = new ArrayList<>();
+    var t = new LinkTable<>(Columns.lootRows(), v -> {});
+    t.setClipboard(copied::add);
+    t.setRows(List.of(loot(1, 5.0)));
+    assertThat(Keys.press(t.table(), "ctrl C")).isFalse();
+    assertThat(Keys.press(t.table(), "shift ctrl C")).isFalse();
+    assertThat(copied).isEmpty();
+  }
+
+  @Test
+  void ctrlShiftCCopiesTheRowsEntityOfItsKind() {
+    List<String> copied = new ArrayList<>();
+    var t = new LinkTable<>(Columns.dropSourcesRanked(), v -> {});
+    t.setClipboard(copied::add);
+    t.setRows(List.of(dropSource(11520, "Taragaman the Hungerer")));
+    t.table().changeSelection(0, 0, false, false);
+    Keys.press(t.table(), "ctrl C");
+    Keys.press(t.table(), "shift ctrl C");
+    assertThat(copied).containsExactly("Taragaman the Hungerer", "npc:11520");
+  }
+
+  @Test
+  void aCustomIdTextReplacesTheEntityId() {
+    List<String> copied = new ArrayList<>();
+    var t = new LinkTable<>(Columns.lootRows(), v -> {});
+    t.setClipboard(copied::add);
+    t.setIdText(row -> java.util.Optional.of("custom " + row.item().id()));
+    t.setRows(List.of(loot(7, 5.0)));
+    t.table().changeSelection(0, 0, false, false);
+    Keys.press(t.table(), "shift ctrl C");
+    assertThat(copied).containsExactly("custom 7");
   }
 
   @Test

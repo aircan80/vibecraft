@@ -9,6 +9,7 @@ import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JPanel;
@@ -16,7 +17,8 @@ import javax.swing.JPanel;
 /**
  * The Spawns section of the NPC and object pages: each spawn point's zone and coordinates ({@code "42.3, 67.4"};
  * the Zone column is left out when every point is in the page's zone), and a "Copy /way" button that copies a
- * TomTom waypoint command for the selected point (the first when none is selected).
+ * TomTom waypoint command for the selected point (the first when none is selected). Ctrl+Shift+C on a point
+ * copies the same command.
  */
 final class SpawnSection {
   private final SourceSection section;
@@ -26,6 +28,8 @@ final class SpawnSection {
   SpawnSection(List<Spawn> spawns, String pageZone, Navigator nav, ClipboardPort clipboard) {
     table = LinkTable.inline(VisibleColumns.of(Columns.spawns(), spawns, pageZone), nav);
     table.setRows(spawns);
+    table.setClipboard(clipboard);
+    table.setIdText(s -> Columns.hasCoordinates(s) ? Optional.of(wayCommand(s)) : Optional.empty());
     section = new SourceSection("Spawns", spawns.size(), table);
     copy.setToolTipText("Copy a /way command for the selected spawn point");
     copy.addActionListener(e -> {

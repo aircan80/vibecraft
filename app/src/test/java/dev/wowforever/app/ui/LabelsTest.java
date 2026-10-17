@@ -3,9 +3,21 @@ package dev.wowforever.app.ui;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
 import org.junit.jupiter.api.Test;
 
 class LabelsTest {
+
+  @Test
+  void idTextNamesTheKindAndId() {
+    assertThat(Labels.idText(new EntityRef(EntityKind.ITEM, 19019))).contains("item:19019");
+    assertThat(Labels.idText(new EntityRef(EntityKind.NPC, 448))).contains("npc:448");
+    assertThat(Labels.idText(new EntityRef(EntityKind.QUEST, 7))).contains("quest:7");
+    assertThat(Labels.idText(new EntityRef(EntityKind.OBJECT, 9))).contains("object:9");
+    assertThat(Labels.idText(new EntityRef(EntityKind.ZONE, 40))).contains("zone:40");
+    assertThat(Labels.idText(new EntityRef(EntityKind.INSTANCE, 36))).contains("instance:36");
+    assertThat(Labels.idText(new EntityRef(EntityKind.BOSS, 3))).isEmpty();
+  }
 
   @Test
   void contentType() {

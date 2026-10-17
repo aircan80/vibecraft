@@ -12,6 +12,8 @@ import dev.wowforever.app.ui.widgets.SearchDropdown;
 import java.awt.BorderLayout;
 import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
+import java.awt.event.ContainerAdapter;
+import java.awt.event.ContainerEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
 import java.util.List;
@@ -20,6 +22,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
+import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -41,6 +44,8 @@ import org.slf4j.LoggerFactory;
  */
 public final class SearchBar extends JPanel {
   public static final int DEBOUNCE_MILLIS = 250;
+  /** The accessible name of the search box's clear button, which shows only an icon. */
+  public static final String CLEAR_NAME = "Clear search";
   private static final Logger LOG = LoggerFactory.getLogger(SearchBar.class);
 
   /** What a type-ahead lookup found: the best hits, and how many hits each kind has. */
@@ -113,6 +118,15 @@ public final class SearchBar extends JPanel {
     this.state = Objects.requireNonNull(state, "state");
     this.delay = Objects.requireNonNull(delay, "delay");
     this.dropdown = Objects.requireNonNull(dropdown, "dropdown");
+    text.addContainerListener(new ContainerAdapter() {
+      @Override
+      public void componentAdded(ContainerEvent e) { // the look and feel adds the clear button as a child
+        if (e.getChild() instanceof AbstractButton b) {
+          b.getAccessibleContext().setAccessibleName(CLEAR_NAME);
+          b.setToolTipText(CLEAR_NAME);
+        }
+      }
+    });
     text.putClientProperty("JTextField.placeholderText", "Search items, NPCs, quests, zones… (Ctrl+F)");
     text.putClientProperty("JTextField.showClearButton", true);
     text.getDocument().addDocumentListener(new DocumentListener() {
@@ -176,6 +190,22 @@ public final class SearchBar extends JPanel {
   public void focus() {
     text.requestFocusInWindow();
     text.selectAll();
+  }
+
+  /**
+   * The search box's steps of the Esc chain: closes the dropdown when it is open, else clears the text; returns
+   * false when neither applied, so the window moves the focus on to the list.
+   */
+  public boolean escape() {
+    if (dropdown.isShowing()) {
+      dropdown.hide();
+      return true;
+    }
+    if (!text.getText().isEmpty()) {
+      text.setText("");
+      return true;
+    }
+    return false;
   }
 
   @Override

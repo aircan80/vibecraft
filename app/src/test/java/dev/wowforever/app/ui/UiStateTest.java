@@ -3,11 +3,17 @@ package dev.wowforever.app.ui;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.formdev.flatlaf.util.UIScale;
+import dev.wowforever.app.model.EntityKind;
+import java.awt.Rectangle;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.UUID;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import org.junit.jupiter.api.AfterEach;
+import javax.swing.SortOrder;
 import org.junit.jupiter.api.Test;
 
 class UiStateTest {
@@ -72,5 +78,138 @@ class UiStateTest {
     UiState state = new UiState(node);
     state.addRecentSearch("Captain Sanders' Hidden\nTreasure");
     assertThat(state.recentSearches()).containsExactly("Captain Sanders' Hidden Treasure");
+  }
+
+  @Test
+  void freshStateHasTheDefaults() {
+    UiState state = new UiState(node);
+    assertThat(state.bounds()).isNull();
+    assertThat(state.maximised()).isFalse();
+    assertThat(state.screenDeviceId()).isNull();
+    assertThat(state.compactBounds()).isNull();
+    assertThat(state.compactMode()).isFalse();
+    assertThat(state.alwaysOnTop()).isFalse();
+    assertThat(state.textSizePct()).isEqualTo(100);
+    assertThat(state.columnWidths("item-drops")).isEmpty();
+    assertThat(state.sort("item-drops")).isEmpty();
+    assertThat(state.lastSearchKind()).isEmpty();
+    assertThat(state.pinned()).isEmpty();
+    assertThat(state.listVisible()).isTrue();
+  }
+
+  @Test
+  void everyFieldRoundTrips() {
+    UiState state = new UiState(node);
+    state.setBounds(new Rectangle(10, 20, 1100, 700));
+    state.setMaximised(true);
+    state.setScreenDeviceId("\\Display2");
+    state.setDividerLocation(377);
+    state.setCompactBounds(new Rectangle(1900, 40, 420, 720));
+    state.setCompactMode(true);
+    state.setAlwaysOnTop(true);
+    state.setTextSizePct(130);
+    state.setColumnWidths("item-drops", Map.of("Source", 240, "Rate", 80));
+    state.setSort("item-drops", new UiState.Sort("Rate", SortOrder.DESCENDING));
+    state.setLastSearchKind(Optional.of(EntityKind.NPC));
+    state.setPinned(List.of("item:19019", "npc:448"));
+    state.addRecentSearch("hogger");
+    state.setListVisible(false);
+
+    UiState again = new UiState(node);
+    assertThat(again.bounds()).isEqualTo(new Rectangle(10, 20, 1100, 700));
+    assertThat(again.maximised()).isTrue();
+    assertThat(again.screenDeviceId()).isEqualTo("\\Display2");
+    assertThat(again.dividerLocation()).isEqualTo(377);
+    assertThat(again.compactBounds()).isEqualTo(new Rectangle(1900, 40, 420, 720));
+    assertThat(again.compactMode()).isTrue();
+    assertThat(again.alwaysOnTop()).isTrue();
+    assertThat(again.textSizePct()).isEqualTo(130);
+    assertThat(again.columnWidths("item-drops")).isEqualTo(Map.of("Source", 240, "Rate", 80));
+    assertThat(again.columnWidths("npc-loot")).isEmpty();
+    assertThat(again.sort("item-drops")).contains(new UiState.Sort("Rate", SortOrder.DESCENDING));
+    assertThat(again.sort("npc-loot")).isEmpty();
+    assertThat(again.lastSearchKind()).contains(EntityKind.NPC);
+    assertThat(again.pinned()).containsExactly("item:19019", "npc:448");
+    assertThat(again.recentSearches()).containsExactly("hogger");
+    assertThat(again.listVisible()).isFalse();
+  }
+
+  @Test
+  void clearingOptionalFieldsRemovesThem() {
+    UiState state = new UiState(node);
+    state.setBounds(new Rectangle(1, 2, 300, 400));
+    state.setScreenDeviceId("screen");
+    state.setSort("t", new UiState.Sort("Name", SortOrder.ASCENDING));
+    state.setLastSearchKind(Optional.of(EntityKind.ITEM));
+    state.setBounds(null);
+    state.setScreenDeviceId(null);
+    state.setSort("t", null);
+    state.setLastSearchKind(Optional.empty());
+    assertThat(state.bounds()).isNull();
+    assertThat(state.screenDeviceId()).isNull();
+    assertThat(state.sort("t")).isEmpty();
+    assertThat(state.lastSearchKind()).isEmpty();
+  }
+
+  @Test
+  void textSizeIsClampedAndSnappedToTenPercentSteps() {
+    UiState state = new UiState(node);
+    state.setTextSizePct(200);
+    assertThat(state.textSizePct()).isEqualTo(150);
+    state.setTextSizePct(40);
+    assertThat(state.textSizePct()).isEqualTo(90);
+    state.setTextSizePct(114);
+    assertThat(state.textSizePct()).isEqualTo(110);
+    node.putInt(UiState.TEXT_SIZE, 999); // a hand-edited preference
+    assertThat(state.textSizePct()).isEqualTo(150);
+  }
+
+  @Test
+  void garbledSavedValuesReadAsDefaults() {
+    node.put(UiState.BOUNDS, "not,a,rectangle");
+    node.put(UiState.LAST_SEARCH_KIND, "DRAGON");
+    node.put(UiState.SORT_PREFIX + "t", "Rate\tSIDEWAYS");
+    UiState state = new UiState(node);
+    assertThat(state.bounds()).isNull();
+    assertThat(state.lastSearchKind()).isEmpty();
+    assertThat(state.sort("t")).isEmpty();
+  }
+
+  @Test
+  void pinTogglesAKeyInAndOut() {
+    UiState state = new UiState(node);
+    assertThat(state.togglePinned("item:19019")).isTrue();
+    assertThat(state.togglePinned("npc:448")).isTrue();
+    assertThat(state.pinned()).containsExactly("item:19019", "npc:448");
+    assertThat(state.togglePinned("item:19019")).isFalse();
+    assertThat(state.pinned()).containsExactly("npc:448");
+  }
+
+  @Test
+  void savedBoundsOnAScreenAreKept() {
+    UiState state = new UiState(node);
+    state.setBounds(new Rectangle(2000, 100, 1000, 700));
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080), new Rectangle(1920, 0, 2560, 1440));
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(2000, 100, 1000, 700));
+  }
+
+  @Test
+  void offscreenBoundsAreReset() {
+    UiState state = new UiState(node);
+    state.setBounds(new Rectangle(5000, 3000, 1000, 700)); // a screen that is no longer attached
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080), new Rectangle(-1280, 0, 1280, 1024));
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(320, 140, 1280, 800));
+  }
+
+  @Test
+  void missingBoundsAreCentredOnTheDefaultScreen() {
+    List<Rectangle> screens = List.of(new Rectangle(1920, 0, 2560, 1440), new Rectangle(0, 0, 1920, 1080));
+    assertThat(new UiState(node).windowBounds(screens)).isEqualTo(new Rectangle(1920 + 640, 320, 1280, 800));
+  }
+
+  @Test
+  void theDefaultWindowShrinksToASmallScreen() {
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 1024, 768));
+    assertThat(new UiState(node).windowBounds(screens)).isEqualTo(new Rectangle(0, 0, 1024, 768));
   }
 }

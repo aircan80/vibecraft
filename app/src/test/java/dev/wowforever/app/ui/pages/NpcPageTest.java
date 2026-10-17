@@ -16,6 +16,7 @@ import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.widgets.Keys;
 import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RankChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
@@ -118,6 +119,23 @@ class NpcPageTest {
     t.changeSelection(1, 0, false, false);
     p.spawns().copyButton().doClick();
     assertThat(copied).containsExactly("/way Elwynn Forest 10.0 20.0", "/way Elwynn Forest 33.4 44.4");
+  }
+
+  @Test
+  void ctrlShiftCOnASpawnRowCopiesItsWayCommand() {
+    List<String> copied = new ArrayList<>();
+    var p = new NpcPage(vanCleef(), t -> {}, copied::add);
+    JTable t = p.spawns().table().table();
+    t.changeSelection(0, 0, false, false);
+    assertThat(Keys.press(t, "shift ctrl C")).isTrue();
+    assertThat(Keys.press(t, "ctrl C")).isTrue();
+    assertThat(copied).containsExactly("/way Westfall 42.3 67.4", "Westfall");
+    var inside = new NpcPage(npc(HOGGER, List.of(), List.of(), List.of(new Spawn(40, "Westfall", -1, -1))),
+        t2 -> {}, copied::add);
+    JTable noCoordinates = inside.spawns().table().table();
+    noCoordinates.changeSelection(0, 0, false, false);
+    Keys.press(noCoordinates, "shift ctrl C");
+    assertThat(copied).hasSize(2); // a point without coordinates has no /way to copy
   }
 
   @Test

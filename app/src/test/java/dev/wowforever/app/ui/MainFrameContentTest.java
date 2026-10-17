@@ -68,23 +68,42 @@ class MainFrameContentTest {
     assertThat(new UiState(node).dividerLocation()).isEqualTo(410);
   }
 
+  private static void toggle(JPanel content) {
+    content.getActionMap().get(MainFrame.TOGGLE_LIST)
+        .actionPerformed(new ActionEvent(content, ActionEvent.ACTION_PERFORMED, ""));
+  }
+
   @Test
-  void ctrlBTogglesTheList() {
+  void toggleListHidesAndShowsTheListAndRemembersIt() {
     state.setDividerLocation(333);
     JPanel content = content();
     JSplitPane split = split(content);
-    Object key = content.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke("ctrl B"));
-    assertThat(key).isEqualTo(MainFrame.TOGGLE_LIST);
-    Runnable press = () -> content.getActionMap().get(key)
-        .actionPerformed(new ActionEvent(content, ActionEvent.ACTION_PERFORMED, ""));
+    // Ctrl+B itself is bound on the root pane by KeyMap; the content holds the action
+    assertThat(content.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke("ctrl B"))).isNull();
     int dividerSize = split.getDividerSize();
-    press.run();
+    toggle(content);
     assertThat(list.isVisible()).isFalse();
     assertThat(split.getDividerSize()).isZero();
     assertThat(state.dividerLocation()).isEqualTo(333); // hiding does not overwrite the saved width
-    press.run();
+    assertThat(new UiState(node).listVisible()).isFalse();
+    toggle(content);
     assertThat(list.isVisible()).isTrue();
     assertThat(split.getDividerSize()).isEqualTo(dividerSize);
+    assertThat(split.getDividerLocation()).isEqualTo(333);
+    assertThat(new UiState(node).listVisible()).isTrue();
+  }
+
+  @Test
+  void aListHiddenLastTimeStartsHidden() {
+    state.setDividerLocation(333);
+    state.setListVisible(false);
+    JPanel content = content();
+    JSplitPane split = split(content);
+    assertThat(list.isVisible()).isFalse();
+    assertThat(split.getDividerSize()).isZero();
+    toggle(content);
+    assertThat(list.isVisible()).isTrue();
+    assertThat(split.getDividerSize()).isPositive();
     assertThat(split.getDividerLocation()).isEqualTo(333);
   }
 

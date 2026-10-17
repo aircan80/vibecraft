@@ -1,9 +1,11 @@
 package dev.wowforever.app.ui;
 
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.StringJoiner;
 
@@ -16,6 +18,14 @@ public final class Labels {
   private static final String SEPARATOR = " · ";
 
   private Labels() {}
+
+  /**
+   * An entity as {@code "item:19019"}, {@code "npc:448"} and so on (what the search box reads back when pasted);
+   * empty for a kind without such a text (a boss).
+   */
+  public static Optional<String> idText(EntityRef ref) {
+    return Optional.ofNullable(ref.kind().dbKind()).map(k -> k + ":" + ref.id());
+  }
 
   /** {@code RAID40} → Raid (40), {@code DUNGEON} → Dungeon, anything else title-cased; null when blank. */
   public static String contentType(String contentType) {
