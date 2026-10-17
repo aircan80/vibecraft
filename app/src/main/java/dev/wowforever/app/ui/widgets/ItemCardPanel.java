@@ -25,9 +25,9 @@ import javax.swing.border.AbstractBorder;
 /**
  * An item's tooltip card, as in the game: a navy card ({@link #BACKGROUND}, a 1 px {@link #BORDER} line, corners of
  * {@value #RADIUS} px) on both themes, its {@value IconCache#CARD} px icon at the top left beside the name in the
- * canonical colour of the item's quality, then the other tooltip lines ({@link TooltipLinesPanel}, which owns their
- * colours, wrapping and tab-split slot lines). The card is as wide as its longest line, at most
- * {@link #maxWidth()}, and long lines wrap when it is narrower.
+ * canonical colour of the item's quality (without one, the name line's stored colour, else white), then the other
+ * tooltip lines ({@link TooltipLinesPanel}, which owns their colours, wrapping and tab-split slot lines). The card
+ * is as wide as its longest line, at most {@link #maxWidth()}, and long lines wrap when it is narrower.
  */
 public final class ItemCardPanel extends JPanel {
   /** The card background (UI review token {@code card.bg}). */
@@ -56,7 +56,7 @@ public final class ItemCardPanel extends JPanel {
     Optional<TooltipLine> nameLine = card.lines().stream().filter(l -> "name".equals(l.kind())).findFirst();
     List<TooltipLine> rest = card.lines().stream().filter(l -> nameLine.isEmpty() || l != nameLine.get()).toList();
     Color nameColour = card.quality() != null ? QualityColors.canonical(card.quality())
-        : TooltipLinesPanel.DEFAULT_TEXT;
+        : TooltipLinesPanel.colour(nameLine.map(TooltipLine::colour).orElse(null));
     name = new TooltipLinesPanel.LineText(nameLine.map(TooltipLine::text).orElse(fallbackName), nameColour,
         Font.BOLD, 1f);
     lines = new TooltipLinesPanel(rest, false);

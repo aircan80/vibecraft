@@ -77,6 +77,9 @@ class DetailPanelsTest {
   void anItemLoadsWithItsCardAndIcon() {
     var page = (DetailPanels.LoadedItem) DetailPanels.load(new EntityRef(ITEM, 17204), repos).orElseThrow();
     assertThat(page.icon()).as("decoded in load, off the EDT").isNotNull();
+    assertThat(page.icon().getWidth()).as("scaled to the card size in load").isEqualTo(IconCache.CARD);
+    assertThat(page.icon().getHeight()).isEqualTo(IconCache.CARD);
+    assertThat(page.icon().getType()).isEqualTo(BufferedImage.TYPE_INT_ARGB);
     assertThat(page.detail().card().quality()).isEqualTo(5);
     assertThat(page.detail().card().lines()).hasSize(5);
     assertThat(DetailPanels.render(page, repos, t -> {})).isInstanceOf(ItemPage.class);
@@ -101,6 +104,13 @@ class DetailPanelsTest {
     assertThat(cache.cached(133471L, IconCache.ROW)).as("An Unsent Letter").isPresent();
     assertThat(cache.cached(AssetRepository.FALLBACK_ICON_ID, IconCache.ROW)).as("items without client data")
         .isPresent();
+  }
+
+  @Test
+  void aQuestPageWarmsTheIconsOfItsItemGivers() {
+    // quest 2 is started by Sharptalon's Claw, an item without client data, and rewards nothing
+    IconCache cache = withEmptyCache(() -> DetailPanels.load(new EntityRef(QUEST, 2), repos));
+    assertThat(cache.cached(AssetRepository.FALLBACK_ICON_ID, IconCache.ROW)).isPresent();
   }
 
   @Test

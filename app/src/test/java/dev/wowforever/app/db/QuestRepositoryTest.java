@@ -2,13 +2,16 @@ package dev.wowforever.app.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.QuestFilter;
+import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.QuestSummary;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
@@ -43,6 +46,28 @@ class QuestRepositoryTest {
     assertThat(repos.quests().list(new QuestFilter(40L, 20, null))).isEmpty();
     assertThat(repos.quests().list(QuestFilter.ALL)).hasSize(10);
     assertThat(repos.quests().list(new QuestFilter(40L, null, null))).isEqualTo(repos.quests().byZone(40));
+  }
+
+  @Test
+  void itemGiversCarryTheItemQualityAndIcon(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into quest_giver(quest_id, kind, entity_id, role) values (2, 'item', 17204, 'end')");
+    }
+    try (Database db = Database.open(copy)) {
+      List<QuestGiver> givers = Repositories.of(db).quests().detail(2).orElseThrow().givers();
+      assertThat(givers).filteredOn(g -> g.ref().id() == 17204).singleElement().satisfies(g -> {
+        assertThat(g.name()).isEqualTo("Eye of Sulfuras");
+        assertThat(g.quality()).isEqualTo(5);
+        assertThat(g.iconId()).isEqualTo(134124L);
+      });
+      assertThat(givers).filteredOn(g -> g.ref().kind() == EntityKind.NPC).isNotEmpty()
+          .allSatisfy(g -> {
+            assertThat(g.quality()).isNull();
+            assertThat(g.iconId()).isNull();
+          });
+    }
   }
 
   @Test

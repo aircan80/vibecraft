@@ -6,7 +6,9 @@ import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -56,7 +58,8 @@ public final class IconCache {
   private final Function<Long, Optional<byte[]>> source;
   private final Executor loader;
   private final Map<Key, ImageIcon> icons;
-  private final Set<Key> loading = new HashSet<>();
+  /** The keys the loader is fetching, each with the components to repaint once it is in. */
+  private final Map<Key, Set<Component>> loading = new HashMap<>();
 
   /** The icons of {@code assets}, misses of renderers fetched on a daemon thread of their own. */
   public IconCache(AssetRepository assets) {
@@ -134,7 +137,8 @@ public final class IconCache {
 
   /**
    * For a renderer on the EDT: icon {@code id} at {@code size} if it is cached, else the {@linkplain #empty empty
-   * icon} while the loader fetches it and then repaints {@code repaint}.
+   * icon} while the loader fetches it (once, however many components ask) and then repaints {@code repaint} and
+   * every other component that asked for it meanwhile.
    */
   public ImageIcon forRenderer(Long id, int size, Component repaint) {
     Key key = key(id, size);
@@ -145,16 +149,22 @@ public final class IconCache {
     if (loader != null) {
       boolean first;
       synchronized (loading) {
-        first = loading.add(key);
+        Set<Component> waiting = loading.get(key);
+        first = waiting == null;
+        if (first) {
+          waiting = Collections.newSetFromMap(new IdentityHashMap<>());
+          loading.put(key, waiting);
+        }
+        waiting.add(repaint);
       }
       if (first) {
-        loader.execute(() -> fetch(key, repaint));
+        loader.execute(() -> fetch(key));
       }
     }
     return empty(size);
   }
 
-  private void fetch(Key key, Component repaint) {
+  private void fetch(Key key) {
     try {
       icon(key.id(), key.size());
     } catch (RuntimeException e) { // a closed or broken database: the row keeps its empty icon, not retried
@@ -162,12 +172,12 @@ public final class IconCache {
       synchronized (icons) {
         icons.put(key, empty(key.size()));
       }
-    } finally {
-      synchronized (loading) {
-        loading.remove(key);
-      }
     }
-    SwingUtilities.invokeLater(repaint::repaint);
+    Set<Component> waiting;
+    synchronized (loading) {
+      waiting = loading.remove(key);
+    }
+    SwingUtilities.invokeLater(() -> waiting.forEach(Component::repaint));
   }
 
   private Optional<ImageIcon> cached(Key key) {

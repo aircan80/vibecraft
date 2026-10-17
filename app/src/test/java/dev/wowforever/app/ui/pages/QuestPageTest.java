@@ -7,17 +7,26 @@ import static dev.wowforever.app.ui.pages.Tables.columnNames;
 import static dev.wowforever.app.ui.pages.Tables.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.FlatLaf;
+import dev.wowforever.app.db.AssetRepository;
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.QuestDetail;
+import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.LinkRenderer;
+import dev.wowforever.app.ui.theme.QualityColors;
+import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import javax.swing.JLabel;
+import javax.swing.JTable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -41,6 +50,35 @@ class QuestPageTest {
     assertThat(columnNames(p.section("Turned in to").table().table())).containsExactly("Name", "Type");
     p.section("Turned in to").table().activateRow(0);
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 12696)));
+  }
+
+  @Test
+  void itemGiversShowTheirIconAndQualityColourOtherGiversDoNot() {
+    IconCache cache = new IconCache(repos.assets()::icon, 100, null);
+    cache.warm(Arrays.asList(132541L, null), IconCache.ROW);
+    IconCache before = IconCache.install(cache);
+    try {
+      var d = new QuestDetail(new QuestSummary(9, "Q", null, null, null), null, List.of(
+          new QuestGiver(new EntityRef(ITEM, 16800), "Arcanist Boots", "start", 4, 132541L),
+          new QuestGiver(new EntityRef(ITEM, 16305), "Sharptalon's Claw", "start"),
+          new QuestGiver(new EntityRef(NPC, 12696), "Senani Thunderheart", "start")), List.of(), List.of());
+      JTable givers = new QuestPage(d, t -> {}).section("Given by").table().table();
+      JLabel boots = rendered(givers, 0);
+      assertThat(boots.getText()).isEqualTo("Arcanist Boots");
+      assertThat(boots.getForeground()).isEqualTo(QualityColors.text(4, FlatLaf.isLafDark()));
+      assertThat(boots.getIcon()).isSameAs(cache.cached(132541L, IconCache.ROW).orElseThrow());
+      assertThat(rendered(givers, 1).getIcon()).as("no client data: the question mark")
+          .isSameAs(cache.cached(AssetRepository.FALLBACK_ICON_ID, IconCache.ROW).orElseThrow());
+      JLabel npc = rendered(givers, 2);
+      assertThat(npc.getIcon()).isNull();
+      assertThat(npc.getForeground()).isEqualTo(LinkRenderer.linkColor());
+    } finally {
+      IconCache.install(before);
+    }
+  }
+
+  private static JLabel rendered(JTable table, int row) {
+    return (JLabel) table.prepareRenderer(table.getCellRenderer(row, 0), row, 0);
   }
 
   @Test

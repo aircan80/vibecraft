@@ -260,10 +260,11 @@ public final class Columns {
         plain("Slot", Integer.class, LootRow::slot));
   }
 
-  /** The NPCs, objects and items that start or end a quest. */
+  /** The NPCs, objects and items that start or end a quest; an item in its quality colour after its icon. */
   public static List<Column<QuestGiver>> questGivers() {
     return List.of(
-        link("Name", QuestGiver::displayName, g -> Optional.of(g.ref())),
+        itemLink("Name", QuestGiver::displayName, g -> Optional.of(g.ref()), QuestGiver::quality,
+            g -> g.ref().kind() == EntityKind.ITEM ? iconOrFallback(g.iconId()) : null),
         plain("Type", String.class, g -> g.ref().kind().label()),
         plain("Role", String.class, g -> roleText(g.role())));
   }

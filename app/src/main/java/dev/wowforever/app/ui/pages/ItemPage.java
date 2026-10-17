@@ -52,7 +52,8 @@ public final class ItemPage extends SourcesPage {
 
   /**
    * The page of {@code d}; {@code icon} is the item's icon (or the question mark) as
-   * {@link dev.wowforever.app.ui.detail.DetailPanels#load} decoded it off the EDT, null for none.
+   * {@link dev.wowforever.app.ui.detail.DetailPanels#load} decoded and scaled it to {@value IconCache#CARD} px off
+   * the EDT (shown as given), null for none.
    */
   public ItemPage(ItemDetail d, BufferedImage icon, Navigator nav) {
     super(nav);
@@ -63,7 +64,7 @@ public final class ItemPage extends SourcesPage {
       card = null;
     } else {
       card = new ItemCardPanel(d.card(), d.summary().displayName(), icon == null ? IconCache.empty(IconCache.CARD)
-          : new ImageIcon(IconCache.scale(icon, IconCache.CARD)));
+          : new ImageIcon(icon));
       content.add(new CardHolder(card));
       header.setTitleShown(false); // the card has the name
       header.setBorder(BorderFactory.createEmptyBorder(2, 12, 6, 12));

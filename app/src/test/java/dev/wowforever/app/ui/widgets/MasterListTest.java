@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui.widgets;
 
 import static dev.wowforever.app.model.EntityKind.ITEM;
+import static dev.wowforever.app.model.EntityKind.NPC;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.formdev.flatlaf.FlatLaf;
@@ -9,11 +10,13 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Component;
+import java.awt.Insets;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.stream.IntStream;
 import javax.swing.JComponent;
@@ -181,7 +184,7 @@ class MasterListTest {
   /** Runs {@code body} with a shared icon cache over the fixture database, warmed with {@code ids} at list size. */
   static void withIcons(Runnable body, Long... ids) {
     IconCache cache = new IconCache(FixtureDb.repositories().assets()::icon, 100, null);
-    cache.warm(java.util.Arrays.asList(ids), IconCache.LIST);
+    cache.warm(Arrays.asList(ids), IconCache.LIST);
     IconCache before = IconCache.install(cache);
     try {
       body.run();
@@ -193,7 +196,7 @@ class MasterListTest {
   @Test
   void anItemRowShowsItsIconAndItsNameInItsQualityColour() {
     withIcons(() -> {
-      ListEntry vest = new ListEntry(new EntityRef(ITEM, 19682), "Bloodvine Vest", "Armor Â· Cloth", 3, 132648L);
+      ListEntry vest = new ListEntry(new EntityRef(ITEM, 19682), "Bloodvine Vest", "Armor · Cloth", 3, 132648L);
       list.setEntries(List.of(vest));
       JList<ListEntry> jlist = list.jlist();
       var r = (MasterList.EntryRenderer) jlist.getCellRenderer().getListCellRendererComponent(jlist, vest, 0, false,
@@ -202,7 +205,11 @@ class MasterListTest {
       assertThat(r.icon().isVisible()).isTrue();
       assertThat(r.icon().getIcon()).isSameAs(IconCache.shared().cached(132648L, IconCache.LIST).orElseThrow());
       assertThat(r.icon().getIcon().getIconWidth()).isEqualTo(28);
-      assertThat(jlist.getFixedCellHeight()).as("rows fit the icon").isGreaterThanOrEqualTo(28);
+      Insets in = r.getInsets();
+      assertThat(r.getPreferredSize().height).as("the row fits the icon")
+          .isGreaterThanOrEqualTo(28 + in.top + in.bottom);
+      assertThat(jlist.getFixedCellHeight()).as("the fixed row height fits an item row")
+          .isGreaterThanOrEqualTo(r.getPreferredSize().height);
       var selected = (MasterList.EntryRenderer) jlist.getCellRenderer().getListCellRendererComponent(jlist, vest, 0,
           true, false);
       assertThat(selected.title().getForeground()).isEqualTo(jlist.getSelectionForeground());
@@ -213,7 +220,7 @@ class MasterListTest {
   void anItemWithoutAnIconShowsTheQuestionMarkAndOtherKindsNoIcon() {
     withIcons(() -> {
       ListEntry salts = new ListEntry(new EntityRef(ITEM, 1176), "Smelling Salts", "Item", null, null);
-      ListEntry hogger = new ListEntry(new EntityRef(dev.wowforever.app.model.EntityKind.NPC, 448), "Hogger",
+      ListEntry hogger = new ListEntry(new EntityRef(NPC, 448), "Hogger",
           "NPC", null, null);
       JList<ListEntry> jlist = list.jlist();
       var r = (MasterList.EntryRenderer) jlist.getCellRenderer().getListCellRendererComponent(jlist, salts, 0, false,

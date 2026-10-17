@@ -38,7 +38,8 @@ public final class QuestRepository {
       }
       List<QuestGiver> givers = Sql.list(c, """
           SELECT g.kind, g.entity_id, g.role,
-                 CASE g.kind WHEN 'npc' THEN n.name WHEN 'object' THEN o.name WHEN 'item' THEN i.name END AS giver_name
+                 CASE g.kind WHEN 'npc' THEN n.name WHEN 'object' THEN o.name WHEN 'item' THEN i.name END AS giver_name,
+                 i.quality, i.icon_id
           FROM quest_giver g
           LEFT JOIN npc n ON g.kind = 'npc' AND n.id = g.entity_id
           LEFT JOIN game_object o ON g.kind = 'object' AND o.id = g.entity_id
@@ -120,7 +121,7 @@ public final class QuestRepository {
       return null;
     }
     return new QuestGiver(new EntityRef(kind.get(), rs.getLong("entity_id")), rs.getString("giver_name"),
-        rs.getString("role"));
+        rs.getString("role"), Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id"));
   }
 
   private static QuestSummary summary(ResultSet rs) throws SQLException {

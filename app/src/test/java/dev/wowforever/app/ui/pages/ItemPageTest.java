@@ -26,6 +26,7 @@ import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.widgets.IconCache;
+import dev.wowforever.app.ui.widgets.Images;
 import dev.wowforever.app.ui.widgets.ItemCardPanel;
 import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
@@ -35,6 +36,7 @@ import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.InputEvent;
 import java.awt.event.KeyEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
@@ -88,7 +90,7 @@ class ItemPageTest {
 
   private static String rendered(JTable t, int row, int col) {
     Component c = t.prepareRenderer(t.getCellRenderer(row, col), row, col);
-    return ((javax.swing.JLabel) c).getText();
+    return ((JLabel) c).getText();
   }
 
   @Test
@@ -307,8 +309,8 @@ class ItemPageTest {
     assertThat(p.header().titleColor()).isEqualTo(QualityColors.text(5, FlatLaf.isLafDark()));
   }
 
-  private java.awt.image.BufferedImage icon(long iconId) {
-    return dev.wowforever.app.ui.widgets.Images.decode(repos.assets().icon(iconId).orElseThrow()).orElseThrow();
+  private BufferedImage icon(long iconId) {
+    return Images.decode(repos.assets().icon(iconId).orElseThrow()).orElseThrow();
   }
 
   @Test

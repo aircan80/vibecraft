@@ -15,6 +15,7 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.ItemSummary;
 import dev.wowforever.app.model.LootRow;
+import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
@@ -30,7 +31,9 @@ import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
@@ -178,7 +181,7 @@ class LinkTableTest {
     List<String> copied = new ArrayList<>();
     var t = new LinkTable<>(Columns.lootRows(), v -> {});
     t.setClipboard(copied::add);
-    t.setIdText(row -> java.util.Optional.of("custom " + row.item().id()));
+    t.setIdText(row -> Optional.of("custom " + row.item().id()));
     t.setRows(List.of(loot(7, 5.0)));
     t.table().changeSelection(0, 0, false, false);
     Keys.press(t.table(), "shift ctrl C");
@@ -359,7 +362,7 @@ class LinkTableTest {
   /** Runs {@code body} with a shared icon cache over the fixture database, warmed with {@code ids} at row size. */
   private static void withIcons(Runnable body, Long... ids) {
     IconCache cache = new IconCache(FixtureDb.repositories().assets()::icon, 100, null);
-    cache.warm(java.util.Arrays.asList(ids), IconCache.ROW);
+    cache.warm(Arrays.asList(ids), IconCache.ROW);
     IconCache before = IconCache.install(cache);
     try {
       body.run();
@@ -430,7 +433,7 @@ class LinkTableTest {
   void otherLinkColumnsShowNoIcon() {
     var npcs = new LinkTable<>(Columns.npcs(), v -> {});
     npcs.setRows(List.of(
-        new dev.wowforever.app.model.NpcSummary(448, "Hogger", null, 11, 11, 1, "Elwynn Forest", 12L)));
+        new NpcSummary(448, "Hogger", null, 11, 11, 1, "Elwynn Forest", 12L)));
     assertThat(rendered(npcs.table(), 0, 0).getIcon()).isNull();
     assertThat(rendered(npcs.table(), 0, 4).getIcon()).isNull();
   }

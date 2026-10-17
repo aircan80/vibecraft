@@ -10,6 +10,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -148,7 +149,7 @@ class IconCacheTest {
   void warmLoadsEveryIdOnce() {
     FakeSource source = withFallback();
     var cache = new IconCache(source, 10, null);
-    cache.warm(java.util.Arrays.asList(RED, BLUE, RED, null), 18);
+    cache.warm(Arrays.asList(RED, BLUE, RED, null), 18);
     assertThat(cache.cached(RED, 18)).isPresent();
     assertThat(cache.cached(BLUE, 18)).isPresent();
     assertThat(cache.cached(null, 18)).isPresent();
@@ -177,6 +178,36 @@ class IconCacheTest {
     SwingUtilities.invokeAndWait(() -> {});
     assertThat(repaints.get() - before).as("repainted once the icon is in").isEqualTo(1);
     assertThat(cache.forRenderer(RED, 18, target)).isSameAs(cache.cached(RED, 18).orElseThrow());
+  }
+
+  @Test
+  void everyComponentThatAskedForAMissingIconIsRepaintedOnceItIsIn() throws Exception {
+    List<Runnable> queued = new ArrayList<>();
+    var cache = new IconCache(withFallback(), 10, queued::add);
+    AtomicInteger table = new AtomicInteger();
+    AtomicInteger list = new AtomicInteger();
+    JLabel first = counting(table);
+    JLabel second = counting(list);
+    cache.forRenderer(RED, 18, first);
+    cache.forRenderer(RED, 18, second);
+    cache.forRenderer(RED, 18, first);
+    assertThat(queued).as("one load").hasSize(1);
+    int tableBefore = table.get();
+    int listBefore = list.get();
+    queued.get(0).run();
+    SwingUtilities.invokeAndWait(() -> {});
+    assertThat(table.get() - tableBefore).isEqualTo(1);
+    assertThat(list.get() - listBefore).isEqualTo(1);
+  }
+
+  /** A label counting its {@code repaint()} calls in {@code count}. */
+  private static JLabel counting(AtomicInteger count) {
+    return new JLabel() {
+      @Override
+      public void repaint() {
+        count.incrementAndGet();
+      }
+    };
   }
 
   @Test

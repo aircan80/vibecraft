@@ -124,7 +124,7 @@ public final class TooltipLinesPanel extends JPanel {
   }
 
   /** {@code #rrggbb} as a colour; {@link #DEFAULT_TEXT} for null or anything else. */
-  private static Color colour(String hex) {
+  static Color colour(String hex) {
     if (hex == null || !hex.matches("#[0-9a-fA-F]{6}")) {
       return DEFAULT_TEXT;
     }

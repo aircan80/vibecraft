@@ -120,6 +120,13 @@ class ItemCardPanelTest {
   }
 
   @Test
+  void withoutAQualityTheNameKeepsItsStoredColour() {
+    var card = new ItemCardPanel(new ItemCard(null, List.of(new TooltipLine("name", "Odd Relic", "#a335ee"),
+        new TooltipLine("item_level", "Item Level 5", null)), null, null, null, null), "Odd Relic", ICON);
+    assertThat(card.name().getForeground()).isEqualTo(new Color(0xA335EE));
+  }
+
+  @Test
   void withoutANameLineTheCardIsTitledWithTheGivenName() {
     var card = new ItemCardPanel(new ItemCard(null, List.of(new TooltipLine("item_level", "Item Level 5", null)),
         null, null, null, null), "Item #5", ICON);

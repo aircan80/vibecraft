@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui.detail;
 
 import dev.wowforever.app.db.Repositories;
+import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.ItemDetail;
@@ -8,6 +9,7 @@ import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
+import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.pages.InstancePage;
@@ -35,8 +37,8 @@ public final class DetailPanels {
   private DetailPanels() {}
 
   /**
-   * What {@link #load} returns for an item: the item and its decoded icon (null when there is none), which the
-   * page's tooltip card shows.
+   * What {@link #load} returns for an item: the item and its icon, decoded and scaled to {@value IconCache#CARD} px
+   * (null when there is none), which the page's tooltip card shows.
    */
   public record LoadedItem(ItemDetail detail, BufferedImage icon) {}
 
@@ -52,16 +54,18 @@ public final class DetailPanels {
    * empty. An item's icon (or the question-mark fallback) and a zone's map are read and decoded here, off the EDT.
    * The icon id is the summary's, which an item with only an {@code Item} row (no tooltip card) has too. The item
    * icons the page's tables show first are loaded into the {@linkplain IconCache#shared shared cache} here too:
-   * an NPC's drops and wares, an object's contents, a quest's rewards, an instance's first boss's loot.
+   * an NPC's drops and wares, an object's contents, a quest's item givers and rewards, an instance's first boss's
+   * loot.
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
     Optional<?> detail = switch (ref.kind()) {
       case ITEM -> repos.items().detail(id).map(d -> new LoadedItem(d,
-          repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode).orElse(null)));
+          repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
+              .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null)));
       case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells()));
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains()));
-      case QUEST -> repos.quests().detail(id).map(d -> warmed(d, d.rewards()));
+      case QUEST -> repos.quests().detail(id).map(d -> warmed(warmedGivers(d), d.rewards()));
       case ZONE -> repos.zones().detail(id)
           .map(d -> new LoadedZone(d, d.map().flatMap(m -> Images.decode(m.jpeg())).orElse(null)));
       case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)));
@@ -77,6 +81,13 @@ public final class DetailPanels {
       IconCache.shared().warm(rows.stream().map(LootRow::iconId).toList(), IconCache.ROW);
     }
     return detail;
+  }
+
+  /** {@code d}, once the {@value IconCache#ROW} px icons of its item givers are cached. */
+  private static QuestDetail warmedGivers(QuestDetail d) {
+    IconCache.shared().warm(d.givers().stream().filter(g -> g.ref().kind() == EntityKind.ITEM)
+        .map(QuestGiver::iconId).toList(), IconCache.ROW);
+    return d;
   }
 
   /**
