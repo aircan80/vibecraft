@@ -90,10 +90,14 @@ Help › Keyboard shortcuts shows the same table in the app.
 | Keys | Action |
 |---|---|
 | Ctrl+F, Ctrl+L, / outside text fields | Focus search |
-| Esc | Close dropdown, then clear search, then focus list |
+| Esc | Close dropdown, then clear the map filter, then clear search, then focus list |
 | Alt+Left/Right, mouse 4/5 | Back / forward |
 | Up/Down, Enter | Preview, open |
 | Ctrl+1…6 | Jump to source section |
+| G / T / O / M / C / R | Quest page: Given by, Turned in to, Objectives, Map, Chain, Rewards |
+| 1…9 | Quest page: show objective n on the map |
+| [ / ] | Quest page: previous / next quest in the chain |
+| Z | Quest page: next zone on the map |
 | Ctrl+C / Ctrl+Shift+C on a row | Copy name / copy item:ID or /way |
 | Ctrl+B | Toggle results list |
 | F10, Ctrl+Shift+T | Compact mode, always on top |

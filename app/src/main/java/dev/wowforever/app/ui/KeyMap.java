@@ -29,6 +29,7 @@ public final class KeyMap {
   public static final String DOCUMENTED_ONLY = "documented-only";
   /** The action of the row copy keys, bound on each link table. */
   public static final String ROW_COPY = "rowCopy";
+  public static final String QUEST_PAGE = "questPage";
 
   /** Root pane handler names: what {@link #install} needs a {@link Runnable} for. */
   public static final String FOCUS_SEARCH = "focusSearch";
@@ -62,10 +63,15 @@ public final class KeyMap {
   /** The keyboard map, in the order the help shows it. */
   public static final List<Binding> BINDINGS = List.of(
       new Binding("Ctrl+F, Ctrl+L, / outside text fields", FOCUS_SEARCH, "Focus search"),
-      new Binding("Esc", ESCAPE, "Close dropdown, then clear search, then focus list"),
+      new Binding("Esc", ESCAPE, "Close dropdown, then clear the map filter, then clear search, then focus list"),
       new Binding("Alt+Left/Right, mouse 4/5", "history", "Back / forward"),
       new Binding("Up/Down, Enter", DOCUMENTED_ONLY, "Preview, open"),
       new Binding("Ctrl+1…6", DOCUMENTED_ONLY, "Jump to source section"),
+      new Binding("G / T / O / M / C / R", QUEST_PAGE,
+          "Quest page: Given by, Turned in to, Objectives, Map, Chain, Rewards"),
+      new Binding("1…9", QUEST_PAGE, "Quest page: show objective n on the map"),
+      new Binding("[ / ]", QUEST_PAGE, "Quest page: previous / next quest in the chain"),
+      new Binding("Z", QUEST_PAGE, "Quest page: next zone on the map"),
       new Binding("Ctrl+C / Ctrl+Shift+C on a row", ROW_COPY, "Copy name / copy item:ID or /way"),
       new Binding("Ctrl+B", TOGGLE_LIST, "Toggle results list"),
       new Binding("F10, Ctrl+Shift+T", "window", "Compact mode, always on top"),
@@ -81,6 +87,8 @@ public final class KeyMap {
       ROW_COPY, List.of(new Stroke("ctrl C", COPY_NAME), new Stroke("shift ctrl C", COPY_ID)),
       TOGGLE_LIST, List.of(new Stroke("ctrl B", TOGGLE_LIST)),
       "window", List.of(new Stroke("F10", COMPACT_MODE), new Stroke("shift ctrl T", ALWAYS_ON_TOP)),
+      QUEST_PAGE, java.util.stream.Stream.of("g", "t", "o", "m", "c", "r", "1", "2", "3", "4", "5",
+          "6", "7", "8", "9", "[", "]", "z").map(key -> new Stroke("typed " + key, key)).toList(),
       "textSize", List.of(new Stroke("ctrl EQUALS", TEXT_BIGGER), new Stroke("shift ctrl EQUALS", TEXT_BIGGER),
           new Stroke("ctrl PLUS", TEXT_BIGGER), new Stroke("ctrl ADD", TEXT_BIGGER),
           new Stroke("ctrl MINUS", TEXT_SMALLER), new Stroke("ctrl SUBTRACT", TEXT_SMALLER),
@@ -112,7 +120,8 @@ public final class KeyMap {
 
   /** Whether {@link #install} binds the keys of {@code b} on the root pane. */
   public static boolean installsOnRoot(Binding b) {
-    return !b.action().equals(DOCUMENTED_ONLY) && !b.action().equals(ROW_COPY);
+    return !b.action().equals(DOCUMENTED_ONLY) && !b.action().equals(ROW_COPY)
+        && !b.action().equals(QUEST_PAGE);
   }
 
   /**
@@ -141,6 +150,22 @@ public final class KeyMap {
         } else {
           bind(root, JComponent.WHEN_IN_FOCUSED_WINDOW, s, handlers.get(s.handler()), () -> true);
         }
+      }
+    }
+  }
+
+  /** Page-local shortcuts never consume text typed into a search field or editor. */
+  public static void installPageKeys(JComponent page, Map<String, Runnable> handlers, Supplier<Component> focusOwner) {
+    BooleanSupplier outsideText = () -> !(focusOwner.get() instanceof JTextComponent);
+    for (Stroke stroke : STROKES.get(QUEST_PAGE)) {
+      Runnable handler = handlers.get(stroke.handler());
+      if (handler == null) continue;
+      Runnable guarded = () -> { if (outsideText.getAsBoolean()) handler.run(); };
+      bind(page, JComponent.WHEN_IN_FOCUSED_WINDOW, stroke, guarded, outsideText);
+      if (stroke.handler().matches("[a-z]")) {
+        bind(page, JComponent.WHEN_IN_FOCUSED_WINDOW,
+            new Stroke("typed " + stroke.handler().toUpperCase(java.util.Locale.ROOT), stroke.handler()),
+            guarded, outsideText);
       }
     }
   }

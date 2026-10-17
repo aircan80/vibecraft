@@ -55,6 +55,10 @@ class KeyMapTest {
         "Alt+Left/Right, mouse 4/5",
         "Up/Down, Enter",
         "Ctrl+1…6",
+        "G / T / O / M / C / R",
+        "1…9",
+        "[ / ]",
+        "Z",
         "Ctrl+C / Ctrl+Shift+C on a row",
         "Ctrl+B",
         "F10, Ctrl+Shift+T",
@@ -62,10 +66,14 @@ class KeyMapTest {
         "Up from the search box, Left/Right, Enter");
     assertThat(KeyMap.BINDINGS).extracting(KeyMap.Binding::description).containsExactly(
         "Focus search",
-        "Close dropdown, then clear search, then focus list",
+        "Close dropdown, then clear the map filter, then clear search, then focus list",
         "Back / forward",
         "Preview, open",
         "Jump to source section",
+        "Quest page: Given by, Turned in to, Objectives, Map, Chain, Rewards",
+        "Quest page: show objective n on the map",
+        "Quest page: previous / next quest in the chain",
+        "Quest page: next zone on the map",
         "Copy name / copy item:ID or /way",
         "Toggle results list",
         "Compact mode, always on top",
@@ -171,7 +179,8 @@ class KeyMapTest {
   void rowCopyKeysAreBoundOnLinkTables() {
     LinkTable<?> table = new LinkTable<>(Columns.items(), t -> {});
     InputMap keys = table.table().getInputMap(JComponent.WHEN_FOCUSED);
-    KeyMap.Binding rowCopy = KeyMap.BINDINGS.get(5);
+    KeyMap.Binding rowCopy = KeyMap.BINDINGS.stream().filter(b -> b.action().equals(KeyMap.ROW_COPY))
+        .findFirst().orElseThrow();
     assertThat(rowCopy.action()).isEqualTo(KeyMap.ROW_COPY);
     assertThat(KeyMap.strokes(rowCopy)).extracting(KeyMap.Stroke::handler)
         .containsExactly(KeyMap.COPY_NAME, KeyMap.COPY_ID);
