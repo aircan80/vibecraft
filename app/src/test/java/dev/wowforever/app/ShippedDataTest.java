@@ -197,12 +197,25 @@ class ShippedDataTest {
 
   @Test
   void committedImportReportShowsTheCoverage() throws Exception {
+    Matcher m = Pattern.compile("(?m)^clientdata\\.coverage\\.pct = (\\d+)\\s*$").matcher(committedReport());
+    assertThat(m.find()).as("clientdata.coverage.pct in import-report.txt").isTrue();
+    assertThat(Integer.parseInt(m.group(1))).isGreaterThanOrEqualTo(85);
+  }
+
+  @Test
+  void committedImportReportListsTheUnverifiedCountersAndTheConflicts() throws Exception {
+    String report = committedReport();
+    for (String kind : List.of("armor", "block", "damage", "stats")) {
+      assertThat(report).as("clientdata.unverified.%s in import-report.txt", kind)
+          .containsPattern("(?m)^clientdata\\.unverified\\." + kind + " = \\d+\\s*$");
+    }
+    assertThat(report).as("the Conflicts section").containsPattern("(?m)^== Conflicts ==\\s*$");
+  }
+
+  private static String committedReport() throws Exception {
     try (InputStream in = ShippedDataTest.class.getResourceAsStream("/data/import-report.txt")) {
-      assertThat(in).isNotNull();
-      String report = new String(in.readAllBytes(), StandardCharsets.UTF_8);
-      Matcher m = Pattern.compile("(?m)^clientdata\\.coverage\\.pct = (\\d+)\\s*$").matcher(report);
-      assertThat(m.find()).as("clientdata.coverage.pct in import-report.txt").isTrue();
-      assertThat(Integer.parseInt(m.group(1))).isGreaterThanOrEqualTo(85);
+      assertThat(in).as("/data/import-report.txt").isNotNull();
+      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
     }
   }
 
