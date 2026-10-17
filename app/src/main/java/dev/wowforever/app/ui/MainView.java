@@ -57,4 +57,10 @@ public interface MainView {
   default BooleanSetting questPins() {
     return BooleanSetting.inMemory(false);
   }
+
+  /** Saved zone-map patrol route setting. */
+  default BooleanSetting routes() {
+    return BooleanSetting.inMemory(false);
+  }
+
 }

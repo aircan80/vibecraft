@@ -291,7 +291,7 @@ class ZonePageTest {
     assertThat(p.mapPanel().pinsMenuButton().isVisible()).isTrue();
     assertThat(p.mapPanel().pinsMenuButton().getText()).isEqualTo("Pins \u25BE");
     assertThat(p.mapPanel().pinsMenu().getComponents()).extracting(c -> ((JMenuItem) c).getText())
-        .containsExactly("Bosses & rares", "All NPCs", "Objects", "Quests");
+        .containsExactly("Bosses & rares", "All NPCs", "Objects", "Quests", "Routes");
     ((JMenuItem) p.mapPanel().pinsMenu().getComponent(1)).doClick();
     assertThat(p.mapPanel().allNpcsToggle().isSelected()).isTrue();
     assertThat(((JMenuItem) p.mapPanel().pinsMenu().getComponent(0)).isSelected()).isFalse();

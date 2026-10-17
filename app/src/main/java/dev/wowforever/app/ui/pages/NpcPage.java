@@ -3,7 +3,9 @@ package dev.wowforever.app.ui.pages;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcDetail;
+import dev.wowforever.app.model.Route;
 import dev.wowforever.app.model.NpcSummary;
+import dev.wowforever.app.model.QuestInvolvement;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.Navigator;
@@ -24,8 +26,8 @@ import java.util.function.Consumer;
 
 /**
  * The NPC page, one scrolling page: the header (an NPCs plate, name and title, a rank chip, levels and a zone link),
- * then the sections in {@link SectionOrder#NPC} order, Drops, Sells and Location, then Starts quests and Ends quests
- * until a later task merges them into Quests (those without rows are left out). Drops are
+ * then Drops, Sells, Quests and Location in {@link SectionOrder#NPC} order
+ * (those without rows are left out). Quest roles share one row per quest. Drops are
  * grouped by {@link ItemCategories} under heading rows, each group ranked by rate with unknown rates last: Notable
  * first (epics and better, and quest items: what the NPC is looked up for; each keeps its quality colour and says what
  * it is, "Quest item" or "Gear", in a Type column), then by item class; the world drops (the
@@ -82,6 +84,29 @@ public final class NpcPage extends SourcesPage {
   public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
       Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav,
       ClipboardPort clipboard) {
+    this(d, mapZoneId, map, rateSources, bossNpcs, filter, onFilterChange,
+        QuestInvolvement.fromGivers(d.starts(), d.ends()), nav, clipboard, List.of());
+  }
+
+  /** The page including its NPC's own patrol routes, loaded off the EDT. */
+  public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav,
+      ClipboardPort clipboard, List<Route> routes) {
+    this(d, mapZoneId, map, rateSources, bossNpcs, filter, onFilterChange,
+        QuestInvolvement.fromGivers(d.starts(), d.ends()), nav, clipboard, routes);
+  }
+
+  /** All quest roles loaded off the EDT with this NPC. */
+  public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
+      QuestInvolvement.Result involvement, Navigator nav, ClipboardPort clipboard) {
+    this(d, mapZoneId, map, rateSources, bossNpcs, filter, onFilterChange, involvement, nav, clipboard, List.of());
+  }
+
+  /** Fully preloaded NPC page, including both quest roles and patrol routes. */
+  public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
+      QuestInvolvement.Result involvement, Navigator nav, ClipboardPort clipboard, List<Route> routes) {
     super(nav);
     NpcSummary s = d.summary();
     header = zoneHeader(title(s), Labels.join("NPC #" + s.id(), Labels.levels(s.minLevel(), s.maxLevel())),
@@ -104,14 +129,11 @@ public final class NpcPage extends SourcesPage {
       section(DROPS).heading().setTrailing(new SourceFilterControl(filter, onFilterChange));
     }
     addLootSection("Sells", d.sells());
-    addSection("Starts quests", d.starts().size(), VisibleColumns.of(Columns.quests(), d.starts(), s.zoneName()),
-        d.starts());
-    addSection("Ends quests", d.ends().size(), VisibleColumns.of(Columns.quests(), d.ends(), s.zoneName()),
-        d.ends());
+    addQuestInvolvements(involvement, EntityKind.NPC, s.zoneName());
     if (d.spawns().isEmpty()) {
       spawns = null;
     } else {
-      spawns = new SpawnSection(d.spawns(), s.zoneName(), s.ref(), s.name(), mapZoneId, map, nav, clipboard);
+      spawns = new SpawnSection(d.spawns(), s.zoneName(), s.ref(), s.name(), mapZoneId, map, nav, clipboard, routes);
       addSection(spawns.section());
     }
     addSectionsInOrder(SectionOrder.NPC);

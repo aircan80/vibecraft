@@ -77,6 +77,23 @@ public final class Labels {
     };
   }
 
+  /** Quest level and minimum level, omitting unknown values. */
+  public static String questLevels(Integer level, Integer required) {
+    String main = positive(level) == null ? null : "Lv " + level;
+    String minimum = positive(required) == null ? null : "req. " + required;
+    return main == null ? minimum : minimum == null ? main : main + " (" + minimum + ")";
+  }
+
+  /** The Classic faction implied by a race mask; null for unrestricted or mixed masks. */
+  public static String factions(Integer raceMask) {
+    if (raceMask == null || raceMask == 0) {
+      return null;
+    }
+    boolean alliance = (raceMask & 77) != 0;
+    boolean horde = (raceMask & 178) != 0;
+    return alliance == horde ? null : alliance ? "Alliance" : "Horde";
+  }
+
   /** NPC rank: 1 Elite, 2 Rare Elite, 3 Boss, 4 Rare; empty for normal (0), unknown and null. */
   public static String rank(Integer rank) {
     if (rank == null) {

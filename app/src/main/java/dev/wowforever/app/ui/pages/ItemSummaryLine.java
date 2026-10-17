@@ -1,7 +1,7 @@
 package dev.wowforever.app.ui.pages;
 
 import dev.wowforever.app.model.ItemDetail;
-import dev.wowforever.app.model.ItemSource;
+import dev.wowforever.app.model.QuestInvolvement;
 import dev.wowforever.app.ui.Labels;
 import java.util.Locale;
 import java.util.stream.Stream;
@@ -15,15 +15,19 @@ final class ItemSummaryLine {
   private ItemSummaryLine() {}
 
   static String of(ItemDetail d) {
+    return of(d, QuestInvolvement.fromRelated(d.relatedQuests()));
+  }
+
+  static String of(ItemDetail d, QuestInvolvement.Result involvement) {
     int containers = d.containedInObjects().size() + d.containedInItems().size();
-    long quests = Stream.concat(d.rewardFrom().stream(), d.relatedQuests().stream()).map(ItemSource::ref)
-        .distinct().count();
+    long quests = Stream.concat(d.rewardFrom().stream().map(source -> source.ref().id()),
+        involvement.rows().stream().map(row -> row.quest().id())).distinct().count();
     return Labels.join(
         count(d.droppedBy().size(), "NPC", "NPCs"),
         count(d.inInstanceLoot().size(), "loot list", "loot lists"),
         count(containers, "container", "containers"),
         count(d.soldBy().size(), "vendor", "vendors"),
-        count(quests, "quest", "quests"));
+        involvement.capped() ? quests + "+ quests" : count(quests, "quest", "quests"));
   }
 
   /** {@code "1 NPC"}, {@code "3 NPCs"}; null for none. */

@@ -36,9 +36,7 @@ class SourcesPageIconTest {
       QuestSummary quest = new QuestSummary(176, "Wanted:  \"Hogger\"", 11, 5, "Elwynn Forest");
       NpcPage page = new NpcPage(new NpcDetail(HOGGER, 0, null, List.of(), List.of(), List.of(quest), List.of(quest),
           List.of()), t -> {}, text -> {});
-      // the NPC page's "Quests" section arrives in Task 14; until then its "Starts quests" and "Ends quests"
-      assertThat(icon(page.section("Starts quests"))).isEqualTo(RailIcons.shared().small(RailTarget.QUESTS, 16));
-      assertThat(icon(page.section("Ends quests"))).isEqualTo(RailIcons.shared().small(RailTarget.QUESTS, 16));
+      assertThat(icon(page.section("Quests"))).isEqualTo(RailIcons.shared().small(RailTarget.QUESTS, 16));
       return null;
     });
   }
@@ -91,8 +89,8 @@ class SourcesPageIconTest {
       QuestSummary quest = new QuestSummary(176, "Wanted:  \"Hogger\"", 11, 5, "Elwynn Forest");
       NpcPage page = new NpcPage(new NpcDetail(HOGGER, 0, null, List.of(), List.of(), List.of(quest), List.of(),
           List.of()), t -> {}, text -> {});
-      assertThat(icon(page.section("Starts quests"))).isNotNull();
-      assertThat(icon(page.section("Starts quests")).getIconWidth()).isEqualTo(16);
+      assertThat(icon(page.section("Quests"))).isNotNull();
+      assertThat(icon(page.section("Quests")).getIconWidth()).isEqualTo(16);
     } finally {
       RailIcons.install(before);
     }

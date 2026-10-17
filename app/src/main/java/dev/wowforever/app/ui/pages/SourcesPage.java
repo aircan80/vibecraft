@@ -3,6 +3,7 @@ package dev.wowforever.app.ui.pages;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.LootRow;
+import dev.wowforever.app.model.QuestInvolvement;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.Labels;
@@ -20,6 +21,7 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import javax.swing.AbstractAction;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
@@ -58,6 +60,16 @@ abstract class SourcesPage extends JPanel implements PageState {
     scroll.setBorder(BorderFactory.createEmptyBorder());
     scroll.getVerticalScrollBar().setUnitIncrement(16);
     add(scroll, BorderLayout.CENTER);
+  }
+
+  /** Adds pre-loaded quest involvement; cap notes reflect query overflow, never just a full page. */
+  void addQuestInvolvements(QuestInvolvement.Result result,
+      EntityKind kind, String zoneName) {
+    addSection("Quests", result.rows().size(), VisibleColumns.of(Columns.questInvolvements(kind), result.rows(),
+        zoneName, Set.of("Role", " ")), result.rows());
+    if (result.capped() && section("Quests") != null) {
+      section("Quests").setNote("Showing the first 500 quests; more involve this entity.");
+    }
   }
 
   /** Adds a section of {@code rows} and returns its table; adds nothing and returns null when there are none. */

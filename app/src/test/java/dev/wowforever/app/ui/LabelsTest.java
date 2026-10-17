@@ -177,4 +177,15 @@ class LabelsTest {
         Labels.questSubtitle(null, null), Labels.objectSubtitle(null));
     assertThat(all).doesNotContain("null", "iLvl 1", "RAID40", "raid|");
   }
+  @org.junit.jupiter.api.Test
+  void questLevelsAndFactionMasks() {
+    assertThat(Labels.questLevels(7, 4)).isEqualTo("Lv 7 (req. 4)");
+    assertThat(Labels.questLevels(null, 4)).isEqualTo("req. 4");
+    assertThat(Labels.questLevels(7, null)).isEqualTo("Lv 7");
+    assertThat(Labels.questLevels(null, null)).isNull();
+    assertThat(Labels.factions(77)).isEqualTo("Alliance");
+    assertThat(Labels.factions(178)).isEqualTo("Horde");
+    assertThat(Labels.factions(255)).isNull();
+    assertThat(Labels.factions(null)).isNull();
+  }
 }

@@ -22,5 +22,6 @@ public record MapLayer(String id, String label, Set<PinKind> kinds, boolean defa
       new MapLayer("kill", "Kill", Set.of(PinKind.KILL), true, Set.of()),
       new MapLayer("collect", "Collect", Set.of(PinKind.COLLECT), true, Set.of()),
       new MapLayer("interact", "Interact", Set.of(PinKind.INTERACT), true, Set.of()),
-      new MapLayer("explore", "Explore", Set.of(PinKind.EXPLORE), true, Set.of()));
+      new MapLayer("explore", "Explore", Set.of(PinKind.EXPLORE), true, Set.of()),
+      new MapLayer("routes", "Routes", Set.of(), false, Set.of()));
 }

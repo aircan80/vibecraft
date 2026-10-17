@@ -286,13 +286,15 @@ final class QuestChainBuilder {
       } else {
         if (own) {
           switch (r.kind()) {
-            case "next", "child", "breadcrumb_for" -> merge(out, r.relatedId(), Connector.UNLOCKS);
+            case "next", "child" -> merge(out, r.relatedId(), Connector.UNLOCKS);
+            case "breadcrumb_for" -> merge(out, r.relatedId(), Connector.LEADS_TO);
             default -> { }
           }
         }
         if (theirs) {
           switch (r.kind()) {
-            case "pre_group", "pre_single", "parent", "breadcrumb" -> merge(out, r.questId(), Connector.UNLOCKS);
+            case "pre_group", "pre_single", "parent" -> merge(out, r.questId(), Connector.UNLOCKS);
+            case "breadcrumb" -> merge(out, r.questId(), Connector.LEADS_TO);
             default -> { }
           }
         }

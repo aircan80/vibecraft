@@ -101,6 +101,38 @@ class ItemPageTest {
   }
 
   @Test
+  void copyInGameLinkUsesClipboard() {
+    var detail = repos.items().detail(19019).orElseThrow();
+    List<String> copied = new ArrayList<>();
+    var page = new ItemPage(detail, null, Map.of(), java.util.Set.of(), SourceFilter.ALL, f -> {},
+        dev.wowforever.app.model.QuestInvolvement.fromRelated(detail.relatedQuests()), t -> {}, copied::add);
+    page.copyInGameLinkButton().doClick();
+    assertThat(copied).containsExactly(dev.wowforever.app.ui.GameLinks.item(19019, detail.summary().displayName()));
+  }
+
+  @Test
+  void questsSectionUsesCollectRoleAndIncludesObjectiveInFacts() {
+    var row = new dev.wowforever.app.model.QuestInvolvement(
+        new dev.wowforever.app.model.QuestSummary(176, "Wanted: Hogger", 11, 10, "Elwynn Forest"),
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.OBJECTIVE), null);
+    ItemDetail claw = new ItemDetail(new ItemSummary(1931, "Huge Gnoll Claw", 1, null, "Quest", "Quest", 1), 12, 0,
+        null, List.of(new DropSource(new EntityRef(NPC, 448), "Hogger", 11, 11, "Elwynn Forest", 12L, 84.0,
+            "questie", "both")), List.of(), List.of(), List.of(), List.of(), List.of(), List.of());
+    var page = new ItemPage(claw, null, java.util.Map.of(), java.util.Set.of(), SourceFilter.ALL, f -> {},
+        new dev.wowforever.app.model.QuestInvolvement.Result(List.of(row), false), t -> {});
+    assertThat(page.section("Related quests")).isNull();
+    assertThat(page.section("Quests").heading().text()).isEqualTo("Quests (1)");
+    assertThat(page.header().facts()).isEqualTo("1 NPC · 1 quest");
+    JTable table = page.section("Quests").table().table();
+    assertThat(Tables.columnNames(table)).contains("Role");
+    assertThat(column(table, table.getColumnCount()-1)).containsExactly("Collect objective");
+    assertThat(page.section("Quests").note()).isNull();
+    var capped = new ItemPage(claw, null, java.util.Map.of(), java.util.Set.of(), SourceFilter.ALL, f -> {},
+        new dev.wowforever.app.model.QuestInvolvement.Result(List.of(row), true), t -> {});
+    assertThat(capped.section("Quests").note().getText()).contains("first 500");
+  }
+
+  @Test
   void onlyNonEmptySectionsInOrderWithCounts() {
     var p = new ItemPage(repos.items().detail(14149).get(), t -> {});
     // Taragaman drops it, and his Ragefire Chasm loot list is merged into his row
@@ -113,12 +145,12 @@ class ItemPageTest {
   @Test
   void everyKindHasItsSectionInTheFixedOrder() {
     var p = new ItemPage(everything(), t -> {});
-    // SectionOrder.ITEM first; "Related quests" (merged by a later task) after it; the loot lists are in Dropped by
+    // Fixed section order, with merged quest involvement; loot lists are in Dropped by.
     assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Dropped by", "Sold by",
-        "Quest reward", "Contained in", "Related quests");
+        "Quest reward", "Contained in", "Quests");
     // three NPCs (VanCleef's boss list merged into his row) and the trash list
     assertThat(p.sections()).extracting(s -> s.heading().text()).containsExactly("Dropped by (4)", "Sold by (1)",
-        "Quest reward (1)", "Contained in (2)", "Related quests (2)");
+        "Quest reward (1)", "Contained in (2)", "Quests (2)");
     JTable contained = p.section("Contained in").table().table();
     assertThat(contained.getColumnName(1)).isEqualTo("Kind");
     assertThat(column(contained, 1)).containsExactly("Object", "Container item");

@@ -56,9 +56,9 @@ class ObjectPageTest {
         List.of(q), List.of()), t -> {}, text -> {});
     assertThat(p.header().title()).isEqualTo("Unknown object #35");
     assertThat(p.header().subtitle()).isEqualTo("Object #35");
-    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Starts quests", "Ends quests");
-    assertThat(columnNames(p.section("Ends quests").table().table()))
-        .containsExactly("Name", "Level", "Required level", "Zone");
+    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Quests");
+    assertThat(columnNames(p.section("Quests").table().table()))
+        .containsExactly(" ", "Name", "Level", "Required level", "Zone", "Role");
     assertThat(p.spawns()).isNull();
   }
 

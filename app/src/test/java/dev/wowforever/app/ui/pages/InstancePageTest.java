@@ -296,7 +296,8 @@ class InstancePageTest {
     var p = new InstancePage(repos.instances().detail(2).get(), List.of(bandanas, defias), repos, opened::add);
     assertThat(p.questsSection().heading().text()).isEqualTo("Quests (2)");
     JTable quests = p.questsSection().table().table();
-    assertThat(column(quests, 0)).containsExactly("Red Silk Bandanas", "The Defias Brotherhood");
+    assertThat(columnNames(quests)).contains("Role");
+    assertThat(column(quests, 1)).containsExactly("Red Silk Bandanas", "The Defias Brotherhood");
     assertThat(columnNames(quests)).as("every quest is in the instance's zone").doesNotContain("Zone");
     p.questsSection().table().activateRow(1);
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(QUEST, 166)));

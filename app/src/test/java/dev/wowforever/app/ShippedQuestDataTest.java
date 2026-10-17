@@ -19,6 +19,33 @@ import org.junit.jupiter.api.Test;
 @Tag("shipped-data")
 class ShippedQuestDataTest extends ShippedDataSupport {
   @Test
+  void involvingFindsObjectiveItemsGiversAndProvidedItems() {
+    involvement(dev.wowforever.app.model.EntityKind.NPC, 448, 176,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.DROPS_OBJECTIVE_ITEM), "Huge Gnoll Claw");
+    involvement(dev.wowforever.app.model.EntityKind.NPC, 240, 176,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.ENDS), null);
+    involvement(dev.wowforever.app.model.EntityKind.NPC, 234, 166,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.STARTS,
+            dev.wowforever.app.model.QuestInvolvement.Role.ENDS), null);
+    involvement(dev.wowforever.app.model.EntityKind.ITEM, 1931, 176,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.OBJECTIVE), null);
+    involvement(dev.wowforever.app.model.EntityKind.ITEM, 19018, 7787,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.STARTS,
+            dev.wowforever.app.model.QuestInvolvement.Role.PROVIDED), null);
+    involvement(dev.wowforever.app.model.EntityKind.OBJECT, 68, 176,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.STARTS), null);
+  }
+
+  private void involvement(dev.wowforever.app.model.EntityKind kind, long id, long quest,
+      java.util.Set<dev.wowforever.app.model.QuestInvolvement.Role> roles, String via) {
+    assertThat(repos.quests().involving(new dev.wowforever.app.model.EntityRef(kind, id)))
+        .filteredOn(row -> row.quest().id() == quest).singleElement().satisfies(row -> {
+          assertThat(row.roles()).isEqualTo(roles);
+          assertThat(row.viaItemName()).isEqualTo(via);
+        });
+  }
+
+  @Test
   void schemaVersionHasTheQuestTables() {
     // v3 brought the quest tables; ShippedProvenanceDataTest pins the current version
     assertThat(Integer.parseInt(db.meta().get("schema_version"))).isGreaterThanOrEqualTo(3);
@@ -210,5 +237,95 @@ class ShippedQuestDataTest extends ShippedDataSupport {
     return longs("with recursive c(id) as (select " + quest + " union select r.related_id from quest_relation r"
         + " join c on r.quest_id = c.id where r.kind in ('pre_single', 'pre_group')) select id from c where id <> "
         + quest);
+  }
+  @Test
+  void hoggerLocates() {
+    var data = repos.questLocator().load(176).orElseThrow();
+    assertThat(data.objectives()).hasSize(1);
+    var row = data.objectives().getFirst();
+    assertThat(row.number()).isEqualTo(1);
+    assertThat(row.verb()).isEqualTo(dev.wowforever.app.model.ObjectiveVerb.COLLECT);
+    assertThat(row.targets()).extracting(dev.wowforever.app.model.EntityRef::id).containsExactly(1931L);
+    assertThat(row.targetName()).isEqualTo("Huge Gnoll Claw");
+    var source = row.sources().getFirst();
+    assertThat(source.ref().id()).isEqualTo(448);
+    assertThat(source.dropPct()).isCloseTo(84.0, org.assertj.core.data.Offset.offset(0.1));
+    assertThat(source.spawns()).anySatisfy(p -> assertThat(p.zoneId()).isEqualTo(12));
+    assertThat(data.starts()).extracting(g -> g.giver().ref().id()).containsExactlyInAnyOrder(68L, 156561L);
+    assertThat(data.starts()).allSatisfy(g -> assertThat(g.spawns()).anySatisfy(p ->
+        assertThat(p.zoneId()).isEqualTo(12)));
+    var end = data.ends().getFirst();
+    assertThat(end.giver().ref().id()).isEqualTo(240);
+    assertThat(end.spawns()).anySatisfy(p -> {
+      assertThat(p.x()).isCloseTo(42.1, org.assertj.core.data.Offset.offset(0.05));
+      assertThat(p.y()).isCloseTo(65.9, org.assertj.core.data.Offset.offset(0.05));
+    });
+    assertThat(data.mapZones()).containsExactly(12L);
+  }
+
+  @Test
+  void vanCleefIsInsideTheDeadmines() {
+    var data = repos.questLocator().load(166).orElseThrow();
+    assertThat(data.objectives().getFirst().instance().id()).isEqualTo(3);
+    assertThat(data.objectives().getFirst().instance().name()).isEqualTo("The Deadmines");
+    assertThat(data.mapZones()).containsExactly(40L);
+  }
+
+  @Test
+  void drakkisathPicksUpperBlackrockSpire() {
+    var data = repos.questLocator().load(6502).orElseThrow();
+    assertThat(data.objectives().getFirst().instance().id()).isEqualTo(20);
+    assertThat(data.mapZones()).containsExactly(618L);
+    // Log the warm-load backlog gate for human review; wall-clock timing is not a CI assertion.
+    long start = System.nanoTime();
+    repos.questLocator().load(6502).orElseThrow();
+    System.out.printf("QuestLocator.load(6502), warm: %.1f ms%n", (System.nanoTime() - start) / 1_000_000.0);
+  }
+
+  @Test
+  void thunderfuryStartsFromAnItem() {
+    var data = repos.questLocator().load(7787).orElseThrow();
+    var giver = data.starts().getFirst();
+    assertThat(giver.giver().ref()).isEqualTo(new dev.wowforever.app.model.EntityRef(
+        dev.wowforever.app.model.EntityKind.ITEM, 19018));
+    assertThat(giver.itemSources()).anySatisfy(s -> {
+      assertThat(s.ref().id()).isEqualTo(14435);
+      assertThat(s.spawns()).isEmpty();
+    });
+    assertThat(data.objectives()).isEmpty();
+    assertThat(data.sourceItems()).anySatisfy(s -> {
+      assertThat(s.itemId()).isEqualTo(19018);
+      assertThat(s.kind()).isEqualTo("provided");
+    });
+    assertThat(data.mapZones()).containsExactly(1377L);
+  }
+
+  @Test
+  void woolComesFromObjects() {
+    var row = repos.questLocator().load(7791).orElseThrow().objectives().getFirst();
+    assertThat(row.verb()).isEqualTo(dev.wowforever.app.model.ObjectiveVerb.COLLECT);
+    assertThat(row.targets()).extracting(dev.wowforever.app.model.EntityRef::id).containsExactly(2592L);
+    assertThat(row.sources()).hasSizeGreaterThanOrEqualTo(16).allSatisfy(s ->
+        assertThat(s.ref().kind()).isEqualTo(dev.wowforever.app.model.EntityKind.OBJECT));
+  }
+
+  @Test
+  void pyrewoodKillCreditIsOneRow() {
+    var data = repos.questLocator().load(452).orElseThrow();
+    assertThat(data.objectives()).hasSize(1);
+    var row = data.objectives().getFirst();
+    assertThat(row.targets()).hasSize(9);
+    assertThat(row.targets().getFirst().id()).isEqualTo(2060);
+    assertThat(row.sources()).anySatisfy(s -> assertThat(s.spawns()).anySatisfy(p ->
+        assertThat(p.zoneId()).isEqualTo(130)));
+  }
+
+  @Test
+  void escortRetainsItsKnownPoint() {
+    var row = repos.questLocator().load(648).orElseThrow().objectives().getFirst();
+    assertThat(row.verb()).isEqualTo(dev.wowforever.app.model.ObjectiveVerb.ESCORT);
+    // The current shipped Questie data includes an endpoint, unlike the original plan assumption.
+    assertThat(row.points()).containsExactly(new dev.wowforever.app.model.QuestObjective.Point(440, 67.06, 23.16));
+    assertThat(row.sources()).isEmpty();
   }
 }

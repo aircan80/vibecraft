@@ -128,7 +128,7 @@ class QuestChainTest {
         .relation(20, 22, "next").relation(21, 22, "next")
         .relation(22, 20, "breadcrumb").relation(22, 21, "breadcrumb");
     QuestChain little = chain(20);
-    assertThat(rows(little)).containsExactly("20:-:0", "21:EXCLUSIVE:0", "22:UNLOCKS:1");
+    assertThat(rows(little)).containsExactly("20:-:0", "21:EXCLUSIVE:0", "22:LEADS_TO:1");
     assertThat(little.currentIndex()).isZero();
     assertThat(ids(little.spine())).containsExactly(20L, 22L);
   }
@@ -171,7 +171,15 @@ class QuestChainTest {
     assertThat(rows(target)).containsExactly("3:REQUIRES_ONE:-1", "1:LEAD_IN:-1", "2:-:0");
     // a prerequisite beats a lead-in on the spine
     assertThat(ids(target.spine())).containsExactly(3L, 2L);
-    assertThat(rows(chain(1))).containsExactly("1:-:0", "2:UNLOCKS:1");
+    assertThat(rows(chain(1))).containsExactly("1:-:0", "2:LEADS_TO:1");
+  }
+
+  @Test
+  void breadcrumbTargetLeadsToFromEitherDeclaration() throws Exception {
+    schema.quest(1, "Lead", 10).quest(2, "Target", 12).quest(3, "Other lead", 10)
+        .relation(1, 2, "breadcrumb_for").relation(2, 3, "breadcrumb");
+    assertThat(rows(chain(1))).containsExactly("1:-:0", "2:LEADS_TO:1");
+    assertThat(rows(chain(3))).containsExactly("3:-:0", "2:LEADS_TO:1");
   }
 
   @Test
@@ -294,6 +302,7 @@ class QuestChainTest {
     assertThat(Connector.EXCLUSIVE.label()).isEqualTo("Choose one (exclusive):");
     assertThat(Connector.LEAD_IN.label()).isEqualTo("Optional lead-in:");
     assertThat(Connector.UNLOCKS.label()).isEqualTo("Unlocks:");
+    assertThat(Connector.LEADS_TO.label()).isEqualTo("Leads to:");
     assertThat(Connector.DURING.label()).isEqualTo("During:");
   }
 

@@ -97,6 +97,33 @@ class NpcPageTest {
   }
 
   @Test
+  void defiasMessengerShowsItsRoute() {
+    var loaded = (dev.wowforever.app.ui.detail.DetailPanels.LoadedNpc)
+        dev.wowforever.app.ui.detail.DetailPanels.load(new EntityRef(NPC, 550), repos).orElseThrow();
+    var page = new NpcPage(loaded.detail(), loaded.mapZoneId(), loaded.map(), loaded.rateSources(),
+        loaded.bossNpcs(), SourceFilter.ALL, f -> {}, t -> {}, text -> {}, loaded.routes());
+    assertThat(page.spawnMap()).isNotNull();
+    assertThat(page.spawnMap().routes()).singleElement().satisfies(r -> {
+      assertThat(r.points()).hasSizeGreaterThanOrEqualTo(30);
+      assertThat(r.loop()).isEqualTo(repos.npcs().routes(550).getFirst().loop());
+    });
+  }
+
+  @Test
+  void oneQuestsSectionMergesRolesAndKeepsRoleColumn() {
+    QuestSummary quest = new QuestSummary(166, "The Defias Brotherhood", 22, 14, "The Deadmines");
+    var detail = new NpcDetail(new NpcSummary(234, "Gryan Stoutmantle", null, null, null, null, "Westfall", 40L),
+        0, null, List.of(), List.of(), List.of(quest), List.of(quest), List.of());
+    var page = new NpcPage(detail, t -> {}, text -> {});
+    assertThat(page.sections()).extracting(SourceSection::title).containsExactly("Quests");
+    JTable table = page.section("Quests").table().table();
+    assertThat(columnNames(table)).contains("Role");
+    assertThat(column(table, 0)).containsExactly("! ?");
+    assertThat(column(table, table.getColumnCount()-1)).containsExactly("Starts · Ends");
+    assertThat(table.getRowCount()).isEqualTo(1);
+  }
+
+  @Test
   void theSourceFilterHidesDropsFromTheHiddenSourceAlone() {
     var all = filtered(SourceFilter.ALL);
     assertThat(all.section("Drops").heading().text()).isEqualTo("Drops (4)");
@@ -426,8 +453,7 @@ class NpcPageTest {
     var all = new NpcPage(new NpcDetail(HOGGER, 0, null, List.of(loot(1, "Claw", 84.0, "both", "Quest")),
         List.of(loot(9, "Bread", null, null, "Consumable")), List.of(quest), List.of(quest),
         List.of(new Spawn(12, "Elwynn Forest", 25.0, 92.9))), t -> {}, text -> {});
-    assertThat(all.sections()).extracting(SourceSection::title).containsExactly("Drops", "Sells", "Location",
-        "Starts quests", "Ends quests");
+    assertThat(all.sections()).extracting(SourceSection::title).containsExactly("Drops", "Sells", "Quests", "Location");
     List<java.awt.Component> onPage = List.of(all.sections().get(0).getParent().getComponents());
     assertThat(all.sections()).as("laid out in that order").extracting(onPage::indexOf).isSorted();
   }
@@ -443,17 +469,17 @@ class NpcPageTest {
     compact.add(p);
     compact.setSize(420, 700);
     Tables.layOut(compact);
-    assertThat(p.sections()).extracting(SourceSection::isCollapsed).containsExactly(false, true, true, true, true);
+    assertThat(p.sections()).extracting(SourceSection::isCollapsed).containsExactly(false, true, true, true);
     p.jumpTo(1); // Ctrl+2
     SourceSection sells = p.section("Sells");
     assertThat(sells.isCollapsed()).as("Ctrl+2 opens Sells, the second section").isFalse();
     // the jump selects its first row and asks for the focus (which a headless test cannot see granted)
     assertThat(sells.table().table().getSelectedRow()).isZero();
     assertThat(p.section("Location").isCollapsed()).isTrue();
-    p.jumpTo(4); // Ctrl+5: the fifth section, no IndexOutOfBoundsException
-    assertThat(p.section("Ends quests").isCollapsed()).isFalse();
+    p.jumpTo(2); // Ctrl+3: the merged Quests section
+    assertThat(p.section("Quests").isCollapsed()).isFalse();
     assertThat(p.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke(
-        java.awt.event.KeyEvent.VK_5, java.awt.event.InputEvent.CTRL_DOWN_MASK))).isNotNull();
+        java.awt.event.KeyEvent.VK_3, java.awt.event.InputEvent.CTRL_DOWN_MASK))).isNotNull();
   }
 
   @Test
@@ -462,12 +488,12 @@ class NpcPageTest {
     var d = new NpcDetail(HOGGER, 0, null, List.of(), List.of(loot(9, "Bread", null, null, "Consumable")),
         List.of(quest), List.of(quest), List.of());
     var p = new NpcPage(d, t -> {}, text -> {});
-    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Sells", "Starts quests", "Ends quests");
+    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Sells", "Quests");
     // sold items have no rate, origin or slot
     assertThat(columnNames(p.section("Sells").table().table())).containsExactly("Item", "Item level");
     // quests filed under the NPC's own zone do not repeat it
-    assertThat(columnNames(p.section("Starts quests").table().table()))
-        .containsExactly("Name", "Level", "Required level");
+    assertThat(columnNames(p.section("Quests").table().table()))
+        .containsExactly(" ", "Name", "Level", "Required level", "Role");
     assertThat(p.drops()).isNull();
     assertThat(p.spawns()).isNull();
   }

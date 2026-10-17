@@ -318,6 +318,38 @@ class MapViewTest {
   }
 
   @Test
+  void clickingASharedGiverPresentsBothRolesBeforeNavigating() {
+    List<JPopupMenu> shown = new ArrayList<>();
+    EntityRef gryan = new EntityRef(EntityKind.NPC, 234);
+    var view = new MapView(westfall, opened::add, (menu, point) -> shown.add(menu));
+    view.setSize(1002, 668);
+    view.setPins(List.of(Pin.giver(gryan, "Gryan — Given by", 50, 50, true),
+        Pin.giver(gryan, "Gryan — Turned in to", 50, 50, false)));
+    view.dispatchEvent(mouse(view, MouseEvent.MOUSE_CLICKED, 501, 334));
+    assertThat(opened).isEmpty();
+    assertThat(shown).hasSize(1);
+    JPopupMenu menu = shown.getFirst();
+    assertThat(menu.getComponentCount()).isEqualTo(2);
+    assertThat(((JMenuItem) menu.getComponent(0)).getText()).isEqualTo("Gryan — Given by");
+    assertThat(((JMenuItem) menu.getComponent(1)).getText()).isEqualTo("Gryan — Turned in to");
+    ((JMenuItem) menu.getComponent(1)).doClick();
+    assertThat(opened).containsExactly(new ViewTarget.Entity(gryan));
+  }
+
+  @Test
+  void clickingDuplicateSpawnsOfOneGiverRoleStillNavigatesDirectly() {
+    List<JPopupMenu> shown = new ArrayList<>();
+    EntityRef gryan = new EntityRef(EntityKind.NPC, 234);
+    var view = new MapView(westfall, opened::add, (menu, point) -> shown.add(menu));
+    view.setSize(1002, 668);
+    view.setPins(List.of(Pin.giver(gryan, "Gryan — Given by", 50, 50, true),
+        Pin.giver(gryan, "Gryan — Given by", 50.1, 50, true)));
+    view.dispatchEvent(mouse(view, MouseEvent.MOUSE_CLICKED, 501, 334));
+    assertThat(shown).isEmpty();
+    assertThat(opened).containsExactly(new ViewTarget.Entity(gryan));
+  }
+
+  @Test
   void clickingAPinOpensItsEntity() {
     var v = natural(List.of(pin(448, "Hogger", 50, 50, PinKind.NPC), pin(448, "Hogger", 50.2, 50, PinKind.NPC)));
     v.dispatchEvent(mouse(v, MouseEvent.MOUSE_CLICKED, 502, 335));

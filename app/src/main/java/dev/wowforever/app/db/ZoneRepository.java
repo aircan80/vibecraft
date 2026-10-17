@@ -8,6 +8,7 @@ import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.QuestRef;
 import dev.wowforever.app.model.Route;
+import dev.wowforever.app.model.NpcRoute;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
@@ -73,6 +74,18 @@ public final class ZoneRepository {
   /** Zones that have content, top-level zones first, each group by name. */
   public List<ZoneSummary> all() {
     return db.read(c -> Sql.list(c, ZONES_WITH_CONTENT, ZoneRepository::summary));
+  }
+
+  /** Known names for a small loaded page's map zones, read in one indexed batch. */
+  public Map<Long, String> names(List<Long> zoneIds) {
+    if (zoneIds.isEmpty()) return Map.of();
+    return db.read(c -> {
+      Map<Long, String> names = new LinkedHashMap<>();
+      String parameters = String.join(",", java.util.Collections.nCopies(zoneIds.size(), "?"));
+      Sql.list(c, "SELECT id, name FROM zone WHERE id IN (" + parameters + ") AND name IS NOT NULL",
+          rs -> { names.put(rs.getLong("id"), rs.getString("name")); return 0; }, zoneIds.toArray());
+      return Map.copyOf(names);
+    });
   }
 
   /**
@@ -150,6 +163,26 @@ public final class ZoneRepository {
    */
   public List<Route> routesInZone(long zoneId) {
     return db.read(c -> NpcRepository.routes(c, NpcRepository.RouteKey.ZONE, zoneId));
+  }
+
+  /** Named patrol routes in the zone, including unknown NPCs with their id fallback. */
+  public List<NpcRoute> npcRoutesInZone(long zoneId) {
+    return db.read(c -> {
+      List<Route> routes = NpcRepository.routes(c, NpcRepository.RouteKey.ZONE, zoneId);
+      if (routes.isEmpty()) {
+        return List.of();
+      }
+      record Npc(String name, Integer rank) {}
+      java.util.Map<Long, Npc> npcs = new java.util.HashMap<>();
+      Sql.list(c, "SELECT n.id, n.name, " + NpcRepository.RANK + " AS rank FROM npc n"
+          + " WHERE EXISTS (SELECT 1 FROM npc_waypoint w WHERE w.npc_id = n.id AND w.zone_id = ?)",
+          rs -> { npcs.put(rs.getLong("id"), new Npc(rs.getString("name"), Sql.integer(rs, "rank"))); return 0; }, zoneId);
+      return routes.stream().map(r -> {
+        EntityRef ref = new EntityRef(EntityKind.NPC, r.npcId());
+        Npc n = npcs.get(r.npcId());
+        return new NpcRoute(ref, ref.displayName(n == null ? null : n.name()), n == null ? null : n.rank(), r);
+      }).toList();
+    });
   }
 
   /**

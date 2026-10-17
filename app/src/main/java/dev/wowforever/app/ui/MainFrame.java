@@ -307,6 +307,11 @@ public final class MainFrame extends JFrame implements MainView {
   }
 
   @Override
+  public BooleanSetting routes() {
+    return uiState.routesSetting();
+  }
+
+  @Override
   public BooleanSetting questPins() {
     return uiState.questPinsSetting();
   }

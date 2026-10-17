@@ -58,14 +58,12 @@ public final class PinLegend extends JPanel {
       legend.removeAll();
       legend.entries.clear();
       for (MapLayer layer : MapLayer.REGISTERED) {
-        if (map.pins().stream().filter(p -> !map.bossesAndRaresOnly() || p.kind() != PinKind.NPC)
-            .noneMatch(p -> layer.kinds().contains(p.kind()))) continue;
-        PinKind kind = layer.kinds().iterator().next();
-        JToggleButton toggle = new JToggleButton(layer.label(), new PinIcon(kind),
-            layer.kinds().stream().allMatch(map::isKindVisible));
+        if (!map.layerHasContent(layer)) continue;
+        Icon icon = layer.kinds().isEmpty() ? new RouteIcon() : new PinIcon(layer.kinds().iterator().next());
+        JToggleButton toggle = new JToggleButton(layer.label(), icon, map.isLayerVisible(layer));
         toggle.putClientProperty("mapLayer", layer);
         toggle.setFocusable(true);
-        toggle.addActionListener(e -> layer.kinds().forEach(k -> map.setKindVisible(k, toggle.isSelected())));
+        toggle.addActionListener(e -> map.setLayerVisible(layer, toggle.isSelected()));
         legend.add(toggle);
       }
       legend.revalidate();
@@ -73,15 +71,31 @@ public final class PinLegend extends JPanel {
     };
     map.addPropertyChangeListener("pinFilter", e -> rebuild.run());
     map.addPropertyChangeListener("pins", e -> rebuild.run());
+    map.addPropertyChangeListener("routes", e -> rebuild.run());
+    map.addPropertyChangeListener("layerVisibility", e -> rebuild.run());
     map.addPropertyChangeListener("kindVisibility", e -> {
       for (Component component : legend.getComponents()) {
         JToggleButton toggle = (JToggleButton) component;
         MapLayer layer = (MapLayer) toggle.getClientProperty("mapLayer");
-        toggle.setSelected(layer.kinds().stream().allMatch(map::isKindVisible));
+        toggle.setSelected(map.isLayerVisible(layer));
       }
     });
     rebuild.run();
     return legend;
+  }
+
+  private static final class RouteIcon implements Icon {
+    public int getIconWidth() { return UIScale.scale(ICON); }
+    public int getIconHeight() { return UIScale.scale(ICON); }
+    public void paintIcon(Component component, Graphics graphics, int x, int y) {
+      Graphics2D g = (Graphics2D) graphics.create();
+      try {
+        g.setColor(Theme.current().accentGold());
+        g.setStroke(new BasicStroke(UIScale.scale(2f), BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND,
+            10, new float[]{UIScale.scale(3f), UIScale.scale(2f)}, 0));
+        g.drawLine(x, y + getIconHeight()/2, x + getIconWidth(), y + getIconHeight()/2);
+      } finally { g.dispose(); }
+    }
   }
 
   /** What the legend calls pins of {@code kind}. */

@@ -24,10 +24,16 @@ final class VisibleColumns {
 
   /** The columns of {@code cols} worth showing for {@code rows} on a page about {@code pageZone} (may be null). */
   static <T> List<Column<T>> of(List<Column<T>> cols, List<T> rows, String pageZone) {
+    return of(cols, rows, pageZone, Set.of());
+  }
+
+  /** Keeps explicitly meaningful columns, such as an involvement role, even when uniform. */
+  static <T> List<Column<T>> of(List<Column<T>> cols, List<T> rows, String pageZone, Set<String> alwaysShow) {
     if (rows.isEmpty()) {
       return cols;
     }
-    List<Column<T>> shown = cols.stream().filter(c -> !hidden(c, rows, pageZone)).toList();
+    List<Column<T>> shown = cols.stream()
+        .filter(c -> alwaysShow.contains(c.title()) || !hidden(c, rows, pageZone)).toList();
     return shown.isEmpty() ? cols.subList(0, Math.min(1, cols.size())) : shown;
   }
 

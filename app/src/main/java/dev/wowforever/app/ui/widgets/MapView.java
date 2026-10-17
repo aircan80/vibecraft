@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.widgets;
 
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.Route;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.QuestRef;
@@ -244,6 +245,69 @@ public final class MapView extends JComponent {
     }
   }
 
+  public static final String END_TOOLTIP = "Last known point of the patrol; the NPC may despawn here";
+
+  public record RouteLine(EntityRef npc, String name, PinKind colourKind, List<Route.Point> points, boolean loop) {
+    public RouteLine {
+      Objects.requireNonNull(npc, "npc");
+      Objects.requireNonNull(colourKind, "colourKind");
+      points = List.copyOf(points);
+    }
+  }
+
+  private List<RouteLine> routes = List.of();
+  private final java.util.Set<String> hiddenLayers = new java.util.HashSet<>();
+
+  public void setRoutes(List<RouteLine> routes) {
+    List<RouteLine> before = this.routes;
+    this.routes = List.copyOf(routes);
+    firePropertyChange("routes", before, this.routes);
+    repaint();
+  }
+
+  public List<RouteLine> routes() { return routes; }
+
+  public boolean layerHasContent(MapLayer layer) {
+    return layer.kinds().isEmpty() ? "routes".equals(layer.id()) && !routes.isEmpty()
+        : pins.stream().filter(p -> !bossesAndRaresOnly || p.kind() != PinKind.NPC)
+            .anyMatch(p -> layer.kinds().contains(p.kind()));
+  }
+
+  public boolean isLayerVisible(MapLayer layer) {
+    return layer.kinds().isEmpty() ? !hiddenLayers.contains(layer.id())
+        : layer.kinds().stream().allMatch(this::isKindVisible);
+  }
+
+  public void setLayerVisible(MapLayer layer, boolean visible) {
+    if (layer.kinds().isEmpty()) {
+      boolean changed = visible ? hiddenLayers.remove(layer.id()) : hiddenLayers.add(layer.id());
+      if (changed) {
+        firePropertyChange("layerVisibility", null, layer.id());
+        repaint();
+      }
+    } else {
+      layer.kinds().forEach(kind -> setKindVisible(kind, visible));
+    }
+  }
+
+  /** The nearest visible patrol within the hit radius; pins are tested before this by callers. */
+  public RouteLine routeAt(int x, int y) {
+    if (hiddenLayers.contains("routes") || coordinatesAt(x, y).isEmpty()) return null;
+    RouteLine nearest = null;
+    double distance = UIScale.scale((float) HIT_PX);
+    Point2D at = new Point2D.Double(x, y);
+    for (RouteLine route : routes) {
+      double d = RouteGeometry.distanceToPolyline(at, routePoints(route), route.loop());
+      if (d <= distance) { distance = d; nearest = route; }
+    }
+    return nearest;
+  }
+
+  private List<Point2D.Double> routePoints(RouteLine route) {
+    Projection p = projection();
+    return route.points().stream().map(point -> p.toComponent(point.x(), point.y())).toList();
+  }
+
   private String zoneName;
   private ClipboardPort clipboard = ClipboardPort.system();
   private Integer focus;
@@ -252,6 +316,7 @@ public final class MapView extends JComponent {
 
   private final BufferedImage image;
   private final Navigator nav;
+  private final java.util.function.BiConsumer<JPopupMenu, Point2D.Double> popupPresenter;
   private List<Pin> pins = List.of();
   private boolean bossesAndRaresOnly;
   private List<Cluster> clusters;
@@ -265,9 +330,22 @@ public final class MapView extends JComponent {
   private boolean grewLast;
 
   public MapView(BufferedImage image, Navigator nav) {
+    this(image, nav, null);
+  }
+
+  /** Headless interaction seam; production presents the requested menu at its marker when showing. */
+  MapView(BufferedImage image, Navigator nav,
+      java.util.function.BiConsumer<JPopupMenu, Point2D.Double> popupPresenter) {
+    this.popupPresenter = popupPresenter != null ? popupPresenter : (menu, at) -> {
+      if (isShowing()) {
+        menu.show(this, (int) at.x, (int) at.y);
+      }
+    };
     this.image = Objects.requireNonNull(image, "image");
     MapLayer.REGISTERED.stream().filter(layer -> !layer.defaultVisible())
         .forEach(layer -> hiddenKinds.addAll(layer.kinds()));
+    MapLayer.REGISTERED.stream().filter(layer -> !layer.defaultVisible() && layer.kinds().isEmpty())
+        .forEach(layer -> hiddenLayers.add(layer.id()));
     this.nav = Objects.requireNonNull(nav, "nav");
     setMinimumSize(new Dimension(0, 0)); // the map shrinks with the detail area rather than holding it open
     ToolTipManager.sharedInstance().registerComponent(this);
@@ -286,6 +364,9 @@ public final class MapView extends JComponent {
             .map(p -> String.format(Locale.ROOT, "%.1f, %.1f", p.x, p.y)).orElse("");
         repaint();
         setHovered(clusterAt(e.getX(), e.getY()));
+        boolean opens = hovered == null ? routeAt(e.getX(), e.getY()) != null
+            : hovered.entities().size() > 1 || hovered.kind() != PinKind.SELF;
+        setCursor(opens ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : null);
       }
 
       @Override
@@ -293,6 +374,7 @@ public final class MapView extends JComponent {
         coordinatesText = "";
         repaint();
         setHovered(null);
+        setCursor(null);
       }
 
       @Override
@@ -313,6 +395,9 @@ public final class MapView extends JComponent {
         Cluster c = clusterAt(e.getX(), e.getY());
         if (c != null && e.getButton() == MouseEvent.BUTTON1) {
           activate(c);
+        } else if (e.getButton() == MouseEvent.BUTTON1) {
+          RouteLine route = routeAt(e.getX(), e.getY());
+          if (route != null) nav.open(new ViewTarget.Entity(route.npc()));
         }
       }
     };
@@ -334,7 +419,7 @@ public final class MapView extends JComponent {
 
   public void applyPreset(String preset) {
     for (MapLayer layer : MapLayer.REGISTERED) {
-      for (PinKind kind : layer.kinds()) setKindVisible(kind, layer.presets().contains(preset));
+      setLayerVisible(layer, layer.presets().contains(preset));
     }
   }
 
@@ -491,7 +576,12 @@ public final class MapView extends JComponent {
   public String getToolTipText(MouseEvent e) {
     Cluster c = clusterAt(e.getX(), e.getY());
     if (c == null) {
-      return null;
+      RouteLine route = routeAt(e.getX(), e.getY());
+      if (route == null) return null;
+      List<Point2D.Double> points = routePoints(route);
+      if (!route.loop() && !points.isEmpty()
+          && points.getLast().distance(e.getPoint()) <= UIScale.scale(6f)) return END_TOOLTIP;
+      return route.npc().displayName(route.name());
     }
     if (!c.quests().isEmpty()) {
       return QuestPinText.tooltip(c);
@@ -543,6 +633,21 @@ public final class MapView extends JComponent {
       }
       return menu;
     }
+    // Quest-page giver pins have no quest list: keep both roles when one giver starts and ends here.
+    List<Pin> roles = giverRoles(c);
+    if (!roles.isEmpty()) {
+      int shownRoles = 0;
+      for (Pin p : roles) {
+        if (shownRoles++ == LIST_CAP) {
+          menu.add(more());
+          break;
+        }
+        JMenuItem item = new JMenuItem(p.name());
+        item.addActionListener(a -> nav.open(new ViewTarget.Entity(p.ref())));
+        menu.add(item);
+      }
+      return menu;
+    }
     int shown = 0;
     for (Map.Entry<Pin, Integer> e : c.entities().entrySet()) {
       if (shown++ == LIST_CAP) {
@@ -559,6 +664,18 @@ public final class MapView extends JComponent {
       menu.add(item);
     }
     return menu;
+  }
+
+  /** Distinct entity/role pairs on a quest-page marker; zone quest markers retain their quest-list behavior. */
+  private static List<Pin> giverRoles(Cluster cluster) {
+    if (!cluster.quests().isEmpty()
+        || cluster.pins().stream().noneMatch(p -> p.emphasised() && p.kind().quest())) {
+      return List.of();
+    }
+    record Role(EntityRef ref, PinKind kind) {}
+    Map<Role, Pin> roles = new LinkedHashMap<>();
+    cluster.pins().forEach(p -> roles.putIfAbsent(new Role(p.ref(), p.kind()), p));
+    return List.copyOf(roles.values());
   }
 
   private static JMenuItem more() {
@@ -581,16 +698,18 @@ public final class MapView extends JComponent {
       List<QuestRef> quests = QuestPinText.distinctQuests(c);
       if (quests.size() == 1) {
         nav.open(new ViewTarget.Entity(quests.get(0).ref()));
-      } else if (isShowing()) {
-        menuFor(c).show(this, (int) c.position().x, (int) c.position().y);
+      } else {
+        popupPresenter.accept(menuFor(c), c.position());
       }
+    } else if (giverRoles(c).size() > 1) {
+      popupPresenter.accept(menuFor(c), c.position());
     } else if (entities.size() == 1) {
       Pin p = c.pins().get(0);
       if (p.kind() != PinKind.SELF) {
         nav.open(new ViewTarget.Entity(p.ref()));
       }
-    } else if (isShowing()) {
-      menuFor(c).show(this, (int) c.position().x, (int) c.position().y);
+    } else {
+      popupPresenter.accept(menuFor(c), c.position());
     }
   }
 
@@ -694,6 +813,7 @@ public final class MapView extends JComponent {
       g2.drawImage(image, 0, 0, p.drawnWidth(), p.drawnHeight(), null);
       g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
       g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+      paintRoutes(g2);
       Stroke outline = new BasicStroke(UIScale.scale(1f));
       Stroke ring = new BasicStroke(UIScale.scale(1.5f));
       g2.setFont(badgeFont());
@@ -713,6 +833,53 @@ public final class MapView extends JComponent {
     } finally {
       g2.dispose();
     }
+  }
+
+  private void paintRoutes(Graphics2D target) {
+    if (hiddenLayers.contains("routes")) return;
+    Graphics2D g = (Graphics2D) target.create();
+    try {
+      Projection projection = projection();
+      g.clipRect(0, 0, projection.drawnWidth(), projection.drawnHeight());
+      float width = UIScale.scale(2f);
+      Stroke dashed = new BasicStroke(width, BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND,
+          10, new float[]{UIScale.scale(7f), UIScale.scale(5f)}, 0);
+      Stroke solid = new BasicStroke(width, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND);
+      for (RouteLine route : routes) {
+        List<Point2D.Double> points = routePoints(route);
+        if (points.size() < 2) continue;
+        g.setColor(colour(route.colourKind()));
+        java.awt.geom.Path2D path = new java.awt.geom.Path2D.Double();
+        path.moveTo(points.getFirst().x, points.getFirst().y);
+        for (int i = 1; i < points.size(); i++) {
+          Point2D.Double point = points.get(i);
+          if (!route.loop() && i == points.size() - 1) {
+            Point2D.Double previous = points.get(i - 1);
+            double length = previous.distance(point);
+            double trim = Math.min(UIScale.scale(5f), length);
+            if (length > 0) path.lineTo(point.x + (previous.x - point.x) * trim / length,
+                point.y + (previous.y - point.y) * trim / length);
+          } else path.lineTo(point.x, point.y);
+        }
+        if (route.loop()) path.closePath();
+        g.setStroke(dashed); g.draw(path); g.setStroke(solid);
+        for (RouteGeometry.Anchor anchor : RouteGeometry.arrowAnchors(points)) {
+          // The terminal point stays hollow, including routes whose point count lands on an arrow index.
+          if (!route.loop() && anchor.at().distance(points.getLast()) < UIScale.scale(6f)) continue;
+          Graphics2D arrow = (Graphics2D) g.create();
+          try {
+            arrow.translate(anchor.at().getX(), anchor.at().getY()); arrow.rotate(anchor.angle());
+            double arm = UIScale.scale(4f);
+            java.awt.geom.Path2D head = new java.awt.geom.Path2D.Double();
+            head.moveTo(-arm, -arm); head.lineTo(0, 0); head.lineTo(-arm, arm); arrow.draw(head);
+          } finally { arrow.dispose(); }
+        }
+        if (!route.loop()) {
+          Point2D.Double end = points.getLast(); double radius = UIScale.scale(4f);
+          g.draw(new java.awt.geom.Rectangle2D.Double(end.x-radius, end.y-radius, radius*2, radius*2));
+        }
+      }
+    } finally { g.dispose(); }
   }
 
   private void paintCluster(Graphics2D g2, Cluster c, Stroke outline, Stroke ring, FontMetrics fm) {

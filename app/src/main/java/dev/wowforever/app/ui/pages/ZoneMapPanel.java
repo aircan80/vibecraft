@@ -4,6 +4,8 @@ import dev.wowforever.app.db.ZoneRepository;
 import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.SpawnPin;
+import dev.wowforever.app.model.NpcRoute;
+import dev.wowforever.app.ui.widgets.MapLayer;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Async;
 import dev.wowforever.app.ui.BooleanSetting;
@@ -61,9 +63,17 @@ public final class ZoneMapPanel extends JPanel {
     /** The spawn points of the zone's quest givers, with their quests, and whether the query was cut. */
     QuestPins questPins(long zoneId);
 
+    /** Named patrol routes, read on the worker. */
+    default List<NpcRoute> routes(long zoneId) { return List.of(); }
+
     /** The spawn queries of {@code zones}. */
     static PinSource of(ZoneRepository zones) {
       return new PinSource() {
+        @Override
+        public List<NpcRoute> routes(long zoneId) {
+          return zones.npcRoutesInZone(zoneId);
+        }
+
         @Override
         public List<SpawnPin> npcs(long zoneId, boolean bossesAndRaresOnly) {
           return zones.npcSpawnsInZone(zoneId, bossesAndRaresOnly);
@@ -90,6 +100,12 @@ public final class ZoneMapPanel extends JPanel {
 
   /** The pins a toggle loads: every NPC, the objects, the quest givers. */
   private enum PinLoad { NPCS, OBJECTS, QUESTS }
+
+  private static final MapLayer ROUTES_LAYER = MapLayer.REGISTERED.stream()
+      .filter(layer -> layer.id().equals("routes")).findFirst().orElseThrow();
+  private final JToggleButton routesToggle = new JToggleButton("Routes");
+  private List<MapView.RouteLine> routeLines;
+  private boolean loadingRoutes;
 
   private final long zoneId;
   private final PinSource pinSource;
@@ -133,7 +149,14 @@ public final class ZoneMapPanel extends JPanel {
    */
   public ZoneMapPanel(long zoneId, BufferedImage map, List<SpawnPin> pins, PinSource pinSource, Executor worker,
       StatusSink status, Navigator nav, BooleanSetting questsShown) {
+    this(zoneId, map, pins, pinSource, worker, status, nav, questsShown, BooleanSetting.inMemory(false));
+  }
+
+  /** Zone map with independently remembered quest and patrol layers. */
+  public ZoneMapPanel(long zoneId, BufferedImage map, List<SpawnPin> pins, PinSource pinSource, Executor worker,
+      StatusSink status, Navigator nav, BooleanSetting questsShown, BooleanSetting routesShown) {
     super(new BorderLayout());
+    Objects.requireNonNull(routesShown, "routesShown");
     Objects.requireNonNull(questsShown, "questsShown");
     this.zoneId = zoneId;
     this.pinSource = Objects.requireNonNull(pinSource, "pinSource");
@@ -150,10 +173,12 @@ public final class ZoneMapPanel extends JPanel {
     toggleRow.add(allNpcsToggle);
     toggleRow.add(objectsToggle);
     toggleRow.add(questsToggle);
+    toggleRow.add(routesToggle);
     pinsMenu.add(sharing(new JRadioButtonMenuItem(bossesToggle.getText()), bossesToggle));
     pinsMenu.add(sharing(new JRadioButtonMenuItem(allNpcsToggle.getText()), allNpcsToggle));
     pinsMenu.add(sharing(new JCheckBoxMenuItem(objectsToggle.getText()), objectsToggle));
     pinsMenu.add(sharing(new JCheckBoxMenuItem(questsToggle.getText()), questsToggle));
+    pinsMenu.add(sharing(new JCheckBoxMenuItem(routesToggle.getText()), routesToggle));
     pinsMenuButton.setVisible(false);
     pinsMenuButton.addActionListener(e -> {
       if (pinsMenuButton.isShowing()) {
@@ -162,11 +187,22 @@ public final class ZoneMapPanel extends JPanel {
     });
     // set before its listener: opening a page is not a change to save (the quest pins load below)
     questsToggle.setSelected(questsShown.isOn());
+    routesToggle.setSelected(routesShown.isOn());
+    routesToggle.addItemListener(e -> {
+      routesShown.set(routesToggle.isSelected());
+      routesChanged();
+    });
+    mapView.addPropertyChangeListener("layerVisibility", e -> {
+      if (ROUTES_LAYER.id().equals(e.getNewValue())) {
+        routesToggle.setSelected(mapView.isLayerVisible(ROUTES_LAYER));
+      }
+    });
     // one of the pair always changes when the selection moves between them
     bossesToggle.addActionListener(e -> {
       if (reverting) return;
       objectsToggle.setSelected(false);
       questsToggle.setSelected(false);
+      routesToggle.setSelected(false);
       mapView.applyPreset(dev.wowforever.app.ui.widgets.MapLayer.BOSSES_AND_RARES);
       pinsChanged();
     });
@@ -218,6 +254,34 @@ public final class ZoneMapPanel extends JPanel {
     if (questsToggle.isSelected()) {
       pinsChanged();
     }
+    if (routesToggle.isSelected()) routesChanged();
+  }
+
+  private void routesChanged() {
+    mapView.setLayerVisible(ROUTES_LAYER, routesToggle.isSelected());
+    if (routeLines != null) {
+      mapView.setRoutes(routeLines);
+      return;
+    }
+    if (!routesToggle.isSelected() || loadingRoutes) return;
+    loadingRoutes = true;
+    status.message("Loading routes…");
+    Async.run(worker, () -> pinSource.routes(zoneId).stream().map(r -> new MapView.RouteLine(r.npc(), r.name(),
+        r.rank() != null && r.rank() == 3 ? MapView.PinKind.BOSS
+            : r.rank() != null && (r.rank() == 2 || r.rank() == 4) ? MapView.PinKind.RARE : MapView.PinKind.NPC,
+        r.route().points(), r.route().loop())).toList(), loaded -> {
+          loadingRoutes = false;
+          routeLines = loaded;
+          // The latest toggle state wins if this load completed after a preset or a click switched it off.
+          mapView.setRoutes(routeLines);
+          mapView.setLayerVisible(ROUTES_LAYER, routesToggle.isSelected());
+          status.message(routesToggle.isSelected() ? loaded.size() + " patrol routes on the map"
+              : mapView.visiblePins().size() + " pins on the map");
+        }, failure -> {
+          loadingRoutes = false;
+          routesToggle.setSelected(false);
+          status.fail(failure);
+        });
   }
 
   /** {@code item} driven by {@code toggle}'s model, so either changes both. */
@@ -362,6 +426,8 @@ public final class ZoneMapPanel extends JPanel {
   }
 
   /** "Quests": adds the quest givers' pins. */
+  public JToggleButton routesToggle() { return routesToggle; }
+
   public JToggleButton questsToggle() {
     return questsToggle;
   }

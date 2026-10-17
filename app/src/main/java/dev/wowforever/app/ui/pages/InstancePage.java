@@ -10,6 +10,7 @@ import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcFilter;
+import dev.wowforever.app.model.QuestInvolvement;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.nav.Navigator;
@@ -161,8 +162,10 @@ public final class InstancePage extends JPanel implements PageState {
     if (quests.isEmpty()) {
       return null;
     }
-    LinkTable<QuestSummary> table = LinkTable.inline(VisibleColumns.of(Columns.quests(), quests, zoneName), nav);
-    table.setRows(quests);
+    List<QuestInvolvement> rows = quests.stream()
+        .map(q -> new QuestInvolvement(q, Set.of(QuestInvolvement.Role.RELATED), null)).toList();
+    LinkTable<QuestInvolvement> table = LinkTable.inline(VisibleColumns.of(Columns.questInvolvements(), rows, zoneName, Set.of("Role", " ")), nav);
+    table.setRows(rows);
     SourceSection section = new SourceSection(QUESTS, quests.size(), table);
     section.heading().setIcon(RailIcons.shared().small(RailTarget.QUESTS, RailIcons.SMALL));
     return section;

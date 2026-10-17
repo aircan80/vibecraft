@@ -3,6 +3,7 @@ package dev.wowforever.app.ui.detail;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.GiverSpot;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSource;
@@ -11,11 +12,15 @@ import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
+import dev.wowforever.app.model.QuestPageData;
 import dev.wowforever.app.model.QuestGiver;
+import dev.wowforever.app.model.QuestInvolvement;
+import dev.wowforever.app.model.QuestPageData;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.model.Spawn;
+import dev.wowforever.app.model.Route;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
@@ -59,7 +64,12 @@ public final class DetailPanels {
    * ({@link dev.wowforever.app.db.NpcRepository#bosses}), whose VMaNGOS rates say {@value RateSource#BOSS_NOTE}.
    */
   public record LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
-      Set<Long> bossNpcs) {
+      Set<Long> bossNpcs, QuestInvolvement.Result involvement) {
+    public LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+        Set<Long> bossNpcs) {
+      this(detail, icon, rateSources, bossNpcs, QuestInvolvement.fromRelated(detail.relatedQuests()));
+    }
+
     public LoadedItem {
       rateSources = Map.copyOf(rateSources);
       bossNpcs = Set.copyOf(bossNpcs);
@@ -84,8 +94,24 @@ public final class DetailPanels {
    * {@value RateSource#BOSS_NOTE}.
    */
   public record LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
-      Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs) {
+      Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes,
+      QuestInvolvement.Result involvement) {
+    public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
+        Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs) {
+      this(detail, mapZoneId, map, rateSources, bossNpcs, List.of(),
+          QuestInvolvement.fromGivers(detail.starts(), detail.ends()));
+    }
+    public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
+        Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes) {
+      this(detail, mapZoneId, map, rateSources, bossNpcs, routes,
+          QuestInvolvement.fromGivers(detail.starts(), detail.ends()));
+    }
+    public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
+        Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, QuestInvolvement.Result involvement) {
+      this(detail, mapZoneId, map, rateSources, bossNpcs, List.of(), involvement);
+    }
     public LoadedNpc {
+      routes = List.copyOf(routes);
       rateSources = Map.copyOf(rateSources);
       bossNpcs = Set.copyOf(bossNpcs);
     }
@@ -102,13 +128,27 @@ public final class DetailPanels {
   }
 
   /** What {@link #load} returns for an object: as {@link LoadedNpc}. */
-  public record LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map) {}
+  public record LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map,
+      QuestInvolvement.Result involvement) {
+    public LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map) {
+      this(detail, mapZoneId, map, QuestInvolvement.fromGivers(detail.starts(), detail.ends()));
+    }
+  }
 
   /**
-   * What {@link #load} returns for a quest: the quest and the zone maps of its first start giver and first end giver
-   * (NPC or object) with a spawn point on a zone map, each null without such a giver.
+   * What {@link #load} returns for a quest: all page data and its decoded zone maps, loaded off the EDT.
    */
-  public record LoadedQuest(QuestDetail detail, QuestPage.GiverMap starts, QuestPage.GiverMap ends) {}
+  public record LoadedQuest(QuestPageData data, Map<Long, BufferedImage> maps, Map<Long, String> zoneNames) {
+    public LoadedQuest(QuestPageData data, Map<Long, BufferedImage> maps) { this(data, maps, Map.of()); }
+    public LoadedQuest {
+      maps = Map.copyOf(maps);
+      zoneNames = Map.copyOf(zoneNames);
+    }
+
+    public QuestDetail detail() {
+      return data.detail();
+    }
+  }
 
   /**
    * The detail record of {@code ref} ({@link LoadedItem}, {@link LoadedNpc}, {@link LoadedZone}, ...), or empty when
@@ -133,21 +173,31 @@ public final class DetailPanels {
         return new LoadedItem(d,
             repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
                 .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
-            repos.items().sourcesOfItem(id, rated), repos.npcs().bosses(rated));
+            repos.items().sourcesOfItem(id, rated), repos.npcs().bosses(rated), repos.quests().involvingResult(ref));
       });
       case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells())).map(d -> {
         Long zone = mapZone(d.spawns());
         List<Long> rated = RateSource.ratedItems(d.drops());
         return new LoadedNpc(d, zone, zoneMap(zone, repos), repos.items().sourcesOfNpc(id, rated),
-            rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)));
+            rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)), repos.npcs().routes(id),
+            repos.quests().involvingResult(ref));
       });
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains())).map(d -> {
         Long zone = mapZone(d.spawns());
-        return new LoadedObject(d, zone, zoneMap(zone, repos));
+        return new LoadedObject(d, zone, zoneMap(zone, repos), repos.quests().involvingResult(ref));
       });
-      case QUEST -> repos.quests().detail(id).map(d -> warmed(warmedSources(warmedGivers(d), d.relatedItems()),
-              d.rewards()))
-          .map(d -> new LoadedQuest(d, giverMap(d, "start", repos), giverMap(d, "end", repos)));
+      case QUEST -> repos.questLocator().load(id).map(data -> {
+        QuestDetail d = data.detail();
+        warmed(warmedSources(warmedGivers(d), d.relatedItems()), d.rewards());
+        Map<Long, BufferedImage> maps = new java.util.LinkedHashMap<>();
+        for (long zone : data.mapZones()) {
+          BufferedImage map = zoneMap(zone, repos);
+          if (map != null) {
+            maps.put(zone, map);
+          }
+        }
+        return new LoadedQuest(data, maps, repos.zones().names(data.mapZones()));
+      });
       case ZONE -> repos.zones().detail(id).map(d -> loadedZone(d, repos));
       case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)))
           .map(d -> new LoadedInstance(d, d.summary().zoneId() == null ? List.of()
@@ -183,27 +233,6 @@ public final class DetailPanels {
     return zoneId == null ? null : repos.zones().map(zoneId).flatMap(MapCache.shared()::decoded).orElse(null);
   }
 
-  /**
-   * The zone map of quest {@code d}'s first giver in {@code role} ("start" or "end") that is an NPC or object with a
-   * spawn point on the map of a zone that has one (its points in that zone); null when none has.
-   */
-  private static QuestPage.GiverMap giverMap(QuestDetail d, String role, Repositories repos) {
-    for (QuestGiver g : d.givers()) {
-      if (!role.equals(g.role()) || g.ref().kind() == EntityKind.ITEM) {
-        continue;
-      }
-      List<Spawn> spawns = repos.spawnsOf(g.ref()).stream()
-          .filter(s -> MapCoordinates.onMap(s.x(), s.y())).toList();
-      for (long zone : spawns.stream().map(Spawn::zoneId).distinct().toList()) {
-        BufferedImage map = zoneMap(zone, repos);
-        if (map != null) {
-          return new QuestPage.GiverMap(zone, map, spawns.stream().filter(s -> s.zoneId() == zone)
-              .map(s -> new SpawnPin(g.ref(), g.name(), null, s.x(), s.y())).toList());
-        }
-      }
-    }
-    return null;
-  }
 
   /** {@code detail}, once the {@value IconCache#ROW} px icons of the items in {@code lists} are cached. */
   @SafeVarargs
@@ -262,16 +291,24 @@ public final class DetailPanels {
    */
   public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
       StatusSink status, SourceFilter filter, Consumer<SourceFilter> onFilterChange, BooleanSetting questPins) {
+    return render(detail, repos, nav, worker, status, filter, onFilterChange, questPins,
+        BooleanSetting.inMemory(false));
+  }
+
+  /** Renders a page with the user's remembered quest-pin and patrol-route settings. */
+  public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
+      StatusSink status, SourceFilter filter, Consumer<SourceFilter> onFilterChange, BooleanSetting questPins,
+      BooleanSetting routes) {
     return switch (detail) {
       case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), p.bossNpcs(), filter, onFilterChange,
-          nav);
+          p.involvement(), nav);
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), p.bossNpcs(), filter,
-          onFilterChange, nav, ClipboardPort.system());
-      case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
-      case LoadedQuest p -> new QuestPage(p.detail(), p.starts(), p.ends(), nav);
+          onFilterChange, p.involvement(), nav, ClipboardPort.system(), p.routes());
+      case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), p.involvement(), nav, ClipboardPort.system());
+      case LoadedQuest p -> new QuestPage(p.data(), p.maps(), p.zoneNames(), nav, ClipboardPort.system());
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
-              worker, status, nav, questPins), nav);
+              worker, status, nav, questPins, routes), nav);
       case LoadedInstance p -> new InstancePage(p.detail(), p.quests(), repos, nav);
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
