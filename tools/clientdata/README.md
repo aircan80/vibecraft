@@ -19,7 +19,7 @@ Never install the requirements globally.
 
 ## Commands
 
-    # all 48 required tables, newest build of the product, local wow.tools.local (default base URL)
+    # all 51 required tables, newest build of the product, local wow.tools.local (default base URL)
     python tools/clientdata/fetch.py --product wow_classic_beta --cache ~/.cache/wowforever-clientdata
 
     # against wago.tools, one table only (smoke test)
@@ -31,7 +31,7 @@ Never install the requirements globally.
 
     # only the icons of the items in a browser database (what the shipped build used, see below)
     ... --fdids "$(python tools/clientdata/needed_icons.py --db app/src/main/resources/data/wowforever.sqlite \
-        --cache ~/.cache/wowforever-clientdata --build 1.60.1.70425)"
+        --cache ~/.cache/wowforever-clientdata --build 1.60.1.70450)"
 
     # the navigation rail's UI icons (needs ManifestInterfaceData.csv in the cache, see "UI icons" below)
     ... --ui-icons
@@ -114,7 +114,7 @@ never fills in personal data by itself.
 ## needed_icons.py: the icons of the browser's items
 
     python tools/clientdata/needed_icons.py --db app/src/main/resources/data/wowforever.sqlite \
-        --cache ~/.cache/wowforever-clientdata --build 1.60.1.70425
+        --cache ~/.cache/wowforever-clientdata --build 1.60.1.70450
 
 Prints, comma-separated, the distinct `Item.csv` `IconFileDataID`s greater than 0 of every item in the database
 (opened read-only), for `fetch.py --fdids`. The importer embeds only the icons of the items it imports, so this
@@ -124,7 +124,7 @@ table, so a new item set is imported once without client data, then its icons ar
 
 ## convert.py: icons and zone maps
 
-    python tools/clientdata/convert.py --cache ~/.cache/wowforever-clientdata --build 1.60.1.70425 --out OUT
+    python tools/clientdata/convert.py --cache ~/.cache/wowforever-clientdata --build 1.60.1.70450 --out OUT
 
 Reads `{cache}/{build}` and writes a deterministic (no timestamps) import tree:
 
@@ -146,7 +146,7 @@ Reads `{cache}/{build}` and writes a deterministic (no timestamps) import tree:
 - A missing or undecodable tile leaves a transparent area (black in the JPEG) and counts in `missing_tiles`; never fatal.
 - An undecodable icon is skipped and counted (`icons_failed`); the importer then counts it in `clientdata.icons.missing`
   and the browser shows the fallback icon. Known limitation: Pillow cannot read BLP encoding 3 (uncompressed
-  BGRA). In build 1.60.1.70425 that is icon 4559256, used by Rough Wolf Pelt (247877), Savannah Lion Hide (269715)
+  BGRA). In builds 1.60.1.70425 and 1.60.1.70450 that is icon 4559256, used by Rough Wolf Pelt (247877), Savannah Lion Hide (269715)
   and Tanning Rack (279941).
 
 `--ui-icons-only` writes only `OUT/build.lock` and `OUT/ui_icons/` and leaves the rest of `OUT` as it is.
@@ -166,6 +166,24 @@ The importer reads `SpellReagents` and `SkillLineAbility`; `SkillRaceClassInfo` 
 skill) is fetched for completeness and not read yet. Both tables the importer reads are optional: a converted
 directory without them (one made before Task 8) imports without crafts, counted as `clientdata.crafts.skipped` with a
 note naming the missing tables.
+
+## Dungeon tables
+
+`LFGDungeons`, `ContentTuning` and `DungeonEncounter` (3B Task 17) joined `REQUIRED_TABLES` with the client build
+1.60.1.70450, together with `Map`, which was already fetched. The importer's `ClientInstanceLoader` reads them for the
+WoW: Forever dungeons that AtlasLoot lacks:
+
+- a `Map` row of `InstanceType` 1 and `ExpansionID` 0 is a dungeon; one whose id is the `InstanceID` of an AtlasLoot
+  instance (36 The Deadmines, 389 Ragefire Chasm, ...) stays AtlasLoot's;
+- the others are imported when their `MapName_lang` equals an `LFGDungeons.Name_lang`, both lower-cased and without a
+  leading "the " (Map "The Hall of Thanes" is LFGDungeons "Hall of Thanes");
+- their level is the `ContentTuning.MinLevelSquish` of that LFGDungeons row's `ContentTuningID`, their bosses the
+  `DungeonEncounter` rows of the map with `DifficultyID` 0, by `OrderIndex`. The client has no loot tables.
+
+Build 1.60.1.70450 yields four: City of Dalaran (2959, level 28, 9 bosses), Excavation Site: Wetlands (2998, 26, 4),
+Ruins of Lordaeron (2999, 15, 7) and The Hall of Thanes (3065, 13, 4). The three tables are optional for the
+importer: a converted directory without one of them imports without client dungeons and reports
+`clientdata.instances.skipped = 1`.
 
 ## UI icons
 
@@ -192,7 +210,7 @@ Buttons and WorldMap art is centred at native size on a transparent 24 px canvas
 A cached BLP missing or undecodable counts in `ui_icons_missing` or `ui_icons_failed` of the summary; neither is
 fatal. The importer embeds both variants in `ui_asset` as `{name}` and `{name}@24`.
 
-Build 1.60.1.70425 resolves all six to their first choice: 134414, 133633, 132053, 132049, 134269 and 134153 (the
+Builds 1.60.1.70425 and 1.60.1.70450 resolve all six to their first choice: 134414, 133633, 132053, 132049, 134269 and 134153 (the
 two GossipFrame textures are 16 x 16, the rest 64 x 64). They were fetched alone, without a full run:
 
     python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C \
@@ -259,6 +277,15 @@ alone; it also writes a header-only `ManifestInterfaceData.csv` that the fixture
 that table either). The fixture `build.lock` was not changed.
 
 The fixture tree is `-text` in `.gitattributes`: one quoted ItemSparse cell holds a real CRLF.
+
+3B Task 17 (dungeons) added, additively and without a cut, rows copied byte for byte from the 1.60.1.70450 cache
+(byte for byte the same files in 1.60.1.70425): the `Map` rows of 36 Deadmines, 2959 City of Dalaran, 2998 Excavation
+Site: Wetlands, 2999 Ruins of Lordaeron and 3065 The Hall of Thanes appended to `Map.csv`; `LFGDungeons.csv` rows 1
+Wailing Caverns (whose map is not in the fixture), 5 Deadmines and 3271 to 3274; `ContentTuning.csv` rows 4512, 5240,
+5254, 5256, 6874 and 7000; and every `DungeonEncounter.csv` row of maps 36, 2959, 2998, 2999, 3002 and 3065 (3002 has
+no `Map` row in either build). `AreaTable.csv` gained row 16544 City of Dalaran from the 1.60.1.70425 cache. A cut with
+`make_fixture.py` writes these three tables header-only and does not keep these `Map` rows, so they are hand-extended
+like `UiMapAssignment.csv`. The fixture `build.lock` was not changed.
 
 The fixture's `ui_icons/rail.quests.png` (16 x 16) and `rail.quests@24.png` (24 x 24) are not client art: they were
 drawn with a few lines of Pillow (a yellow bar and dot on a transparent canvas) for `UiAssetLoaderTest`.

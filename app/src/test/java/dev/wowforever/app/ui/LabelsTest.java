@@ -146,6 +146,9 @@ class LabelsTest {
     assertThat(Labels.instanceWing("Blackrock Spire", "LowerBlackrockSpire")).isEqualTo("Lower");
     assertThat(Labels.instanceWing("Blackrock Spire", "UpperBlackrockSpire")).isEqualTo("Upper");
     assertThat(Labels.instanceWing("Dire Maul", "DireMaulNorth")).isEqualTo("North");
+    // a client dungeon's key is its map id, no wing (3B Task 17)
+    assertThat(Labels.instanceWing("The Hall of Thanes", "client:3065")).isNull();
+    assertThat(Labels.instanceTitle("The Hall of Thanes", "client:3065")).isEqualTo("The Hall of Thanes");
     assertThat(Labels.instanceWing("Molten Core", "MoltenCore")).isNull();
     assertThat(Labels.instanceWing("Zul'Farrak", "Zul'Farrak")).isNull();
     assertThat(Labels.instanceWing("Onyxia's Lair", "Onyxia")).isNull();

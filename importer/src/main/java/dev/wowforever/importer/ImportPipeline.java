@@ -51,6 +51,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -118,7 +119,11 @@ public final class ImportPipeline {
         .collect(Collectors.toSet());
     Map<Long, Zone> zones = ZoneLoader.load(questieDb, constants, raidAreaIds, stage(problems, "zones"));
 
-    ClientDataBundle client = ClientDataStage.run(opts.clientData(), tables, zones, questieDb, report);
+    // the client's own dungeons fill in what AtlasLoot lacks: an AtlasLoot InstanceID is the client map id
+    Set<Long> atlasLootMapIds = instances.stream().map(AtlasInstance::instanceId).filter(Objects::nonNull)
+        .collect(Collectors.toSet());
+    ClientDataBundle client =
+        ClientDataStage.run(opts.clientData(), tables, zones, questieDb, atlasLootMapIds, report);
 
     Map<String, String> meta = meta(questieSpec.commit(), atlasSpec.commit(), Instant.now());
     meta.putAll(serverMeta);

@@ -22,7 +22,8 @@ class MainSelfTestTest {
   @Test
   void selfTestPrintsCounts() {
     String out = captureStdout(() -> Main.selfTest(FixtureDb.path()));
-    assertThat(out).contains("items=").contains("instances=3");
+    // the fixture's 3 AtlasLoot instances and its 4 client dungeons (3B Task 17)
+    assertThat(out).contains("items=").contains("instances=7");
   }
 
   @Test
@@ -30,7 +31,7 @@ class MainSelfTestTest {
     AtomicInteger code = new AtomicInteger(-1);
     String out = captureStdout(() -> code.set(Main.selfTest(FixtureDb.path())));
     assertThat(code).hasValue(0);
-    assertThat(out.strip()).matches("items=[1-9]\\d* npcs=[1-9]\\d* instances=3 build_id=\\S+")
+    assertThat(out.strip()).matches("items=[1-9]\\d* npcs=[1-9]\\d* instances=7 build_id=\\S+")
         .endsWith("build_id=" + FixtureDb.buildId());
   }
 

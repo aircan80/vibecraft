@@ -1,0 +1,7 @@
+ID,Flags,ExpansionID,HPScalingCurveID,DMGScalingCurveID,HPPrimaryStatScalingCurveID,DMGPrimaryStatScalingCurveID,PrimaryStatScalingModPlayerDataElementCharacterID,PrimaryStatScalingModPlayerDataElementCharacterMultiplier,MinLevelSquish,MaxLevelSquish,MinLevelScalingOffset,MaxLevelScalingOffset,AllowedMinOffset,AllowedMaxOffset,LfgMinLevel,LfgMaxLevel,ILevel,XpMultQuest
+4512,0,0,0,0,0,0,0,0,28,28,0,0,0,0,0,0,0,1
+5240,256,0,0,0,0,0,0,0,16,16,0,0,0,0,0,0,0,1
+5254,256,0,0,0,0,0,0,0,17,17,0,0,0,0,0,0,0,1
+5256,0,0,0,0,0,0,0,0,15,15,0,0,0,0,27,27,0,1
+6874,0,0,0,0,0,0,0,0,26,26,0,0,0,0,0,0,0,1
+7000,0,0,0,0,0,0,0,0,13,13,0,0,0,0,0,0,0,1

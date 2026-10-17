@@ -44,6 +44,40 @@ class InstanceRepositoryTest {
   }
 
   @Test
+  void clientInstanceCarriesItsState() {
+    // the fixture's AtlasLoot instances are 1 to 3; the client's Forever dungeons follow in map id order
+    var thanes = repos.instances().all().stream().filter(i -> "client:3065".equals(i.key())).findFirst().orElseThrow();
+    assertThat(thanes.id()).isEqualTo(7);
+    assertThat(thanes.name()).isEqualTo("The Hall of Thanes");
+    assertThat(thanes.source()).isEqualTo("client");
+    assertThat(thanes.tunedMinLevel()).isEqualTo(13);
+    assertThat(thanes.levelMin()).isEqualTo(13);
+    assertThat(thanes.levelMax()).isNull();
+    assertThat(thanes.bossesState()).isEqualTo("client_named");
+    assertThat(thanes.lootState()).isEqualTo("none");
+    assertThat(thanes.contentType()).isEqualTo("DUNGEON");
+    assertThat(thanes.zoneId()).isEqualTo(16919L);
+    assertThat(thanes.zoneName()).isEqualTo("The Hall of Thanes");
+
+    InstanceDetail detail = repos.instances().detail(thanes.id()).orElseThrow();
+    assertThat(detail.summary()).isEqualTo(thanes);
+    assertThat(detail.bosses()).extracting(b -> b.name()).containsExactly("Faldrim Anvilmar", "Infurnus", "Plunder",
+        "Durgen Dirgehammer");
+    assertThat(detail.bosses()).allSatisfy(b -> {
+      assertThat(b.npcId()).isNull();
+      assertThat(b.level()).isNull();
+      assertThat(b.extraList()).isFalse();
+    });
+    assertThat(detail.difficulties()).as("no boss loot").isEmpty();
+
+    var rfc = repos.instances().detail(1).orElseThrow().summary();
+    assertThat(rfc.source()).isEqualTo("atlasloot");
+    assertThat(rfc.bossesState()).isEqualTo("atlasloot");
+    assertThat(rfc.lootState()).isEqualTo("atlasloot");
+    assertThat(rfc.tunedMinLevel()).isNull();
+  }
+
+  @Test
   void instanceSummaryNamesItsZone() {
     var rfc = repos.instances().detail(1).get().summary();
     assertThat(rfc.zoneId()).isEqualTo(2437L);

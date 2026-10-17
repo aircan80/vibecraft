@@ -327,7 +327,13 @@ CREATE TABLE instance (
   content_type TEXT,
   level_min    INTEGER,
   level_max    INTEGER,
-  zone_id      INTEGER
+  zone_id      INTEGER,
+  -- v4 (3B Task 17): 'atlasloot', or 'client' for a dungeon of the client's own tables (key 'client:<map id>')
+  source          TEXT NOT NULL DEFAULT 'atlasloot',
+  client_map_id   INTEGER,
+  tuned_min_level INTEGER,
+  bosses_state    TEXT,
+  loot_state      TEXT
 );
 
 CREATE TABLE boss (

@@ -18,6 +18,17 @@ import org.junit.jupiter.api.Test;
 @Tag("shipped-data")
 class ShippedProvenanceDataTest extends ShippedDataSupport {
 
+  // --- client build ------------------------------------------------------------------------------------------------
+
+  @Test
+  void clientBuildIsCurrent() {
+    // 3B Task 17: the installed client is 1.60.1.70450; schema v4 adds the client dungeons' instance columns
+    assertThat(db.meta().get("client_product")).isEqualTo("wow_classic_beta");
+    assertThat(db.meta().get("client_build")).isEqualTo("1.60.1.70450");
+    assertThat(Long.parseLong(db.meta().get("client_item_count"))).isGreaterThanOrEqualTo(20_492);
+    assertThat(db.meta().get("schema_version")).isEqualTo("4");
+  }
+
   // --- crafting ----------------------------------------------------------------------------------------------------
 
   @Test

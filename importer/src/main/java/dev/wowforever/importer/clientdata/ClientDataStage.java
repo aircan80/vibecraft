@@ -11,12 +11,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
  * The importer's client-data stage: reads a converted client-data directory and returns everything the writer embeds.
  * In order: the source and its build lock, {@link ItemSparseLoader}, {@link ItemClassNames}, {@link ItemValues},
- * {@link ItemTooltips}, {@link IconLoader}, {@link ZoneMapLoader}, {@link UiAssetLoader}, {@link CraftLoader}.
+ * {@link ItemTooltips}, {@link IconLoader}, {@link ZoneMapLoader}, {@link UiAssetLoader}, {@link CraftLoader},
+ * {@link ClientInstanceLoader} (with the zone of each dungeon).
  *
  * <p>With {@code --skip-client-data} it returns {@link ClientDataBundle#EMPTY} (the writer then creates the client
  * tables empty, sets no {@code has_client_data} and writes no {@code client_*} meta keys) and counts
@@ -54,17 +56,25 @@ public final class ClientDataStage {
 
   private ClientDataStage() {}
 
+  /** Runs the stage without AtlasLoot instances: every client dungeon matched by name is loaded. */
+  public static ClientDataBundle run(ClientDataOptions opts, Map<EntityKind, EntityTable> tables,
+      Map<Long, Zone> zones, Path questieDbRoot, ImportReport report) {
+    return run(opts, tables, zones, questieDbRoot, Set.of(), report);
+  }
+
   /**
    * Runs the stage.
    *
-   * @param tables        the entity tables after corrections; the items' ids and names are read
-   * @param zones         the imported zones, assigned UiMaps by {@link ZoneMapLoader}
-   * @param questieDbRoot the QuestieDB checkout, for the area-to-UiMap overrides
+   * @param tables          the entity tables after corrections; the items' ids and names are read
+   * @param zones           the imported zones, assigned UiMaps by {@link ZoneMapLoader} and matched to the client
+   *                        dungeons by {@link ClientInstanceLoader#zoneIds}
+   * @param questieDbRoot   the QuestieDB checkout, for the area-to-UiMap overrides
+   * @param atlasLootMapIds the client map ids of the AtlasLoot instances, whose dungeons are not loaded again
    * @throws IllegalStateException when the directory lacks a table or column a loader reads, or its build lock is
    *     missing, malformed or stale ({@link ClientDataSource#lock})
    */
   public static ClientDataBundle run(ClientDataOptions opts, Map<EntityKind, EntityTable> tables,
-      Map<Long, Zone> zones, Path questieDbRoot, ImportReport report) {
+      Map<Long, Zone> zones, Path questieDbRoot, Set<Long> atlasLootMapIds, ImportReport report) {
     Objects.requireNonNull(opts, "opts");
     if (opts.skip()) {
       report.count(SKIPPED, 1);
@@ -90,7 +100,11 @@ public final class ClientDataStage {
     ZoneMaps zoneMaps = ZoneMapLoader.load(source, questieDbRoot, zones, report);
     Map<String, byte[]> uiAssets = UiAssetLoader.load(source, report);
     Crafts crafts = CraftLoader.load(source, report);
-    return new ClientDataBundle(clientItems, classNames, values, tooltips, icons, zoneMaps, lock, uiAssets, crafts);
+    List<ClientInstance> dungeons = ClientInstanceLoader.load(source, atlasLootMapIds, report);
+    ClientInstances instances =
+        new ClientInstances(dungeons, ClientInstanceLoader.zoneIds(source, dungeons, zones));
+    return new ClientDataBundle(clientItems, classNames, values, tooltips, icons, zoneMaps, lock, uiAssets, crafts,
+        instances);
   }
 
   /**

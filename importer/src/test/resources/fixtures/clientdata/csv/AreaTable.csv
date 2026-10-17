@@ -46,3 +46,4 @@ ID,ZoneName,AreaName_lang,ContinentID,ParentAreaID,AreaBit,SoundProviderPref,Sou
 922,TheDustPlains,"The Dust Plains",0,40,311,0,11,0,2172,0,0,18,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
 1518,NotIUsedDeadmines,"Not Used Deadmines",0,40,687,0,0,0,2172,0,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
 2364,TheGreatSea,"The Great Sea",0,40,894,0,0,3228,2172,0,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+16544,RuinsofDalaran,"City of Dalaran",2959,0,0,86,0,3410,2172,3170,0,0,1657,0,6,0,0,-1,0,0,0,0,0,128,0,0,0,0

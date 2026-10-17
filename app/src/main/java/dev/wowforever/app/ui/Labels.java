@@ -2,6 +2,7 @@ package dev.wowforever.app.ui;
 
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.InstanceSummary;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -189,10 +190,11 @@ public final class Labels {
    * The part of an instance's AtlasLoot {@code key} its {@code name} does not already say: the key split at
    * CamelCase and punctuation, without the words that make up the name (also run together, as in {@code Ruinsof})
    * and without "the" and "of". {@code ScarletMonasteryLibrary} of Scarlet Monastery → Library,
-   * {@code LowerBlackrockSpire} of Blackrock Spire → Lower; null when nothing is left or the key is blank.
+   * {@code LowerBlackrockSpire} of Blackrock Spire → Lower; null when nothing is left, the key is blank or it is a
+   * client dungeon's ({@link InstanceSummary#CLIENT_KEY_PREFIX}).
    */
   public static String instanceWing(String name, String key) {
-    if (isBlank(key)) {
+    if (isBlank(key) || key.startsWith(InstanceSummary.CLIENT_KEY_PREFIX)) {
       return null;
     }
     Set<String> nameWords = new HashSet<>(List.of("the", "of"));

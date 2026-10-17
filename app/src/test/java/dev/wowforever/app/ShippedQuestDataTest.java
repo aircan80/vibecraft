@@ -19,8 +19,9 @@ import org.junit.jupiter.api.Test;
 @Tag("shipped-data")
 class ShippedQuestDataTest extends ShippedDataSupport {
   @Test
-  void schemaVersionIsThree() {
-    assertThat(db.meta().get("schema_version")).isEqualTo("3");
+  void schemaVersionHasTheQuestTables() {
+    // v3 brought the quest tables; ShippedProvenanceDataTest pins the current version
+    assertThat(Integer.parseInt(db.meta().get("schema_version"))).isGreaterThanOrEqualTo(3);
   }
 
   @Test

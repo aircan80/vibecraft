@@ -24,7 +24,7 @@ On first start the embedded database is extracted to a per-user data directory, 
 | macOS | `~/Library/Application Support/WoWForeverBrowser` |
 | Linux and others | `$XDG_DATA_HOME/wowforever-browser`, or `~/.local/share/wowforever-browser` |
 
-`java -jar app/target/wow-forever-browser.jar --self-test` opens the database without showing a window and prints a line such as `items=21543 npcs=13392 instances=33 build_id=...`. CI uses it to check the packaged jar.
+`java -jar app/target/wow-forever-browser.jar --self-test` opens the database without showing a window and prints a line such as `items=21543 npcs=13392 instances=37 build_id=...`. CI uses it to check the packaged jar.
 
 ## Using the app
 
@@ -116,6 +116,8 @@ The shipped database `app/src/main/resources/data/wowforever.sqlite` is generate
 
 Quests come from QuestieDB as well. Schema version 3 adds their objectives (`quest_objective`, with the exploration points in `quest_objective_point`), the items a quest provides or requires (`quest_source_item`) and the chain relations between quests (`quest_relation`: prerequisites, follow-ups, exclusive and grouped quests, breadcrumbs).
 
+Dungeons and raids come from AtlasLootClassic, with their bosses and loot. The four WoW: Forever dungeons AtlasLoot does not know come from the client's own tables (schema version 4): City of Dalaran, Excavation Site: Wetlands, Ruins of Lordaeron and The Hall of Thanes. Each has `instance.source = 'client'`, its tuned minimum level and the bosses the client names, in order; the client has no loot tables, so they have no boss loot. The tools README, "Dungeon tables", gives the rule. Without the client's `LFGDungeons`, `ContentTuning` and `DungeonEncounter` tables the import leaves them out and reports `clientdata.instances.skipped = 1`.
+
 The same schema holds three more data sets, which the browser does not show yet:
 
 - **Patrol routes.** `npc_waypoint` holds the walking routes QuestieDB records for patrolling NPCs, per zone and route, in walking order.
@@ -173,11 +175,11 @@ Known gaps in the upstream data, as of this build:
 
 ## Client data
 
-The shipped database uses product `wow_classic_beta`, build 1.60.1.70425, with the Classic Era `ItemSparse` and `ItemEffect` of build 1.15.9.70003 as the fallback for items the beta lacks: their stats and their Use, Equip and Chance on hit effects come from Era, the effect texts from the beta's spell tables. `tools/clientdata/build.lock` records the build and the SHA-256 of every table.
+The shipped database uses product `wow_classic_beta`, build 1.60.1.70450, with the Classic Era `ItemSparse` and `ItemEffect` of build 1.15.9.70003 as the fallback for items the beta lacks: their stats and their Use, Equip and Chance on hit effects come from Era, the effect texts from the beta's spell tables. `tools/clientdata/build.lock` records the build and the SHA-256 of every table.
 
 **Prerequisites.** Python 3 with the tool's own virtual environment (`tools/clientdata/README.md`, "Setup"), and network access to wago.tools or a local wow.tools.local (the fetch tool's default base URL, `http://localhost:5000`). Set `WOWFOREVER_CONTACT` to a contact URL before fetching from a public server; the User-Agent carries it (see the tools README, "Politeness"). The tool reads the exports only; it never touches a World of Warcraft installation.
 
-**The three commands.** Fetch, convert, then import (the import command is in the previous section). With `B=1.60.1.70425` and `C=~/.cache/wowforever-clientdata`:
+**The three commands.** Fetch, convert, then import (the import command is in the previous section). With `B=1.60.1.70450` and `C=~/.cache/wowforever-clientdata`:
 
 ```
 python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C \
@@ -190,14 +192,14 @@ java -jar importer/target/importer.jar --out app/src/main/resources/data/wowfore
 
 `needed_icons.py` lists the icons of the items already in the database, so on a fresh item set run the import once with `--skip-client-data` first. Its `Item.csv` must be in the cache, so the first fetch without `--fdids` comes before it. Every fetch run merges into the build's `build.lock`, so the tables, maps and icons may be fetched in separate runs. After the import, copy `$C/out/current/build.lock` to `tools/clientdata/build.lock` and commit it with the database.
 
-**UI icons.** The navigation rail's six icons are client textures too (spec section 5; client art is used for icons only). `--ui-icons` resolves each icon's texture path to a FileDataID with the client's own `ManifestInterfaceData` table, falls back to a second choice when the first is missing, fetches the files and records the choices in `build.lock` under `ui_icons`. `convert.py` writes each one twice into `ui_icons/`, at native size and at 24 px, and the importer embeds both in the `ui_asset` table under names like `rail.quests` and `rail.quests@24` (report counter `clientdata.uiAssets`). Build 1.60.1.70425 uses the first choice of all six. The tools README, "UI icons", lists them.
+**UI icons.** The navigation rail's six icons are client textures too (spec section 5; client art is used for icons only). `--ui-icons` resolves each icon's texture path to a FileDataID with the client's own `ManifestInterfaceData` table, falls back to a second choice when the first is missing, fetches the files and records the choices in `build.lock` under `ui_icons`. `convert.py` writes each one twice into `ui_icons/`, at native size and at 24 px, and the importer embeds both in the `ui_asset` table under names like `rail.quests` and `rail.quests@24` (report counter `clientdata.uiAssets`). Build 1.60.1.70450 uses the first choice of all six. The tools README, "UI icons", lists them.
 
 **Sizes.**
 
 | What | Size |
 |---|---|
-| Fetch cache (50 tables, 6,313 BLP files) | 219 MB |
-| Converted output (`out/current`) | 59 MB |
+| Fetch cache (53 tables, 6,313 BLP files) | 219 MB |
+| Converted output (`out/current`) | 67 MB |
 | Shipped database | 81 MB, of which icons 13 MB, zone maps 11 MB, the VMaNGOS rate rows 9 MB, patrol routes 1.4 MB, the quest tables about 1 MB and crafting 0.7 MB |
 
 **Switching to the live build.** When Forever's live product `wowf` publishes a build, fetch it with `--product wowf` (and its build), convert it into a new `out/` directory, and import with `--client-data-dir` pointing there. Check the report's `clientdata.coverage.pct`, `clientdata.unverified.*` and `clientdata.unformatted` counters against this build's, run `./mvnw -B verify` (the shipped-data tests and the known-items oracle), and commit the database with the new `tools/clientdata/build.lock`. The Era fallback stays until the live `ItemSparse` covers those items.
@@ -228,7 +230,7 @@ Native installers (MSI, DMG, DEB) can be built with `jpackage`; see [packaging/R
 - [QuestieDB](https://github.com/Questie/QuestieDB), commit `49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4`. It publishes no license file, so the data is used with attribution.
 - [AtlasLootClassic](https://github.com/Hoizame/AtlasLootClassic), commit `8e99341e4e779328460bf7684c0d5b22ce50ddf1`, licensed under GPL-2.0.
 - [VMaNGOS](https://github.com/vmangos/core) world database, release asset `db-sqlite-4641790.zip` (commit `464179081673cfd240f7ffe7f0daf96bca0b5a70`), licensed under GPL-2.0. Only derived drop percentages are stored.
-- Blizzard client data of `wow_classic_beta` 1.60.1.70425, exported through [wago.tools](https://wago.tools). Icons, UI textures and map art are © Blizzard Entertainment and are included for reference; no affiliation.
+- Blizzard client data of `wow_classic_beta` 1.60.1.70450, exported through [wago.tools](https://wago.tools). Icons, UI textures and map art are © Blizzard Entertainment and are included for reference; no affiliation.
 
 This project is licensed under GPL-2.0-or-later, see `LICENSE`. Full credits are in [NOTICE.md](NOTICE.md).
 

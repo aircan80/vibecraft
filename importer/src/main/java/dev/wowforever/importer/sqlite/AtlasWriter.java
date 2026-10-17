@@ -17,10 +17,13 @@ import java.util.function.LongPredicate;
 
 /**
  * Writes AtlasLoot instances, bosses and boss loot. Ids are sequential from 1: instances in input order,
- * bosses in instance order then sort order. Loot of a boss with an NPC id (other than an extra list such
+ * bosses in instance order then sort order. Every instance row has {@code source}, {@code bosses_state} and
+ * {@code loot_state} {@value #ATLASLOOT}; {@link ClientInstanceWriter} appends the client dungeons after them. Loot of a boss with an NPC id (other than an extra list such
  * as trash or keys) is also merged into the NPC drop pairs.
  */
 final class AtlasWriter {
+  /** The {@code source}, {@code bosses_state} and {@code loot_state} of every AtlasLoot instance. */
+  static final String ATLASLOOT = "atlasloot";
   private final Connection c;
   private final ImportReport report;
 
@@ -39,7 +42,8 @@ final class AtlasWriter {
     long instanceId = 0;
     long bossId = 0;
     try (Batch instanceRows = new Batch(c, "INSERT INTO instance(id, key, name, map_id, instance_id, content_type,"
-            + " level_min, level_max, zone_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            + " level_min, level_max, zone_id, source, bosses_state, loot_state)"
+            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         Batch bossRows = new Batch(c, "INSERT INTO boss(id, instance_id, name, npc_id, object_id, level, special_type,"
             + " is_extra_list, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         Batch lootRows = new Batch(c, "INSERT INTO boss_loot(boss_id, item_id, difficulty, slot, drop_pct, pct_source,"
@@ -48,7 +52,7 @@ final class AtlasWriter {
         instanceId++;
         Long zoneId = inst.mapId() != null && zoneExists.test(inst.mapId()) ? inst.mapId() : null;
         instanceRows.add(instanceId, inst.key(), inst.name(), inst.mapId(), inst.instanceId(), inst.contentType(),
-            inst.levelMin(), inst.levelMax(), zoneId);
+            inst.levelMin(), inst.levelMax(), zoneId, ATLASLOOT, ATLASLOOT, ATLASLOOT);
         List<AtlasBoss> bosses = inst.bosses().stream().sorted(Comparator.comparingInt(AtlasBoss::sortOrder)).toList();
         for (AtlasBoss boss : bosses) {
           bossId++;

@@ -10,7 +10,10 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
 
-/** Dungeons and raids from AtlasLoot: instance list, boss lists and boss loot tables. */
+/**
+ * Dungeons and raids: instance list, boss lists and boss loot tables. Most come from AtlasLoot; the WoW: Forever
+ * dungeons come from the client's own tables, with named bosses and no loot ({@link InstanceSummary#source()}).
+ */
 public final class InstanceRepository {
   /** The {@link LootRow#origin()} of boss loot, which always comes from AtlasLoot. */
   public static final String BOSS_LOOT_ORIGIN = "atlasloot";
@@ -18,7 +21,8 @@ public final class InstanceRepository {
   public static final int SKULL_LEVEL = 999;
   /** The {@link #summary} columns of {@code instance i} with its zone's name; append WHERE and ORDER BY. */
   static final String SUMMARY_SELECT = """
-      SELECT i.id, i.name, i.content_type, i.level_min, i.level_max, i.zone_id, z.name AS zone_name, i.key
+      SELECT i.id, i.name, i.content_type, i.level_min, i.level_max, i.zone_id, z.name AS zone_name, i.key,
+             i.source, i.tuned_min_level, i.bosses_state, i.loot_state
       FROM instance i LEFT JOIN zone z ON z.id = i.zone_id""";
 
   /** The boss loot columns with the item's; append WHERE and ORDER BY. */
@@ -31,7 +35,7 @@ public final class InstanceRepository {
     this.db = db;
   }
 
-  /** All instances in AtlasLoot order. */
+  /** All instances in AtlasLoot order, then the client dungeons by map id. */
   public List<InstanceSummary> all() {
     return db.read(c -> Sql.list(c,
         SUMMARY_SELECT + " ORDER BY i.id",
@@ -108,6 +112,7 @@ public final class InstanceRepository {
   static InstanceSummary summary(ResultSet rs) throws SQLException {
     return new InstanceSummary(rs.getLong("id"), rs.getString("name"), rs.getString("content_type"),
         Sql.integer(rs, "level_min"), Sql.integer(rs, "level_max"), Sql.longValue(rs, "zone_id"),
-        rs.getString("zone_name"), rs.getString("key"));
+        rs.getString("zone_name"), rs.getString("key"), rs.getString("source"), Sql.integer(rs, "tuned_min_level"),
+        rs.getString("bosses_state"), rs.getString("loot_state"));
   }
 }

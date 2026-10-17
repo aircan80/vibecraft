@@ -51,9 +51,10 @@ public final class SqliteWriter {
   private static final String SCHEMA_RESOURCE = "/dev/wowforever/importer/schema.sql";
   /**
    * The {@code schema.sql} generation, written as {@code meta.schema_version}: 1 the v0.1 tables, 2 the phase 2A
-   * client data, 3 the phase 3A quest objectives, relations, source items and UI assets. Changes are additive.
+   * client data, 3 the phase 3A quest objectives, relations, source items and UI assets, 4 the client dungeons'
+   * {@code instance} columns (3B Task 17). Changes are additive.
    */
-  public static final int SCHEMA_VERSION = 3;
+  public static final int SCHEMA_VERSION = 4;
   /** Separates the table definitions in {@code schema.sql} from the indexes created after the bulk load. */
   private static final Pattern INDEX_MARKER = Pattern.compile("^-- @indexes\\s*$", Pattern.MULTILINE);
   private static final List<String> PRAGMAS = List.of(
@@ -129,8 +130,9 @@ public final class SqliteWriter {
   /**
    * Writes the model with everything the client-data stages produced, see {@link ClientDataBundle}. Icons and
    * zone maps fill {@code icon} and {@code zone_map} and set {@code zone.ui_map_id}, UI textures fill
-   * {@code ui_asset}, crafts fill {@code craft}, {@code craft_reagent} and {@code craft_recipe_item}; with a build
-   * lock the {@code client_*} meta keys are written too.
+   * {@code ui_asset}, crafts fill {@code craft}, {@code craft_reagent} and {@code craft_recipe_item}, client dungeons
+   * follow the AtlasLoot instances in {@code instance} and {@code boss}; with a build lock the {@code client_*} meta
+   * keys are written too.
    */
   public static void write(Path out, ImportModel model, ImportReport report, ClientDataBundle client)
       throws IOException, SQLException {
@@ -179,6 +181,7 @@ public final class SqliteWriter {
       writeTooltips(c, tooltips, items);
       new AtlasWriter(c, report).write(model.instances(), model.zones()::containsKey, items::contains,
           model.dropRates(), drops, provenance);
+      new ClientInstanceWriter(c).write(client.instances());
       drops.write(c, model.dropRates(), provenance);
       provenance.write(c, report);
       writeZones(c, model.zones(), spawnZones, client.zoneMaps().zoneToMap(), report);

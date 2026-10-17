@@ -15,7 +15,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/** The schema v3 (phase 3A) tables, columns and indexes. */
+/** The schema v3 (phase 3A) tables, columns and indexes, and the v4 (3B Task 17) instance columns. */
 class SchemaTest {
 
   @Test
@@ -68,7 +68,23 @@ class SchemaTest {
 
       assertThat(column(c, "select value from meta where key = 'schema_version'"))
           .containsExactly(String.valueOf(SqliteWriter.SCHEMA_VERSION));
-      assertThat(SqliteWriter.SCHEMA_VERSION).isEqualTo(3);
+    }
+  }
+
+  @Test
+  void v4InstanceColumns(@TempDir Path tmp) throws Exception {
+    Path db = tmp.resolve("t.sqlite");
+    SqliteWriter.write(db, new ImportModel(Map.of(), new DropRates(), new LinkedHashMap<>(), List.of(),
+        new LinkedHashMap<>()));
+    try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + db)) {
+      assertThat(columns(c, "instance")).as("additive: the v3 columns stay first").containsExactly("id", "key",
+          "name", "map_id", "instance_id", "content_type", "level_min", "level_max", "zone_id", "source",
+          "client_map_id", "tuned_min_level", "bosses_state", "loot_state");
+      assertThat(column(c, "select type || ' ' || \"notnull\" || ' ' || coalesce(dflt_value, '-')"
+          + " from pragma_table_info('instance') where cid >= 9 order by cid")).containsExactly(
+          "TEXT 1 'atlasloot'", "INTEGER 0 -", "INTEGER 0 -", "TEXT 0 -", "TEXT 0 -");
+      assertThat(column(c, "select value from meta where key = 'schema_version'")).containsExactly("4");
+      assertThat(SqliteWriter.SCHEMA_VERSION).isEqualTo(4);
     }
   }
 

@@ -244,6 +244,50 @@ class ImportPipelineTest {
   }
 
   @Test
+  void theForeverDungeonsFollowTheAtlasLootInstances(@TempDir Path tmp) throws Exception {
+    ImportOptions o = new ImportOptions(tmp.resolve("out.sqlite"), tmp.resolve("cache"),
+        Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), true,
+        ImportOptions.defaultBuildIdOut(tmp.resolve("out.sqlite")), ClientDataOptions.of(Fixtures.clientDataRoot()), 75);
+    ImportReport r = ImportPipeline.run(o, QUIET);
+    try (Connection c = open(o.out())) {
+      long atlasInstances = ((Number) scalar(c, "select count(*) from instance where source = 'atlasloot'")).longValue();
+      long atlasBosses = ((Number) scalar(c, "select count(*) from boss b join instance i on i.id = b.instance_id"
+          + " where i.source = 'atlasloot'")).longValue();
+      assertThat(atlasInstances).isPositive();
+      assertThat(strings(c, "select id || ' ' || key || ' ' || name || ' ' || map_id || ' ' || client_map_id || ' '"
+          + " || content_type || ' ' || coalesce(level_min, '-') || ' ' || coalesce(level_max, '-') || ' '"
+          + " || tuned_min_level || ' ' || bosses_state || ' ' || loot_state from instance where source = 'client'"
+          + " order by id")).containsExactly(
+          (atlasInstances + 1) + " client:2959 City of Dalaran 2959 2959 DUNGEON 28 - 28 client_named none",
+          (atlasInstances + 2) + " client:2998 Excavation Site: Wetlands 2998 2998 DUNGEON 26 - 26 client_named none",
+          (atlasInstances + 3) + " client:2999 Ruins of Lordaeron 2999 2999 DUNGEON 15 - 15 client_named none",
+          (atlasInstances + 4) + " client:3065 The Hall of Thanes 3065 3065 DUNGEON 13 - 13 client_named none");
+      assertThat(strings(c, "select distinct source || ' ' || bosses_state || ' ' || loot_state || ' '"
+          + " || coalesce(client_map_id, '-') || ' ' || coalesce(tuned_min_level, '-') from instance"
+          + " where source <> 'client'")).containsExactly("atlasloot atlasloot atlasloot - -");
+      assertThat(strings(c, "select b.id || ' ' || b.sort_order || ' ' || b.name || ' ' || b.is_extra_list || ' '"
+          + " || coalesce(b.npc_id, '-') || ' ' || coalesce(b.level, '-') from boss b join instance i"
+          + " on i.id = b.instance_id where i.key = 'client:2998' order by b.sort_order")).containsExactly(
+          (atlasBosses + 10) + " 1 Saltspine 0 - -", (atlasBosses + 11) + " 2 Shadetooth 0 - -",
+          (atlasBosses + 12) + " 3 Highland Horror 0 - -", (atlasBosses + 13) + " 4 Relic Guardian 0 - -");
+      assertThat(scalar(c, "select count(*) from boss b join instance i on i.id = b.instance_id"
+          + " where i.source = 'client'")).isEqualTo(24);
+      assertThat(scalar(c, "select count(*) from boss_loot bl join boss b on b.id = bl.boss_id"
+          + " join instance i on i.id = b.instance_id where i.source = 'client'")).isEqualTo(0);
+      assertThat(strings(c, "select client_map_id || ' ' || coalesce(zone_id, '-') from instance"
+          + " where source = 'client' order by id"))
+          // the fixture's zone 16732 is named from its enum symbol, "Excavation Site Wetlands", without the colon
+          .containsExactly("2959 16544", "2998 -", "2999 16611", "3065 16919");
+      assertThat(strings(c, "select name from search_index where kind = 'instance' and name like '%Thanes'"))
+          .containsExactly("The Hall of Thanes");
+    }
+    assertThat(r.get("clientdata.instances")).isEqualTo(4);
+    assertThat(r.get("clientdata.encounters")).isEqualTo(24);
+    assertThat(r.get("clientdata.instances.unmatched")).isEqualTo(1);
+    assertThat(r.get("clientdata.instances.atlasloot")).as("Deadmines, InstanceID 36").isEqualTo(1);
+  }
+
+  @Test
   void skipClientDataStillProducesOpenableDb(@TempDir Path tmp) throws Exception {
     ImportOptions o = new ImportOptions(tmp.resolve("out.sqlite"), tmp.resolve("cache"),
         Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), true,
@@ -263,7 +307,10 @@ class ImportPipelineTest {
     }
     assertThat(r.get("clientdata.skipped")).isEqualTo(1);
     assertThat(r.counters()).doesNotContainKeys("clientdata.items.matched", "clientdata.coverage.pct",
-        "clientdata.uiAssets", "clientdata.crafts");
+        "clientdata.uiAssets", "clientdata.crafts", "clientdata.instances");
+    try (Connection c = open(o.out())) {
+      assertThat(scalar(c, "select count(*) from instance where source <> 'atlasloot'")).isEqualTo(0);
+    }
   }
 
   /** Runs the import into {@code dir}; asserts build-id.txt equals meta.build_id of the written DB. */

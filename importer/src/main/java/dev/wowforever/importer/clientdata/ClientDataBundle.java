@@ -14,6 +14,7 @@ import java.util.Map;
  * @param lock        the client build the data came from; null skips the {@code client_*} meta keys
  * @param uiAssets    client UI textures (PNG) by {@code ui_asset} name, see {@link UiAssetLoader}
  * @param crafts      crafting spells and their reagents, see {@link CraftLoader}
+ * @param instances   the client dungeons written after the AtlasLoot instances, see {@link ClientInstanceLoader}
  */
 public record ClientDataBundle(
     Map<Long, ClientItem> clientItems,
@@ -24,11 +25,19 @@ public record ClientDataBundle(
     ZoneMaps zoneMaps,
     BuildLock lock,
     Map<String, byte[]> uiAssets,
-    Crafts crafts) {
+    Crafts crafts,
+    ClientInstances instances) {
 
   /** No client data at all: writes what a Questie-only import writes. */
   public static final ClientDataBundle EMPTY = new ClientDataBundle(Map.of(), null, Map.of(), ItemTooltips.empty(),
-      Map.of(), ZoneMaps.EMPTY, null, Map.of(), Crafts.EMPTY);
+      Map.of(), ZoneMaps.EMPTY, null, Map.of(), Crafts.EMPTY, ClientInstances.EMPTY);
+
+  /** A bundle without client dungeons. */
+  public ClientDataBundle(Map<Long, ClientItem> clientItems, ItemClassNames classNames, Map<Long, ItemValues> values,
+      ItemTooltips tooltips, Map<Long, byte[]> icons, ZoneMaps zoneMaps, BuildLock lock, Map<String, byte[]> uiAssets,
+      Crafts crafts) {
+    this(clientItems, classNames, values, tooltips, icons, zoneMaps, lock, uiAssets, crafts, ClientInstances.EMPTY);
+  }
 
   /** A bundle without crafts. */
   public ClientDataBundle(Map<Long, ClientItem> clientItems, ItemClassNames classNames, Map<Long, ItemValues> values,
@@ -44,5 +53,6 @@ public record ClientDataBundle(
     zoneMaps = zoneMaps == null ? ZoneMaps.EMPTY : zoneMaps;
     uiAssets = uiAssets == null ? Map.of() : uiAssets;
     crafts = crafts == null ? Crafts.EMPTY : crafts;
+    instances = instances == null ? ClientInstances.EMPTY : instances;
   }
 }

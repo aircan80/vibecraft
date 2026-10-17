@@ -337,9 +337,13 @@ class ListPageTest {
     assertThat(p.filterBar()).isNull();
     assertThat(p.results()).isNull();
     assertThat(p.sections()).extracting(s -> s.heading().text())
-        .containsExactly("Levels 1–20 (2)", "Level unknown (1)");
+        .containsExactly("Levels 1–20 (4)", "Levels 21–40 (2)", "Level unknown (1)");
     SourceSection low = p.sections().get(0);
-    assertThat(column(low.table().table(), 0)).containsExactly("Ragefire Chasm", "The Deadmines");
+    // the client dungeons (3B Task 17) band by their tuned minimum level: Hall of Thanes 13, Ruins of Lordaeron 15
+    assertThat(column(low.table().table(), 0)).containsExactly("Ragefire Chasm", "The Deadmines",
+        "The Hall of Thanes", "Ruins of Lordaeron");
+    assertThat(column(p.sections().get(1).table().table(), 0)).containsExactly("Excavation Site: Wetlands",
+        "City of Dalaran");
     assertThat(p.header().title()).isEqualTo("Dungeons & Raids");
   }
 

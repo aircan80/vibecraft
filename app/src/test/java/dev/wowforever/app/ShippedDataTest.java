@@ -65,7 +65,8 @@ class ShippedDataTest extends ShippedDataSupport {
   void minimumCounts() {
     assertThat(count("item")).isGreaterThan(15_000);
     assertThat(count("npc")).isGreaterThan(8_000);
-    assertThat(count("instance")).isEqualTo(33);
+    assertThat(scalar("select count(*) from instance where source = 'atlasloot'")).isEqualTo(33);
+    assertThat(count("instance")).as("AtlasLoot's 33 and the client's Forever dungeons").isGreaterThanOrEqualTo(37);
     assertThat(count("item_npc_drop")).isGreaterThan(50_000);
     assertThat(count("search_index")).isGreaterThan(30_000);
   }
@@ -290,7 +291,49 @@ class ShippedDataTest extends ShippedDataSupport {
     assertThat(repos.search().search("hogger", Optional.empty(), 5)).extracting(SearchHit::ref)
         .contains(new EntityRef(NPC, 448));
     assertThat(repos.zones().detail(1581).get().summary().name()).isEqualTo("The Deadmines");
-    assertThat(repos.instances().all()).hasSize(33).extracting(InstanceSummary::name).contains("Molten Core");
+    assertThat(repos.instances().all()).filteredOn(i -> "atlasloot".equals(i.source())).hasSize(33)
+        .extracting(InstanceSummary::name).contains("Molten Core");
+  }
+
+  @Test
+  void foreverDungeonsAreShipped() {
+    // the client's own dungeons (3B Task 17): Map, LFGDungeons, ContentTuning and DungeonEncounter, no loot
+    assertThat(longs("select client_map_id from instance where source = 'client' order by client_map_id"))
+        .containsExactly(2959L, 2998L, 2999L, 3065L);
+    assertThat(rows("select i.name, i.tuned_min_level, i.level_min, i.zone_id, i.bosses_state, i.loot_state,"
+        + " i.content_type, (select count(*) from boss b where b.instance_id = i.id) from instance i"
+        + " where i.source = 'client' order by i.client_map_id"))
+        .extracting(r -> java.util.Arrays.asList(r))
+        .containsExactly(
+            List.of("City of Dalaran", 28, 28, 16544, "client_named", "none", "DUNGEON", 9),
+            List.of("Excavation Site: Wetlands", 26, 26, 16732, "client_named", "none", "DUNGEON", 4),
+            List.of("Ruins of Lordaeron", 15, 15, 16611, "client_named", "none", "DUNGEON", 7),
+            List.of("The Hall of Thanes", 13, 13, 16919, "client_named", "none", "DUNGEON", 4));
+    assertThat(scalar("select min(id) from instance where source = 'client'"))
+        .as("ids continue the AtlasLoot sequence").isEqualTo(scalar("select max(id) from instance"
+            + " where source = 'atlasloot'") + 1);
+    assertThat(scalar("select count(*) from boss_loot bl join boss b on b.id = bl.boss_id join instance i"
+        + " on i.id = b.instance_id where i.source = 'client'")).isZero();
+
+    InstanceSummary dalaran = repos.instances().all().stream().filter(i -> "client:2959".equals(i.key()))
+        .findFirst().orElseThrow();
+    assertThat(dalaran.tunedMinLevel()).isEqualTo(28);
+    assertThat(dalaran.source()).isEqualTo("client");
+    var dalaranBosses = repos.instances().detail(dalaran.id()).orElseThrow().bosses();
+    assertThat(dalaranBosses).hasSize(9);
+    assertThat(dalaranBosses.get(0).name()).isEqualTo("Arcane Anomaly");
+    assertThat(dalaranBosses.get(8).name()).isEqualTo("Mana Wraith");
+    long thanes = longs("select id from instance where key = 'client:3065'").get(0);
+    assertThat(repos.instances().detail(thanes).orElseThrow().bosses().get(0).name()).isEqualTo("Faldrim Anvilmar");
+    assertThat(repos.instances().detail(longs("select id from instance where key = 'client:2998'").get(0))
+        .orElseThrow().bosses()).extracting(b -> b.name())
+        .containsExactly("Saltspine", "Shadetooth", "Highland Horror", "Relic Guardian");
+
+    for (Object[] r : rows("select id, name from instance where source = 'client'")) {
+      assertThat(repos.search().search((String) r[1], Optional.of(EntityKind.INSTANCE), 10))
+          .as("search finds %s", r[1]).extracting(SearchHit::ref)
+          .contains(new EntityRef(EntityKind.INSTANCE, ((Number) r[0]).longValue()));
+    }
   }
 
   // --- client data (phase 2A) -------------------------------------------------------------------------------------

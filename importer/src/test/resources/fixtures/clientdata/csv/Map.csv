@@ -1,2 +1,7 @@
 ID,Directory,MapName_lang,MapDescription0_lang,MapDescription1_lang,PvpShortDescription_lang,PvpLongDescription_lang,Corpse_0,Corpse_1,MapType,InstanceType,ExpansionID,AreaTableID,LoadingScreenID,TimeOfDayOverride,ParentMapID,CosmeticParentMapID,TimeOffset,MinimapIconScale,CorpseMapID,MaxPlayers,WindSettingsID,ZmpFileDataID,WdtFileDataID,OceanLiquidTypeID,NavigationMaxDistance,PreloadFileDataID,Flags_0,Flags_1,Flags_2
 0,Azeroth,"Eastern Kingdoms",,,,,0,0,1,0,0,0,4,-1,-1,-1,0,1,-1,0,136,804940,775971,1250,0,0,159399517,135528464,2277510
+36,DeadminesInstance,Deadmines,,,,,-11207.798828125,1681.1508789062,1,1,0,0,142,-1,-1,-1,0,1,0,10,0,0,780605,2,0,0,81425,262144,49282
+2959,2959,"City of Dalaran",,,,,0,0,1,1,0,16544,647,1380,-1,0,0,1,-1,0,135,0,6982267,2,0,0,8396381,1040,119008
+2998,2998,"Excavation Site: Wetlands",,,,,0,0,1,1,0,0,691,-1,-1,-1,0,1,-1,0,136,0,7252920,2,0,0,8396381,1040,2347232
+2999,2999,"Ruins of Lordaeron",,,,,0,0,1,1,0,0,650,-1,-1,-1,0,1,-1,0,136,0,7255103,2,0,0,8396381,1040,2347232
+3065,3065,"The Hall of Thanes",,,,,0,0,1,1,0,0,693,-1,-1,-1,0,1,-1,0,136,0,7713294,2,0,0,8396381,1040,119008

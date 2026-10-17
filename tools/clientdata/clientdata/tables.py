@@ -18,6 +18,9 @@ REQUIRED_TABLES = (
     "SpellReagents", "SkillLineAbility", "SkillRaceClassInfo",
     # the client's interface file listing, read by fetch.py --ui-icons to resolve the rail icons' FileDataIDs
     "ManifestInterfaceData",
+    # dungeons (3B Task 17): the Forever dungeons are Map rows named like an LFGDungeons row, their level the
+    # ContentTuning MinLevelSquish of that row, their bosses the DungeonEncounter rows of the map
+    "LFGDungeons", "ContentTuning", "DungeonEncounter",
 )
 
 # The tables fetched from the fallback product (ruling 17 and the 2A fix wave): its ItemSparse, read only for items

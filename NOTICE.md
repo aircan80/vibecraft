@@ -11,7 +11,7 @@ Community drop rates (provenance source `vmangos`) are computed from the VMaNGOS
 
 ## Blizzard client data
 
-Item quality, stats, tooltips, icons, zone maps and the navigation rail's UI icons are derived from World of Warcraft client data (product `wow_classic_beta`, build 1.60.1.70425, with the Classic Era `ItemSparse` and `ItemEffect` of build 1.15.9.70003 as a fallback). The tables and files were exported through wago.tools; `tools/clientdata/build.lock` records the build and a SHA-256 of every table.
+Item quality, stats, tooltips, icons, zone maps and the navigation rail's UI icons are derived from World of Warcraft client data (product `wow_classic_beta`, build 1.60.1.70450, with the Classic Era `ItemSparse` and `ItemEffect` of build 1.15.9.70003 as a fallback). The tables and files were exported through wago.tools; `tools/clientdata/build.lock` records the build and a SHA-256 of every table.
 
 World of Warcraft® and Blizzard Entertainment® are trademarks or registered trademarks of Blizzard Entertainment, Inc. Icons, UI textures and map art are © Blizzard Entertainment and are included for reference; no affiliation.
 

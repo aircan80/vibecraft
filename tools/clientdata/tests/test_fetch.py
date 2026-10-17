@@ -99,12 +99,12 @@ def test_fetch_tables_skips_cached_files(server, tmp_path):
         server.routes["/db2/%s/csv?build=%s" % (t, build)] = (200, "ID,Name\n1,%s\n" % t)
     c = make_client(server)
     out = fetch.fetch_tables(c, build, tmp_path)
-    assert len(tables.REQUIRED_TABLES) == 48
+    assert len(tables.REQUIRED_TABLES) == 51
     assert set(out) == set(tables.REQUIRED_TABLES)
     assert out["Item"] == tmp_path / build / "csv" / "Item.csv"
     assert out["Item"].read_text() == "ID,Name\n1,Item\n"
     hits = server.hits
-    assert hits == 48
+    assert hits == 51
     out2 = fetch.fetch_tables(c, build, tmp_path)
     assert server.hits == hits
     assert out2 == out
@@ -113,6 +113,12 @@ def test_fetch_tables_skips_cached_files(server, tmp_path):
 def test_required_tables_include_the_crafting_tables():
     # Task 8 (3A): reagents and skill ranks of the crafting spells; SkillRaceClassInfo exists in 1.60.1.70425
     assert {"SpellReagents", "SkillLineAbility", "SkillRaceClassInfo"} <= set(tables.REQUIRED_TABLES)
+
+
+def test_required_tables_include_the_dungeon_tables():
+    # Task 17 (3B): the Forever dungeons come from Map, LFGDungeons (name and ContentTuningID), ContentTuning
+    # (MinLevelSquish) and DungeonEncounter (the bosses); they exist in 1.60.1.70425 and 1.60.1.70450
+    assert {"Map", "LFGDungeons", "ContentTuning", "DungeonEncounter"} <= set(tables.REQUIRED_TABLES)
 
 
 def test_fetch_tables_refetches_empty_file(server, tmp_path):
