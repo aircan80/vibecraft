@@ -5,6 +5,7 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.LevelBand;
 import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.QuestPin;
+import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.QuestRef;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
@@ -173,9 +174,18 @@ public final class ZoneRepository {
    * giver and point (two spawn rows of a giver at the same point are one pin), each with the giver's name and the
    * quests it starts and ends, by quest level; the pins by giver name. Item givers have no spawn point and are not
    * pinned. Reads at most {@link #PIN_CAP} giver rows (a quest of a point each), one query: each spawn table by zone
-   * ({@code idx_*_spawn_zone}) joined to {@code quest_giver} by giver ({@code idx_quest_giver_entity}).
+   * ({@code idx_*_spawn_zone}) joined to {@code quest_giver} by giver ({@code idx_quest_giver_entity}). The result
+   * says whether the zone had more rows than that.
    */
-  public List<QuestPin> questGiversInZone(long zoneId) {
+  public QuestPins questGiversInZone(long zoneId) {
+    return questGiversInZone(zoneId, PIN_CAP);
+  }
+
+  /**
+   * {@link #questGiversInZone(long)} reading at most {@code cap} giver rows: it asks for one more, so it knows
+   * whether rows were left out.
+   */
+  QuestPins questGiversInZone(long zoneId, int cap) {
     record Key(EntityRef giver, double x, double y) {}
     record Row(Key key, String giverName, QuestRef quest) {}
     List<Row> rows = db.read(c -> Sql.list(c, """
@@ -204,7 +214,11 @@ public final class ZoneRepository {
             rs.getLong("id")), rs.getDouble("x"), rs.getDouble("y")), rs.getString("giver_name"),
             new QuestRef(rs.getLong("quest_id"), rs.getString("quest_name"), Sql.integer(rs, "quest_level"),
                 "start".equals(rs.getString("role")))),
-        zoneId, zoneId, PIN_CAP));
+        zoneId, zoneId, cap + 1));
+    boolean capped = rows.size() > cap;
+    if (capped) {
+      rows = rows.subList(0, cap);
+    }
     Map<Key, String> names = new LinkedHashMap<>();
     Map<Key, Set<QuestRef>> quests = new LinkedHashMap<>();
     for (Row r : rows) {
@@ -213,7 +227,7 @@ public final class ZoneRepository {
     }
     List<QuestPin> pins = new ArrayList<>(names.size());
     names.forEach((k, name) -> pins.add(new QuestPin(k.giver(), name, k.x(), k.y(), List.copyOf(quests.get(k)))));
-    return pins;
+    return new QuestPins(pins, capped);
   }
 
   private static SpawnPin pin(ResultSet rs, EntityKind kind, Integer rank) throws SQLException {

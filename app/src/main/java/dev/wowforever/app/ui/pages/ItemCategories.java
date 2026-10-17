@@ -31,10 +31,12 @@ final class ItemCategories {
   private ItemCategories() {}
 
   /**
-   * The item classes of the generic pool many NPCs drop (recipes, trade goods, food and drink, junk). Quest items,
-   * gear and bags are never world drops, however many NPCs drop them: they are what an NPC is looked up for.
+   * The item classes of the generic pool many NPCs drop (recipes, trade goods and reagents, food and drink, junk).
+   * Quest items, gear and bags are never world drops, however many NPCs drop them: they are what an NPC is looked up
+   * for.
    */
-  static final Set<String> WORLD_POOL_CLASSES = Set.of("Recipe", "Trade Goods", "Consumable", "Miscellaneous");
+  static final Set<String> WORLD_POOL_CLASSES =
+      Set.of("Recipe", "Trade Goods", "Reagent", "Consumable", "Miscellaneous");
 
   /**
    * The NPC page group of a drop: {@link #WORLD_DROPS} for an item of a {@linkplain #WORLD_POOL_CLASSES generic-pool

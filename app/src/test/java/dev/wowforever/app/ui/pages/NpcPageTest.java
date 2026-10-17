@@ -210,11 +210,12 @@ class NpcPageTest {
         drop(2, "Rugged Leather Pants", null, "Armor", many, null), drop(3, "Linen Bag", null, "Container", many, null),
         drop(4, "Cheap Blade", null, "Weapon", many, null), drop(5, "Linen Cloth", null, "Trade Goods", many, null),
         drop(6, "Broken Fang", null, "Miscellaneous", many, null), drop(7, "Ice Cold Milk", null, "Consumable", many,
-            null), drop(8, "Pattern: Thing", null, "Recipe", many, null)), List.of(), List.of()), t -> {}, text -> {});
+            null), drop(8, "Pattern: Thing", null, "Recipe", many, null),
+        drop(9, "Simple Flour", null, "Reagent", many, null)), List.of(), List.of()), t -> {}, text -> {});
     List<Object> rows = column(p.drops().table(), 0);
     assertThat(rows).contains("Deviate Hide", "Rugged Leather Pants", "Linen Bag", "Cheap Blade")
-        .doesNotContain("Linen Cloth", "Broken Fang", "Ice Cold Milk", "Pattern: Thing");
-    assertThat(rows).last().isEqualTo("World drops (4)" + GroupedRows.COLLAPSED);
+        .doesNotContain("Linen Cloth", "Broken Fang", "Ice Cold Milk", "Pattern: Thing", "Simple Flour");
+    assertThat(rows).last().isEqualTo("World drops (5)" + GroupedRows.COLLAPSED);
   }
 
   @Test

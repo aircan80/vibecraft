@@ -7,6 +7,7 @@ import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.LevelBand;
 import dev.wowforever.app.model.QuestPin;
+import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.QuestRef;
 import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.model.SpawnPin;
@@ -162,7 +163,9 @@ class ZoneRepositoryTest {
     ZoneRepository zones = SpawnFixtureDb.repositories().zones();
     EntityRef guardian = new EntityRef(EntityKind.OBJECT, 175740);
     EntityRef thor = new EntityRef(EntityKind.NPC, 900004);
-    List<QuestPin> pins = zones.questGiversInZone(40);
+    QuestPins westfall = zones.questGiversInZone(40);
+    assertThat(westfall.capped()).isFalse();
+    List<QuestPin> pins = westfall.pins();
     // by giver name: the object's two points (its second point at 52.4, 53.1 is the same pin) and Thor's one point
     // on the map (his points at -1, -1 and 100.5, 50 are not)
     assertThat(pins).extracting(QuestPin::giver, QuestPin::giverName, QuestPin::x, QuestPin::y).containsExactly(
@@ -177,12 +180,24 @@ class ZoneRepositoryTest {
     // Sealed Orders is started by items, which have no spawn point, one of them with Thor's id (an NPC spawning here)
     assertThat(pins).flatExtracting(QuestPin::quests).extracting(QuestRef::questId).doesNotContain(900105L);
     // an NPC without a name in the plain fixture, in a zone without a map
-    assertThat(repos.zones().questGiversInZone(141)).singleElement().satisfies(p -> {
+    assertThat(repos.zones().questGiversInZone(141).pins()).singleElement().satisfies(p -> {
       assertThat(p.displayName()).isEqualTo("Unknown NPC #2155");
       assertThat(p.quests()).extracting(QuestRef::label, QuestRef::starts)
           .containsExactly(tuple("Bounty: Gnarlpine Furbolg (8)", true), tuple("Bounty: Gnarlpine Furbolg (8)", false));
     });
-    assertThat(zones.questGiversInZone(-5)).isEmpty();
+    assertThat(zones.questGiversInZone(-5).pins()).isEmpty();
+  }
+
+  @Test
+  void questGiversCutAtTheCapSaySo() {
+    ZoneRepository zones = SpawnFixtureDb.repositories().zones();
+    // Westfall's giver rows: the Last Guardian's three (two at one point) and Thor's three on the map
+    QuestPins all = zones.questGiversInZone(40, 6);
+    assertThat(all.capped()).as("exactly at the cap is not cut").isFalse();
+    assertThat(all.pins()).hasSize(3);
+    QuestPins cut = zones.questGiversInZone(40, 2);
+    assertThat(cut.capped()).isTrue();
+    assertThat(cut.pins()).extracting(QuestPin::giverName).containsOnly("The Last Guardian");
   }
 
   @Test

@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.pages;
 
 import dev.wowforever.app.db.ZoneRepository;
 import dev.wowforever.app.model.QuestPin;
+import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Async;
@@ -56,8 +57,8 @@ public final class ZoneMapPanel extends JPanel {
     /** The object spawn points in the zone. */
     List<SpawnPin> objects(long zoneId);
 
-    /** The spawn points of the zone's quest givers, with their quests. */
-    List<QuestPin> questPins(long zoneId);
+    /** The spawn points of the zone's quest givers, with their quests, and whether the query was cut. */
+    QuestPins questPins(long zoneId);
 
     /** The spawn queries of {@code zones}. */
     static PinSource of(ZoneRepository zones) {
@@ -73,7 +74,7 @@ public final class ZoneMapPanel extends JPanel {
         }
 
         @Override
-        public List<QuestPin> questPins(long zoneId) {
+        public QuestPins questPins(long zoneId) {
           return zones.questGiversInZone(zoneId);
         }
       };
@@ -82,9 +83,9 @@ public final class ZoneMapPanel extends JPanel {
 
   /**
    * What one pin load brought: the pins of every NPC, of the objects and of the quest givers, each null when not
-   * asked for.
+   * asked for, and whether the quest givers' query was cut at its cap.
    */
-  private record LoadedPins(List<Pin> npcs, List<Pin> objects, List<Pin> quests) {}
+  private record LoadedPins(List<Pin> npcs, List<Pin> objects, List<Pin> quests, boolean questsCapped) {}
 
   /** The pins a toggle loads: every NPC, the objects, the quest givers. */
   private enum PinLoad { NPCS, OBJECTS, QUESTS }
@@ -108,6 +109,8 @@ public final class ZoneMapPanel extends JPanel {
   private List<Pin> allNpcPins;
   private List<Pin> objectPins;
   private List<Pin> questPins;
+  /** Whether the quest givers' query was cut at {@link ZoneRepository#PIN_CAP} rows. */
+  private boolean questPinsCapped;
   /** The pin kinds a load in flight is bringing; never asked for again meanwhile. */
   private final EnumSet<PinLoad> loading = EnumSet.noneOf(PinLoad.class);
   /** While a failed load puts its toggles back: their changes load nothing. */
@@ -231,9 +234,7 @@ public final class ZoneMapPanel extends JPanel {
     }
     loading.addAll(load);
     status.message(LOADING);
-    Async.run(worker, () -> new LoadedPins(needNpcs ? pins(pinSource.npcs(zoneId, false)) : null,
-        needObjects ? pins(pinSource.objects(zoneId)) : null,
-        needQuests ? questPins(pinSource.questPins(zoneId)) : null), loaded -> {
+    Async.run(worker, () -> load(needNpcs, needObjects, needQuests), loaded -> {
           loading.removeAll(load);
           if (loaded.npcs() != null) {
             allNpcPins = loaded.npcs();
@@ -243,6 +244,7 @@ public final class ZoneMapPanel extends JPanel {
           }
           if (loaded.quests() != null) {
             questPins = loaded.quests();
+            questPinsCapped = loaded.questsCapped();
           }
           showPins();
           if (loading.isEmpty()) {
@@ -273,6 +275,15 @@ public final class ZoneMapPanel extends JPanel {
         });
   }
 
+  /** Reads the pins asked for (on the worker): every NPC, then the objects, then the quest givers. */
+  private LoadedPins load(boolean npcs, boolean objects, boolean quests) {
+    List<Pin> everyNpc = npcs ? pins(pinSource.npcs(zoneId, false)) : null;
+    List<Pin> objectSpawns = objects ? pins(pinSource.objects(zoneId)) : null;
+    QuestPins givers = quests ? pinSource.questPins(zoneId) : null;
+    return new LoadedPins(everyNpc, objectSpawns, givers == null ? null : questPins(givers.pins()),
+        givers != null && givers.capped());
+  }
+
   /**
    * The NPC pins (every NPC once loaded, else the bosses and rares; the map hides the plain NPCs unless "All NPCs"
    * is on), with "Objects" on and loaded the object pins, and with "Quests" on and loaded the quest givers' pins.
@@ -288,14 +299,17 @@ public final class ZoneMapPanel extends JPanel {
     mapView.setPins(shown);
     mapView.setFilter(!allNpcsToggle.isSelected());
     boolean capped = capped(allNpcPins) || (objectsToggle.isSelected() && capped(objectPins))
-        || (questsToggle.isSelected() && capped(questPins));
+        || (questsToggle.isSelected() && questPins != null && questPinsCapped);
     if (capNote.isVisible() != capped) {
       capNote.setVisible(capped);
       revalidate();
     }
   }
 
-  /** Whether {@code pins} is a spawn query cut at {@link ZoneRepository#PIN_CAP}. */
+  /**
+   * Whether {@code pins} is a spawn query cut at {@link ZoneRepository#PIN_CAP}: one pin a row, so a full list was
+   * cut. (Quest givers group rows into pins, so their query says so itself.)
+   */
   private static boolean capped(List<Pin> pins) {
     return pins != null && pins.size() >= ZoneRepository.PIN_CAP;
   }

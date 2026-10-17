@@ -19,7 +19,7 @@ import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LevelBand;
 import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.ObjectSummary;
-import dev.wowforever.app.model.QuestPin;
+import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
@@ -136,7 +136,7 @@ class ZonePageTest {
   }
 
   /** A pin source over the fixture with Westfall spawns that records each call. */
-  private static final class FakePins implements ZoneMapPanel.PinSource {
+  private static class FakePins implements ZoneMapPanel.PinSource {
     final ZoneRepository zones = SpawnFixtureDb.repositories().zones();
     final List<String> calls = new ArrayList<>();
 
@@ -153,7 +153,7 @@ class ZonePageTest {
     }
 
     @Override
-    public List<QuestPin> questPins(long zoneId) {
+    public QuestPins questPins(long zoneId) {
       calls.add("quests " + zoneId);
       return zones.questGiversInZone(zoneId);
     }
@@ -324,7 +324,7 @@ class ZonePageTest {
     }
 
     @Override
-    public List<QuestPin> questPins(long zoneId) {
+    public QuestPins questPins(long zoneId) {
       throw new IllegalStateException("no quests");
     }
   }
@@ -419,8 +419,8 @@ class ZonePageTest {
       }
 
       @Override
-      public List<QuestPin> questPins(long zoneId) {
-        return List.of();
+      public QuestPins questPins(long zoneId) {
+        return QuestPins.none();
       }
     };
     var panel = new ZoneMapPanel(40, westfallMap, spawnZones.npcSpawnsInZone(40, true), many, Runnable::run, status,
@@ -431,6 +431,40 @@ class ZonePageTest {
     panel.allNpcsToggle().doClick();
     assertThat(panel.capNote().isVisible()).isTrue();
     assertThat(panel.capNote().getText()).isEqualTo("Showing the first 20,000 points of a kind: the zone has more.");
+  }
+
+  @Test
+  void questGiversCutAtTheCapSaySoWhileQuestsShow() {
+    // far fewer pins than rows: a giver's quests are one pin, so only the query knows it was cut
+    QuestPins cut = new QuestPins(spawnZones.questGiversInZone(40).pins(), true);
+    var pins = new FakePins() {
+      @Override
+      public QuestPins questPins(long zoneId) {
+        calls.add("quests " + zoneId);
+        return cut;
+      }
+    };
+    var panel = new ZoneMapPanel(40, westfallMap, spawnZones.npcSpawnsInZone(40, true), pins, Runnable::run, status,
+        t -> {});
+    assertThat(panel.capNote().isVisible()).isFalse();
+    panel.questsToggle().doClick();
+    assertThat(panel.mapView().pins()).filteredOn(pin -> pin.kind().quest()).hasSize(3);
+    assertThat(panel.capNote().isVisible()).isTrue();
+    panel.questsToggle().doClick();
+    assertThat(panel.capNote().isVisible()).as("the quest givers no longer show").isFalse();
+    panel.questsToggle().doClick();
+    assertThat(panel.capNote().isVisible()).isTrue();
+    assertThat(pins.calls).as("loaded once").containsExactly("quests 40");
+  }
+
+  @Test
+  void questGiversNotCutShowNoNote() {
+    var pins = new FakePins();
+    var panel = new ZoneMapPanel(40, westfallMap, spawnZones.npcSpawnsInZone(40, true), pins, Runnable::run, status,
+        t -> {});
+    panel.questsToggle().doClick();
+    assertThat(panel.mapView().pins()).filteredOn(pin -> pin.kind().quest()).hasSize(3);
+    assertThat(panel.capNote().isVisible()).isFalse();
   }
 
   @Test

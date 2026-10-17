@@ -26,6 +26,12 @@ class ItemCategoriesTest {
   }
 
   @Test
+  void theWorldPoolIsTheGenericDropClassesIncludingReagents() {
+    assertThat(ItemCategories.WORLD_POOL_CLASSES)
+        .containsExactlyInAnyOrder("Recipe", "Trade Goods", "Reagent", "Consumable", "Miscellaneous");
+  }
+
+  @Test
   void groupsAreShownInAFixedOrder() {
     assertThat(ItemCategories.ORDER)
         .containsExactly("Gear", "Recipes", "Quest items", "Trade goods", "Consumables", "Junk", "Other");
