@@ -27,7 +27,9 @@ bundled database merely because the new tooling supports them.
 
 Open data gates remain Task 19's AtlasLoot Forever archive/hotfix regeneration and Task 20b's collector import and
 real observation acceptance. Do not tag v0.3.0 or claim the data refresh shipped. BUG-CSB-001 records the missing
-Cozy Sleeping Bag chain relationships; a later authorized audit confirmed omissions in the selected Forever source. SoD records and a Forever community walkthrough support a candidate route; exact Forever eligibility remains unverified.
+Cozy Sleeping Bag chain relationships. The audit confirmed the selected QuestieDB Forever input omits them;
+the newly authorized AllTheThings native Forever source explicitly supplies them. Integration and actual app-data
+acceptance remain pending; see the source contract below and BUG-CSB-001 for exact evidence.
 
 Public progress dashboard: https://wow-forever-progress.happystoat6.chatgpt.site . Its separate source checkout is
 `../dashboard`; publish updates through Sites. Completed work identifies Claude or Codex accurately.
@@ -36,11 +38,42 @@ The app can be launched independently of the tool session with a user systemd un
 `.local/running` first). Never overwrite the running jar while Maven rebuilds. The owner has repeatedly requested
 that it remain available for review while development continues.
 
+### AllTheThings source contract (Codex, 2026-10-17)
+
+The owner explicitly authorized AllTheThings as another source. Pin
+`a8c2fce5e8e52af3925352f5e61cbf7520ae3148` in `ATTWoWAddon/AllTheThings`; retain its
+[MIT license](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/LICENSE).
+The acquisition manifest retains all 239 files beneath `.contrib/.db/forever/`, plus LICENSE,
+shared `Shortcuts.lua` and runtime `src/Classes/Quests.lua`: 242 artifacts, 12,371,472 bytes at this pin.
+The [Forever configuration](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever/.config/forever.config)
+uses the native Forever root, `DataPhase=FOREVER`, patch `[1,60,1,69893]` and explicit Forever/Camelot
+preprocessor tags. This is a separate flavor, not imported SoD or Era prerequisite data.
+
+The static parser never executes Lua. It retains quest metadata and issues, promotes representable explicit
+prerequisites only, and withholds unknown fields, dynamic keys, unsupported timelines, inherited conditions,
+unsupported referenced quests, and arbitrary k-of-n requirements. `sourceQuests` defaults to all eligible
+references; `sourceQuestNumRequired`/`sqreq` specifies a threshold. Only verified opposite-faction opening
+rows establish the Sleeping Bag alternatives. [Runtime semantics](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/src/Classes/Quests.lua#L1678)
+and exact native quest URLs are recorded in BUG-CSB-001. The pinned parser smoke found 2,599 static quest rows,
+259 eligible link claims and 2,145 coverage/condition issues, including all six Sleeping Bag edges. These are
+parser counts, not counts of selected changes in the final app database. Its 16 regressions passed; combined
+importer/data/UI acceptance is pending and the bug is not yet closed.
+
+Projection fills missing prerequisite groups without overwriting or unioning conflicting Questie groups.
+Each accepted claim needs authored evidence status, exact snapshot/path/line and configured revision; local
+input must remain hash-qualified rather than presented as byte-identical upstream content. Replay uses the
+archived manifest, not whichever manifest a newer importer currently ships. Original bytes and unsupported
+inputs remain in source tables. A legacy-app overlay must first archive the existing **derived database**;
+it preserves earlier item/client/map data but does not recreate or claim to archive the original Questie,
+AtlasLoot, Blizzard-client or VMaNGOS inputs. Baseline metadata links are references, distinct from archived
+originals, and must not be inferred from unrelated later build metadata. Task 19 data and Task 20b remain open.
+
 ## 1. What this project is
 
 A desktop research tool for World of Warcraft: Forever (Blizzard's Classic-era-based release, in
 beta as product `wow_classic_beta`, live on 4 November 2026). Java 21, Swing + FlatLaf, one shipped
-SQLite database built at build time from addon databases (QuestieDB, AtlasLootClassic), Blizzard
+SQLite database built at build time from addon databases (QuestieDB, AtlasLootClassic; AllTheThings integration
+is in progress as described above), Blizzard
 client tables (fetched from wago.tools), the Classic Era item table as a fallback, the VMaNGOS world
 database (community drop rates) and, since Task 19, the Raidbots mirror of the client's hotfix cache
 (revealed hidden items). It runs on Windows, macOS and Linux, uses no network at runtime, never

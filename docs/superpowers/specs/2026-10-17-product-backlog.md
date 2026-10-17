@@ -44,51 +44,41 @@ shipped DB; small text ≥ 4.5:1 in both themes; no unexplained new unsupported/
 
 ## 3. Quality fixes in flight (2B Task 14, not backlog features)
 Each one is a v0.3.0 ship blocker if Task 14 leaves it open.
-- **BUG-CSB-001 — Cozy Sleeping Bag quest chain missing (needs Forever prerequisite verification; source audit 2026-10-17).**
-  The shipped database contains item 211527 and reward quest 79976, "This Must Be The Place", but no
-  `quest_relation` rows for its related quests. A fresh import of the pinned sources also has no links:
-  this is missing relationship evidence in the selected Forever source, rather than a confirmed importer
-  mapping or chain-rendering defect. No production relationships or database contents were changed.
 
-  **Primary evidence:** QuestieDB pin `49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4` has entries for
-  79007/79008 (the faction-specific opening quests), 79192 (Stepping Stones), 79980 (Scramble),
-  79974 (Wet Job), 79975 (Eagle's Fist), and 79976 (This Must Be The Place) in its
-  [Forever generated quest corrections](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Forever/generated/foreverBaseQuest.lua#L341).
-  Neither those entries nor their [Forever trace corrections](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Forever/traces/foreverQuestTraces.lua#L215)
-  record prerequisites/next/parent/breadcrumb relationships. The selected raw quest data and later Forever
-  corrections add none. `QuestRelationWriter` already imports the explicit prerequisite fields.
+- **BUG-CSB-001 — Cozy Sleeping Bag quest chain missing (native Forever authored evidence found; integration acceptance pending, 2026-10-17).**
+  The shipped database has Cozy Sleeping Bag item 211527 and reward quest 79976, but its selected QuestieDB
+  Forever input omits the chain relationships. A fresh QuestieDB import reproduced the gap; no importer
+  mapping or renderer loss was established. QuestieDB's SoD records and community walkthroughs initially
+  supplied a candidate route; those sources alone were not promoted to Forever prerequisite facts.
 
-  The same pin's **Season of Discovery** corrections explicitly record the candidate sequence
-  `(79007 OR 79008) → 79192 → 79980 → 79974 → 79975 → 79976` through `preQuestSingle`:
-  [opening alternatives](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Sod/sodQuestFixes.lua#L749),
-  [later steps](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Sod/sodQuestFixes.lua#L1038).
-  Forever's [object starter/finisher records](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Forever/generated/foreverBaseObject.lua#L64)
-  corroborate the handoff locations, including object 406918 ending 79975 and starting 79976;
-  sharing a starter/finisher does not prove a prerequisite. SoD eligibility must not be silently promoted
-  to Forever eligibility. The source comments' `assumptions/sleeping_bag.toml` is absent from the pinned
-  repository tree and cannot serve as independently inspectable evidence.
+  **New primary source:** the owner authorized adding AllTheThings. Its dedicated Forever dataset at commit
+  `a8c2fce5e8e52af3925352f5e61cbf7520ae3148` explicitly supplies the six directed prerequisite edges below.
+  These are authored Forever rules, not inferred names, adjacent IDs, shared giver objects or a SoD import.
 
-  A bounded check of newer upstream commit `e9a67d1a2753a0e64c4c96bf7864788fac7b765f`
-  found the same omissions in the [Forever generated quests](https://github.com/Questie/QuestieDB/blob/e9a67d1a2753a0e64c4c96bf7864788fac7b765f/src/corrections/Forever/generated/foreverBaseQuest.lua#L525)
-  and no replacement entries in its manual Forever quest corrections. This check does not advance our pin
-  or establish applicability to every Forever client build. Community walkthroughs are corroboration,
-  not the sole evidence for a hardcoded prerequisite.
+  | Quest | Explicit prerequisite evidence |
+  |---|---|
+  | 79192 — Stepping Stones | [The Barrens, line 2075](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever/zones/kalimdor/the%20barrens.lua#L2075): `sourceQuests = {79008, 79007}`; the opening rows are explicitly Alliance-only and Horde-only respectively. |
+  | 79980 — Scramble | [Stonetalon Mountains, line 20](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever/zones/kalimdor/stonetalon%20mountains.lua#L20): `sourceQuest = 79192`. |
+  | 79974 — Wet Job | [Stonetalon Mountains, line 51](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever/zones/kalimdor/stonetalon%20mountains.lua#L51): `sourceQuest = 79980`. |
+  | 79975 — Eagle's Fist | [Loch Modan, line 378](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever/zones/eastern%20kingdoms/loch%20modan.lua#L378): `sourceQuest = 79974`. |
+  | 79976 — This Must Be The Place | [Arathi Highlands, line 728](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever/zones/eastern%20kingdoms/arathi%20highlands.lua#L728): `sourceQuest = 79975`, with reward item 211527. |
 
-  **Additional Forever-specific community evidence (checked 2026-10-17):**
-  [RampageWow's Mobalytics guide, updated 2026-10-09](https://mobalytics.gg/wow-forever/profile/rampagewow-1zhvs5/quests/how-to-get-the-cozy-sleeping-bag-in-wow-forever)
-  describes the faction-specific opening locations and the later handoffs, including completing Eagle's Fist
-  before accepting This Must Be The Place. It includes screenshots and a linked video. This supports an
-  attributed **reported route**, separately from a verified prerequisite rule. Warcraft Tavern also indexes a
-  [Forever walkthrough](https://www.warcrafttavern.com/forever/guides/cozy-sleeping-bag), but direct retrieval was
-  blocked during this check; do not claim independently inspected details from that page. An eventual reported
-  chain must retain its source and evidence status visibly rather than upgrading it to authoritative eligibility.
+  Opening definitions: [79008, Alliance-only](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever/zones/eastern%20kingdoms/westfall.lua#L64)
+  and [79007, Horde-only](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever/zones/kalimdor/the%20barrens.lua#L118).
+  The rows carry `TIMELINE.ADDED_1_60_1`. The native [Forever build configuration](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever/.config/forever.config)
+  selects `DataPhase = FOREVER`, the dedicated Forever root and patch `[1,60,1,69893]`.
+  The array is not blanket OR: [ATT's runtime prerequisite logic](https://github.com/ATTWoWAddon/AllTheThings/blob/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/src/Classes/Quests.lua#L1678)
+  defaults to all eligible source quests, honors a required-count threshold, and filters character-inapplicable
+  references. The opening rows' explicit opposite faction restrictions establish the two alternative starts.
+  This is authored dataset evidence, not direct server verification for every later client build.
 
-  **Next acceptance:** obtain direct Forever quest-availability observations or a reviewed, attributable
-  upstream Forever correction confirming the candidate relationships and faction alternatives. Preserve
-  that evidence as a versioned source input; rebuild app tables through projection, without modifying
-  archived originals or silently inferring links from names, IDs, or shared objects. Then add importer,
-  shipped-data and connected-chain rendering regressions. Until that evidence exists, the bug remains
-  open and the candidate SoD chain is research evidence, not a production correction.
+  **Acceptance still pending:** integrate the source archive and conservative projection, then verify the actual
+  app database and connected chain in the app, including both faction starts. Retain snapshot, source path,
+  line, revision, evidence status and local-input qualification for each selected relationship. Unsupported
+  conditions remain inspectable and unpromoted; conflicting prerequisite groups must never be unioned.
+  The independently reviewed parser and its 16 regressions are complete; root combined verification, actual
+  data projection and UI acceptance are not asserted complete by this entry. Keep the bug open until those
+  checks pass. Task 19 data refresh and Task 20b remain independent open release gates.
 - Zone level bands read "1–60" for Elwynn and Westfall; zone header repeats "Zone #12 · Zone".
 - AtlasLoot ordinals shown as "Slot" and "Trash · slot 24" instead of the equip slot.
 - The world-drop pool is buried in Hogger's drops; recipes and trade goods show item level instead of required skill.

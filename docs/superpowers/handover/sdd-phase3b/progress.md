@@ -112,7 +112,9 @@ and a running app for review. This supersedes the historical Windows stop instru
 - Task 19 data and 20b remain open; no release tag/main merge. AtlasLoot Forever ZIP and real collector evidence
   are not present on Linux. Current shipped DB stays unchanged pending the agreed data refresh/review.
 - BUG-CSB-001: Cozy Sleeping Bag reward quest 79976 and preceding quests exist but have no recorded relationships.
-  User subsequently authorized the audit: selected Forever source omissions confirmed, candidate SoD prerequisites require Forever verification. No guessed chain links were added.
+  The audit confirmed selected QuestieDB Forever omissions. The owner then authorized AllTheThings; its native
+  Forever data explicitly supplies the six chain edges. Actual integration/data/UI acceptance is pending; no
+  SoD relationships were inferred or silently promoted.
 - New owner-approved architecture: one database with immutable versioned source archives, generic CSV/Lua/JSON source
   records and extraction coverage, separate offline projection, retained history, source URLs and main-app
   dataset provenance. Full source-record explorer UI deferred; detailed fact lineage and native-format adapters
@@ -126,4 +128,29 @@ projection execution history and inputs. Real-source offline smoke preserved the
 added schema/build/validation metadata for execution 2 and marked that exact execution active. The shipped
 Windows database remains unchanged and correctly displays legacy metadata without claiming archived originals.
 Dashboard cleanup published with roadmap, measured code/test lines, snapshot-aware test and visual evidence,
-and Claude/Codex attribution. Sleeping Bag community evidence now recorded as reported route evidence only.
+and Claude/Codex attribution. At that checkpoint, Sleeping Bag community evidence was recorded as reported
+route evidence only; the subsequent native AllTheThings finding is recorded below.
+
+
+## AllTheThings native Forever source (Codex, integration acceptance pending)
+
+Owner authorization: add AllTheThings as a source. Parser commits `eb5ff2a` and `bdf1375` pin
+`ATTWoWAddon/AllTheThings@a8c2fce5e8e52af3925352f5e61cbf7520ae3148`, retain the complete native
+Forever input inventory and MIT notice, and statically read safe explicit quest relationships.
+All 242 input artifacts were acquired for a read-only smoke: 2,599 quest rows, 259 eligible link claims,
+2,145 explicitly reported conditions/coverage issues. The 16 parser regressions and parser-worktree full
+verification passed. These counts do not claim root integration or final data acceptance.
+
+BUG-CSB-001 now has authored **Forever** evidence for `(79007 OR 79008) → 79192 → 79980 → 79974 → 79975 → 79976`,
+including native `sourceQuest`/`sourceQuests`, opposite-faction opening rows and `ADDED_1_60_1` timeline entries.
+See the backlog for exact pinned primary-source URLs and runtime cardinality/faction-filter semantics.
+The SoD/community candidate is superseded by this direct dataset evidence, without claiming server verification
+for every build. Root combined tests, actual database projection and connected-chain UI acceptance remain pending;
+keep the bug open until recorded acceptance passes.
+
+Unknown/dynamic fields and inherited or referenced eligibility conditions stay archived and unpromoted.
+Prerequisite groups are accepted whole; existing conflicting groups are preserved rather than unioned.
+Relationship evidence must retain exact source snapshot/path/line and archived revision, with local inputs
+clearly distinguished. A legacy-app overlay archives the prior derived SQLite database and keeps its item,
+client and map data; its old upstream originals must not be falsely described as archived source datasets.
+Task 19 data refresh and Task 20b collector acceptance remain open independent release gates.
