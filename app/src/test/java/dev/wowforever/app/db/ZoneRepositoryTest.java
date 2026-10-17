@@ -1,7 +1,11 @@
 package dev.wowforever.app.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
 import dev.wowforever.app.model.ZoneSummary;
@@ -64,5 +68,47 @@ class ZoneRepositoryTest {
     assertThat(repos.zones().map(2437)).isEmpty();
     assertThat(repos.zones().detail(2437).get().map()).isEmpty();
     assertThat(repos.zones().map(-1)).isEmpty();
+  }
+
+  @Test
+  void npcSpawnsInZoneJoinNamesAndRanksAndSkipPointsWithoutCoordinates() {
+    List<SpawnPin> elwynn = repos.zones().npcSpawnsInZone(12, false);
+    assertThat(elwynn).filteredOn(p -> p.ref().id() == 448).hasSize(5)
+        .allSatisfy(p -> {
+          assertThat(p.ref().kind()).isEqualTo(EntityKind.NPC);
+          assertThat(p.name()).isEqualTo("Hogger");
+          assertThat(p.rank()).isEqualTo(1);
+        })
+        .first().satisfies(p -> {
+          assertThat(p.x()).isEqualTo(25.02);
+          assertThat(p.y()).isEqualTo(92.9);
+        });
+    // Hogger is an elite, not a boss or a rare
+    assertThat(repos.zones().npcSpawnsInZone(12, true)).isEmpty();
+    // instance spawn points (-1, -1) are not on any map
+    assertThat(repos.zones().npcSpawnsInZone(1581, false)).isEmpty();
+    assertThat(repos.zones().npcSpawnsInZone(-5, false)).isEmpty();
+  }
+
+  @Test
+  void bossesAndRaresOnlyKeepsRanksBossRareEliteAndRare() {
+    ZoneRepository zones = SpawnFixtureDb.repositories().zones();
+    assertThat(zones.npcSpawnsInZone(40, true)).extracting(SpawnPin::name, SpawnPin::rank)
+        .containsExactlyInAnyOrder(tuple("Foe Reaper 4000", 2), tuple("Vultros", 4), tuple("Test Boss", 3));
+    assertThat(zones.npcSpawnsInZone(40, false)).extracting(SpawnPin::name)
+        .containsExactlyInAnyOrder("Foe Reaper 4000", "Vultros", "Test Boss", "Thor");
+  }
+
+  @Test
+  void objectSpawnsInZoneJoinNames() {
+    List<SpawnPin> elwynn = repos.zones().objectSpawnsInZone(12);
+    assertThat(elwynn).allSatisfy(p -> {
+      assertThat(p.ref().kind()).isEqualTo(EntityKind.OBJECT);
+      assertThat(p.rank()).isNull();
+    });
+    assertThat(elwynn).filteredOn(p -> p.ref().equals(new EntityRef(EntityKind.OBJECT, 2843))).hasSize(7)
+        .allSatisfy(p -> assertThat(p.name()).isEqualTo("Battered Chest"));
+    assertThat(elwynn).extracting(SpawnPin::name).contains("Storage Chest", "Library Book");
+    assertThat(repos.zones().objectSpawnsInZone(-5)).isEmpty();
   }
 }

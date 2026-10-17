@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui.pages;
 
 import static dev.wowforever.app.model.EntityKind.ITEM;
+import static dev.wowforever.app.model.EntityKind.OBJECT;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static dev.wowforever.app.ui.pages.Tables.column;
 import static dev.wowforever.app.ui.pages.Tables.columnNames;
@@ -13,7 +14,11 @@ import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.ObjectSummary;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.widgets.Images;
+import dev.wowforever.app.ui.widgets.MapView.Pin;
+import dev.wowforever.app.ui.widgets.MapView.PinKind;
 import dev.wowforever.app.ui.widgets.SourceSection;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -55,5 +60,15 @@ class ObjectPageTest {
     assertThat(columnNames(p.section("Ends quests").table().table()))
         .containsExactly("Name", "Level", "Required level", "Zone");
     assertThat(p.spawns()).isNull();
+  }
+
+  @Test
+  void spawnsOnMap() {
+    BufferedImage elwynn = Images.decode(repos.zones().map(12).orElseThrow().jpeg()).orElseThrow();
+    var p = new ObjectPage(repos.objects().detail(386759).get(), 12L, elwynn, t -> {}, text -> {});
+    assertThat(p.spawnMap().pins()).singleElement()
+        .isEqualTo(new Pin(new EntityRef(OBJECT, 386759), "Library Book", 65.4, 70.1, PinKind.SELF));
+    assertThat(javax.swing.SwingUtilities.isDescendingFrom(p.spawnMap(), p.section("Spawns"))).isTrue();
+    assertThat(new ObjectPage(repos.objects().detail(386759).get(), t -> {}, text -> {}).spawnMap()).isNull();
   }
 }

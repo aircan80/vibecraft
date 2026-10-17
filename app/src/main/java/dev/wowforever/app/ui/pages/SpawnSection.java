@@ -1,13 +1,16 @@
 package dev.wowforever.app.ui.pages;
 
+import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
+import dev.wowforever.app.ui.widgets.MapView;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
+import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
@@ -19,14 +22,25 @@ import javax.swing.JPanel;
  * The Spawns section of the NPC and object pages: each spawn point's zone and coordinates ({@code "42.3, 67.4"};
  * the Zone column is left out when every point is in the page's zone), and a "Copy /way" button that copies a
  * TomTom waypoint command for the selected point (the first when none is selected). Ctrl+Shift+C on a point
- * copies the same command.
+ * copies the same command. With the decoded map of a spawn zone, the map shows above the table with the
+ * entity's spawn points in that zone pinned as its own ({@link MapView.PinKind#SELF}).
  */
 final class SpawnSection {
   private final SourceSection section;
   private final LinkTable<Spawn> table;
   private final JButton copy = new JButton("Copy /way");
+  private final MapView map;
 
   SpawnSection(List<Spawn> spawns, String pageZone, Navigator nav, ClipboardPort clipboard) {
+    this(spawns, pageZone, null, null, null, null, nav, clipboard);
+  }
+
+  /**
+   * The section of the spawn points of {@code self} (named {@code selfName}), with {@code map}, the map of zone
+   * {@code mapZoneId}, above the table; no map when {@code map} is null or none of the points lies in that zone.
+   */
+  SpawnSection(List<Spawn> spawns, String pageZone, EntityRef self, String selfName, Long mapZoneId,
+      BufferedImage map, Navigator nav, ClipboardPort clipboard) {
     table = LinkTable.inline(VisibleColumns.of(Columns.spawns(), spawns, pageZone), nav);
     table.setRows(spawns);
     table.setClipboard(clipboard);
@@ -46,6 +60,17 @@ final class SpawnSection {
     buttons.setBorder(BorderFactory.createEmptyBorder(6, 0, 0, 0));
     buttons.add(copy);
     section.add(buttons, BorderLayout.SOUTH);
+    List<MapView.Pin> pins = map == null || mapZoneId == null ? List.of() : spawns.stream()
+        .filter(s -> s.zoneId() == mapZoneId && Columns.hasCoordinates(s))
+        .map(s -> new MapView.Pin(self, self.displayName(selfName), s.x(), s.y(), MapView.PinKind.SELF))
+        .toList();
+    if (pins.isEmpty()) {
+      this.map = null;
+    } else {
+      this.map = new MapView(map, nav);
+      this.map.setPins(pins);
+      section.addAboveTable(this.map);
+    }
   }
 
   /** {@code "/way Westfall 42.3 67.4"}; without the zone when its name is unknown. */
@@ -78,5 +103,10 @@ final class SpawnSection {
 
   JButton copyButton() {
     return copy;
+  }
+
+  /** The map above the table; null without one. */
+  MapView map() {
+    return map;
   }
 }

@@ -1,5 +1,8 @@
 package dev.wowforever.app.db;
 
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
 import dev.wowforever.app.model.ZoneSummary;
@@ -37,6 +40,13 @@ public final class ZoneRepository {
   private static final String SUMMARY_SELECT = """
       SELECT z.id, z.name, z.kind, z.parent_id, p.name AS parent_name
       FROM zone z LEFT JOIN zone p ON p.id = z.parent_id""";
+
+  /** Maximum spawn points of each spawn query. */
+  public static final int PIN_CAP = 20_000;
+  /** Keeps spawn points ({@code s}) on the map: instance placeholders (-1, -1) and missing coordinates drop out. */
+  private static final String ON_MAP = """
+
+        AND s.x BETWEEN 0 AND 100 AND s.y BETWEEN 0 AND 100""";
 
   private final Database db;
 
@@ -81,6 +91,40 @@ public final class ZoneRepository {
   /** The map of zone {@code zoneId} (the zone_map of its UiMap), or empty when it has none. */
   public Optional<ZoneMap> map(long zoneId) {
     return db.read(c -> map(c, zoneId));
+  }
+
+  /**
+   * The NPC spawn points in zone {@code zoneId} that lie on its map (coordinates 0 to 100), each with the NPC's name
+   * and rank, in import order and at most {@link #PIN_CAP}; with {@code bossesAndRaresOnly} only those of bosses,
+   * rare elites and rares (ranks 3, 2 and 4).
+   */
+  public List<SpawnPin> npcSpawnsInZone(long zoneId, boolean bossesAndRaresOnly) {
+    return db.read(c -> Sql.list(c, """
+        SELECT s.npc_id AS id, n.name, n.rank, s.x, s.y
+        FROM npc_spawn s LEFT JOIN npc n ON n.id = s.npc_id
+        WHERE s.zone_id = ?""" + ON_MAP + """
+          AND (? = 0 OR n.rank IN (2, 3, 4))
+        ORDER BY s.rowid LIMIT ?""",
+        rs -> pin(rs, EntityKind.NPC, Sql.integer(rs, "rank")), zoneId, bossesAndRaresOnly ? 1 : 0, PIN_CAP));
+  }
+
+  /**
+   * The object spawn points in zone {@code zoneId} that lie on its map, each with the object's name, in import order
+   * and at most {@link #PIN_CAP}.
+   */
+  public List<SpawnPin> objectSpawnsInZone(long zoneId) {
+    return db.read(c -> Sql.list(c, """
+        SELECT s.object_id AS id, o.name, s.x, s.y
+        FROM object_spawn s LEFT JOIN game_object o ON o.id = s.object_id
+        WHERE s.zone_id = ?""" + ON_MAP + """
+
+        ORDER BY s.rowid LIMIT ?""",
+        rs -> pin(rs, EntityKind.OBJECT, null), zoneId, PIN_CAP));
+  }
+
+  private static SpawnPin pin(ResultSet rs, EntityKind kind, Integer rank) throws SQLException {
+    return new SpawnPin(new EntityRef(kind, rs.getLong("id")), rs.getString("name"), rank, rs.getDouble("x"),
+        rs.getDouble("y"));
   }
 
   private static Optional<ZoneMap> map(Connection c, long zoneId) throws SQLException {

@@ -11,6 +11,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
+import dev.wowforever.app.db.SpawnFixtureDb;
+import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.ui.pages.InstancePage;
@@ -126,6 +128,8 @@ class DetailPanelsTest {
     assertThat(loaded).isInstanceOfSatisfying(DetailPanels.LoadedZone.class, page -> {
       assertThat(page.map()).as("decoded in load, off the EDT").isNotNull();
       assertThat(page.map().getWidth()).isEqualTo(1002);
+      // the fixture has no boss or rare spawning in Westfall
+      assertThat(page.pins()).isEmpty();
     });
     assertThat(DetailPanels.render(loaded, repos, t -> {})).isInstanceOf(ZonePage.class);
   }
@@ -134,6 +138,7 @@ class DetailPanelsTest {
   void aZoneWithoutAMapLoadsWithoutOne() {
     Object loaded = DetailPanels.load(new EntityRef(ZONE, 2437), repos).orElseThrow();
     assertThat(((DetailPanels.LoadedZone) loaded).map()).isNull();
+    assertThat(((DetailPanels.LoadedZone) loaded).pins()).isEmpty();
     assertThat(DetailPanels.render(loaded, repos, t -> {})).isInstanceOf(ZonePage.class);
   }
 
@@ -158,5 +163,43 @@ class DetailPanelsTest {
   void buildFallsBackToNotFound() {
     JComponent c = DetailPanels.build(new EntityRef(NPC, -7), repos, t -> {});
     assertThat(c).isInstanceOfSatisfying(JLabel.class, l -> assertThat(l.getText()).isEqualTo("Not found: NPC #-7"));
+  }
+
+  @Test
+  void aZoneLoadsItsBossAndRarePinsWithItsMap() {
+    Repositories spawns = SpawnFixtureDb.repositories();
+    var loaded = (DetailPanels.LoadedZone) DetailPanels.load(new EntityRef(ZONE, 40), spawns).orElseThrow();
+    assertThat(loaded.pins()).extracting(SpawnPin::name)
+        .containsExactlyInAnyOrder("Foe Reaper 4000", "Vultros", "Test Boss");
+    assertThat(DetailPanels.render(loaded, spawns, t -> {}))
+        .isInstanceOfSatisfying(ZonePage.class, p -> assertThat(p.mapView().pins()).hasSize(3));
+  }
+
+  @Test
+  void anNpcLoadsTheMapOfItsFirstSpawnZone() {
+    Object loaded = DetailPanels.load(new EntityRef(NPC, 448), repos).orElseThrow();
+    assertThat(loaded).isInstanceOfSatisfying(DetailPanels.LoadedNpc.class, page -> {
+      assertThat(page.detail().summary().name()).isEqualTo("Hogger");
+      assertThat(page.mapZoneId()).isEqualTo(12L);
+      assertThat(page.map()).as("decoded in load, off the EDT").isNotNull();
+      assertThat(page.map().getWidth()).isEqualTo(1002);
+    });
+    assertThat(DetailPanels.render(loaded, repos, t -> {}))
+        .isInstanceOfSatisfying(NpcPage.class, p -> assertThat(p.spawnMap().pins()).hasSize(5));
+    assertThat(DetailPanels.name(loaded)).isEqualTo("Hogger");
+    // Edwin VanCleef spawns only inside his instance (no coordinates): no map
+    var vanCleef = (DetailPanels.LoadedNpc) DetailPanels.load(new EntityRef(NPC, 639), repos).orElseThrow();
+    assertThat(vanCleef.mapZoneId()).isNull();
+    assertThat(vanCleef.map()).isNull();
+    assertThat(((NpcPage) DetailPanels.render(vanCleef, repos, t -> {})).spawnMap()).isNull();
+  }
+
+  @Test
+  void anObjectLoadsTheMapOfItsFirstSpawnZone() {
+    var loaded = (DetailPanels.LoadedObject) DetailPanels.load(new EntityRef(OBJECT, 386759), repos).orElseThrow();
+    assertThat(loaded.mapZoneId()).isEqualTo(12L);
+    assertThat(loaded.map()).isNotNull();
+    assertThat(((ObjectPage) DetailPanels.render(loaded, repos, t -> {})).spawnMap().pins()).hasSize(1);
+    assertThat(DetailPanels.name(loaded)).isEqualTo("Library Book");
   }
 }

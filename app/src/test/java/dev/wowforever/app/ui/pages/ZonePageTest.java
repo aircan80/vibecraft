@@ -1,24 +1,42 @@
 package dev.wowforever.app.ui.pages;
 
 import static dev.wowforever.app.model.EntityKind.INSTANCE;
+import static dev.wowforever.app.model.EntityKind.NPC;
+import static dev.wowforever.app.model.EntityKind.OBJECT;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static dev.wowforever.app.ui.pages.Tables.column;
 import static dev.wowforever.app.ui.pages.Tables.columnNames;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
+import dev.wowforever.app.db.SpawnFixtureDb;
+import dev.wowforever.app.db.ZoneRepository;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.ObjectSummary;
 import dev.wowforever.app.model.QuestSummary;
+import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneSummary;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.detail.CompactColumns;
+import dev.wowforever.app.ui.widgets.Images;
+import dev.wowforever.app.ui.widgets.MapView;
+import dev.wowforever.app.ui.widgets.MapView.Pin;
+import dev.wowforever.app.ui.widgets.MapView.PinKind;
 import dev.wowforever.app.ui.widgets.SourceSection;
+import java.awt.Component;
+import java.awt.event.MouseEvent;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executor;
 import javax.swing.JButton;
+import javax.swing.JMenuItem;
+import javax.swing.JPanel;
+import javax.swing.JToggleButton;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -76,15 +94,133 @@ class ZonePageTest {
   }
 
   @Test
-  void headerLinksTheParentZoneAndAMapAreaIsReserved() {
+  void headerLinksTheParentZoneAndAZoneWithoutAMapHasNoMapArea() {
     List<ViewTarget> opened = new ArrayList<>();
     var p = new ZonePage(repos.zones().detail(1581).get(), opened::add);
     assertThat(p.header().title()).isEqualTo("The Deadmines");
     assertThat(p.header().subtitle()).isEqualTo("Zone #1581 · Dungeon · Level 21 · Westfall");
     p.header().links().get(0).doClick();
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(ZONE, 40)));
-    assertThat(p.mapPlaceholder().getPreferredSize().height).isPositive();
-    assertThat(p.mapPlaceholder().getComponentCount()).isZero();
+    assertThat(p.mapView()).isNull();
+    assertThat(p.mapArea()).isNull();
+    assertThat(p.bossesToggle()).isNull();
+  }
+
+  /** A pin source over the fixture with Westfall spawns that records each call. */
+  private static final class FakePins implements ZonePage.PinSource {
+    final ZoneRepository zones = SpawnFixtureDb.repositories().zones();
+    final List<String> calls = new ArrayList<>();
+
+    @Override
+    public List<SpawnPin> npcs(long zoneId, boolean bossesAndRaresOnly) {
+      calls.add("npcs " + zoneId + " " + bossesAndRaresOnly);
+      return zones.npcSpawnsInZone(zoneId, bossesAndRaresOnly);
+    }
+
+    @Override
+    public List<SpawnPin> objects(long zoneId) {
+      calls.add("objects " + zoneId);
+      return List.of(new SpawnPin(new EntityRef(OBJECT, 7), "Chest", null, 40, 40));
+    }
+  }
+
+  private final ZoneRepository spawnZones = SpawnFixtureDb.repositories().zones();
+  private final ZoneDetail westfall = spawnZones.detail(40).orElseThrow();
+  private final BufferedImage westfallMap = Images.decode(westfall.map().orElseThrow().jpeg()).orElseThrow();
+
+  private ZonePage westfallPage(FakePins pins, Executor worker, List<ViewTarget> opened) {
+    return new ZonePage(westfall, westfallMap, spawnZones.npcSpawnsInZone(40, true), pins, worker, opened::add);
+  }
+
+  @Test
+  void mapShownWithPins() {
+    var pins = new FakePins();
+    List<ViewTarget> opened = new ArrayList<>();
+    var p = westfallPage(pins, Runnable::run, opened);
+    MapView map = p.mapView();
+    assertThat(map.image()).isSameAs(westfallMap);
+    // the map replaces the reserved area: below the header and link rows, above the sections
+    List<Component> top = List.of(p.mapArea().getParent().getComponents());
+    assertThat(top.indexOf(p.mapArea())).isGreaterThan(top.indexOf(p.header()))
+        .isLessThan(top.indexOf(p.sections().get(0)));
+    // by default the bosses and rares, loaded with the page
+    assertThat(map.pins()).extracting(Pin::name, Pin::kind).containsExactlyInAnyOrder(
+        tuple("Foe Reaper 4000", PinKind.RARE), tuple("Vultros", PinKind.RARE), tuple("Test Boss", PinKind.BOSS));
+    assertThat(map.pins()).filteredOn(pin -> pin.name().equals("Vultros")).singleElement()
+        .satisfies(pin -> assertThat(pin.x()).isEqualTo(61.2));
+    assertThat(map.bossesAndRaresOnly()).isTrue();
+    assertThat(List.of(p.bossesToggle(), p.allNpcsToggle(), p.objectsToggle())).extracting(JToggleButton::getText)
+        .containsExactly("Bosses & rares", "All NPCs", "Objects");
+    assertThat(p.bossesToggle().isSelected()).isTrue();
+    assertThat(pins.calls).isEmpty();
+
+    p.allNpcsToggle().doClick();
+    assertThat(pins.calls).containsExactly("npcs 40 false");
+    assertThat(p.bossesToggle().isSelected()).isFalse();
+    assertThat(map.bossesAndRaresOnly()).isFalse();
+    assertThat(map.visiblePins()).extracting(Pin::name)
+        .containsExactlyInAnyOrder("Foe Reaper 4000", "Vultros", "Test Boss", "Thor");
+
+    p.bossesToggle().doClick(); // filters the NPCs already loaded
+    assertThat(map.visiblePins()).extracting(Pin::name).doesNotContain("Thor").hasSize(3);
+    assertThat(pins.calls).hasSize(1);
+
+    p.objectsToggle().doClick();
+    assertThat(pins.calls).containsExactly("npcs 40 false", "objects 40");
+    assertThat(map.visiblePins()).extracting(Pin::name, Pin::kind).contains(tuple("Chest", PinKind.OBJECT));
+    p.objectsToggle().doClick();
+    assertThat(map.visiblePins()).extracting(Pin::kind).doesNotContain(PinKind.OBJECT);
+    p.objectsToggle().doClick();
+    assertThat(pins.calls).as("loaded once").hasSize(2);
+
+    // a click on a pin opens its NPC: Vultros is drawn at 61.2 %, 65.9 % of the map
+    map.setSize(1002, 668);
+    map.dispatchEvent(new MouseEvent(map, MouseEvent.MOUSE_CLICKED, 0L, 0, 613, 440, 1, false, MouseEvent.BUTTON1));
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 900002)));
+  }
+
+  @Test
+  void togglesLoadOnTheWorkerAndDropStaleResults() {
+    var pins = new FakePins();
+    List<Runnable> queued = new ArrayList<>();
+    var p = westfallPage(pins, queued::add, new ArrayList<>());
+    p.allNpcsToggle().doClick();
+    p.objectsToggle().doClick();
+    assertThat(pins.calls).as("nothing runs on the calling thread").isEmpty();
+    assertThat(queued).hasSize(2);
+    assertThat(p.mapView().pins()).hasSize(3);
+    queued.get(0).run(); // superseded by the second load: dropped
+    assertThat(p.mapView().pins()).hasSize(3);
+    queued.get(1).run(); // loads both what the first would have and the objects
+    assertThat(pins.calls).containsExactly("npcs 40 false", "npcs 40 false", "objects 40");
+    assertThat(p.mapView().visiblePins()).extracting(Pin::name).contains("Thor", "Chest");
+  }
+
+  @Test
+  void theCompactWindowCollapsesTheTogglesIntoAPinsMenu() {
+    var pins = new FakePins();
+    var p = westfallPage(pins, Runnable::run, new ArrayList<>());
+    assertThat(p.bossesToggle().getParent().isVisible()).isTrue();
+    assertThat(p.pinsMenuButton().isVisible()).isFalse();
+    JPanel compact = new JPanel();
+    compact.putClientProperty(CompactColumns.KEY, Boolean.TRUE);
+    compact.add(p);
+    assertThat(p.mapView()).isNotNull();
+    assertThat(p.bossesToggle().getParent().isVisible()).isFalse();
+    assertThat(p.pinsMenuButton().isVisible()).isTrue();
+    assertThat(p.pinsMenuButton().getText()).isEqualTo("Pins \u25BE");
+    assertThat(p.pinsMenu().getComponents()).extracting(c -> ((JMenuItem) c).getText())
+        .containsExactly("Bosses & rares", "All NPCs", "Objects");
+    ((JMenuItem) p.pinsMenu().getComponent(1)).doClick();
+    assertThat(p.allNpcsToggle().isSelected()).isTrue();
+    assertThat(((JMenuItem) p.pinsMenu().getComponent(0)).isSelected()).isFalse();
+    assertThat(pins.calls).containsExactly("npcs 40 false");
+    ((JMenuItem) p.pinsMenu().getComponent(2)).doClick();
+    assertThat(p.objectsToggle().isSelected()).isTrue();
+    assertThat(p.mapView().visiblePins()).extracting(Pin::name).contains("Thor", "Chest");
+    compact.remove(p);
+    assertThat(p.bossesToggle().getParent().isVisible()).isTrue();
+    assertThat(p.pinsMenuButton().isVisible()).isFalse();
   }
 
   @Test

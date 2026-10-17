@@ -9,14 +9,17 @@ import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
+import dev.wowforever.app.ui.widgets.MapView;
 import dev.wowforever.app.ui.widgets.RankChip;
 import dev.wowforever.app.ui.widgets.SourceSection;
+import java.awt.image.BufferedImage;
 
 /**
  * The NPC page, one scrolling page: the header (name and title, a rank chip, levels and a zone link), then the
  * sections Drops, Sells, Starts quests, Ends quests and Spawns (those without rows are left out). Drops are
  * grouped by {@link ItemCategories} under heading rows, each group ranked by rate with unknown rates last.
- * Columns that say nothing for any row are left out ({@link VisibleColumns}).
+ * Columns that say nothing for any row are left out ({@link VisibleColumns}). Given the decoded map of a spawn
+ * zone, the Spawns section shows it above its table with the NPC's spawn points there.
  */
 public final class NpcPage extends SourcesPage {
   private final HeaderPanel header;
@@ -25,6 +28,11 @@ public final class NpcPage extends SourcesPage {
   private final SpawnSection spawns;
 
   public NpcPage(NpcDetail d, Navigator nav, ClipboardPort clipboard) {
+    this(d, null, null, nav, clipboard);
+  }
+
+  /** The page with {@code map}, the decoded map of zone {@code mapZoneId} (both null: none), in its Spawns section. */
+  public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Navigator nav, ClipboardPort clipboard) {
     super(nav);
     NpcSummary s = d.summary();
     header = zoneHeader(title(s), Labels.join("NPC #" + s.id(), Labels.levels(s.minLevel(), s.maxLevel())),
@@ -47,7 +55,7 @@ public final class NpcPage extends SourcesPage {
     if (d.spawns().isEmpty()) {
       spawns = null;
     } else {
-      spawns = new SpawnSection(d.spawns(), s.zoneName(), nav, clipboard);
+      spawns = new SpawnSection(d.spawns(), s.zoneName(), s.ref(), s.name(), mapZoneId, map, nav, clipboard);
       addSection(spawns.section());
     }
     bindJumpKeys();
@@ -70,6 +78,11 @@ public final class NpcPage extends SourcesPage {
   /** The grouped drop table; null when the NPC drops nothing. */
   public LinkTable<GroupedRows.Row<LootRow>> drops() {
     return drops;
+  }
+
+  /** The map of the Spawns section; null without one. */
+  public MapView spawnMap() {
+    return spawns == null ? null : spawns.map();
   }
 
   /** The spawns section; null when the NPC has no spawn points. */

@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui.pages;
 
 import static dev.wowforever.app.model.EntityKind.ITEM;
+import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static dev.wowforever.app.ui.pages.Tables.column;
 import static dev.wowforever.app.ui.pages.Tables.columnNames;
@@ -16,11 +17,17 @@ import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.widgets.Images;
 import dev.wowforever.app.ui.widgets.Keys;
+import dev.wowforever.app.ui.widgets.MapView;
+import dev.wowforever.app.ui.widgets.MapView.Pin;
+import dev.wowforever.app.ui.widgets.MapView.PinKind;
 import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RankChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import dev.wowforever.app.ui.widgets.SourceSection;
+import java.awt.BorderLayout;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JTable;
@@ -203,5 +210,47 @@ class NpcPageTest {
     var p = new NpcPage(vanCleef(), opened::add, text -> {});
     p.drops().activateRow(1);
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(ITEM, 5191)));
+  }
+
+  @Test
+  void spawnsOnMap() {
+    NpcDetail hogger = repos.npcs().detail(448).get();
+    BufferedImage elwynn = Images.decode(repos.zones().map(12).orElseThrow().jpeg()).orElseThrow();
+    List<ViewTarget> opened = new ArrayList<>();
+    var p = new NpcPage(hogger, 12L, elwynn, opened::add, text -> {});
+    MapView map = p.spawnMap();
+    assertThat(map.image()).isSameAs(elwynn);
+    assertThat(map.pins()).hasSize(5).allSatisfy(pin -> {
+      assertThat(pin.kind()).isEqualTo(PinKind.SELF);
+      assertThat(pin.ref()).isEqualTo(new EntityRef(NPC, 448));
+      assertThat(pin.name()).isEqualTo("Hogger");
+    });
+    assertThat(map.pins().get(0)).extracting(Pin::x, Pin::y).containsExactly(25.02, 92.9);
+    // inside the Spawns section, above the spawn table
+    SpawnSection spawns = p.spawns();
+    assertThat(map.getParent()).isSameAs(spawns.table().getParent());
+    assertThat(((BorderLayout) map.getParent().getLayout()).getConstraints(map)).isEqualTo(BorderLayout.NORTH);
+    assertThat(javax.swing.SwingUtilities.isDescendingFrom(map, p.section("Spawns"))).isTrue();
+    assertThat(column(spawns.table().table(), 0)).hasSize(5);
+    // the page's own pins open nothing
+    map.setSize(1002, 668);
+    var at = map.projection().toComponent(25.02, 92.9);
+    map.dispatchEvent(new java.awt.event.MouseEvent(map, java.awt.event.MouseEvent.MOUSE_CLICKED, 0L, 0,
+        (int) at.x, (int) at.y, 1, false, java.awt.event.MouseEvent.BUTTON1));
+    assertThat(opened).isEmpty();
+  }
+
+  @Test
+  void onlyTheSpawnsInTheMappedZoneArePinnedAndWithoutAMapTheTableStandsAlone() {
+    BufferedImage elwynn = Images.decode(repos.zones().map(12).orElseThrow().jpeg()).orElseThrow();
+    var d = npc(HOGGER, List.of(), List.of(), List.of(new Spawn(12, "Elwynn Forest", 10, 20),
+        new Spawn(40, "Westfall", 30, 40), new Spawn(12, "Elwynn Forest", -1, -1), new Spawn(12, "Elwynn Forest", 50, 60)));
+    var p = new NpcPage(d, 12L, elwynn, t -> {}, text -> {});
+    assertThat(p.spawnMap().pins()).extracting(Pin::x).containsExactly(10.0, 50.0);
+    var plain = new NpcPage(d, t -> {}, text -> {});
+    assertThat(plain.spawnMap()).isNull();
+    assertThat(plain.spawns().table().getParent()).isSameAs(plain.section("Spawns"));
+    var noSpawns = new NpcPage(npc(HOGGER, List.of(), List.of(), List.of()), 12L, elwynn, t -> {}, text -> {});
+    assertThat(noSpawns.spawnMap()).isNull();
   }
 }

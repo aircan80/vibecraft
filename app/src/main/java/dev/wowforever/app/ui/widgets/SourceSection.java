@@ -9,6 +9,7 @@ import java.awt.Font;
 import java.util.Locale;
 import java.util.Objects;
 import javax.swing.BorderFactory;
+import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 
@@ -42,6 +43,16 @@ public final class SourceSection extends JPanel {
     setAlignmentX(LEFT_ALIGNMENT);
     add(heading, BorderLayout.NORTH);
     add(table, BorderLayout.CENTER);
+  }
+
+  /** Puts {@code lead} (say, a map) between the heading and the table, as wide as the table, 6 px above it. */
+  public void addAboveTable(JComponent lead) {
+    JPanel body = new JPanel(new BorderLayout(0, 6));
+    body.setOpaque(false);
+    remove(table);
+    body.add(lead, BorderLayout.NORTH);
+    body.add(table, BorderLayout.CENTER);
+    add(body, BorderLayout.CENTER);
   }
 
   /** Shows {@code count} in the heading, for a section whose table was given new rows. */

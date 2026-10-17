@@ -1,0 +1,473 @@
+package dev.wowforever.app.ui.widgets;
+
+import com.formdev.flatlaf.util.UIScale;
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.SpawnPin;
+import dev.wowforever.app.nav.Navigator;
+import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.theme.Theme;
+import java.awt.BasicStroke;
+import java.awt.Color;
+import java.awt.Cursor;
+import java.awt.Dimension;
+import java.awt.Font;
+import java.awt.FontMetrics;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
+import java.awt.geom.Ellipse2D;
+import java.awt.geom.Point2D;
+import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import javax.swing.JComponent;
+import javax.swing.JMenuItem;
+import javax.swing.JPopupMenu;
+import javax.swing.ToolTipManager;
+
+/**
+ * A zone map, already decoded (off the EDT, by {@code DetailPanels.load}), scaled to the component's width keeping
+ * its aspect ratio and never enlarged beyond its own size, with spawn pins on it. A pin sits at its map percentages
+ * of the drawn image ({@link Projection}). Pins within {@value #CLUSTER_PX} px of each other are drawn as one marker
+ * with a count badge, in the colour of its most important member ({@link PinKind} order). Hovering a marker tells
+ * its name (and count) in a tooltip; clicking it opens its entity, or, for a marker of several entities, a menu of
+ * them. The page's own pins ({@link PinKind#SELF}) open nothing. Hit testing uses the painting maths.
+ */
+public final class MapView extends JComponent {
+  /** Pins closer than this (logical px, inclusive) share one marker. */
+  public static final int CLUSTER_PX = 8;
+  /** A pointer this close (logical px, inclusive) to a marker's centre is on it. */
+  public static final int HIT_PX = 8;
+  /** Most entries in a marker's menu or tooltip. */
+  static final int LIST_CAP = 25;
+  private static final int RADIUS = 4;
+  private static final int SELF_RADIUS = 6;
+  private static final int BOSS_RADIUS = 5;
+  private static final Color OUTLINE = new Color(0x0C0E12);
+  private static final Color SILVER = new Color(0xC9CED6);
+  private static final Color HOVER = new Color(0xFFFFFF);
+
+  /** What a pin stands for, most important first: a marker of several pins takes the first kind among them. */
+  public enum PinKind { SELF, BOSS, RARE, OBJECT, NPC }
+
+  /** A pin: the entity it opens, the name its tooltip tells and its place as map percentages (0 to 100). */
+  public record Pin(EntityRef ref, String name, double x, double y, PinKind kind) {
+    public Pin {
+      Objects.requireNonNull(ref, "ref");
+      Objects.requireNonNull(name, "name");
+      Objects.requireNonNull(kind, "kind");
+    }
+
+    /**
+     * The pin of a spawn point: {@link PinKind#SELF} when it is the page's own entity ({@code self}), else
+     * {@link PinKind#OBJECT} for an object, {@link PinKind#BOSS} for rank 3, {@link PinKind#RARE} for ranks 2 and 4
+     * (rare elite, rare) and {@link PinKind#NPC} otherwise.
+     */
+    public static Pin of(SpawnPin p, boolean self) {
+      PinKind kind;
+      if (self) {
+        kind = PinKind.SELF;
+      } else if (p.ref().kind() == EntityKind.OBJECT) {
+        kind = PinKind.OBJECT;
+      } else if (p.rank() != null && p.rank() == 3) {
+        kind = PinKind.BOSS;
+      } else if (p.rank() != null && (p.rank() == 2 || p.rank() == 4)) {
+        kind = PinKind.RARE;
+      } else {
+        kind = PinKind.NPC;
+      }
+      return new Pin(p.ref(), p.displayName(), p.x(), p.y(), kind);
+    }
+  }
+
+  /**
+   * Where an image {@code imageWidth} x {@code imageHeight} is drawn in a component {@code componentWidth} wide: from
+   * the top left corner, as wide as the component but never wider than the image, keeping the aspect ratio.
+   */
+  public record Projection(int imageWidth, int imageHeight, int componentWidth) {
+    public int drawnWidth() {
+      return Math.max(0, Math.min(componentWidth, imageWidth));
+    }
+
+    public int drawnHeight() {
+      if (imageWidth <= 0) {
+        return 0;
+      }
+      return (int) Math.round((double) drawnWidth() * imageHeight / imageWidth);
+    }
+
+    /** The component point of map percentages {@code x}, {@code y}. */
+    public Point2D.Double toComponent(double x, double y) {
+      return new Point2D.Double(x / 100 * drawnWidth(), y / 100 * drawnHeight());
+    }
+  }
+
+  /** One marker: its pins (the most important first) and where it is drawn (at its first pin). */
+  public record Cluster(List<Pin> pins, Point2D.Double position) {
+    public Cluster {
+      pins = List.copyOf(pins);
+    }
+
+    public int count() {
+      return pins.size();
+    }
+
+    public PinKind kind() {
+      return pins.get(0).kind();
+    }
+
+    /** Each entity among the pins once, in pin order, with its number of pins. */
+    public Map<Pin, Integer> entities() {
+      Map<EntityRef, Pin> first = new LinkedHashMap<>();
+      Map<EntityRef, Integer> counts = new HashMap<>();
+      for (Pin p : pins) {
+        first.putIfAbsent(p.ref(), p);
+        counts.merge(p.ref(), 1, Integer::sum);
+      }
+      Map<Pin, Integer> out = new LinkedHashMap<>();
+      first.forEach((ref, p) -> out.put(p, counts.get(ref)));
+      return out;
+    }
+  }
+
+  private final BufferedImage image;
+  private final Navigator nav;
+  private List<Pin> pins = List.of();
+  private boolean bossesAndRaresOnly;
+  private List<Cluster> clusters;
+  private int clustersWidth = -1;
+  private Cluster hovered;
+
+  public MapView(BufferedImage image, Navigator nav) {
+    this.image = Objects.requireNonNull(image, "image");
+    this.nav = Objects.requireNonNull(nav, "nav");
+    setMinimumSize(new Dimension(0, 0)); // the map shrinks with the detail area rather than holding it open
+    ToolTipManager.sharedInstance().registerComponent(this);
+    addComponentListener(new ComponentAdapter() {
+      @Override
+      public void componentResized(ComponentEvent e) {
+        if (getHeight() != heightFor(getWidth())) {
+          revalidate(); // the preferred height follows the width
+        }
+      }
+    });
+    MouseAdapter mouse = new MouseAdapter() {
+      @Override
+      public void mouseMoved(MouseEvent e) {
+        setHovered(clusterAt(e.getX(), e.getY()));
+      }
+
+      @Override
+      public void mouseExited(MouseEvent e) {
+        setHovered(null);
+      }
+
+      @Override
+      public void mouseClicked(MouseEvent e) {
+        Cluster c = clusterAt(e.getX(), e.getY());
+        if (c != null && e.getButton() == MouseEvent.BUTTON1) {
+          activate(c);
+        }
+      }
+    };
+    addMouseListener(mouse);
+    addMouseMotionListener(mouse);
+  }
+
+  public BufferedImage image() {
+    return image;
+  }
+
+  /** Shows {@code pins} in place of the current ones. */
+  public void setPins(List<Pin> pins) {
+    this.pins = List.copyOf(pins);
+    invalidateClusters();
+  }
+
+  public List<Pin> pins() {
+    return pins;
+  }
+
+  /** With {@code bossesAndRaresOnly}, plain NPC pins ({@link PinKind#NPC}) are hidden; the others always show. */
+  public void setFilter(boolean bossesAndRaresOnly) {
+    if (this.bossesAndRaresOnly != bossesAndRaresOnly) {
+      this.bossesAndRaresOnly = bossesAndRaresOnly;
+      invalidateClusters();
+    }
+  }
+
+  public boolean bossesAndRaresOnly() {
+    return bossesAndRaresOnly;
+  }
+
+  /** The pins the filter lets through, in order. */
+  public List<Pin> visiblePins() {
+    return bossesAndRaresOnly ? pins.stream().filter(p -> p.kind() != PinKind.NPC).toList() : pins;
+  }
+
+  /** The height the map is drawn at in a component {@code width} pixels wide. */
+  public int heightFor(int width) {
+    return new Projection(image.getWidth(), image.getHeight(), width).drawnHeight();
+  }
+
+  /** Where the map is drawn at the current width. */
+  public Projection projection() {
+    return new Projection(image.getWidth(), image.getHeight(), getWidth());
+  }
+
+  /** The markers at the current width, the most important first. */
+  public List<Cluster> clusters() {
+    if (clusters == null || clustersWidth != getWidth()) {
+      clusters = cluster(visiblePins(), projection(), UIScale.scale(CLUSTER_PX));
+      clustersWidth = getWidth();
+    }
+    return clusters;
+  }
+
+  /**
+   * {@code pins} drawn by {@code projection} as markers: taking the pins the most important first ({@link PinKind}
+   * order, else in order), each joins the first marker within {@code threshold} px of it, else starts a marker of
+   * its own there.
+   */
+  public static List<Cluster> cluster(List<Pin> pins, Projection projection, double threshold) {
+    List<Pin> ordered = pins.stream().sorted(Comparator.comparing(Pin::kind)).toList();
+    List<Point2D.Double> anchors = new ArrayList<>();
+    List<List<Pin>> members = new ArrayList<>();
+    Map<Long, List<Integer>> grid = new HashMap<>(); // cell -> marker indexes, cells threshold px wide
+    double cell = Math.max(threshold, 1);
+    for (Pin p : ordered) {
+      Point2D.Double at = projection.toComponent(p.x(), p.y());
+      long cx = (long) Math.floor(at.x / cell);
+      long cy = (long) Math.floor(at.y / cell);
+      int found = -1;
+      for (long dx = -1; dx <= 1; dx++) {
+        for (long dy = -1; dy <= 1; dy++) {
+          for (int i : grid.getOrDefault(key(cx + dx, cy + dy), List.of())) {
+            if ((found < 0 || i < found) && anchors.get(i).distance(at) <= threshold) {
+              found = i;
+            }
+          }
+        }
+      }
+      if (found >= 0) {
+        members.get(found).add(p);
+      } else {
+        anchors.add(at);
+        members.add(new ArrayList<>(List.of(p)));
+        grid.computeIfAbsent(key(cx, cy), k -> new ArrayList<>()).add(anchors.size() - 1);
+      }
+    }
+    List<Cluster> out = new ArrayList<>(anchors.size());
+    for (int i = 0; i < anchors.size(); i++) {
+      out.add(new Cluster(members.get(i), anchors.get(i)));
+    }
+    return out;
+  }
+
+  private static long key(long cx, long cy) {
+    return (cx << 32) ^ (cy & 0xFFFFFFFFL);
+  }
+
+  /** The marker nearest to component point {@code x}, {@code y} within {@value #HIT_PX} px; null when none is. */
+  public Cluster clusterAt(int x, int y) {
+    Point2D.Double at = new Point2D.Double(x, y);
+    double limit = UIScale.scale(HIT_PX);
+    Cluster best = null;
+    double bestDistance = Double.MAX_VALUE;
+    for (Cluster c : clusters()) {
+      double d = c.position().distance(at);
+      if (d <= limit && d < bestDistance) {
+        best = c;
+        bestDistance = d;
+      }
+    }
+    return best;
+  }
+
+  /** The marker under the pointer; null when there is none. */
+  public Cluster hovered() {
+    return hovered;
+  }
+
+  /**
+   * {@code "Hogger"}, {@code "Hogger (5)"} for five pins of one entity, or for several entities a list headed
+   * {@code "<n> pins"}; null away from the markers.
+   */
+  @Override
+  public String getToolTipText(MouseEvent e) {
+    Cluster c = clusterAt(e.getX(), e.getY());
+    if (c == null) {
+      return null;
+    }
+    Map<Pin, Integer> entities = c.entities();
+    if (entities.size() == 1) {
+      return entryText(c.pins().get(0), c.count());
+    }
+    StringBuilder html = new StringBuilder("<html>").append(c.count()).append(" pins");
+    int shown = 0;
+    for (Map.Entry<Pin, Integer> e2 : entities.entrySet()) {
+      if (shown++ == LIST_CAP) {
+        html.append("<br>…");
+        break;
+      }
+      html.append("<br>").append(escape(entryText(e2.getKey(), e2.getValue())));
+    }
+    return html.append("</html>").toString();
+  }
+
+  /** The menu a marker of several entities opens: one entry per entity, opening it. */
+  public JPopupMenu menuFor(Cluster c) {
+    JPopupMenu menu = new JPopupMenu();
+    int shown = 0;
+    for (Map.Entry<Pin, Integer> e : c.entities().entrySet()) {
+      if (shown++ == LIST_CAP) {
+        JMenuItem more = new JMenuItem("…");
+        more.setEnabled(false);
+        menu.add(more);
+        break;
+      }
+      Pin p = e.getKey();
+      JMenuItem item = new JMenuItem(entryText(p, e.getValue()));
+      if (p.kind() == PinKind.SELF) {
+        item.setEnabled(false);
+      } else {
+        item.addActionListener(a -> nav.open(new ViewTarget.Entity(p.ref())));
+      }
+      menu.add(item);
+    }
+    return menu;
+  }
+
+  private static String entryText(Pin p, int count) {
+    return count > 1 ? p.name() + " (" + count + ")" : p.name();
+  }
+
+  private static String escape(String s) {
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+  }
+
+  /** Opens the marker's entity, or shows the menu of a marker of several (when the map is on screen). */
+  private void activate(Cluster c) {
+    Map<Pin, Integer> entities = c.entities();
+    if (entities.size() == 1) {
+      Pin p = c.pins().get(0);
+      if (p.kind() != PinKind.SELF) {
+        nav.open(new ViewTarget.Entity(p.ref()));
+      }
+    } else if (isShowing()) {
+      menuFor(c).show(this, (int) c.position().x, (int) c.position().y);
+    }
+  }
+
+  private void setHovered(Cluster c) {
+    if (c != hovered) {
+      hovered = c;
+      boolean opens = c != null && (c.entities().size() > 1 || c.kind() != PinKind.SELF);
+      setCursor(opens ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : null);
+      repaint();
+    }
+  }
+
+  private void invalidateClusters() {
+    clusters = null;
+    hovered = null;
+    repaint();
+  }
+
+  @Override
+  public Dimension getPreferredSize() {
+    if (isPreferredSizeSet()) {
+      return super.getPreferredSize();
+    }
+    int width = getWidth() > 0 ? getWidth() : image.getWidth();
+    return new Dimension(width, heightFor(width));
+  }
+
+  @Override
+  protected void paintComponent(Graphics g) {
+    if (getWidth() <= 0) {
+      return;
+    }
+    Graphics2D g2 = (Graphics2D) g.create();
+    try {
+      Projection p = projection();
+      g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+      g2.drawImage(image, 0, 0, p.drawnWidth(), p.drawnHeight(), null);
+      g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+      g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+      List<Cluster> all = clusters();
+      for (int i = all.size() - 1; i >= 0; i--) { // the most important on top
+        paintCluster(g2, all.get(i));
+      }
+    } finally {
+      g2.dispose();
+    }
+  }
+
+  private void paintCluster(Graphics2D g2, Cluster c) {
+    double r = UIScale.scale(switch (c.kind()) {
+      case SELF -> SELF_RADIUS;
+      case BOSS -> BOSS_RADIUS;
+      default -> RADIUS;
+    });
+    double x = c.position().x;
+    double y = c.position().y;
+    Ellipse2D.Double dot = new Ellipse2D.Double(x - r, y - r, 2 * r, 2 * r);
+    Color fill = colour(c.kind());
+    g2.setColor(fill);
+    g2.fill(dot);
+    g2.setStroke(new BasicStroke(UIScale.scale(1f)));
+    g2.setColor(OUTLINE);
+    g2.draw(dot);
+    if (c == hovered) {
+      double h = r + UIScale.scale(2);
+      g2.setColor(HOVER);
+      g2.setStroke(new BasicStroke(UIScale.scale(1.5f)));
+      g2.draw(new Ellipse2D.Double(x - h, y - h, 2 * h, 2 * h));
+    }
+    if (c.count() > 1) {
+      paintBadge(g2, String.valueOf(c.count()), x + r * 0.6, y - r * 0.6, fill);
+    }
+  }
+
+  /** The count badge: a small dark pill outlined in the marker's colour, its lower left corner at {@code x, y}. */
+  private void paintBadge(Graphics2D g2, String text, double x, double y, Color edge) {
+    Font font = getFont() != null ? getFont() : new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    g2.setFont(font.deriveFont(Font.BOLD, font.getSize2D() * 0.75f));
+    FontMetrics fm = g2.getFontMetrics();
+    double padX = UIScale.scale(3);
+    double w = fm.stringWidth(text) + 2 * padX;
+    double h = fm.getAscent() + UIScale.scale(1);
+    RoundRectangle2D.Double pill = new RoundRectangle2D.Double(x, y - h, Math.max(w, h), h, h, h);
+    g2.setColor(OUTLINE);
+    g2.fill(pill);
+    g2.setColor(edge);
+    g2.setStroke(new BasicStroke(UIScale.scale(1f)));
+    g2.draw(pill);
+    g2.setColor(HOVER);
+    g2.drawString(text, (float) (x + (pill.width - fm.stringWidth(text)) / 2),
+        (float) (y - (h - fm.getAscent()) / 2 - UIScale.scale(0.5f)));
+  }
+
+  /** Boss and the page's own pins gold, rares silver, objects the link accent, other NPCs muted. */
+  private static Color colour(PinKind kind) {
+    Theme t = Theme.current();
+    return switch (kind) {
+      case SELF, BOSS -> t.accentGold();
+      case RARE -> SILVER;
+      case OBJECT -> t.link();
+      case NPC -> t.textMuted();
+    };
+  }
+}
