@@ -11,6 +11,8 @@ import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
+import dev.wowforever.app.model.QuestPageData;
+import dev.wowforever.app.model.GiverSpot;
 import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.RateSource;
@@ -112,10 +114,17 @@ public final class DetailPanels {
   public record LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map) {}
 
   /**
-   * What {@link #load} returns for a quest: the quest and the zone maps of its first start giver and first end giver
-   * (NPC or object) with a spawn point on a zone map, each null without such a giver.
+   * What {@link #load} returns for a quest: all page data and its decoded zone maps, loaded off the EDT.
    */
-  public record LoadedQuest(QuestDetail detail, QuestPage.GiverMap starts, QuestPage.GiverMap ends) {}
+  public record LoadedQuest(QuestPageData data, Map<Long, BufferedImage> maps) {
+    public LoadedQuest {
+      maps = Map.copyOf(maps);
+    }
+
+    public QuestDetail detail() {
+      return data.detail();
+    }
+  }
 
   /**
    * The detail record of {@code ref} ({@link LoadedItem}, {@link LoadedNpc}, {@link LoadedZone}, ...), or empty when
@@ -152,9 +161,18 @@ public final class DetailPanels {
         Long zone = mapZone(d.spawns());
         return new LoadedObject(d, zone, zoneMap(zone, repos));
       });
-      case QUEST -> repos.quests().detail(id).map(d -> warmed(warmedSources(warmedGivers(d), d.relatedItems()),
-              d.rewards()))
-          .map(d -> new LoadedQuest(d, giverMap(d, "start", repos), giverMap(d, "end", repos)));
+      case QUEST -> repos.questLocator().load(id).map(data -> {
+        QuestDetail d = data.detail();
+        warmed(warmedSources(warmedGivers(d), d.relatedItems()), d.rewards());
+        Map<Long, BufferedImage> maps = new java.util.LinkedHashMap<>();
+        for (long zone : data.mapZones()) {
+          BufferedImage map = zoneMap(zone, repos);
+          if (map != null) {
+            maps.put(zone, map);
+          }
+        }
+        return new LoadedQuest(data, maps);
+      });
       case ZONE -> repos.zones().detail(id).map(d -> loadedZone(d, repos));
       case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)))
           .map(d -> new LoadedInstance(d, d.summary().zoneId() == null ? List.of()
@@ -191,20 +209,16 @@ public final class DetailPanels {
   }
 
   /**
-   * The zone map of quest {@code d}'s first giver in {@code role} ("start" or "end") that is an NPC or object with a
-   * spawn point on the map of a zone that has one (its points in that zone); null when none has.
+   * Compatibility bridge for the current quest page until the full quest-page layout consumes the data.
    */
-  private static QuestPage.GiverMap giverMap(QuestDetail d, String role, Repositories repos) {
-    for (QuestGiver g : d.givers()) {
-      if (!role.equals(g.role()) || g.ref().kind() == EntityKind.ITEM) {
-        continue;
-      }
-      List<Spawn> spawns = repos.spawnsOf(g.ref()).stream()
-          .filter(s -> MapCoordinates.onMap(s.x(), s.y())).toList();
-      for (long zone : spawns.stream().map(Spawn::zoneId).distinct().toList()) {
-        BufferedImage map = zoneMap(zone, repos);
+  private static QuestPage.GiverMap giverMap(List<GiverSpot> givers, Map<Long, BufferedImage> maps) {
+    for (GiverSpot spot : givers) {
+      QuestGiver g = spot.giver();
+      for (Spawn spawn : spot.spawns()) {
+        long zone = spawn.zoneId();
+        BufferedImage map = maps.get(zone);
         if (map != null) {
-          return new QuestPage.GiverMap(zone, map, spawns.stream().filter(s -> s.zoneId() == zone)
+          return new QuestPage.GiverMap(zone, map, spot.spawns().stream().filter(s -> s.zoneId() == zone)
               .map(s -> new SpawnPin(g.ref(), g.name(), null, s.x(), s.y())).toList());
         }
       }
@@ -283,7 +297,8 @@ public final class DetailPanels {
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), p.bossNpcs(), filter,
           onFilterChange, nav, ClipboardPort.system(), p.routes());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
-      case LoadedQuest p -> new QuestPage(p.detail(), p.starts(), p.ends(), nav);
+      case LoadedQuest p -> new QuestPage(p.detail(), giverMap(p.data().starts(), p.maps()),
+          giverMap(p.data().ends(), p.maps()), nav);
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
               worker, status, nav, questPins, routes), nav);
