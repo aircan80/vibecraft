@@ -27,16 +27,17 @@ import java.util.function.Consumer;
  * then the sections in {@link SectionOrder#NPC} order, Drops, Sells and Location, then Starts quests and Ends quests
  * until a later task merges them into Quests (those without rows are left out). Drops are
  * grouped by {@link ItemCategories} under heading rows, each group ranked by rate with unknown rates last: Notable
- * first (epics and better, and quest items: what the NPC is looked up for), then by item class; the world drops (the
+ * first (epics and better, and quest items: what the NPC is looked up for; each keeps its quality colour and says what
+ * it is, "Quest item" or "Gear", in a Type column), then by item class; the world drops (the
  * generic pool many NPCs drop, at an unknown or low rate) come last in a collapsed group, and recipes show their
  * skill.
  * Columns that say nothing for any row are left out ({@link VisibleColumns}). Given the decoded map of a spawn
  * zone, the Location section shows it above its table with the NPC's spawn points there.
  *
- * <p>The drop source filter ({@link SourceFilter}), chosen with the control beside the "Drops" heading ({@link
- * SourceFilterControl}, whose tooltip is the rate marks' legend), applies to the drops: the heading counts the drops
- * shown and a note under the section says how many it hid. A rate whose sources were loaded with the page lists them in
- * its tooltip.
+ * <p>The drop source filter ({@link SourceFilter}), chosen with the control beside the "Drops" heading
+ * ({@link SourceFilterControl}, whose tooltip is the rate marks' legend), applies to the drops: the heading counts the
+ * drops shown and a note under the section says how many it hid. A rate whose sources were loaded with the page lists
+ * them in its tooltip.
  */
 public final class NpcPage extends SourcesPage {
   /** The title of the drops section. */
@@ -87,8 +88,8 @@ public final class NpcPage extends SourcesPage {
       drops = null;
     } else {
       drops = LootTables.grouped(shown.rows(), new LootTables.Grouping(ItemCategories::ofNpcDrop,
-          ItemCategories.DROP_ORDER, LootTables.BY_RATE, Set.of(ItemCategories.WORLD_DROPS), Set.of()),
-          LootTables.sourcesOf(s.id(), rateSources), nav);
+          ItemCategories.DROP_ORDER, LootTables.BY_RATE, Set.of(ItemCategories.WORLD_DROPS), Set.of(),
+          ItemCategories::notableType), LootTables.sourcesOf(s.id(), rateSources), nav);
       addFilteredSection(DROPS, shown, drops);
       section(DROPS).heading().setTrailing(new SourceFilterControl(filter, onFilterChange));
     }

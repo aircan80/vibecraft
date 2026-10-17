@@ -7,6 +7,7 @@ import static dev.wowforever.app.ui.pages.Tables.column;
 import static dev.wowforever.app.ui.pages.Tables.columnNames;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.FlatLaf;
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
@@ -18,6 +19,7 @@ import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.widgets.Chip;
 import dev.wowforever.app.ui.widgets.Images;
@@ -247,9 +249,22 @@ class NpcPageTest {
         drop(4, "Linen Cloth", 20.0, 7, "Trade Goods", 1), drop(5, "Legendary Hammer", null, 2, "Weapon", 5)),
         List.of(), List.of()), t -> {}, text -> {});
     // an epic (and the legendary) and the quest item lead under Notable, by rate; then the item classes
-    assertThat(column(p.drops().table(), 0)).containsExactly("Notable (3)", "Head of Hogger", "Epic Blade",
+    JTable t = p.drops().table();
+    assertThat(column(t, 0)).containsExactly("Notable (3)", "Head of Hogger", "Epic Blade",
         "Legendary Hammer", "Gear (1)", "Plain Sword", "Trade goods (1)", "Linen Cloth");
     assertThat(ItemCategories.DROP_ORDER).startsWith(ItemCategories.NOTABLE).endsWith(ItemCategories.WORLD_DROPS);
+    // inside Notable each row says what it is (the quest item stays recognisable) and keeps its quality colour;
+    // the other groups' headings say it, so their Type cells are blank
+    assertThat(columnNames(t)).startsWith("Item", "Type");
+    assertThat(column(t, 1)).containsExactly(null, "Quest item", "Gear", "Gear", null, null, null, null);
+    assertThat(t.prepareRenderer(t.getCellRenderer(2, 0), 2, 0).getForeground())
+        .isEqualTo(QualityColors.text(4, FlatLaf.isLafDark()));
+    assertThat(t.prepareRenderer(t.getCellRenderer(3, 0), 3, 0).getForeground())
+        .isEqualTo(QualityColors.text(5, FlatLaf.isLafDark()));
+    // without a Notable row there is nothing to say: no Type column
+    var plain = new NpcPage(npc(HOGGER, List.of(drop(1, "Plain Sword", 30.0, 2, "Weapon", 2)), List.of(), List.of()),
+        t2 -> {}, text -> {});
+    assertThat(columnNames(plain.drops().table())).doesNotContain("Type");
   }
 
   @Test
@@ -278,10 +293,10 @@ class NpcPageTest {
   void columnsEmptyOrUniformForEveryRowAreHidden() {
     var p = new NpcPage(vanCleef(), t -> {}, text -> {});
     JTable drops = p.drops().table();
-    // no row has a slot; origins differ (both, atlasloot), so Origin stays
-    assertThat(columnNames(drops)).containsExactly("Item", "Item level", "Rate", "Origin");
-    assertThat(drops.prepareRenderer(drops.getCellRenderer(1, 2), 1, 2)).isInstanceOf(RateBarRenderer.class);
-    assertThat(drops.prepareRenderer(drops.getCellRenderer(1, 3), 1, 3)).isInstanceOf(OriginChip.class);
+    // no row has a slot; origins differ (both, atlasloot), so Origin stays; the Notable quest item says its Type
+    assertThat(columnNames(drops)).containsExactly("Item", "Type", "Item level", "Rate", "Origin");
+    assertThat(drops.prepareRenderer(drops.getCellRenderer(1, 3), 1, 3)).isInstanceOf(RateBarRenderer.class);
+    assertThat(drops.prepareRenderer(drops.getCellRenderer(1, 4), 1, 4)).isInstanceOf(OriginChip.class);
     // every origin questie: the column says nothing
     var uniform = new NpcPage(npc(HOGGER, List.of(loot(1, "A", 5.0, "questie", "Armor"),
         loot(2, "B", 1.0, "questie", "Armor")), List.of(), List.of()), t -> {}, text -> {});

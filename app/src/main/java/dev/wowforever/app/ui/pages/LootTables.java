@@ -15,6 +15,7 @@ import java.awt.Component;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -48,6 +49,8 @@ final class LootTables {
   static final String RECIPES = ItemCategories.RECIPES;
   /** What the Recipes heading calls the Item level column. */
   static final String SKILL = "Skill";
+  /** The title of a grouped table's column of what a row is ({@link Grouping#typeOf}). */
+  static final String TYPE = "Type";
   private static final String ITEM_LEVEL = "Item level";
 
   /** The rate sources of any row when none are known. */
@@ -56,15 +59,23 @@ final class LootTables {
   /**
    * How {@link #grouped} groups loot: by {@code groupOf}, the groups in {@code order}, each sorted by {@code within}
    * (null keeps the given order); the groups in {@code collapsed} start collapsed and can be opened; the columns
-   * titled in {@code hiddenColumns} are left out.
+   * titled in {@code hiddenColumns} are left out. {@code typeOf} (null for none) fills a {@value #TYPE} column after
+   * the item, for rows whose group does not say what they are (blank cells elsewhere; a column blank on every row is
+   * left out).
    */
   record Grouping(Function<LootRow, String> groupOf, List<String> order, Comparator<LootRow> within,
-      Set<String> collapsed, Set<String> hiddenColumns) {
+      Set<String> collapsed, Set<String> hiddenColumns, Function<LootRow, String> typeOf) {
     Grouping {
       Objects.requireNonNull(groupOf, "groupOf");
       Objects.requireNonNull(order, "order");
       collapsed = Set.copyOf(collapsed);
       hiddenColumns = Set.copyOf(hiddenColumns);
+    }
+
+    /** Groups without a Type column. */
+    Grouping(Function<LootRow, String> groupOf, List<String> order, Comparator<LootRow> within,
+        Set<String> collapsed, Set<String> hiddenColumns) {
+      this(groupOf, order, within, collapsed, hiddenColumns, null);
     }
 
     /** Groups none of which collapse, every column kept. */
@@ -105,7 +116,12 @@ final class LootTables {
   /** {@code loot} grouped as {@code grouping} says, its rate tooltips listing what {@code sources} gives. */
   static LinkTable<GroupedRows.Row<LootRow>> grouped(List<LootRow> loot, Grouping grouping,
       Function<? super LootRow, List<RateSource>> sources, Navigator nav) {
-    List<Column<LootRow>> cols = VisibleColumns.of(Columns.lootRated(), loot, null).stream()
+    List<Column<LootRow>> all = new ArrayList<>(Columns.lootRated());
+    if (grouping.typeOf() != null) {
+      Function<LootRow, String> typeOf = grouping.typeOf();
+      all.add(1, new Column<>(TYPE, String.class, typeOf::apply, null));
+    }
+    List<Column<LootRow>> cols = VisibleColumns.of(all, loot, null).stream()
         .filter(c -> !grouping.hiddenColumns().contains(c.title())).toList();
     boolean skills = loot.stream().anyMatch(l -> RECIPES.equals(grouping.groupOf().apply(l))
         && Labels.skill(l.skillLine()) != null);
@@ -208,7 +224,7 @@ final class LootTables {
       switch (String.valueOf(columns.getColumn(i).getHeaderValue())) {
         case Columns.RATE -> RateBarRenderer.install(columns.getColumn(i), sources);
         case VisibleColumns.ORIGIN -> OriginChip.install(columns.getColumn(i));
-        case Columns.CLASSES -> columns.getColumn(i).setCellRenderer(new MutedRenderer());
+        case Columns.CLASSES, TYPE -> columns.getColumn(i).setCellRenderer(new MutedRenderer());
         default -> { }
       }
     }

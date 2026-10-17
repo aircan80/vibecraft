@@ -77,9 +77,31 @@ final class ItemCategories {
    * rule is the same.
    */
   static String ofNpcDrop(LootRow drop) {
-    boolean notable = (drop.quality() != null && drop.quality() >= NOTABLE_QUALITY)
+    return isNotable(drop) ? NOTABLE : ofDrop(drop);
+  }
+
+  /** Whether {@code drop} is of epic quality or better, or a quest item. */
+  static boolean isNotable(LootRow drop) {
+    return (drop.quality() != null && drop.quality() >= NOTABLE_QUALITY)
         || Integer.valueOf(QUEST_CLASS).equals(drop.classId()) || "Quest".equals(drop.className());
-    return notable ? NOTABLE : ofDrop(drop);
+  }
+
+  /**
+   * What a Notable drop is, which its group heading does not say: its class group in the singular ("Quest item",
+   * "Gear", "Recipe"); null for any other drop, whose group heading says it.
+   */
+  static String notableType(LootRow drop) {
+    if (!NOTABLE.equals(ofNpcDrop(drop))) {
+      return null;
+    }
+    String group = of(drop.className());
+    return switch (group) {
+      case RECIPES -> "Recipe";
+      case QUEST_ITEMS -> "Quest item";
+      case TRADE_GOODS -> "Trade good";
+      case CONSUMABLES -> "Consumable";
+      default -> group; // Gear, Junk, Other
+    };
   }
 
   /** The group of an item of class {@code className}; {@link #OTHER} for null. */
