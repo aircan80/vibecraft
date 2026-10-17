@@ -55,12 +55,12 @@ public final class QuestRepository {
               ORDER BY i.name IS NULL, i.name COLLATE NOCASE, r.item_id""",
               NpcRepository::plainLoot, id),
           Sql.list(c, """
-              SELECT r.item_id, i.name
+              SELECT r.item_id, i.name, i.quality, i.icon_id
               FROM item_related_quest r LEFT JOIN item i ON i.id = r.item_id
               WHERE r.quest_id = ?
               ORDER BY i.name IS NULL, i.name COLLATE NOCASE, r.item_id""",
               rs -> new ItemSource(ItemSource.RELATED, new EntityRef(EntityKind.ITEM, rs.getLong("item_id")),
-                  rs.getString("name")),
+                  rs.getString("name"), Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id")),
               id)));
     });
   }

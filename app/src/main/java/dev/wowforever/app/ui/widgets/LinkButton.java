@@ -16,6 +16,11 @@ public final class LinkButton {
 
   /** A link reading {@code text} that opens {@code ref}. */
   public static JButton create(String text, EntityRef ref, Navigator nav) {
+    return create(text, new ViewTarget.Entity(ref), nav);
+  }
+
+  /** A link reading {@code text} that opens {@code target} (a list page, say). */
+  public static JButton create(String text, ViewTarget target, Navigator nav) {
     JButton b = new JButton(text) {
       @Override
       public Color getForeground() { // looked up per paint, so theme changes apply
@@ -29,7 +34,7 @@ public final class LinkButton {
     b.setBorder(BorderFactory.createEmptyBorder());
     b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
     b.setToolTipText("Open " + text);
-    b.addActionListener(e -> nav.open(new ViewTarget.Entity(ref)));
+    b.addActionListener(e -> nav.open(target));
     return b;
   }
 }

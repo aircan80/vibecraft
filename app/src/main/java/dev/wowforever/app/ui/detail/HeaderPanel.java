@@ -3,6 +3,7 @@ package dev.wowforever.app.ui.detail;
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.nav.Navigator;
+import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.widgets.LinkButton;
 import java.awt.Color;
 import java.awt.FlowLayout;
@@ -70,7 +71,12 @@ public final class HeaderPanel extends JPanel {
    * Returns the button.
    */
   public JButton addLink(String text, EntityRef ref, Navigator nav) {
-    JButton b = LinkButton.create(text, ref, nav);
+    return addLink(text, new ViewTarget.Entity(ref), nav);
+  }
+
+  /** Appends {@code " · <text>"} to the subtitle, {@code text} being a link button that opens {@code target}. */
+  public JButton addLink(String text, ViewTarget target, Navigator nav) {
+    JButton b = LinkButton.create(text, target, nav);
     subtitleRow.add(new JLabel(subtitle.isEmpty() ? "" : SEPARATOR));
     subtitleRow.add(b);
     subtitle = subtitle.isEmpty() ? text : subtitle + SEPARATOR + text;

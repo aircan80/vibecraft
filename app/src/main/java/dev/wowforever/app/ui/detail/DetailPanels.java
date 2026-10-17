@@ -5,6 +5,7 @@ import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.ItemDetail;
+import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.NpcDetail;
@@ -99,18 +100,19 @@ public final class DetailPanels {
    * (maps through the {@linkplain MapCache#shared shared map cache}, so a map shown again is not decoded again).
    * The icon id is the summary's, which an item with only an {@code Item} row (no tooltip card) has too. The item
    * icons the page's tables show first are loaded into the {@linkplain IconCache#shared shared cache} here too:
-   * an NPC's drops and wares, an object's contents, a quest's item givers and rewards, an instance's first boss's
-   * loot. So are the drop rate sources of the rates with any ({@code sourceCount > 0}) of an item's drops and loot
-   * lists and an NPC's drops, in one query per page, which the rate tooltips list (the instance page loads its
-   * bosses' as it shows them).
+   * an NPC's drops and wares, an object's contents, a quest's item givers, rewards and related items, an item's
+   * containers, an instance's first boss's loot. So are the drop rate sources of the rates with any
+   * ({@code sourceCount > 0}) of an item's drops and loot lists and an NPC's drops, in one query per page, which the
+   * rate tooltips list (the instance page loads its bosses' as it shows them).
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
     Optional<?> detail = switch (ref.kind()) {
-      case ITEM -> repos.items().detail(id).map(d -> new LoadedItem(d,
-          repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
-              .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
-          repos.items().sourcesOfItem(id, ratedNpcs(d))));
+      case ITEM -> repos.items().detail(id).map(d -> warmedSources(d, d.containedInItems()))
+          .map(d -> new LoadedItem(d,
+              repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
+                  .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
+              repos.items().sourcesOfItem(id, ratedNpcs(d))));
       case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells())).map(d -> {
         Long zone = mapZone(d.spawns());
         return new LoadedNpc(d, zone, zoneMap(zone, repos),
@@ -120,7 +122,8 @@ public final class DetailPanels {
         Long zone = mapZone(d.spawns());
         return new LoadedObject(d, zone, zoneMap(zone, repos));
       });
-      case QUEST -> repos.quests().detail(id).map(d -> warmed(warmedGivers(d), d.rewards()))
+      case QUEST -> repos.quests().detail(id).map(d -> warmed(warmedSources(warmedGivers(d), d.relatedItems()),
+              d.rewards()))
           .map(d -> new LoadedQuest(d, giverMap(d, "start", repos), giverMap(d, "end", repos)));
       case ZONE -> repos.zones().detail(id).map(d -> loadedZone(d, repos));
       case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)));
@@ -186,6 +189,13 @@ public final class DetailPanels {
     return detail;
   }
 
+  /** {@code detail}, once the {@value IconCache#ROW} px icons of the items among {@code sources} are cached. */
+  private static <T> T warmedSources(T detail, List<ItemSource> sources) {
+    IconCache.shared().warm(sources.stream().filter(s -> s.ref().kind() == EntityKind.ITEM)
+        .map(ItemSource::iconId).toList(), IconCache.ROW);
+    return detail;
+  }
+
   /** {@code d}, once the {@value IconCache#ROW} px icons of its item givers are cached. */
   private static QuestDetail warmedGivers(QuestDetail d) {
     IconCache.shared().warm(d.givers().stream().filter(g -> g.ref().kind() == EntityKind.ITEM)
@@ -194,16 +204,14 @@ public final class DetailPanels {
   }
 
   /**
-   * The loot the instance page shows on opening: the first main encounter's (else the first extra list's) in the
-   * first difficulty, as {@link InstancePage} selects them; empty without bosses or difficulties.
+   * The loot the instance page shows on opening: its {@linkplain InstancePage#firstBoss first boss}'s in the first
+   * difficulty; empty without bosses or difficulties.
    */
   private static List<LootRow> firstBossLoot(InstanceDetail d, Repositories repos) {
     if (d.difficulties().isEmpty()) {
       return List.of();
     }
-    return d.bosses().stream().filter(b -> !b.extraList()).findFirst()
-        .or(() -> d.bosses().stream().findFirst())
-        .map(b -> repos.instances().bossLoot(b.id(), d.difficulties().get(0)))
+    return InstancePage.firstBoss(d).map(b -> repos.instances().bossLoot(b.id(), d.difficulties().get(0)))
         .orElse(List.of());
   }
 

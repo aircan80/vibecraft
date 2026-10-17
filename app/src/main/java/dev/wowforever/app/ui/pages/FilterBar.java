@@ -15,6 +15,7 @@ import java.awt.Insets;
 import java.text.ParseException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
@@ -28,11 +29,11 @@ import javax.swing.SpinnerNumberModel;
 import javax.swing.text.DefaultFormatterFactory;
 
 /**
- * The filter bar of a list page: combos for the item class and subclass (items), the zone (NPCs, quests) and the
- * rank (NPCs), each starting with an "All …" choice, and two level spinners where 0 reads "Any" (no bound). Every
- * change the user makes reports the new filter once; showing the filter the bar was built with reports nothing.
- * Combo changes report at once; level changes once the spinners rest (an arrow held down is one reload). A muted
- * hint shows while the minimum level is above the maximum.
+ * The filter bar of a list page: combos for the item class, subclass and quality (items), the zone (NPCs, quests)
+ * and the rank (NPCs), each starting with an "All …" (quality: "Any") choice, and two level spinners where 0 reads
+ * "Any" (no bound). Every change the user makes reports the new filter once; showing the filter the bar was built
+ * with reports nothing. Combo changes report at once; level changes once the spinners rest (an arrow held down is
+ * one reload). A muted hint shows while the minimum level is above the maximum.
  */
 public final class FilterBar extends JPanel {
   /** How long the level spinners must rest before a level change is reported. */
@@ -43,6 +44,9 @@ public final class FilterBar extends JPanel {
   static final String ANY = "Any";
   /** Raw NPC ranks in the order the rank combo offers them: Normal, Elite, Rare, Rare Elite, Boss. */
   private static final int[] RANKS = {0, 1, 4, 2, 3};
+  /** The item qualities the quality combo offers, by quality id (0 poor … 6 artifact). */
+  private static final List<String> QUALITIES =
+      List.of("Poor", "Common", "Uncommon", "Rare", "Epic", "Legendary", "Artifact");
   private static final int GAP = 6;
 
   /** One entry of a filter combo: its text and the filter value it stands for (null for "All …"). */
@@ -62,6 +66,7 @@ public final class FilterBar extends JPanel {
   private boolean updating = true;
   private JComboBox<Choice<Integer>> classes;
   private JComboBox<Choice<Integer>> subclasses;
+  private JComboBox<Choice<Integer>> qualities;
   private JComboBox<Choice<Long>> zones;
   private JComboBox<Choice<Integer>> ranks;
   private final JSpinner minLevel;
@@ -96,8 +101,12 @@ public final class FilterBar extends JPanel {
           }
         });
         subclasses.addActionListener(e -> userChange());
+        qualities = combo("Any", QUALITIES.stream().map(q -> new Choice<>(q, QUALITIES.indexOf(q))).toList(),
+            f.quality());
+        qualities.addActionListener(e -> userChange());
         add("Class", classes);
         add("Subclass", subclasses);
+        add("Quality", qualities);
         levelLabel = "Item level";
       }
       case NpcFilter f -> {
@@ -118,6 +127,10 @@ public final class FilterBar extends JPanel {
     maxLevel = levelSpinner(max(initial));
     add(levelLabel, minLevel);
     add("to", maxLevel);
+    // named by what they bound, not by their labels ("to" alone says little)
+    String bound = levelLabel.toLowerCase(Locale.ROOT);
+    named(minLevel, "Minimum " + bound);
+    named(maxLevel, "Maximum " + bound);
     add(rangeHint);
     showRangeHint();
     updating = false;
@@ -136,6 +149,11 @@ public final class FilterBar extends JPanel {
   /** The item subclass combo, disabled while every class is shown; null unless this is an item bar. */
   public JComboBox<Choice<Integer>> subclasses() {
     return subclasses;
+  }
+
+  /** The item quality combo ("Any", then Poor … Artifact); null unless this is an item bar. */
+  public JComboBox<Choice<Integer>> qualities() {
+    return qualities;
   }
 
   /** The zone combo; null on an item bar. */
@@ -242,7 +260,8 @@ public final class FilterBar extends JPanel {
     ListFilter next = switch (filter) {
       case ItemFilter f -> {
         Integer classId = value(classes);
-        yield f.withClass(classId, classId == null ? null : value(subclasses)).withLevels(min, max);
+        yield f.withClass(classId, classId == null ? null : value(subclasses)).withQuality(value(qualities))
+            .withLevels(min, max);
       }
       case NpcFilter f -> f.withZone(value(zones)).withRank(value(ranks)).withLevels(min, max);
       case QuestFilter f -> f.withZone(value(zones)).withLevels(min, max);
@@ -316,6 +335,12 @@ public final class FilterBar extends JPanel {
     field.setColumns(3);
     spinner.addChangeListener(e -> levelChange());
     return spinner;
+  }
+
+  /** Names {@code spinner} and its text field (which takes the focus) {@code name}. */
+  private static void named(JSpinner spinner, String name) {
+    spinner.getAccessibleContext().setAccessibleName(name);
+    ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField().getAccessibleContext().setAccessibleName(name);
   }
 
   /** The bound a level spinner shows; null for 0 ("Any"). */

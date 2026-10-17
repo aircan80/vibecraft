@@ -2,12 +2,22 @@ package dev.wowforever.app.ui;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.db.FixtureDb;
+import dev.wowforever.app.db.Repositories;
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.detail.DetailPanels;
+import dev.wowforever.app.ui.pages.ListOptions;
+import dev.wowforever.app.ui.pages.ListPage;
+import dev.wowforever.app.ui.pages.ListRows;
 import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.theme.Tokens;
 import dev.wowforever.app.ui.theme.WowForeverDarkLaf;
 import dev.wowforever.app.ui.widgets.FakeDropdownHost;
 import dev.wowforever.app.ui.widgets.HistoryButtons;
 import dev.wowforever.app.ui.widgets.ManualDelay;
+import dev.wowforever.app.ui.widgets.MapView;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.Rail;
 import dev.wowforever.app.ui.widgets.SearchDropdown;
@@ -17,8 +27,16 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
+import javax.accessibility.AccessibleContext;
 import javax.swing.AbstractButton;
+import javax.swing.CellRendererPane;
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JList;
 import javax.swing.JPanel;
+import javax.swing.JSpinner;
+import javax.swing.JTable;
 import javax.swing.LookAndFeel;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
@@ -27,11 +45,15 @@ import javax.swing.plaf.UIResource;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 
 /**
  * Every button that shows no text in the window content has an accessible name, so a screen reader can say what
- * it does. Built under the app's own look and feel, whose search box adds an icon-only clear button.
+ * it does. Built under the app's own look and feel, whose search box adds an icon-only clear button. Every page
+ * (one of each kind from the fixture, and every list page with its filter bar) names its buttons, combos, spinners,
+ * tables, lists and maps too.
  */
+@ExtendWith(FixtureDb.class)
 class AccessibilityTest {
   private final Preferences node = UiStateTest.testNode();
   private final UiState state = new UiState(node);
@@ -92,6 +114,82 @@ class AccessibilityTest {
     for (AbstractButton b : buttons) {
       assertThat(b.getAccessibleContext().getAccessibleName()).as(describe(b)).isNotBlank();
     }
+  }
+
+  /** The components under {@code c} of {@code type}. */
+  private static <T> List<T> all(Component c, Class<T> type) {
+    List<T> found = new ArrayList<>();
+    if (type.isInstance(c)) {
+      found.add(type.cast(c));
+    }
+    if (c instanceof Container parent) {
+      for (Component child : parent.getComponents()) {
+        found.addAll(all(child, type));
+      }
+    }
+    return found;
+  }
+
+  /** One page of each kind, built from the fixture, and every list page (with its filter bar). */
+  private static List<JComponent> pages() {
+    Repositories repos = FixtureDb.repositories();
+    List<JComponent> pages = new ArrayList<>();
+    for (EntityRef ref : List.of(new EntityRef(EntityKind.ITEM, 17204), new EntityRef(EntityKind.ITEM, 19682),
+        new EntityRef(EntityKind.ITEM, 14149), new EntityRef(EntityKind.NPC, 639),
+        new EntityRef(EntityKind.OBJECT, 386759), new EntityRef(EntityKind.QUEST, 2),
+        new EntityRef(EntityKind.ZONE, 40), new EntityRef(EntityKind.INSTANCE, 1))) {
+      pages.add(DetailPanels.build(ref, repos, t -> {}));
+    }
+    ListOptions options = ListOptions.load(repos);
+    for (EntityKind kind : List.of(EntityKind.ITEM, EntityKind.NPC, EntityKind.QUEST, EntityKind.ZONE,
+        EntityKind.INSTANCE)) {
+      ViewTarget.List target = new ViewTarget.List(kind);
+      pages.add(new ListPage(target, options, ListRows.load(target, repos), t -> {}, f -> {}, new ManualDelay()));
+    }
+    return pages;
+  }
+
+  private static String nameOf(Component c) {
+    AccessibleContext context = c.getAccessibleContext();
+    return context == null ? null : context.getAccessibleName();
+  }
+
+  @Test
+  void everyPageNamesItsButtonsInputsTablesListsAndMaps() {
+    List<JComponent> pages = pages();
+    assertThat(pages).hasSize(13).noneMatch(JLabel.class::isInstance); // no "Not found" placeholder
+    int inputs = 0;
+    for (JComponent page : pages) {
+      String where = page.getClass().getSimpleName();
+      for (AbstractButton b : iconOnlyButtons(page)) {
+        assertThat(nameOf(b)).as(describe(b) + " on " + where).isNotBlank();
+      }
+      List<Component> named = new ArrayList<>();
+      named.addAll(all(page, JComboBox.class));
+      named.addAll(all(page, JSpinner.class));
+      named.addAll(all(page, JTable.class));
+      named.addAll(all(page, JList.class).stream().filter(l -> !(l.getParent() instanceof CellRendererPane))
+          .filter(l -> SwingUtilities.getAncestorOfClass(JComboBox.class, l) == null).toList());
+      named.addAll(all(page, MapView.class));
+      for (Component c : named) {
+        assertThat(nameOf(c)).as(c.getClass().getSimpleName() + " on " + where).isNotBlank();
+      }
+      inputs += all(page, JComboBox.class).size() + all(page, JSpinner.class).size();
+    }
+    assertThat(inputs).as("the filter bars' combos and spinners were walked").isGreaterThanOrEqualTo(12);
+    assertThat(pages.stream().mapToInt(p -> all(p, MapView.class).size()).sum()).as("a zone map was walked")
+        .isPositive();
+  }
+
+  @Test
+  void theFilterBarNamesItsLevelSpinnersByWhatTheyBound() {
+    Repositories repos = FixtureDb.repositories();
+    ViewTarget.List target = new ViewTarget.List(EntityKind.NPC);
+    ListPage page = new ListPage(target, ListOptions.load(repos), ListRows.load(target, repos), t -> {}, f -> {},
+        new ManualDelay());
+    assertThat(nameOf(page.filterBar().minLevel())).isEqualTo("Minimum level");
+    assertThat(nameOf(page.filterBar().maxLevel())).isEqualTo("Maximum level");
+    assertThat(nameOf(page.filterBar().zones())).isEqualTo("Zone");
   }
 
   @Test

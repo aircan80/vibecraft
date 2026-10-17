@@ -233,6 +233,19 @@ class LinkTableTest {
   }
 
   @Test
+  void aHiddenRateColumnTellsItsDisagreementInTheRowTooltip() {
+    Columns.Column<LootRow> other = new Columns.Column<>("Questie rate", Double.class, LootRow::dropPct, null, null,
+        null, LootRow::disagrees);
+    var t = new LinkTable<>(List.of(Columns.lootRated().get(0), other), v -> {});
+    t.setRows(List.of(new LootRow(new EntityRef(ITEM, 1), "Sword", 21, 5.0, "questie", 7, true, 2),
+        new LootRow(new EntityRef(ITEM, 2), "Axe", 21, 4.0, "questie", 8)));
+    t.setCompact(true);
+    assertThat(names(t)).containsExactly("Item");
+    assertThat(t.rowTooltip(0)).endsWith(Columns.DISAGREES);
+    assertThat(t.rowTooltip(1)).doesNotContain(Columns.DISAGREES.strip());
+  }
+
+  @Test
   void compactKeepsEachColumnsRenderer() {
     var t = new LinkTable<>(Columns.lootRated(), v -> {});
     TableCellRenderer rate = new DefaultTableCellRenderer();

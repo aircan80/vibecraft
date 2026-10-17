@@ -148,7 +148,8 @@ public final class LinkTable<T> extends JPanel {
     List<CompactColumns.Cell> hidden = new ArrayList<>();
     for (TableColumn c : columns) {
       if (!CompactColumns.kept(model, c.getModelIndex())) {
-        hidden.add(new CompactColumns.Cell(model.getColumnName(c.getModelIndex()), shownText(c, viewRow)));
+        hidden.add(new CompactColumns.Cell(model.getColumnName(c.getModelIndex()), shownText(c, viewRow),
+            model.disagreesAt(table.convertRowIndexToModel(viewRow), c.getModelIndex())));
       }
     }
     return CompactColumns.tooltip(hidden);

@@ -67,6 +67,7 @@ public final class ListPage extends SourcesPage {
       results = table(target.kind(), nav);
       setRows(results, rows);
       section = new SourceSection(RESULTS, rows.size(), results);
+      results.table().getAccessibleContext().setAccessibleName(title(target.kind()));
       addSection(section);
     }
     emptyNote.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));

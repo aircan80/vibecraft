@@ -9,8 +9,10 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
+import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.nav.Navigator;
+import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
@@ -24,6 +26,7 @@ import java.awt.Font;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.IntFunction;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -84,7 +87,9 @@ public final class InstancePage extends JPanel {
     mainBosses = d.bosses().stream().filter(b -> !b.extraList()).toList();
     extraBosses = d.bosses().stream().filter(BossSummary::extraList).toList();
     encounters = bossList(mainBosses, i -> encounterLabel(i + 1, mainBosses.get(i)));
+    encounters.getAccessibleContext().setAccessibleName("Encounters");
     extraLists = bossList(extraBosses, i -> extraBosses.get(i).displayName());
+    extraLists.getAccessibleContext().setAccessibleName(extraListsHeading.getText());
     extraListsHeading.setVisible(!extraBosses.isEmpty());
     extraLists.setVisible(!extraBosses.isEmpty());
     linkSelections(encounters, extraLists);
@@ -101,8 +106,16 @@ public final class InstancePage extends JPanel {
     add(header, BorderLayout.NORTH);
     add(split, BorderLayout.CENTER);
     if (!d.bosses().isEmpty()) {
-      selectBoss(0);
+      selectBoss(0); // firstBoss(d): main encounters come first
     }
+  }
+
+  /**
+   * The encounter the page selects on opening: the first main encounter, else the first extra list; empty without
+   * bosses. {@link dev.wowforever.app.ui.detail.DetailPanels#load} pre-loads the icons of its loot.
+   */
+  public static Optional<BossSummary> firstBoss(InstanceDetail d) {
+    return d.bosses().stream().filter(b -> !b.extraList()).findFirst().or(() -> d.bosses().stream().findFirst());
   }
 
   /**
@@ -134,7 +147,7 @@ public final class InstancePage extends JPanel {
     return split;
   }
 
-  /** The instance name over its type, levels, a zone link and an "NPCs in" link to the same zone. */
+  /** The instance name over its type, levels, a zone link and an "NPCs in" link to the NPC list of that zone. */
   private static HeaderPanel header(InstanceSummary s, Navigator nav) {
     HeaderPanel header = new HeaderPanel(Labels.instanceTitle(s.displayName(), s.key()),
         Labels.instanceSubtitle(s.contentType(), s.levelMin(), s.levelMax(), null));
@@ -142,7 +155,8 @@ public final class InstancePage extends JPanel {
       EntityRef zone = new EntityRef(EntityKind.ZONE, s.zoneId());
       String name = zone.displayName(s.zoneName());
       header.addLink(name, zone, nav);
-      header.addLink("NPCs in " + name, zone, nav);
+      header.addLink("NPCs in " + name, new ViewTarget.List(EntityKind.NPC, NpcFilter.ALL.withZone(s.zoneId())),
+          nav);
     }
     return header;
   }
@@ -283,7 +297,7 @@ public final class InstancePage extends JPanel {
     JLabel heading = new JLabel(text) {
       @Override
       public Color getForeground() { // looked up per paint, so theme changes apply
-        return Theme.current().accentGold();
+        return Theme.current().goldText();
       }
     };
     heading.setFont(heading.getFont().deriveFont(Font.BOLD));

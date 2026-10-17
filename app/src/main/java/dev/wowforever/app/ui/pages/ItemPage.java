@@ -86,7 +86,7 @@ public final class ItemPage extends SourcesPage {
       card = null;
     } else {
       card = new ItemCardPanel(d.card(), d.summary().displayName(), icon == null ? IconCache.empty(IconCache.CARD)
-          : new ImageIcon(icon));
+          : new ImageIcon(icon), nav);
       content.add(new CardHolder(card));
       header.setTitleShown(false); // the card has the name
       header.setBorder(BorderFactory.createEmptyBorder(2, 12, 6, 12));

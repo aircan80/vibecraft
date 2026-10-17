@@ -67,19 +67,19 @@ public final class ItemRepository {
           droppedBy(c, id),
           inInstanceLoot(c, id),
           sources(c, ItemSource.OBJECT, EntityKind.OBJECT, """
-              SELECT d.object_id AS ref_id, o.name FROM item_object_drop d
+              SELECT d.object_id AS ref_id, o.name, NULL AS quality, NULL AS icon_id FROM item_object_drop d
               LEFT JOIN game_object o ON o.id = d.object_id WHERE d.item_id = ?""", id),
           sources(c, ItemSource.CONTAINER, EntityKind.ITEM, """
-              SELECT d.container_item_id AS ref_id, ci.name FROM item_container_drop d
+              SELECT d.container_item_id AS ref_id, ci.name, ci.quality, ci.icon_id FROM item_container_drop d
               LEFT JOIN item ci ON ci.id = d.container_item_id WHERE d.item_id = ?""", id),
           sources(c, ItemSource.VENDOR, EntityKind.NPC, """
-              SELECT v.npc_id AS ref_id, n.name FROM item_vendor v
+              SELECT v.npc_id AS ref_id, n.name, NULL AS quality, NULL AS icon_id FROM item_vendor v
               LEFT JOIN npc n ON n.id = v.npc_id WHERE v.item_id = ?""", id),
           sources(c, ItemSource.REWARD, EntityKind.QUEST, """
-              SELECT r.quest_id AS ref_id, q.name FROM quest_reward_item r
+              SELECT r.quest_id AS ref_id, q.name, NULL AS quality, NULL AS icon_id FROM quest_reward_item r
               LEFT JOIN quest q ON q.id = r.quest_id WHERE r.item_id = ?""", id),
           sources(c, ItemSource.RELATED, EntityKind.QUEST, """
-              SELECT r.quest_id AS ref_id, q.name FROM item_related_quest r
+              SELECT r.quest_id AS ref_id, q.name, NULL AS quality, NULL AS icon_id FROM item_related_quest r
               LEFT JOIN quest q ON q.id = r.quest_id WHERE r.item_id = ?""", id),
           card(c, id)));
     });
@@ -92,23 +92,24 @@ public final class ItemRepository {
    * missing from the subclass table.
    */
   public List<ItemSummary> list(Integer classId, Integer subclassId, Integer limit, int offset) {
-    return query(classId, subclassId, null, null, limit, offset);
+    return query(classId, subclassId, null, null, null, limit, offset);
   }
 
   /**
    * Every item {@code filter} lets through, ordered by name (nameless stubs last). Lists are not capped, as in
-   * v0.1. Item quality is not in the database yet, so a filter with a quality is refused.
+   * v0.1. A quality filter matches {@code item.quality}, so items without client data (no quality) drop out.
    */
   public List<ItemSummary> list(ItemFilter filter) {
-    if (filter.quality() != null) {
-      throw new IllegalArgumentException("Items cannot be filtered by quality yet: " + filter);
-    }
-    return query(filter.classId(), filter.subclassId(), filter.minLevel(), filter.maxLevel(), null, 0);
+    return query(filter.classId(), filter.subclassId(), filter.minLevel(), filter.maxLevel(), filter.quality(),
+        null, 0);
   }
 
-  /** {@link #list(Integer, Integer, Integer, int)} with item level bounds (null: none; unknown levels fail any). */
+  /**
+   * {@link #list(Integer, Integer, Integer, int)} with item level bounds (null: none; unknown levels fail any) and a
+   * quality (null: any).
+   */
   private List<ItemSummary> query(Integer classId, Integer subclassId, Integer minLevel, Integer maxLevel,
-      Integer limit, int offset) {
+      Integer quality, Integer limit, int offset) {
     StringBuilder where = new StringBuilder(" WHERE 1 = 1");
     List<Object> params = new ArrayList<>();
     if (classId != null) {
@@ -128,6 +129,10 @@ public final class ItemRepository {
     if (maxLevel != null) {
       where.append(" AND item_level <= ?");
       params.add(maxLevel);
+    }
+    if (quality != null) {
+      where.append(" AND quality = ?");
+      params.add(quality);
     }
     params.add(limit == null ? -1 : limit); // a negative LIMIT is no limit in SQLite
     params.add(offset);
@@ -262,8 +267,8 @@ public final class ItemRepository {
   }
 
   /**
-   * The client data of item {@code itemId} with its tooltip lines in {@code ordinal} order, or
-   * {@link ItemCard#none()} when the item has none.
+   * The client data of item {@code itemId} with its tooltip lines in {@code ordinal} order (set pieces naming
+   * their items), or {@link ItemCard#none()} when the item has none.
    */
   private static ItemCard card(Connection c, long itemId) throws SQLException {
     Optional<ItemCard> head = Sql.one(c, """
@@ -275,18 +280,30 @@ public final class ItemRepository {
     if (head.isEmpty()) {
       return ItemCard.none();
     }
-    List<TooltipLine> lines = Sql.list(c,
-        "SELECT kind, text, colour FROM item_tooltip_line WHERE item_id = ? ORDER BY ordinal",
-        rs -> new TooltipLine(rs.getString("kind"), rs.getString("text"), rs.getString("colour")), itemId);
+    // a set piece line names its item: the piece of the item's set with that name
+    List<TooltipLine> lines = Sql.list(c, """
+        SELECT l.kind, l.text, l.colour,
+               CASE WHEN l.kind = 'set_item' THEN
+                 (SELECT si.item_id FROM item_set_item si JOIN item p ON p.id = si.item_id
+                  WHERE si.set_id = it.item_set_id AND p.name = l.text ORDER BY si.item_id LIMIT 1)
+               END AS piece_id
+        FROM item_tooltip_line l JOIN item it ON it.id = l.item_id
+        WHERE l.item_id = ? ORDER BY l.ordinal""",
+        rs -> new TooltipLine(rs.getString("kind"), rs.getString("text"), rs.getString("colour"),
+            Sql.longValue(rs, "piece_id")), itemId);
     ItemCard h = head.get();
     return new ItemCard(h.quality(), lines, h.iconId(), h.inventoryType(), h.bonding(), h.sellPrice());
   }
 
-  /** Runs {@code sql} (selecting {@code ref_id} and a nullable {@code name}) into sources ordered by name. */
+  /**
+   * Runs {@code sql} (selecting {@code ref_id} and a nullable {@code name}, {@code quality} and {@code icon_id})
+   * into sources ordered by name.
+   */
   private static List<ItemSource> sources(Connection c, String kind, EntityKind refKind, String sql, long itemId)
       throws SQLException {
     return Sql.list(c, sql + " ORDER BY name IS NULL, name COLLATE NOCASE, ref_id",
-        rs -> new ItemSource(kind, new EntityRef(refKind, rs.getLong("ref_id")), rs.getString("name")), itemId);
+        rs -> new ItemSource(kind, new EntityRef(refKind, rs.getLong("ref_id")), rs.getString("name"),
+            Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id")), itemId);
   }
 
   private static ItemSummary summary(ResultSet rs) throws SQLException {

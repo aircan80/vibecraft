@@ -35,11 +35,12 @@ public final class SourceSection extends JPanel {
     heading = new JLabel(headingText(title, count)) {
       @Override
       public Color getForeground() { // looked up per paint, so theme changes apply
-        return Theme.current().accentGold();
+        return Theme.current().goldText();
       }
     };
     heading.setFont(heading.getFont().deriveFont(Font.BOLD));
     heading.setBorder(BorderFactory.createEmptyBorder(14, 0, 6, 0));
+    table.table().getAccessibleContext().setAccessibleName(title); // a screen reader names the table
     setOpaque(false);
     setBorder(BorderFactory.createEmptyBorder(0, 12, 0, 12));
     setAlignmentX(LEFT_ALIGNMENT);

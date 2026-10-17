@@ -4,8 +4,8 @@ package dev.wowforever.app.model;
  * An item list: items of class {@code classId} (null: every class) and subclass {@code subclassId} (null: every
  * subclass; {@link ItemClassNode#OTHER_SUBCLASSES}: subclasses missing from the subclass table) whose item level
  * is at least {@code minLevel} and at most {@code maxLevel} (null: no bound; an item without a level is left out
- * once either bound is set). {@code quality} is reserved for the item quality of phase 2A and stays null until the
- * database has it.
+ * once either bound is set) and whose quality is {@code quality} (0 poor … 6 artifact; null: any quality, an item
+ * without client data has none and is left out once a quality is set).
  */
 public record ItemFilter(Integer classId, Integer subclassId, Integer minLevel, Integer maxLevel, Integer quality)
     implements ListFilter {
@@ -33,6 +33,11 @@ public record ItemFilter(Integer classId, Integer subclassId, Integer minLevel, 
 
   /** This filter with another class and subclass. */
   public ItemFilter withClass(Integer classId, Integer subclassId) {
+    return new ItemFilter(classId, subclassId, minLevel, maxLevel, quality);
+  }
+
+  /** This filter with another quality (null: any). */
+  public ItemFilter withQuality(Integer quality) {
     return new ItemFilter(classId, subclassId, minLevel, maxLevel, quality);
   }
 

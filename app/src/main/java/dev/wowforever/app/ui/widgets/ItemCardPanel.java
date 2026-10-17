@@ -3,6 +3,7 @@ package dev.wowforever.app.ui.widgets;
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.ItemCard;
 import dev.wowforever.app.model.TooltipLine;
+import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.theme.QualityColors;
 import java.awt.Color;
 import java.awt.Component;
@@ -52,6 +53,14 @@ public final class ItemCardPanel extends JPanel {
    * {@code itemIcon} (a {@value IconCache#CARD} px icon).
    */
   public ItemCardPanel(ItemCard card, String fallbackName, Icon itemIcon) {
+    this(card, fallbackName, itemIcon, null);
+  }
+
+  /**
+   * The card of {@code card} as {@link #ItemCardPanel(ItemCard, String, Icon)}, its set pieces opening their items
+   * through {@code nav} (null: plain text).
+   */
+  public ItemCardPanel(ItemCard card, String fallbackName, Icon itemIcon, Navigator nav) {
     super(null); // laid out by doLayout: heights follow the wrapped width
     Optional<TooltipLine> nameLine = card.lines().stream().filter(l -> "name".equals(l.kind())).findFirst();
     List<TooltipLine> rest = card.lines().stream().filter(l -> nameLine.isEmpty() || l != nameLine.get()).toList();
@@ -59,7 +68,7 @@ public final class ItemCardPanel extends JPanel {
         : TooltipLinesPanel.colour(nameLine.map(TooltipLine::colour).orElse(null));
     name = new TooltipLinesPanel.LineText(nameLine.map(TooltipLine::text).orElse(fallbackName), nameColour,
         Font.BOLD, 1f);
-    lines = new TooltipLinesPanel(rest, false);
+    lines = new TooltipLinesPanel(rest, false, nav);
     icon.setIcon(itemIcon);
     icon.setVerticalAlignment(SwingConstants.TOP);
     setOpaque(false); // the rounded corners show what is behind

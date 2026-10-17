@@ -21,8 +21,16 @@ public final class CompactColumns {
   public static final String ORIGIN = "Origin";
   private static final String SEPARATOR = " · ";
 
-  /** A column the compact table hides: its title and the text its renderer shows for the row. */
-  public record Cell(String title, String text) {}
+  /**
+   * A column the compact table hides: its title, the text its renderer shows for the row and whether the row's rate
+   * there has sources that disagree.
+   */
+  public record Cell(String title, String text, boolean disagrees) {
+    /** A cell without a disagreeing rate. */
+    public Cell(String title, String text) {
+      this(title, text, false);
+    }
+  }
 
   private CompactColumns() {}
 
@@ -44,7 +52,8 @@ public final class CompactColumns {
 
   /**
    * The row tooltip of a compact table over its {@code hidden} cells: each one that shows text (markup stripped),
-   * as {@code "Level 21"} when the text starts with a digit and {@code "Zone: Westfall"} otherwise, joined by
+   * as {@code "Level 21"} when the text starts with a digit and {@code "Zone: Westfall"} otherwise, a disagreeing
+   * rate followed by {@link Columns#DISAGREES} (which the renderer of a hidden column cannot paint), joined by
    * {@code " · "}; null when none shows any.
    */
   public static String tooltip(List<Cell> hidden) {
@@ -53,6 +62,9 @@ public final class CompactColumns {
       String text = plain(cell.text());
       if (text.isEmpty() || text.equals(Columns.NONE)) {
         continue;
+      }
+      if (cell.disagrees() && !text.endsWith(Columns.DISAGREES.strip())) {
+        text += Columns.DISAGREES;
       }
       parts.add(Character.isDigit(text.charAt(0)) ? cell.title() + " " + text : cell.title() + ": " + text);
     }

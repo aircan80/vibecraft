@@ -42,6 +42,7 @@ import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JTable;
@@ -432,6 +433,16 @@ class ItemPageTest {
     assertThat(headerY).isLessThan(summaryY);
     assertThat(card.getWidth()).isLessThanOrEqualTo(ItemCardPanel.maxWidth());
     assertThat(card.getHeight()).isGreaterThan(56);
+  }
+
+  @Test
+  void theCardsSetPiecesOpenTheirItems() {
+    List<ViewTarget> opened = new ArrayList<>();
+    var p = new ItemPage(repos.items().detail(19682).get(), opened::add);
+    JButton vest = p.card().lines().parts().stream().filter(JButton.class::isInstance).map(JButton.class::cast)
+        .filter(b -> b.getText().equals("Bloodvine Vest")).findFirst().orElseThrow();
+    vest.doClick();
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(ITEM, 19682)));
   }
 
   @Test

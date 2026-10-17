@@ -225,10 +225,14 @@ public final class Columns {
         rate(r -> r.loot().dropPct(), r -> r.loot().disagrees()));
   }
 
-  /** Objects, containers, vendors and quests linked to an item. */
+  /**
+   * Objects, containers, vendors and quests linked to an item, or the items related to a quest: an item in its
+   * quality colour after its icon.
+   */
   public static List<Column<ItemSource>> itemSources() {
     return List.of(
-        link("Name", ItemSource::displayName, s -> Optional.of(s.ref())),
+        itemLink("Name", ItemSource::displayName, s -> Optional.of(s.ref()), ItemSource::quality,
+            s -> s.ref().kind() == EntityKind.ITEM ? iconOrFallback(s.iconId()) : null),
         plain("Kind", String.class, s -> sourceKindText(s.kind())));
   }
 

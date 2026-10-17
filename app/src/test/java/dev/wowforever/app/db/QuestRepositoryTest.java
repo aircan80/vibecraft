@@ -3,6 +3,7 @@ package dev.wowforever.app.db;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.QuestFilter;
 import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.QuestSummary;
@@ -67,6 +68,24 @@ class QuestRepositoryTest {
             assertThat(g.quality()).isNull();
             assertThat(g.iconId()).isNull();
           });
+    }
+  }
+
+  @Test
+  void relatedItemsCarryTheItemQualityAndIcon(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into item_related_quest(item_id, quest_id) values (17204, 2), (1176, 2)");
+    }
+    try (Database db = Database.open(copy)) {
+      List<ItemSource> related = Repositories.of(db).quests().detail(2).orElseThrow().relatedItems();
+      assertThat(related).filteredOn(r -> r.ref().id() == 17204).singleElement().satisfies(r -> {
+        assertThat(r.quality()).isEqualTo(5);
+        assertThat(r.iconId()).isEqualTo(134124L);
+      });
+      assertThat(related).filteredOn(r -> r.ref().id() == 1176).singleElement()
+          .satisfies(r -> assertThat(r.quality()).as("no client data").isNull());
     }
   }
 

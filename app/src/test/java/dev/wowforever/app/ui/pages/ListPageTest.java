@@ -128,6 +128,25 @@ class ListPageTest {
   }
 
   @Test
+  void theQualityComboFiltersItemsByQuality() {
+    ListPage p = reloading(new ViewTarget.List(ITEM));
+    FilterBar bar = p.filterBar();
+    assertThat(labels(bar.qualities()))
+        .containsExactly("Any", "Poor", "Common", "Uncommon", "Rare", "Epic", "Legendary", "Artifact");
+    assertThat(selected(bar.qualities())).isNull();
+    select(bar.qualities(), 3);
+    assertThat(filters).containsExactly(new ItemFilter(null, null, null, null, 3));
+    assertThat(column(p.results().table(), 0)).isNotEmpty()
+        .isEqualTo(repos.items().list(new ItemFilter(null, null, null, null, 3)).stream()
+            .map(i -> i.displayName()).toList());
+    select(bar.classes(), 4);
+    assertThat(filters).last().as("the quality survives a class change")
+        .isEqualTo(new ItemFilter(4, null, null, null, 3));
+    assertThat(selected(page(new ViewTarget.List(ITEM, new ItemFilter(null, null, null, null, 4))).filterBar()
+        .qualities())).isEqualTo(4);
+  }
+
+  @Test
   void levelSpinnersBoundTheLevelsAndShowAnyWhenUnbounded() {
     ListPage p = page(new ViewTarget.List(ITEM));
     FilterBar bar = p.filterBar();

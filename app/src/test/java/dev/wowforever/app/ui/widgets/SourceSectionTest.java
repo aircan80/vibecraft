@@ -9,6 +9,7 @@ import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.theme.Tokens;
 import java.util.List;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -32,7 +33,17 @@ class SourceSectionTest {
     SourceSection s = section(3);
     assertThat(s.title()).isEqualTo("Sold by");
     assertThat(s.heading().getText()).isEqualTo("Sold by (3)");
-    assertThat(s.heading().getForeground()).isEqualTo(Theme.current().accentGold());
+    Theme saved = Theme.current();
+    try {
+      Theme.setCurrent(Tokens.LIGHT);
+      assertThat(s.heading().getForeground()).as("the darker text gold on the light theme")
+          .isEqualTo(Tokens.LIGHT.goldText());
+      Theme.setCurrent(Tokens.DARK);
+      assertThat(s.heading().getForeground()).isEqualTo(Tokens.DARK.goldText());
+    } finally {
+      Theme.setCurrent(saved);
+    }
+    assertThat(s.table().table().getAccessibleContext().getAccessibleName()).isEqualTo("Sold by");
   }
 
   @Test

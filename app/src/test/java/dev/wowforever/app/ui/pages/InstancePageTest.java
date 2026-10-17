@@ -17,6 +17,7 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
+import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.nav.ViewTarget;
 import java.awt.Component;
 import java.awt.Rectangle;
@@ -231,14 +232,14 @@ class InstancePageTest {
   }
 
   @Test
-  void headerReadsTypeLevelsAndLinksTheZoneTwice() {
+  void headerLinksTheZoneAndTheNpcListOfTheZone() {
     List<ViewTarget> opened = new ArrayList<>();
     var p = deadmines(opened);
     assertThat(p.header().title()).isEqualTo("The Deadmines");
     assertThat(p.header().subtitle()).isEqualTo("Dungeon · Level 10–17 · The Deadmines · NPCs in The Deadmines");
     p.header().links().forEach(b -> b.doClick());
-    EntityRef zone = new EntityRef(ZONE, 1581);
-    assertThat(opened).containsExactly(new ViewTarget.Entity(zone), new ViewTarget.Entity(zone));
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(ZONE, 1581)),
+        new ViewTarget.List(NPC, NpcFilter.ALL.withZone(1581L)));
   }
 
   @Test

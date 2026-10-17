@@ -36,6 +36,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
+import javax.accessibility.AccessibleContext;
+import javax.accessibility.AccessibleRole;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
@@ -58,6 +60,8 @@ public final class MapView extends JComponent {
   public static final int HIT_PX = 8;
   /** Most entries in a marker's menu or tooltip. */
   static final int LIST_CAP = 25;
+  /** What assistive technology calls the map. */
+  public static final String ACCESSIBLE_NAME = "Zone map";
   private static final int RADIUS = 4;
   private static final int SELF_RADIUS = 6;
   private static final int BOSS_RADIUS = 5;
@@ -248,6 +252,26 @@ public final class MapView extends JComponent {
 
   public BufferedImage image() {
     return image;
+  }
+
+  /** A map panel for assistive technology, named {@value #ACCESSIBLE_NAME}, its description the pin count. */
+  @Override
+  public AccessibleContext getAccessibleContext() {
+    if (accessibleContext == null) {
+      accessibleContext = new AccessibleJComponent() {
+        @Override
+        public AccessibleRole getAccessibleRole() {
+          return AccessibleRole.PANEL;
+        }
+
+        @Override
+        public String getAccessibleDescription() {
+          return pins.size() == 1 ? "1 pin" : pins.size() + " pins";
+        }
+      };
+      accessibleContext.setAccessibleName(ACCESSIBLE_NAME);
+    }
+    return accessibleContext;
   }
 
   /** Shows {@code pins} in place of the current ones. */

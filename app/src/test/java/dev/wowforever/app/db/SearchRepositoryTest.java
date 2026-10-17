@@ -82,6 +82,26 @@ class SearchRepositoryTest {
   }
 
   @Test
+  void aSubZoneNamedLikeItsParentIsHiddenAndTheParentKept(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement s = c.createStatement()) {
+      s.executeUpdate("insert into zone(id, name, parent_id, kind) values (95000, 'Gloomvale', null, 'zone'), "
+          + "(95001, 'Gloom Maul', 95000, 'dungeon'), (95002, 'Gloom Maul', 95001, 'dungeon'), "
+          + "(95003, 'Gloom Maul', 95001, 'dungeon'), (95004, 'Gloom Maul Gate', 95001, 'subzone')");
+      s.executeUpdate("insert into search_index(kind, id, name) values ('zone', 95001, 'Gloom Maul'), "
+          + "('zone', 95002, 'Gloom Maul'), ('zone', 95003, 'Gloom Maul'), ('zone', 95004, 'Gloom Maul Gate')");
+    }
+    try (Database db = Database.open(copy)) {
+      SearchRepository search = new SearchRepository(db);
+      assertThat(search.search("gloom maul", Optional.empty(), 10)).extracting(h -> h.ref().id())
+          .containsExactly(95001L, 95004L);
+      assertThat(search.search("gloom maul", Optional.of(EntityKind.ZONE), 10)).hasSize(2);
+      assertThat(search.countsByKind("gloom maul")).isEqualTo(Map.of(EntityKind.ZONE, 2));
+    }
+  }
+
+  @Test
   void itemSubtitleOmitsASubclassNamedLikeItsClass() {
     assertThat(repos.search().search("unsent letter", Optional.of(ITEM), 5)).singleElement()
         .satisfies(h -> assertThat(h.subtitle()).isEqualTo("Quest · iLvl 16 · Req 16"));

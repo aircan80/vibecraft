@@ -1,6 +1,10 @@
 package dev.wowforever.app.ui.widgets;
 
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.TooltipLine;
+import dev.wowforever.app.nav.Navigator;
+import dev.wowforever.app.nav.ViewTarget;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -12,11 +16,15 @@ import java.awt.Insets;
 import java.awt.LayoutManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Pattern;
+import javax.swing.AbstractButton;
 import javax.swing.BorderFactory;
+import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.SwingConstants;
 import javax.swing.UIManager;
 import javax.swing.text.AbstractDocument;
 import javax.swing.text.Document;
@@ -26,7 +34,9 @@ import javax.swing.text.View;
  * An item's tooltip lines as stored, one per row in the line's colour, on a dark tooltip card in both themes: the
  * card is a WoW tooltip, not a themed panel, so the stored game colours and the default white text stay readable on
  * the light theme too. A long line wraps at word boundaries (plain text, no HTML); a tab in a line splits it into
- * left and right text, the left truncating first when the row is narrow. Hidden when there are no lines.
+ * left and right text, the left truncating first when the row is narrow. Spell variables the importer left
+ * unresolved ({@code $1293733s2}, {@code ${$proccooldown/60}}) read as {@code ?}. With a navigator, a set piece
+ * line that names an item is a link to it, in the line's grey. Hidden when there are no lines.
  * {@link ItemCardPanel} shows the lines inside its own card, without this panel's frame.
  */
 public final class TooltipLinesPanel extends JPanel {
@@ -37,6 +47,10 @@ public final class TooltipLinesPanel extends JPanel {
   /** The card border (UI review token {@code card.border}), the same in both themes. */
   public static final Color BORDER = new Color(0x46587A);
   private static final int SPLIT_GAP = 12;
+  /** A spell variable the importer could not resolve: {@code ${…}}, or {@code $} and letters or digits. */
+  private static final Pattern SPELL_TOKEN = Pattern.compile("\\$\\{[^}]*\\}|\\$[A-Za-z0-9]+");
+
+  private final Navigator nav;
 
   /** The text components in line order: a wrapping line, or a tab-split line's left then right label. */
   private final List<JComponent> parts = new ArrayList<>();
@@ -48,6 +62,15 @@ public final class TooltipLinesPanel extends JPanel {
 
   /** {@code lines}, on their own dark card when {@code framed}, else transparent and without a border. */
   TooltipLinesPanel(List<TooltipLine> lines, boolean framed) {
+    this(lines, framed, null);
+  }
+
+  /**
+   * {@code lines} as {@link #TooltipLinesPanel(List, boolean)}; a set piece naming an item opens it through
+   * {@code nav} (null: no links).
+   */
+  TooltipLinesPanel(List<TooltipLine> lines, boolean framed, Navigator nav) {
+    this.nav = nav;
     setLayout(new Stack());
     setOpaque(framed);
     setBackground(BACKGROUND);
@@ -66,7 +89,16 @@ public final class TooltipLinesPanel extends JPanel {
 
   /** The text of every {@linkplain #parts part}, in order. */
   public List<String> texts() {
-    return parts.stream().map(c -> c instanceof JLabel l ? l.getText() : ((JTextArea) c).getText()).toList();
+    return parts.stream().map(c -> switch (c) {
+      case JLabel l -> l.getText();
+      case AbstractButton b -> b.getText();
+      default -> ((JTextArea) c).getText();
+    }).toList();
+  }
+
+  /** {@code text} with every unresolved spell variable as {@code ?}; null stays null. */
+  public static String withoutSpellTokens(String text) {
+    return text == null ? null : SPELL_TOKEN.matcher(text).replaceAll("?");
   }
 
   /** The colour of every {@linkplain #parts part}, in order. */
@@ -99,7 +131,12 @@ public final class TooltipLinesPanel extends JPanel {
 
   private JComponent row(TooltipLine line) {
     Color colour = colour(line.colour());
-    String text = line.text() == null ? "" : line.text();
+    String text = line.text() == null ? "" : withoutSpellTokens(line.text());
+    if (nav != null && line.itemId() != null && "set_item".equals(line.kind())) {
+      JButton link = pieceLink(text, colour, new EntityRef(EntityKind.ITEM, line.itemId()));
+      parts.add(link);
+      return link;
+    }
     int tab = text.indexOf('\t');
     if (tab < 0) {
       LineText wrapped = new LineText(text, colour, Font.PLAIN, 0);
@@ -121,6 +158,28 @@ public final class TooltipLinesPanel extends JPanel {
     label.setToolTipText(text.isEmpty() ? null : text); // the whole text when it is truncated
     parts.add(label);
     return label;
+  }
+
+  /**
+   * A set piece link: borderless text in the line's {@code colour} (not the link colour: the card keeps the game's
+   * grey), with a hand cursor, opening {@code item}.
+   */
+  private JButton pieceLink(String text, Color colour, EntityRef item) {
+    JButton b = new JButton(text);
+    b.setForeground(colour);
+    b.setBorderPainted(false);
+    b.setContentAreaFilled(false);
+    b.setFocusPainted(false);
+    b.setOpaque(false);
+    b.setMargin(new Insets(0, 0, 0, 0));
+    b.setBorder(BorderFactory.createEmptyBorder());
+    b.setHorizontalAlignment(SwingConstants.LEADING);
+    b.setAlignmentX(LEFT_ALIGNMENT);
+    b.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+    b.setToolTipText("Open " + text);
+    b.getAccessibleContext().setAccessibleName(text);
+    b.addActionListener(e -> nav.open(new ViewTarget.Entity(item)));
+    return b;
   }
 
   /** {@code #rrggbb} as a colour; {@link #DEFAULT_TEXT} for null or anything else. */

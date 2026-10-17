@@ -18,6 +18,15 @@ class CompactColumnsTest {
   }
 
   @Test
+  void aHiddenRateWhoseSourcesDisagreeKeepsItsMarker() {
+    assertThat(CompactColumns.tooltip(List.of(new Cell("Rate", "5.00 %", true), new Cell("Slot", "7", true))))
+        .isEqualTo("Rate 5.00 %" + Columns.DISAGREES + " · Slot 7" + Columns.DISAGREES);
+    assertThat(CompactColumns.tooltip(List.of(new Cell("Drop %", "5.00 %" + Columns.DISAGREES, true))))
+        .as("a text with the marker already gets no second one").isEqualTo("Drop % 5.00 %" + Columns.DISAGREES);
+    assertThat(CompactColumns.tooltip(List.of(new Cell("Rate", Columns.NONE, true)))).isNull();
+  }
+
+  @Test
   void joinPutsTheCellsOwnTooltipBelowTheRowsOne() {
     assertThat(CompactColumns.join(null, null)).isNull();
     assertThat(CompactColumns.join("Level 21", null)).isEqualTo("Level 21");

@@ -29,20 +29,31 @@ import org.slf4j.LoggerFactory;
 public final class SearchRepository {
   private static final Logger LOG = LoggerFactory.getLogger(SearchRepository.class);
 
+  /**
+   * True for a {@code search_index} row that is not a zone named like its parent zone: the floors of Dire Maul are
+   * sub-zones named "Dire Maul" under the zone "Dire Maul", and would read as identical hits.
+   */
+  private static final String NOT_TWIN_SUBZONE = """
+      NOT (kind = 'zone' AND EXISTS (SELECT 1 FROM zone cz JOIN zone pz ON pz.id = cz.parent_id
+                                     WHERE cz.id = search_index.id AND pz.name = cz.name))""";
+
   /** Rows fetched per hit asked for, so that merging and collapsing still leave {@code limit} hits. */
   static final int FETCH_FACTOR = 3;
 
   /**
    * Every match ({@code Zone #id} placeholder names left out, as databases built before the importer stopped
-   * indexing them still have them) with the subtitle columns of its own table, best first. {@code sole} is the
-   * one instance whose {@code zone_id} a zone hit is, when merging is on (the parameter after the MATCH text and
-   * optional kind is 1) and the zone has exactly one instance; the hit then stands for that instance and joins its
-   * columns. The ORDER BY takes the normalised search text ({@link #exactText}); every value is a parameter.
+   * indexing them still have them, and so are zones named like their parent) with the subtitle columns of its own
+   * table, best first. {@code sole} is the one instance whose {@code zone_id} a zone hit is, when merging is on (the
+   * parameter after the MATCH text and optional kind is 1) and the zone has exactly one instance; the hit then stands
+   * for that instance and joins its columns. The ORDER BY takes the normalised search text ({@link #exactText});
+   * every value is a parameter.
    */
   private static final String SQL = """
       WITH s AS MATERIALIZED (
         SELECT kind, id, name, bm25(search_index) AS score FROM search_index
-        WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%%' %s)
+        WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%%'""" + " AND " + NOT_TWIN_SUBZONE
+      + """
+       %s)
       SELECT s.kind, s.id, s.name,
              sole.id AS sole_id, sole.name AS sole_name,
              ic.name AS class_name, isc.name AS subclass_name, i.item_level, i.required_level, i.quality,
@@ -90,7 +101,9 @@ public final class SearchRepository {
   private static final String COUNTS_SQL = """
       SELECT kind, CASE WHEN kind IN ('instance', 'zone') THEN count(*) ELSE count(DISTINCT name) END AS hits
       FROM search_index
-      WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%'
+      WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%'""" + " AND " + NOT_TWIN_SUBZONE
+      + """
+
       GROUP BY kind""";
 
   private final Database db;
@@ -103,9 +116,10 @@ public final class SearchRepository {
    * Hits whose name contains every whitespace-separated term of {@code text} as a word prefix, best first: a name
    * equal to the text (ignoring case and repeated spaces) first, then by kind, bm25 and name. Without a kind
    * filter, a zone that is the zone of exactly one instance stands for that instance (once, if the instance matched
-   * too). Item, NPC, object and quest hits of the same kind and name collapse into the first, which carries their
-   * count; every instance and zone stays its own hit, an instance whose name another instance shares titled with
-   * its wing. Blank text (or text without any letter or digit) gives no hits; no input makes this throw.
+   * too). A zone named like its parent zone is left out (the parent stands for it). Item, NPC, object and quest
+   * hits of the same kind and name collapse into the first, which carries their count; every instance and zone
+   * stays its own hit, an instance whose name another instance shares titled with its wing. Blank text (or text
+   * without any letter or digit) gives no hits; no input makes this throw.
    */
   public List<SearchHit> search(String text, Optional<EntityKind> kind, int limit) {
     String match = matchExpression(text);

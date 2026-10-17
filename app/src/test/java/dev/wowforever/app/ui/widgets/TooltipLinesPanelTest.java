@@ -3,10 +3,15 @@ package dev.wowforever.app.ui.widgets;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.FixtureDb;
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.TooltipLine;
+import dev.wowforever.app.nav.ViewTarget;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.util.ArrayList;
 import java.util.List;
+import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JTextArea;
 import javax.swing.SwingUtilities;
@@ -26,6 +31,33 @@ class TooltipLinesPanelTest {
     assertThat(p.texts()).containsExactly("Eye of Sulfuras", "Binds when picked up", LONG_USE, "Item Level 60",
         "Sell Price: 20g");
     assertThat(p.colours().get(2)).isEqualTo(new Color(0x1EFF00));
+  }
+
+  @Test
+  void unresolvedSpellVariablesReadAsQuestionMarks() {
+    var p = new TooltipLinesPanel(List.of(new TooltipLine("set_bonus", "(6) Set: absorbing $1293733s2 damage. Once"
+        + " every ${$proccooldown/60} min, $d left.", "#808080")));
+    assertThat(p.texts()).containsExactly("(6) Set: absorbing ? damage. Once every ? min, ? left.");
+    assertThat(TooltipLinesPanel.withoutSpellTokens("Costs 5 $ and $s1")).isEqualTo("Costs 5 $ and ?");
+    assertThat(TooltipLinesPanel.withoutSpellTokens(null)).isNull();
+  }
+
+  @Test
+  void aSetPieceWithAKnownItemIsALinkInTheGreyOfTheLine() {
+    List<ViewTarget> opened = new ArrayList<>();
+    var p = new TooltipLinesPanel(List.of(new TooltipLine("set_name", "Garb (0/2)", "#ffd100"),
+        new TooltipLine("set_item", "Bloodvine Vest", "#808080", 19682L),
+        new TooltipLine("set_item", "Lost Boots", "#808080")), true, opened::add);
+    assertThat(p.texts()).containsExactly("Garb (0/2)", "Bloodvine Vest", "Lost Boots");
+    assertThat(p.parts().get(1)).isInstanceOf(JButton.class);
+    assertThat(p.parts().get(2)).as("a piece without an item stays text").isNotInstanceOf(JButton.class);
+    JButton link = (JButton) p.parts().get(1);
+    assertThat(link.getForeground()).isEqualTo(new Color(0x808080));
+    assertThat(link.getAccessibleContext().getAccessibleName()).isEqualTo("Bloodvine Vest");
+    link.doClick();
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(EntityKind.ITEM, 19682)));
+    assertThat(new TooltipLinesPanel(List.of(new TooltipLine("set_item", "Bloodvine Vest", "#808080", 19682L)))
+        .parts().get(0)).as("no navigator, no link").isNotInstanceOf(JButton.class);
   }
 
   @Test

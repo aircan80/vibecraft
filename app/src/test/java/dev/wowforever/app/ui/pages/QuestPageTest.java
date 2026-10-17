@@ -14,12 +14,6 @@ import dev.wowforever.app.db.AssetRepository;
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.db.SpawnFixtureDb;
-import dev.wowforever.app.ui.detail.DetailPanels;
-import dev.wowforever.app.ui.widgets.MapView;
-import dev.wowforever.app.ui.widgets.MapView.Pin;
-import dev.wowforever.app.ui.widgets.MapView.PinKind;
-import java.awt.event.MouseEvent;
-import javax.swing.SwingUtilities;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.LootRow;
@@ -28,14 +22,20 @@ import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.LinkRenderer;
+import dev.wowforever.app.ui.detail.DetailPanels;
 import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.widgets.IconCache;
+import dev.wowforever.app.ui.widgets.MapView;
+import dev.wowforever.app.ui.widgets.MapView.Pin;
+import dev.wowforever.app.ui.widgets.MapView.PinKind;
 import dev.wowforever.app.ui.widgets.SourceSection;
+import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import javax.swing.JLabel;
 import javax.swing.JTable;
+import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -81,6 +81,26 @@ class QuestPageTest {
       JLabel npc = rendered(givers, 2);
       assertThat(npc.getIcon()).isNull();
       assertThat(npc.getForeground()).isEqualTo(LinkRenderer.linkColor());
+    } finally {
+      IconCache.install(before);
+    }
+  }
+
+  @Test
+  void relatedItemsShowTheirIconAndQualityColour() {
+    IconCache cache = new IconCache(repos.assets()::icon, 100, null);
+    cache.warm(Arrays.asList(132541L, null), IconCache.ROW);
+    IconCache before = IconCache.install(cache);
+    try {
+      var d = new QuestDetail(new QuestSummary(9, "Q", null, null, null), null, List.of(), List.of(), List.of(
+          new ItemSource(ItemSource.RELATED, new EntityRef(ITEM, 16800), "Arcanist Boots", 4, 132541L),
+          new ItemSource(ItemSource.RELATED, new EntityRef(ITEM, 16305), "Sharptalon's Claw")));
+      JTable related = new QuestPage(d, t -> {}).section("Related items").table().table();
+      JLabel boots = rendered(related, 0);
+      assertThat(boots.getForeground()).isEqualTo(QualityColors.text(4, FlatLaf.isLafDark()));
+      assertThat(boots.getIcon()).isSameAs(cache.cached(132541L, IconCache.ROW).orElseThrow());
+      assertThat(rendered(related, 1).getIcon()).as("no client data: the question mark")
+          .isSameAs(cache.cached(AssetRepository.FALLBACK_ICON_ID, IconCache.ROW).orElseThrow());
     } finally {
       IconCache.install(before);
     }
