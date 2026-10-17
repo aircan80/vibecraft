@@ -4,17 +4,35 @@ import csv
 import hashlib
 import json
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, NamedTuple, Optional
+from typing import Dict, Iterable, NamedTuple, Optional
 
 from .http import Client, FetchError
-from .tables import FALLBACK_NAME, REQUIRED_TABLES
+from .tables import FALLBACK_TABLES, REQUIRED_TABLES, fallback_name
 
-DEFAULT_BASE_URL = "http://localhost:8080"
-USER_AGENT = ("wowforever-item-browser-clientdata/0.1 "
-              "(build-time fetch tool; everything cached, max 4 req/s)")
+# wow.tools.local's default port.
+DEFAULT_BASE_URL = "http://localhost:5000"
+TOOL_VERSION = "0.2"
+USER_AGENT_PREFIX = "wow-forever-browser-pipeline/" + TOOL_VERSION
+CONTACT_ENV = "WOWFOREVER_CONTACT"
+# Sent when no contact is configured: a neutral hint, never personal data.
+PLACEHOLDER_CONTACT = "contact: set " + CONTACT_ENV
+BUILD_PATTERN = re.compile(r"\d+(\.\d+){3}")
+
+
+def user_agent(contact: Optional[str] = None) -> str:
+    """``wow-forever-browser-pipeline/<version> (+<contact>)``.
+
+    The contact is ``contact`` (the ``--user-agent`` flag) when not blank, else the WOWFOREVER_CONTACT environment
+    variable when not blank, else PLACEHOLDER_CONTACT.
+    """
+    for c in (contact, os.environ.get(CONTACT_ENV)):
+        if c is not None and c.strip():
+            return "%s (+%s)" % (USER_AGENT_PREFIX, c.strip())
+    return "%s (+%s)" % (USER_AGENT_PREFIX, PLACEHOLDER_CONTACT)
 
 
 class Build(NamedTuple):
@@ -23,7 +41,15 @@ class Build(NamedTuple):
     date: str
 
 
-FALLBACK_TABLE = "ItemSparse"  # the only table fetched from --fallback-product
+class BadBuildError(ValueError):
+    """A build string that is not four dot-separated numbers; builds become cache paths, so it is refused."""
+
+
+def check_build(build) -> str:
+    """``build`` when it matches ``^\\d+(\\.\\d+){3}$`` (e.g. 1.60.1.70425); else BadBuildError."""
+    if not isinstance(build, str) or not BUILD_PATTERN.fullmatch(build):
+        raise BadBuildError("build %r is not four dot-separated numbers (like 1.60.1.70425)" % (build,))
+    return build
 
 
 def load_builds(client):
@@ -32,6 +58,7 @@ def load_builds(client):
 
 
 def resolve_build(client, product, build=None, builds=None) -> Build:
+    """The pinned ``build`` or the product's newest listed build; either is checked with check_build."""
     data = builds if builds is not None else load_builds(client)
     # wago.tools returns {product: [entries]}; accept a flat list as well.
     if isinstance(data, dict):
@@ -39,6 +66,7 @@ def resolve_build(client, product, build=None, builds=None) -> Build:
     else:
         entries = [e for e in data if e.get("product") == product]
     if build is not None:
+        check_build(build)
         for e in entries:
             if e.get("version") == build:
                 return Build(product, build, e.get("created_at", ""))
@@ -46,7 +74,7 @@ def resolve_build(client, product, build=None, builds=None) -> Build:
     if not entries:
         raise LookupError("no builds listed for product %r" % product)
     newest = max(entries, key=lambda e: e.get("created_at", ""))
-    return Build(product, newest["version"], newest.get("created_at", ""))
+    return Build(product, check_build(newest.get("version")), newest.get("created_at", ""))
 
 
 def _write_atomic(path: Path, data: bytes):
@@ -67,17 +95,23 @@ def fetch_tables(client, build, cache_dir, only: Optional[Iterable[str]] = None)
     return out
 
 
-def fetch_fallback_sparse(client, fallback_build, cache_dir, build, previous_fallback_build=None):
-    """Fetch only ItemSparse of the fallback product's build into the Forever build's csv directory.
+def fetch_fallback(client, fallback_build, cache_dir, build, previous_fallback_build=None) -> Dict[str, Path]:
+    """Fetch the FALLBACK_TABLES of the fallback product's build into the Forever build's csv directory.
 
-    The cached file is reused unless it is empty or was fetched for a different fallback build
-    (``previous_fallback_build``, read from the last build.lock).
+    Each lands in ``csv/{Table}.era.csv`` and is returned under ``{Table}.era``. A cached file is reused unless it is
+    empty or the cache's tables were fetched for a different fallback build (``previous_fallback_build``, read from
+    the last build.lock), so a newer fallback build replaces them all and a table missing from the cache is fetched
+    alone.
     """
-    path = Path(cache_dir) / build / "csv" / (FALLBACK_NAME + ".csv")
-    cached = path.exists() and path.stat().st_size > 0
-    if not cached or previous_fallback_build != fallback_build:
-        _write_atomic(path, client.get_bytes("/db2/%s/csv?build=%s" % (FALLBACK_TABLE, fallback_build)))
-    return path
+    out = {}
+    for table in FALLBACK_TABLES:
+        name = fallback_name(table)
+        path = Path(cache_dir) / build / "csv" / (name + ".csv")
+        cached = path.exists() and path.stat().st_size > 0
+        if not cached or previous_fallback_build != fallback_build:
+            _write_atomic(path, client.get_bytes("/db2/%s/csv?build=%s" % (table, fallback_build)))
+        out[name] = path
+    return out
 
 
 def read_lock(cache_dir, build):
@@ -157,7 +191,7 @@ def write_lock(cache_dir, build, tables, files=None, product="", base_url="", mi
     ``tables`` maps the names this run fetched (or verified) to their CSV paths; their sha256 replaces the
     existing lock's entries and every other existing table entry is kept, so a ``--tables`` or ``--fdids``
     run never drops what earlier runs recorded. ``fallback`` is the fallback Build (its product and build
-    are recorded, and its table's sha is expected in ``tables`` under FALLBACK_NAME); without one the
+    are recorded, and its tables' shas are expected in ``tables`` under FALLBACK_NAMES); without one the
     existing fallback keys are kept. ``file_count`` is the number of BLP files in the cache's files
     directory and ``missing_count`` the number of ids in missing.txt, whatever this run fetched; ``files``
     is accepted for compatibility and not counted.
@@ -211,7 +245,11 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Fetch WoW client tables and files into a cache.")
     ap.add_argument("--product", required=True)
     ap.add_argument("--build")
-    ap.add_argument("--base-url", default=DEFAULT_BASE_URL)
+    ap.add_argument("--base-url", default=DEFAULT_BASE_URL,
+                    help="wow.tools.local (default %s) or https://wago.tools" % DEFAULT_BASE_URL)
+    ap.add_argument("--user-agent", metavar="CONTACT",
+                    help="the contact part of the User-Agent, after the fixed '%s' prefix (default: the %s "
+                         "environment variable, else a placeholder)" % (USER_AGENT_PREFIX, CONTACT_ENV))
     ap.add_argument("--cache", required=True)
     ap.add_argument("--tables", help="comma-separated subset of tables (default: all required)")
     ap.add_argument("--icons-from", metavar="ITEM_CSV",
@@ -223,8 +261,8 @@ def main(argv=None) -> int:
                     help="re-request files previously recorded as 404 in missing.txt")
     ap.add_argument("--rate", type=float, default=4.0, help="max requests per second (default 4)")
     ap.add_argument("--fallback-product", metavar="PRODUCT",
-                    help="also fetch ItemSparse of this product's build (e.g. wow_classic_era) into "
-                         "csv/ItemSparse.era.csv, for items absent from the main ItemSparse")
+                    help="also fetch %s of this product's build (e.g. wow_classic_era) into csv/{Table}.era.csv, "
+                         "for items absent from the main ItemSparse" % ", ".join(FALLBACK_TABLES))
     ap.add_argument("--fallback-build", metavar="BUILD",
                     help="pin the fallback product's build (default newest)")
     args = ap.parse_args(argv)
@@ -233,15 +271,19 @@ def main(argv=None) -> int:
         return 2
 
     cache = Path(args.cache).expanduser()
-    client = Client(args.base_url, USER_AGENT, rate_per_second=args.rate)
+    client = Client(args.base_url, user_agent(args.user_agent), rate_per_second=args.rate)
     builds = load_builds(client)
-    b = resolve_build(client, args.product, args.build, builds=builds)
+    try:
+        b = resolve_build(client, args.product, args.build, builds=builds)
+    except (LookupError, BadBuildError) as e:
+        print("error: --product: %s" % e, file=sys.stderr)
+        return 2
     print("build: %s %s (%s)" % (b.product, b.build, b.date or "date unknown"))
     fb = None
     if args.fallback_product:
         try:
             fb = resolve_build(client, args.fallback_product, args.fallback_build, builds=builds)
-        except LookupError as e:
+        except (LookupError, BadBuildError) as e:
             print("error: --fallback-product: %s" % e, file=sys.stderr)
             return 2
         print("fallback build: %s %s (%s)" % (fb.product, fb.build, fb.date or "date unknown"))
@@ -251,9 +293,8 @@ def main(argv=None) -> int:
     tables = fetch_tables(client, b.build, cache, only=only)
     print("tables cached: %d" % len(tables))
     if fb is not None:
-        tables[FALLBACK_NAME] = fetch_fallback_sparse(client, fb.build, cache, b.build,
-                                                      previous_lock.get("fallback_build"))
-        print("fallback %s cached from %s %s" % (FALLBACK_TABLE, fb.product, fb.build))
+        tables.update(fetch_fallback(client, fb.build, cache, b.build, previous_lock.get("fallback_build")))
+        print("fallback %s cached from %s %s" % (", ".join(FALLBACK_TABLES), fb.product, fb.build))
 
     fdids = set()
     if args.fdids:

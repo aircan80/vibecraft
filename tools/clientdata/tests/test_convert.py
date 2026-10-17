@@ -141,3 +141,15 @@ def test_convert_copies_the_era_item_sparse_when_present(tmp_path):
     out = tmp_path / "o"
     assert convert_cli.main(["--cache", str(cache), "--build", BUILD, "--out", str(out)]) == 0
     assert (out / "csv" / "ItemSparse.era.csv").read_bytes() == era
+
+
+def test_convert_copies_every_era_table(tmp_path):
+    cache = _make_cache(tmp_path)
+    era = {"ItemSparse.era.csv": b"ID,Display_lang\r\n19137,Onslaught Girdle\r\n",
+           "ItemEffect.era.csv": b"ID,TriggerType,SpellID,ParentItemID\n40,1,15464,19137\n"}
+    for name, data in era.items():
+        (cache / BUILD / "csv" / name).write_bytes(data)
+    out = tmp_path / "o"
+    assert convert_cli.main(["--cache", str(cache), "--build", BUILD, "--out", str(out)]) == 0
+    for name, data in era.items():
+        assert (out / "csv" / name).read_bytes() == data

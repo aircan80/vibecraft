@@ -7,6 +7,8 @@ follow from them, transitively:
   ItemSparse.era (when cached)          the Era fallback rows of those items; they feed the level and
                                         reference closures only for items without a Forever row and
                                         never add items or sets
+  ItemEffect.era (when cached)          the Era effects (by ParentItemID) of the Era-sourced items (no Forever
+                                        ItemSparse row); their spells join the spell closure (Forever's tables)
   ItemSet, ItemSetSpell                 the sets named by --sets and by ItemSparse.ItemSet
   ItemXItemEffect -> ItemEffect         the items' effects
   Spell, SpellName, SpellEffect,        every spell reached from item effects and set bonuses,
@@ -25,7 +27,7 @@ follow from them, transitively:
 
 Rows are copied byte for byte (original quoting and line endings), in source order, under
 the original header line. Every table in REQUIRED_TABLES is written, even when empty; the
-optional tables (ItemSparse.era) only when the cache has them.
+optional tables (the FALLBACK_NAMES: ItemSparse.era, ItemEffect.era) only when the cache has them.
 """
 import argparse
 import csv
@@ -35,10 +37,10 @@ import sys
 from pathlib import Path
 from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
-from .tables import FALLBACK_NAME, REQUIRED_TABLES
+from .tables import FALLBACK_NAME, FALLBACK_NAMES, REQUIRED_TABLES, fallback_name
 
 # Written only when present in the cache.
-OPTIONAL_TABLES = (FALLBACK_NAME,)
+OPTIONAL_TABLES = FALLBACK_NAMES
 
 # Copied whole: small lookup tables (all well under WHOLE_TABLE_LIMIT in 1.60.1.70425).
 WHOLE_TABLES = ("ArmorLocation", "ItemClass", "ItemSubClass", "ItemNameDescription",
@@ -206,8 +208,12 @@ def build_subset(csv_dir, items: Iterable[int], sets: Iterable[int] = (), ui_map
     links = s.select("ItemXItemEffect", lambda r: _int(r["ItemID"]) in item_ids)
     effect_ids = _ids(r["ItemEffectID"] for r in links)
     effects = s.select("ItemEffect", lambda r: _int(r["ID"]) in effect_ids)
+    # the Era effects of the items whose row the importer takes from Era (it reads no others)
+    era_ids = {_int(r["ID"]) for r in era} - forever_ids
+    era_effects = s.select(fallback_name("ItemEffect"), lambda r: _int(r["ParentItemID"]) in era_ids)
 
-    spell_ids = _ids(r["SpellID"] for r in effects) | _ids(r["SpellID"] for r in set_spells)
+    spell_ids = (_ids(r["SpellID"] for r in effects) | _ids(r["SpellID"] for r in era_effects)
+                 | _ids(r["SpellID"] for r in set_spells))
     enchant_ids = _ids(r.get("Socket_match_enchantment_ID", "") for r in sparse)
     spell_ids, enchant_ids = _close_spells(s, spell_ids, enchant_ids)
 

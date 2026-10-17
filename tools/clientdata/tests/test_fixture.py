@@ -125,3 +125,30 @@ def test_no_era_table_in_the_cache_writes_none(tmp_path):
     counts = fixture.build_subset(csv_dir, items=[1]).write(tmp_path / "out" / "csv")
     assert "ItemSparse.era" not in counts
     assert not (tmp_path / "out" / "csv" / "ItemSparse.era.csv").exists()
+
+
+# the Era layout: no ItemXItemEffect, each effect names its item in ParentItemID
+ERA_EFFECTS = "ID,TriggerType,SpellID,ParentItemID\n41,1,401,1\n43,1,900,3\n44,1,950,3\n49,1,499,9\n"
+
+
+def test_era_effects_are_kept_for_era_sourced_items_and_feed_the_spell_closure(tmp_path):
+    csv_dir = _cache(tmp_path)
+    (csv_dir / "ItemSparse.era.csv").write_bytes(ERA.encode("utf-8"))
+    (csv_dir / "ItemEffect.era.csv").write_bytes(ERA_EFFECTS.encode("utf-8"))
+    s = fixture.build_subset(csv_dir, items=[1], sets=[7], extra_levels=[60])
+    counts = s.write(tmp_path / "out" / "csv")
+
+    # only item 3 is Era-sourced (1 has a Forever row, 9 is outside the subset)
+    assert _out(tmp_path, "ItemEffect.era") == "ID,TriggerType,SpellID,ParentItemID\n43,1,900,3\n44,1,950,3\n"
+    assert counts["ItemEffect.era"] == 2
+    # Era effect spells come from Forever's spell tables: 900 is kept, 950 has no Forever row (nothing to keep)
+    spells = {int(l.split(",")[0]) for l in _out(tmp_path, "Spell").splitlines()[1:] if l[:1].isdigit()}
+    assert 900 in spells and 950 not in spells
+
+
+def test_no_era_effect_table_in_the_cache_writes_none(tmp_path):
+    csv_dir = _cache(tmp_path)
+    (csv_dir / "ItemSparse.era.csv").write_bytes(ERA.encode("utf-8"))
+    counts = fixture.build_subset(csv_dir, items=[1], sets=[7]).write(tmp_path / "out" / "csv")
+    assert "ItemSparse.era" in counts
+    assert "ItemEffect.era" not in counts

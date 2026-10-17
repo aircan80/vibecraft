@@ -15,6 +15,18 @@ REQUIRED_TABLES = (
     "AreaTable", "Map", "ChrRaces", "ChrClasses", "SkillLine", "Faction",
 )
 
-# The fallback product's ItemSparse (ruling 17), cached and converted as csv/ItemSparse.era.csv
-# and locked under this name; read only for items absent from the main ItemSparse.
-FALLBACK_NAME = "ItemSparse.era"
+# The tables fetched from the fallback product (ruling 17 and the 2A fix wave): its ItemSparse, read only for items
+# absent from the main ItemSparse, and its ItemEffect, read only for those Era-sourced items. Classic Era (1.15.9)
+# has no ItemXItemEffect table: its ItemEffect names each effect's item in ParentItemID. Each is cached and converted
+# as csv/{Table}.era.csv and locked under "{Table}.era".
+FALLBACK_TABLES = ("ItemSparse", "ItemEffect")
+FALLBACK_SUFFIX = ".era"
+
+
+def fallback_name(table: str) -> str:
+    """The cache, output and lock name of a fallback table: ``ItemSparse`` -> ``ItemSparse.era``."""
+    return table + FALLBACK_SUFFIX
+
+
+FALLBACK_NAMES = tuple(fallback_name(t) for t in FALLBACK_TABLES)
+FALLBACK_NAME = fallback_name("ItemSparse")
