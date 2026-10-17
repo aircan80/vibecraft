@@ -3,7 +3,11 @@ package dev.wowforever.importer.sqlite;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.importer.Fixtures;
+import dev.wowforever.importer.clientdata.ClientDataBundle;
 import dev.wowforever.importer.clientdata.ClientDataSource;
+import dev.wowforever.importer.clientdata.Craft;
+import dev.wowforever.importer.clientdata.CraftReagent;
+import dev.wowforever.importer.clientdata.Crafts;
 import dev.wowforever.importer.clientdata.ClientItem;
 import dev.wowforever.importer.clientdata.ItemClassNames;
 import dev.wowforever.importer.clientdata.ItemEffectLoader;
@@ -13,6 +17,7 @@ import dev.wowforever.importer.clientdata.ItemStat;
 import dev.wowforever.importer.clientdata.ItemTooltips;
 import dev.wowforever.importer.clientdata.ItemValues;
 import dev.wowforever.importer.clientdata.ScalingTables;
+import dev.wowforever.importer.clientdata.ZoneMaps;
 import dev.wowforever.importer.drops.DropRates;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
@@ -368,6 +373,29 @@ class SqliteWriterClientDataTest {
           .isEqualTo(String.valueOf(scalar(c, "select count(*) from item where has_client_data = 1")));
       assertThat(scalar(c, "select value from meta where key = 'icon_count'")).isEqualTo(String.valueOf(icons.size()));
       assertThat(scalar(c, "select value from meta where key = 'zone_map_count'")).isEqualTo("1");
+    }
+  }
+
+  @Test
+  void craftsAndTheirReagentsAreWrittenInSlotOrder() throws Exception {
+    Path db = tmp.resolve("t.sqlite");
+    Crafts crafts = new Crafts(List.of(
+        new Craft(20649, "Heavy Leather", 4234, 1, 1, 165L, "Leatherworking", 1, 125, 135, null),
+        new Craft(21160, "Eye of Sulfuras", 17182, 1, 1, null, null, null, null, null, null),
+        new Craft(3931, "Coarse Dynamite", 4365, 1, 3, 202L, "Engineering", 1, 90, 105, 4410L)),
+        List.of(new CraftReagent(20649, 2319, 5), new CraftReagent(21160, 17204, 1),
+            new CraftReagent(21160, 17193, 1)));
+    SqliteWriter.write(db, new Items().model(), new ImportReport(), new ClientDataBundle(Map.of(), null, Map.of(),
+        ItemTooltips.empty(), Map.of(), ZoneMaps.EMPTY, null, Map.of(), crafts));
+    try (Connection c = open(db)) {
+      assertThat(row(c, "select spell_name, item_id, quantity_min, quantity_max, skill_line_id, skill_name, min_skill,"
+          + " trivial_low, trivial_high, recipe_item_id from craft where spell_id = 3931"))
+          .containsExactly("Coarse Dynamite", 4365, 1, 3, 202, "Engineering", 1, 90, 105, 4410);
+      assertThat(row(c, "select skill_line_id, skill_name, min_skill, trivial_low, trivial_high, recipe_item_id"
+          + " from craft where spell_id = 21160")).containsExactly(null, null, null, null, null, null);
+      assertThat(scalar(c, "select count(*) from craft")).isEqualTo(3);
+      assertThat(column(c, "select item_id || 'x' || count from craft_reagent where spell_id = 21160 order by rowid"))
+          .containsExactly("17204x1", "17193x1");
     }
   }
 

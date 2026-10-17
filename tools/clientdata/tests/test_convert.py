@@ -153,3 +153,36 @@ def test_convert_copies_every_era_table(tmp_path):
     assert convert_cli.main(["--cache", str(cache), "--build", BUILD, "--out", str(out)]) == 0
     for name, data in era.items():
         assert (out / "csv" / name).read_bytes() == data
+
+
+def test_convert_tables_copies_only_the_named_csvs_and_the_lock(tmp_path):
+    cache = _make_cache(tmp_path)
+    reagents = b"ID,SpellID,Reagent_0,ReagentCount_0\r\n1,20649,2319,5\r\n"
+    (cache / BUILD / "csv" / "SpellReagents.csv").write_bytes(reagents)
+    (cache / BUILD / "csv" / "SkillLineAbility.csv").write_bytes(b"ID,SkillLine,Spell\n11757,165,20649\n")
+    out = tmp_path / "o"
+    (out / "csv").mkdir(parents=True)
+    (out / "csv" / "Item.csv").write_bytes(b"left alone")
+    (out / "maps.json").write_bytes(b"[]")
+    args = ["--cache", str(cache), "--build", BUILD, "--out", str(out), "--tables", "SpellReagents, SkillLineAbility"]
+    assert convert_cli.main(args) == 0
+    t = _tree_bytes(out)
+    assert set(t) == {"build.lock", "csv/Item.csv", "csv/SkillLineAbility.csv", "csv/SpellReagents.csv", "maps.json"}
+    assert t["csv/SpellReagents.csv"] == reagents
+    assert t["csv/Item.csv"] == b"left alone" and t["maps.json"] == b"[]"
+    assert t["build.lock"] == (cache / BUILD / "build.lock").read_bytes()
+
+
+def test_convert_tables_refuses_a_table_that_is_not_cached(tmp_path, capsys):
+    cache = _make_cache(tmp_path)
+    out = tmp_path / "o"
+    assert convert_cli.main(["--cache", str(cache), "--build", BUILD, "--out", str(out), "--tables", "Nope"]) == 2
+    assert "Nope" in capsys.readouterr().err
+    assert not out.exists()
+
+
+def test_convert_tables_and_ui_icons_only_are_exclusive(tmp_path):
+    cache = _make_cache(tmp_path)
+    with pytest.raises(SystemExit):
+        convert_cli.main(["--cache", str(cache), "--build", BUILD, "--out", str(tmp_path / "o"), "--tables", "Item",
+                          "--ui-icons-only"])

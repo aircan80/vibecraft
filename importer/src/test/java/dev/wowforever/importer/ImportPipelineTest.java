@@ -118,7 +118,7 @@ class ImportPipelineTest {
   /** Tables the client-data stage and drop-rate provenance fill. */
   private static final List<String> CLIENT_TABLES = List.of("item_stat", "item_damage", "item_armor", "item_effect",
       "item_set", "item_set_item", "item_set_bonus", "item_tooltip_line", "icon", "zone_map", "drop_rate_source",
-      "item_alt_value", "ui_asset");
+      "item_alt_value", "ui_asset", "craft", "craft_reagent");
 
   @Test
   void endToEndWithClientDataFixture(@TempDir Path tmp) throws Exception {
@@ -151,7 +151,15 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select count(*) from icon where id = 134236")).isEqualTo(1);
       assertThat(strings(c, "select name from ui_asset order by name"))
           .containsExactly("rail.quests", "rail.quests@24");
+      assertThat(strings(c, "select spell_name from craft where item_id = 4234")).containsExactly("Heavy Leather");
+      assertThat(strings(c, "select spell_name from craft c join craft_reagent r on r.spell_id = c.spell_id"
+          + " where r.item_id = 17204")).containsExactly("Eye of Sulfuras");
+      assertThat(scalar(c, "select recipe_item_id from craft where spell_id = 1225758")).isEqualTo(238645);
     }
+    assertThat(r.get("clientdata.crafts")).isEqualTo(6);
+    assertThat(r.get("clientdata.crafts.noSkill")).isEqualTo(1);
+    assertThat(r.get("clientdata.crafts.reagents")).isEqualTo(15).isEqualTo(r.get("table.craft_reagent"));
+    assertThat(r.get("clientdata.crafts.recipes")).isEqualTo(2);
     assertThat(r.get("clientdata.uiAssets")).isEqualTo(1);
     long named = r.get("clientdata.items.named");
     assertThat(named).isPositive();
@@ -190,7 +198,7 @@ class ImportPipelineTest {
     }
     assertThat(r.get("clientdata.skipped")).isEqualTo(1);
     assertThat(r.counters()).doesNotContainKeys("clientdata.items.matched", "clientdata.coverage.pct",
-        "clientdata.uiAssets");
+        "clientdata.uiAssets", "clientdata.crafts");
   }
 
   /** Runs the import into {@code dir}; asserts build-id.txt equals meta.build_id of the written DB. */

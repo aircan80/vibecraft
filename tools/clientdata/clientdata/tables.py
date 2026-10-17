@@ -13,6 +13,9 @@ REQUIRED_TABLES = (
     "UiMap", "UiMapArt", "UiMapArtTile", "UiMapArtStyleLayer", "UiMapXMapArt",
     "UiMapAssignment", "WorldMapOverlay", "WorldMapOverlayTile",
     "AreaTable", "Map", "ChrRaces", "ChrClasses", "SkillLine", "Faction",
+    # crafting (3A Task 8): reagents by craft spell, skill line and ranks by spell; SkillRaceClassInfo is fetched for
+    # completeness (which races and classes may learn a skill) and not read by the importer yet
+    "SpellReagents", "SkillLineAbility", "SkillRaceClassInfo",
     # the client's interface file listing, read by fetch.py --ui-icons to resolve the rail icons' FileDataIDs
     "ManifestInterfaceData",
 )

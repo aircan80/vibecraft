@@ -19,7 +19,7 @@ Never install the requirements globally.
 
 ## Commands
 
-    # all 45 required tables, newest build of the product, local wow.tools.local (default base URL)
+    # all 48 required tables, newest build of the product, local wow.tools.local (default base URL)
     python tools/clientdata/fetch.py --product wow_classic_beta --cache ~/.cache/wowforever-clientdata
 
     # against wago.tools, one table only (smoke test)
@@ -150,6 +150,18 @@ Reads `{cache}/{build}` and writes a deterministic (no timestamps) import tree:
   and Tanning Rack (279941).
 
 `--ui-icons-only` writes only `OUT/build.lock` and `OUT/ui_icons/` and leaves the rest of `OUT` as it is.
+`--tables A,B` copies only those cached tables into `OUT/csv/` (plus `OUT/build.lock`) and leaves the rest of `OUT` as
+it is; a table that is not cached stops the run with exit code 2 before anything is written. The two flags exclude
+each other.
+
+The crafting tables (`SpellReagents`, `SkillLineAbility` and `SkillRaceClassInfo`, 3A Task 8) joined
+`REQUIRED_TABLES` after the full run and were fetched and converted alone:
+
+    python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C         --tables SpellReagents,SkillLineAbility,SkillRaceClassInfo
+    python tools/clientdata/convert.py --cache $C --build $B --out $C/out/current         --tables SpellReagents,SkillLineAbility,SkillRaceClassInfo
+
+The importer reads `SpellReagents` and `SkillLineAbility`; `SkillRaceClassInfo` (which races and classes may learn a
+skill) is fetched for completeness and not read yet.
 
 ## UI icons
 
@@ -189,6 +201,8 @@ Cuts a small, self-consistent subset of the cached tables: the given items (plus
 and every row reached from them (effects, spells incl. trigger and `$<id>` text references, enchantments,
 set bonuses, scaling rows for the item levels used), the UiMap chain of the given maps, the given areas with
 their sub-zones, and the small lookup tables whole. Rows are copied byte for byte under the original header.
+`--crafts 1,2,3` adds crafting spells to the spell closure, and the `SpellReagents` (by `SpellID`) and
+`SkillLineAbility` (by `Spell`) rows of every kept spell are kept, their skill lines joining the `SkillLine` references.
 When the cache has `ItemSparse.era.csv`, the Era rows of every subset item are kept in `ItemSparse.era.csv`; for
 items without a Forever ItemSparse row they also add their item levels (and references) to the closures, but
 they never add items or sets. When it has `ItemEffect.era.csv`, the Era effects (by `ParentItemID`) of those
@@ -228,6 +242,16 @@ The 2A fix wave added two things the same way, offline and additively. Illari's 
 fixture, and its icon `134236.png` was converted from the cached BLP. `ItemEffect.era.csv` holds the Era effects of
 the fixture's Era-sourced items (Onslaught Girdle, Arcanist Boots, the Felheart pieces, ...), with their Forever
 spell rows; the fixture `build.lock` gained its `tables["ItemEffect.era"]` sha (of the full table, like the others).
+
+3A Task 8 (crafting) added, the same way and additively, `SpellReagents.csv` and `SkillLineAbility.csv`, the recipe
+items Recipe: Prowler Steak (238645) and its second recipe 250394, and the crafts Heavy Leather (20649,
+Leatherworking), Sulfuron Hammer (21161, Blacksmithing) and Coarse Dynamite (3931, Engineering, a yield range of 1 to
+3): `ARGS` above plus `--items ...,238645,250394 --crafts 20649,21161,3931`. Spells already in the fixture became
+crafts too: Eye of Sulfuras (21160, no SkillLineAbility row), Transmute: Air to Fire (17559, taught by 13482) and
+Prowler Steak (1225758, Cooking); Enchant Weapon - Dismantle (435481) has reagents and a skill row but creates
+nothing. The cut reproduces every other committed CSV byte for byte except the hand-extended `UiMapAssignment.csv`,
+which was left alone, and `SkillRaceClassInfo.csv` was not added (the importer does not read it). The fixture
+`build.lock` was not changed.
 
 The fixture tree is `-text` in `.gitattributes`: one quoted ItemSparse cell holds a real CRLF.
 

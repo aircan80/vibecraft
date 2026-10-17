@@ -3,6 +3,9 @@ package dev.wowforever.importer.sqlite;
 import dev.wowforever.importer.clientdata.BuildLock;
 import dev.wowforever.importer.clientdata.ClientDataBundle;
 import dev.wowforever.importer.clientdata.ClientItem;
+import dev.wowforever.importer.clientdata.Craft;
+import dev.wowforever.importer.clientdata.CraftReagent;
+import dev.wowforever.importer.clientdata.Crafts;
 import dev.wowforever.importer.clientdata.ItemClassNames;
 import dev.wowforever.importer.clientdata.ItemDamage;
 import dev.wowforever.importer.clientdata.ItemSetInfo;
@@ -125,7 +128,8 @@ public final class SqliteWriter {
   /**
    * Writes the model with everything the client-data stages produced, see {@link ClientDataBundle}. Icons and
    * zone maps fill {@code icon} and {@code zone_map} and set {@code zone.ui_map_id}, UI textures fill
-   * {@code ui_asset}; with a build lock the {@code client_*} meta keys are written too.
+   * {@code ui_asset}, crafts fill {@code craft} and {@code craft_reagent}; with a build lock the {@code client_*} meta
+   * keys are written too.
    */
   public static void write(Path out, ImportModel model, ImportReport report, ClientDataBundle client)
       throws IOException, SQLException {
@@ -180,6 +184,7 @@ public final class SqliteWriter {
       writeIcons(c, client.icons());
       writeZoneMaps(c, client.zoneMaps());
       writeUiAssets(c, client.uiAssets());
+      writeCrafts(c, client.crafts());
       writeClientMeta(c, client);
 
       execute(c, List.of(SEARCH_INDEX));
@@ -202,6 +207,23 @@ public final class SqliteWriter {
     try (Batch rows = new Batch(c, "INSERT INTO ui_asset(name, png) VALUES (?, ?)")) {
       for (Map.Entry<String, byte[]> e : new TreeMap<>(assets).entrySet()) {
         rows.add(e.getKey(), e.getValue());
+      }
+    }
+  }
+
+  /** {@code craft} and {@code craft_reagent}, the reagents in their given (slot) order. */
+  private static void writeCrafts(Connection c, Crafts crafts) throws SQLException {
+    try (Batch rows = new Batch(c, "INSERT INTO craft(spell_id, spell_name, item_id, quantity_min, quantity_max,"
+        + " skill_line_id, skill_name, min_skill, trivial_low, trivial_high, recipe_item_id)"
+        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+      for (Craft k : crafts.crafts()) {
+        rows.add(k.spellId(), k.spellName(), k.createdItemId(), k.quantityMin(), k.quantityMax(), k.skillLineId(),
+            k.skillName(), k.minSkill(), k.trivialLow(), k.trivialHigh(), k.recipeItemId());
+      }
+    }
+    try (Batch rows = new Batch(c, "INSERT INTO craft_reagent(spell_id, item_id, count) VALUES (?, ?, ?)")) {
+      for (CraftReagent r : crafts.reagents()) {
+        rows.add(r.spellId(), r.itemId(), r.count());
       }
     }
   }

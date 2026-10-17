@@ -3,6 +3,7 @@ ID,Name_lang
 433,Food
 439,"Healing Potion"
 1139,"Cold Eye"
+3931,"Coarse Dynamite"
 4975,"Cleanse Winterhoof Well"
 5024,Flee
 7597,"Increased Critical 1"
@@ -30,7 +31,9 @@ ID,Name_lang
 18382,"Increased Critical Spell"
 18388,"Quick Fade"
 18956,"Restore Life"
+20649,"Heavy Leather"
 21160,"Eye of Sulfuras"
+21161,"Sulfuron Hammer"
 21740,"Demonic Ally"
 21991,"Talisman of Binding"
 21992,Thunderfury
@@ -41,6 +44,7 @@ ID,Name_lang
 435481,"Enchant Weapon - Dismantle"
 440212,Cryoblast
 446847,"S03 - Tuning and Overrides Passive - All Classes"
+1225758,"Prowler Steak"
 1247426,"Stock Crate"
 1293670,"Scarlet Guardian"
 1293673,"Enraging Light"

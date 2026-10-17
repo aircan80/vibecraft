@@ -351,6 +351,32 @@ CREATE TABLE boss_loot (
   PRIMARY KEY (boss_id, item_id, difficulty)
 );
 
+-- Crafting (phase 3A, additive to schema v3), from the client's spell tables: a spell whose Create Item effect makes
+-- item_id, quantity_min to quantity_max of it. The skill columns come from its SkillLineAbility row and are all NULL
+-- without one; recipe_item_id is the item that teaches it (the lowest id when several do), NULL when none does.
+-- spell_id and item_id may name spells and items absent from the item table.
+CREATE TABLE craft (
+  spell_id       INTEGER PRIMARY KEY,
+  spell_name     TEXT,
+  item_id        INTEGER NOT NULL,
+  quantity_min   INTEGER NOT NULL,
+  quantity_max   INTEGER NOT NULL,
+  skill_line_id  INTEGER,
+  skill_name     TEXT,
+  min_skill      INTEGER,
+  trivial_low    INTEGER,
+  trivial_high   INTEGER,
+  recipe_item_id INTEGER
+);
+
+-- the reagents of a craft, inserted in SpellReagents slot order (rowid order)
+CREATE TABLE craft_reagent (
+  spell_id INTEGER NOT NULL,
+  item_id  INTEGER NOT NULL,
+  count    INTEGER NOT NULL,
+  PRIMARY KEY (spell_id, item_id)
+);
+
 -- kind: item | npc | object | quest | zone | instance
 CREATE VIRTUAL TABLE search_index USING fts5(kind UNINDEXED, id UNINDEXED, name, tokenize = 'unicode61 remove_diacritics 2');
 
@@ -392,3 +418,6 @@ CREATE INDEX idx_quest_objective_quest ON quest_objective(quest_id, ordinal);
 CREATE INDEX idx_quest_objective_point_quest ON quest_objective_point(quest_id, ordinal);
 CREATE INDEX idx_quest_giver_entity_role ON quest_giver(entity_id, kind, role);
 CREATE INDEX idx_quest_source_item_item ON quest_source_item(item_id);
+CREATE INDEX idx_craft_item ON craft(item_id);
+CREATE INDEX idx_craft_recipe_item ON craft(recipe_item_id);
+CREATE INDEX idx_craft_reagent_item ON craft_reagent(item_id);

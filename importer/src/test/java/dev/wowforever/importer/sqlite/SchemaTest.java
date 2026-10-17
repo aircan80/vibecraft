@@ -49,6 +49,17 @@ class SchemaTest {
       assertThat(indexColumns(c, "idx_quest_objective_quest")).containsExactly("quest_id", "ordinal");
       assertThat(indexColumns(c, "idx_quest_objective_point_quest")).containsExactly("quest_id", "ordinal");
 
+      // crafting (3A Task 8), additive to v3
+      assertThat(columns(c, "craft")).containsExactly("spell_id", "spell_name", "item_id", "quantity_min",
+          "quantity_max", "skill_line_id", "skill_name", "min_skill", "trivial_low", "trivial_high", "recipe_item_id");
+      assertThat(column(c, "select name from pragma_table_info('craft') where pk > 0")).containsExactly("spell_id");
+      assertThat(columns(c, "craft_reagent")).containsExactly("spell_id", "item_id", "count");
+      assertThat(column(c, "select name from pragma_table_info('craft_reagent') where pk > 0 order by pk"))
+          .containsExactly("spell_id", "item_id");
+      assertThat(indexColumns(c, "idx_craft_item")).containsExactly("item_id");
+      assertThat(indexColumns(c, "idx_craft_recipe_item")).containsExactly("recipe_item_id");
+      assertThat(indexColumns(c, "idx_craft_reagent_item")).containsExactly("item_id");
+
       assertThat(column(c, "select value from meta where key = 'schema_version'"))
           .containsExactly(String.valueOf(SqliteWriter.SCHEMA_VERSION));
       assertThat(SqliteWriter.SCHEMA_VERSION).isEqualTo(3);
