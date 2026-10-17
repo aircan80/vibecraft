@@ -20,7 +20,10 @@ import java.util.Map;
  *       both are present), attack power (38), the school spell damage ids 84 to 89 (holy, fire, nature, frost,
  *       shadow, arcane). The other ratings use the TBC-era wording with the rating itself, which no oracle item
  *       verifies.
- *   <li>Ids no table names (83, 90 to 136) stay {@code +N Stat #id} lines.
+ *   <li>The Forever ids that replace a Classic Equip spell ({@link StatNames}: weapon and profession skills, spell
+ *       penetration, all resistances, slaying) are green {@code equip} lines worded like that Era spell's
+ *       description, e.g. "Equip: Increased Fishing +5.".
+ *   <li>Ids {@link StatNames} does not know stay {@code +N Stat #id} lines.
  * </ul>
  */
 final class StatText {
@@ -41,6 +44,23 @@ final class StatText {
       37, "Increases your expertise rating by %d.",
       44, "Increases your armor penetration rating by %d.",
       47, "Increases spell penetration by %d.");
+  /** Forever stats that replace a Classic Equip spell, worded like the Era spell (its {@code $s1} as %d). */
+  private static final Map<Integer, String> ERA_EQUIP = Map.ofEntries(
+      Map.entry(90, "Increased Two-handed Axes +%d."),
+      Map.entry(91, "Increased Two-handed Maces +%d."),
+      Map.entry(96, "Increased Daggers +%d."),
+      Map.entry(103, "Increased Swords +%d."),
+      Map.entry(112, "Herbalism +%d."),
+      Map.entry(113, "Mining +%d."),
+      Map.entry(117, "Increased Fishing +%d."),
+      Map.entry(119, "Decreases the fire resistance of your spell targets by %d."),
+      Map.entry(121, "Decreases the frost resistance of your spell targets by %d."),
+      Map.entry(124, "+%d All Resistances."),
+      Map.entry(127, "+%d Attack Power against Demons."),
+      Map.entry(128, "+%d Attack Power against Undead."),
+      Map.entry(131, "+%d Attack Power against Beasts."),
+      Map.entry(135, "Increases damage done to Demons by magical spells and effects by up to %d."),
+      Map.entry(136, "Increases damage done to Undead by magical spells and effects by up to %d."));
   static final double HIT_PER_PERCENT = 10;
   static final double CRIT_PER_PERCENT = 14;
 
@@ -72,7 +92,8 @@ final class StatText {
         case 38 -> signed(v) + " Attack Power.";
         default -> SCHOOLS.containsKey(id)
             ? "Increases damage done by " + SCHOOLS.get(id) + " spells and effects by up to " + v + "."
-            : RATINGS.containsKey(id) ? String.format(RATINGS.get(id), v) : null;
+            : RATINGS.containsKey(id) ? String.format(RATINGS.get(id), v)
+            : ERA_EQUIP.containsKey(id) ? String.format(ERA_EQUIP.get(id), v) : null;
       };
       if (rated != null) {
         if (!rated.isEmpty()) {

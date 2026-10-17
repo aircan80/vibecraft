@@ -18,6 +18,23 @@ class StatNamesTest {
   }
 
   @Test
+  void namesTheForeverIdsTheClassicEraNames() {
+    assertThat(StatNames.name(84)).isEqualTo("Holy Spell Damage");
+    assertThat(StatNames.name(89)).isEqualTo("Arcane Spell Damage");
+    assertThat(StatNames.name(117)).isEqualTo("Fishing");
+    assertThat(StatNames.name(124)).isEqualTo("All Resistances");
+    assertThat(StatNames.name(131)).isEqualTo("Attack Power against Beasts");
+    assertThat(StatNames.kind(124)).as("rendered as an Equip line, not a school resistance").isEqualTo(StatNames.STAT);
+    for (int id : new int[] {84, 85, 86, 87, 88, 89, 90, 91, 96, 103, 112, 113, 117, 119, 121, 124, 127, 128, 131,
+        135, 136}) {
+      assertThat(StatNames.isKnown(id)).as("stat %d", id).isTrue();
+    }
+    for (int id : new int[] {83, 92, 98, 114, 115, 132}) {
+      assertThat(StatNames.isKnown(id)).as("stat %d: no Era item names it", id).isFalse();
+    }
+  }
+
+  @Test
   void resistancesAreTheirOwnKind() {
     for (int id = 51; id <= 56; id++) {
       assertThat(StatNames.kind(id)).as("stat %d", id).isEqualTo(StatNames.RESIST);
@@ -28,8 +45,8 @@ class StatNamesTest {
 
   @Test
   void unknownIdsGetAPlaceholder() {
-    assertThat(StatNames.isKnown(87)).isFalse();
-    assertThat(StatNames.name(87)).isEqualTo("Stat #87");
+    assertThat(StatNames.isKnown(92)).isFalse();
+    assertThat(StatNames.name(92)).isEqualTo("Stat #92");
     assertThat(StatNames.isKnown(2)).as("2 is unused by the client").isFalse();
   }
 }

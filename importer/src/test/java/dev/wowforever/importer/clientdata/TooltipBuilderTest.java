@@ -227,7 +227,7 @@ class TooltipBuilderTest {
         new ClientItem.Details(3, 125, null, 529, 7, 3600, -1L));
     List<ItemStat> stats = List.of(new ItemStat(7, 8), new ItemStat(55, 9), new ItemStat(43, 5),
         new ItemStat(46, 4), new ItemStat(38, 30), new ItemStat(41, 66), new ItemStat(42, 22), new ItemStat(85, 12),
-        new ItemStat(50, 40), new ItemStat(48, 9), new ItemStat(39, 24), new ItemStat(90, 5), new ItemStat(0, 3));
+        new ItemStat(50, 40), new ItemStat(48, 9), new ItemStat(39, 24), new ItemStat(92, 5), new ItemStat(0, 3));
     ItemDamage damage = new ItemDamage(82, 153, 0, 1900, 61.8421);
     List<ItemSpellEffect> effects = List.of(
         new ItemSpellEffect(0, ItemSpellEffect.CHANCE_ON_HIT, 1, "Proc.", true, 0, 0, false),
@@ -253,7 +253,7 @@ class TooltipBuilderTest {
         "stat +40 Armor",
         "stat +9 Block Value",
         "stat +24 Ranged Attack Power",
-        "stat +5 Stat #90",
+        "stat +5 Stat #92",
         "stat +3 Mana",
         "resist +9 Nature Resistance",
         "durability Durability 125 / 125",
