@@ -32,6 +32,7 @@ class CraftReaderTest {
       assertThat(k.trivialLow()).isEqualTo(125);
       assertThat(k.trivialHigh()).isEqualTo(135);
       assertThat(k.recipe()).isNull();
+      assertThat(k.recipeItemIds()).isEmpty();
       assertThat(k.reagents()).containsExactly(new CraftReagent(2319, 5, null, null, null));
       assertThat(k.reagents().getFirst().displayName()).isEqualTo("Unknown item #2319");
     });
@@ -72,13 +73,20 @@ class CraftReaderTest {
     assertThat(repos.items().taughtBy(13482)).singleElement().satisfies(k -> {
       assertThat(k.spellName()).isEqualTo("Transmute: Air to Fire");
       assertThat(k.recipeItemId()).isEqualTo(13482L);
+      assertThat(k.recipeItemIds()).containsExactly(13482L);
       assertThat(k.skillName()).isEqualTo("Alchemy");
     });
-    assertThat(repos.items().taughtBy(238645)).singleElement().satisfies(k -> {
-      assertThat(k.spellName()).isEqualTo("Prowler Steak");
-      assertThat(k.quantityText()).isEqualTo("2");
-    });
-    assertThat(repos.items().taughtBy(250394)).as("the lowest of two recipe items is kept").isEmpty();
+    for (long recipe : List.of(238645L, 250394L)) {
+      assertThat(repos.items().taughtBy(recipe)).as("recipe %d", recipe).singleElement().satisfies(k -> {
+        assertThat(k.spellName()).isEqualTo("Prowler Steak");
+        assertThat(k.quantityText()).isEqualTo("2");
+        assertThat(k.recipeItemId()).as("the lowest id").isEqualTo(238645L);
+        assertThat(k.recipeItemIds()).containsExactly(238645L, 250394L);
+      });
+    }
+    assertThat(repos.items().createdBy(238637)).singleElement()
+        .satisfies(k -> assertThat(k.recipeItemIds()).containsExactly(238645L, 250394L));
+    assertThat(repos.items().taughtBy(4234)).isEmpty();
   }
 
   @Test
@@ -89,6 +97,8 @@ class CraftReaderTest {
       craft(schema, 2, "Beta", "Tailoring", 90L);
       craft(schema, 1, "Alpha", "Tailoring", null);
       schema.sql("INSERT INTO craft_reagent (spell_id, item_id, count) VALUES (2, 60, 3), (2, 50, 1), (1, 50, 2)");
+      // a second recipe item for craft 2, inserted before the first: the ids come back in id order
+      schema.sql("INSERT INTO craft_recipe_item (spell_id, item_id) VALUES (2, 95), (2, 90)");
       try (Database db = schema.open()) {
         ItemRepository items = new ItemRepository(db);
         List<Craft> crafts = items.createdBy(5);
@@ -101,6 +111,9 @@ class CraftReaderTest {
         assertThat(crafts.get(2).reagents()).isEmpty();
         assertThat(items.reagentFor(50)).extracting(Craft::spellName).containsExactly("Alpha", "Beta");
         assertThat(items.taughtBy(90)).extracting(Craft::spellId).containsExactly(2L);
+        assertThat(items.taughtBy(95)).extracting(Craft::spellId).containsExactly(2L);
+        assertThat(beta.recipeItemIds()).containsExactly(90L, 95L);
+        assertThat(crafts.get(0).recipeItemIds()).isEmpty();
       }
     }
   }
@@ -108,6 +121,7 @@ class CraftReaderTest {
   @Test
   void everyReaderIsEmptyOnADatabaseWithoutTheCraftTables(@TempDir Path dir) throws Exception {
     try (SchemaDb schema = SchemaDb.create(dir)) {
+      schema.sql("DROP TABLE craft_recipe_item");
       schema.sql("DROP TABLE craft_reagent");
       schema.sql("DROP TABLE craft");
       try (Database db = schema.open()) {

@@ -118,7 +118,7 @@ class ImportPipelineTest {
   /** Tables the client-data stage and drop-rate provenance fill. */
   private static final List<String> CLIENT_TABLES = List.of("item_stat", "item_damage", "item_armor", "item_effect",
       "item_set", "item_set_item", "item_set_bonus", "item_tooltip_line", "icon", "zone_map", "drop_rate_source",
-      "item_alt_value", "ui_asset", "craft", "craft_reagent");
+      "item_alt_value", "ui_asset", "craft", "craft_reagent", "craft_recipe_item");
 
   @Test
   void endToEndWithClientDataFixture(@TempDir Path tmp) throws Exception {
@@ -160,6 +160,7 @@ class ImportPipelineTest {
     assertThat(r.get("clientdata.crafts.noSkill")).isEqualTo(1);
     assertThat(r.get("clientdata.crafts.reagents")).isEqualTo(15).isEqualTo(r.get("table.craft_reagent"));
     assertThat(r.get("clientdata.crafts.recipes")).isEqualTo(2);
+    assertThat(r.get("clientdata.crafts.recipeItems")).isEqualTo(3).isEqualTo(r.get("table.craft_recipe_item"));
     assertThat(r.get("clientdata.uiAssets")).isEqualTo(1);
     long named = r.get("clientdata.items.named");
     assertThat(named).isPositive();

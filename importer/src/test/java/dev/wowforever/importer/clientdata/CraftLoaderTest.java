@@ -85,13 +85,16 @@ class CraftLoaderTest {
   }
 
   @Test
-  void aRecipeItemLinksTheCraftItTeachesTheLowestItemWinning() {
+  void aRecipeItemLinksTheCraftItTeachesEveryItemKept() {
     assertThat(bySpell.get(17559L).recipeItemId()).isEqualTo(13482L);
-    assertThat(bySpell.get(1225758L).recipeItemId()).as("238645 and 250394 both teach it").isEqualTo(238645L);
+    assertThat(bySpell.get(1225758L).recipeItemId()).as("the lowest of 238645 and 250394").isEqualTo(238645L);
+    assertThat(crafts.recipeItems()).containsExactly(new CraftRecipeItem(17559, 13482),
+        new CraftRecipeItem(1225758, 238645), new CraftRecipeItem(1225758, 250394));
+    assertThat(report.get(CraftLoader.RECIPE_ITEMS)).isEqualTo(3);
     assertThat(bySpell.get(1225758L).skillName()).isEqualTo("Cooking");
-    assertThat(report.get(CraftLoader.RECIPES)).isEqualTo(2);
-    assertThat(report.notes()).anyMatch(n -> n.startsWith(CraftLoader.RECIPES + ": ") && n.contains("1225758")
-        && n.contains("250394"));
+    assertThat(report.get(CraftLoader.RECIPES)).as("crafts with at least one recipe item").isEqualTo(2);
+    assertThat(report.notes()).as("every recipe item is kept, nothing to note")
+        .noneMatch(n -> n.startsWith(CraftLoader.RECIPES));
   }
 
   @Test
@@ -120,6 +123,8 @@ class CraftLoaderTest {
     assertThat(c.reagents()).as("a repeated reagent adds up, one with count 0 is skipped")
         .containsExactly(new CraftReagent(700, 60, 5));
     assertThat(r.get(CraftLoader.RECIPES)).isEqualTo(1);
+    assertThat(c.recipeItems()).containsExactly(new CraftRecipeItem(700, 900));
+    assertThat(r.get(CraftLoader.RECIPE_ITEMS)).isEqualTo(1);
     assertThat(r.get(CraftLoader.NO_SKILL)).isZero();
   }
 

@@ -192,19 +192,30 @@ public final class ItemRepository {
     return db.read(c -> crafts(c, "c.spell_id IN (SELECT spell_id FROM craft_reagent WHERE item_id = ?)", itemId));
   }
 
-  /** The crafts that recipe item {@code recipeItemId} teaches, ordered like {@link #createdBy}. */
+  /**
+   * The crafts that item {@code recipeItemId} teaches (any of a craft's recipe items, not only the lowest), ordered
+   * like {@link #createdBy}.
+   */
   public List<Craft> taughtBy(long recipeItemId) {
-    return db.read(c -> crafts(c, "c.recipe_item_id = ?", recipeItemId));
+    return db.read(c -> crafts(c, "c.spell_id IN (SELECT spell_id FROM craft_recipe_item WHERE item_id = ?)",
+        recipeItemId));
   }
 
   /**
    * The crafts matching {@code where} (over {@code craft c}, one parameter) with their reagents in insert (slot)
-   * order, the created, recipe and reagent items resolved against the item table; empty on a database without the
-   * craft tables.
+   * order and their recipe items in id order, the created, recipe and reagent items resolved against the item table;
+   * empty on a database without the craft tables.
    */
   private static List<Craft> crafts(Connection c, String where, long param) throws SQLException {
-    if (!Sql.hasTable(c, "craft") || !Sql.hasTable(c, "craft_reagent")) {
+    if (!Sql.hasTable(c, "craft") || !Sql.hasTable(c, "craft_reagent") || !Sql.hasTable(c, "craft_recipe_item")) {
       return List.of();
+    }
+    record Recipe(long spellId, long itemId) {}
+    Map<Long, List<Long>> recipeItems = new LinkedHashMap<>();
+    for (Recipe r : Sql.list(c, "SELECT spell_id, item_id FROM craft_recipe_item"
+            + " WHERE spell_id IN (SELECT c.spell_id FROM craft c WHERE " + where + ") ORDER BY spell_id, item_id",
+        rs -> new Recipe(rs.getLong("spell_id"), rs.getLong("item_id")), param)) {
+      recipeItems.computeIfAbsent(r.spellId(), k -> new ArrayList<>()).add(r.itemId());
     }
     record Reagent(long spellId, CraftReagent reagent) {}
     Map<Long, List<CraftReagent>> reagents = new LinkedHashMap<>();
@@ -228,6 +239,7 @@ public final class ItemRepository {
             rs.getInt("quantity_min"), rs.getInt("quantity_max"), Sql.longValue(rs, "skill_line_id"),
             rs.getString("skill_name"), Sql.integer(rs, "min_skill"), Sql.integer(rs, "trivial_low"),
             Sql.integer(rs, "trivial_high"), Sql.longValue(rs, "recipe_item_id"), rs.getString("recipe_item_name"),
+            recipeItems.getOrDefault(rs.getLong("spell_id"), List.of()),
             reagents.getOrDefault(rs.getLong("spell_id"), List.of())),
         param);
   }

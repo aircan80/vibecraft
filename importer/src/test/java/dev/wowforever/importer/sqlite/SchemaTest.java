@@ -58,6 +58,12 @@ class SchemaTest {
           .containsExactly("spell_id", "item_id");
       assertThat(indexColumns(c, "idx_craft_item")).containsExactly("item_id");
       assertThat(indexColumns(c, "idx_craft_recipe_item")).containsExactly("recipe_item_id");
+      assertThat(columns(c, "craft_recipe_item")).containsExactly("spell_id", "item_id");
+      assertThat(column(c, "select name from pragma_table_info('craft_recipe_item') where pk > 0 order by pk"))
+          .containsExactly("spell_id", "item_id");
+      assertThat(column(c, "select name from pragma_table_info('craft_recipe_item') where \"notnull\" = 1"))
+          .containsExactly("spell_id", "item_id");
+      assertThat(indexColumns(c, "idx_craft_recipe_item_item")).containsExactly("item_id");
       assertThat(indexColumns(c, "idx_craft_reagent_item")).containsExactly("item_id");
 
       assertThat(column(c, "select value from meta where key = 'schema_version'"))

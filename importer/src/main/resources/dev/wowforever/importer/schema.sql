@@ -353,7 +353,7 @@ CREATE TABLE boss_loot (
 
 -- Crafting (phase 3A, additive to schema v3), from the client's spell tables: a spell whose Create Item effect makes
 -- item_id, quantity_min to quantity_max of it. The skill columns come from its SkillLineAbility row and are all NULL
--- without one; recipe_item_id is the item that teaches it (the lowest id when several do), NULL when none does.
+-- without one; recipe_item_id is the lowest id of its craft_recipe_item rows, NULL when no item teaches it.
 -- spell_id and item_id may name spells and items absent from the item table.
 CREATE TABLE craft (
   spell_id       INTEGER PRIMARY KEY,
@@ -374,6 +374,13 @@ CREATE TABLE craft_reagent (
   spell_id INTEGER NOT NULL,
   item_id  INTEGER NOT NULL,
   count    INTEGER NOT NULL,
+  PRIMARY KEY (spell_id, item_id)
+);
+
+-- every item that teaches a craft (a recipe, pattern, plans or formula; some crafts have several)
+CREATE TABLE craft_recipe_item (
+  spell_id INTEGER NOT NULL,
+  item_id  INTEGER NOT NULL,
   PRIMARY KEY (spell_id, item_id)
 );
 
@@ -421,3 +428,4 @@ CREATE INDEX idx_quest_source_item_item ON quest_source_item(item_id);
 CREATE INDEX idx_craft_item ON craft(item_id);
 CREATE INDEX idx_craft_recipe_item ON craft(recipe_item_id);
 CREATE INDEX idx_craft_reagent_item ON craft_reagent(item_id);
+CREATE INDEX idx_craft_recipe_item_item ON craft_recipe_item(item_id);

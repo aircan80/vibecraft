@@ -3,7 +3,8 @@ package dev.wowforever.importer.clientdata;
 /**
  * A crafting spell: it creates {@code createdItemId}, between {@code quantityMin} and {@code quantityMax} of it, see
  * {@link CraftLoader}. The skill fields come from the spell's {@code SkillLineAbility} row and are all null when it
- * has none; {@code recipeItemId} is the item that teaches it, null when no item does.
+ * has none; {@code recipeItemId} is the lowest id of the items that teach it ({@link Crafts#recipeItems()} has
+ * them all), null when no item does.
  *
  * @param spellName    {@code SpellName.Name_lang}, null when the spell has no SpellName row
  * @param skillLineId  {@code SkillLineAbility.SkillLine}

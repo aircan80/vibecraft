@@ -11,7 +11,6 @@ import java.util.OptionalLong;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -37,25 +36,25 @@ import java.util.stream.Stream;
  *   <li>Recipe item: an item ({@code ItemXItemEffect} to {@code ItemEffect}) whose effect of {@code TriggerType} 6
  *       (learn) names the craft spell itself, which is how build 1.60.1.70425 links every recipe, pattern and
  *       formula, or whose effect of {@code TriggerType} 0 (use) or 6 names a spell with an {@code Effect}
- *       {@value #LEARN_SPELL} (Learn Spell) row teaching the craft ({@code EffectTriggerSpell}). When several items
- *       teach one craft the lowest item id is kept and the others are noted.
+ *       {@value #LEARN_SPELL} (Learn Spell) row teaching the craft ({@code EffectTriggerSpell}). Every such item is
+ *       kept in {@link Crafts#recipeItems()} (40 crafts of build 1.60.1.70425 have several, e.g. a recipe and its
+ *       later reissue); {@link Craft#recipeItemId()} is the lowest of them, for convenience.
  * </ul>
  *
- * <p>Counts {@value #CRAFTS}, {@value #NO_SKILL}, {@value #REAGENTS} (reagent rows) and {@value #RECIPES} (crafts
- * with a recipe item).
+ * <p>Counts {@value #CRAFTS}, {@value #NO_SKILL}, {@value #REAGENTS} (reagent rows), {@value #RECIPES} (crafts with
+ * at least one recipe item) and {@value #RECIPE_ITEMS} (craft and recipe item pairs).
  */
 public final class CraftLoader {
   public static final String CRAFTS = "clientdata.crafts";
   public static final String NO_SKILL = "clientdata.crafts.noSkill";
   public static final String REAGENTS = "clientdata.crafts.reagents";
   public static final String RECIPES = "clientdata.crafts.recipes";
+  public static final String RECIPE_ITEMS = "clientdata.crafts.recipeItems";
   /** {@code SpellEffect.Effect}: Create Item. */
   static final int CREATE_ITEM = 24;
   /** {@code SpellEffect.Effect}: Learn Spell ({@code EffectTriggerSpell} is the taught spell). */
   static final int LEARN_SPELL = 36;
   static final int REAGENT_SLOTS = 8;
-  /** How many examples a note lists. */
-  private static final int NOTE_EXAMPLES = 10;
 
   static final List<String> EFFECT_COLUMNS = List.of("SpellID", "EffectIndex", "DifficultyID", "Effect",
       "EffectItemType", "EffectBasePointsF", "Variance", "EffectTriggerSpell");
@@ -104,6 +103,7 @@ public final class CraftLoader {
 
     List<Craft> crafts = new ArrayList<>();
     List<CraftReagent> reagents = new ArrayList<>();
+    List<CraftRecipeItem> recipeItems = new ArrayList<>();
     long noSkill = 0;
     long recipes = 0;
     for (Map.Entry<Long, CsvTable.Row> e : creates.entrySet()) {
@@ -122,6 +122,7 @@ public final class CraftLoader {
       Long recipe = taughtBy == null ? null : taughtBy.first();
       if (recipe != null) {
         recipes++;
+        taughtBy.forEach(item -> recipeItems.add(new CraftRecipeItem(spell, item)));
       }
       crafts.add(new Craft(spell, spellNames.get(spell), create.longOr("EffectItemType", 0), min, max, skillLine,
           skillLine == null ? null : skillNames.get(skillLine), boxed(ability, "MinSkillLineRank"),
@@ -132,8 +133,8 @@ public final class CraftLoader {
     report.count(NO_SKILL, noSkill);
     report.count(REAGENTS, reagents.size());
     report.count(RECIPES, recipes);
-    noteSeveralTeachers(teachers, report);
-    return new Crafts(crafts, reagents);
+    report.count(RECIPE_ITEMS, recipeItems.size());
+    return new Crafts(crafts, reagents, recipeItems);
   }
 
   /** The items teaching each craft spell, by spell. */
@@ -184,19 +185,6 @@ public final class CraftLoader {
       }
     }
     return counts.entrySet().stream().map(e -> new CraftReagent(spell, e.getKey(), e.getValue())).toList();
-  }
-
-  private static void noteSeveralTeachers(Map<Long, TreeSet<Long>> teachers, ImportReport report) {
-    List<Long> several = teachers.entrySet().stream().filter(e -> e.getValue().size() > 1).map(Map.Entry::getKey)
-        .sorted().toList();
-    if (several.isEmpty()) {
-      return;
-    }
-    report.note(RECIPES + ": " + several.size() + " crafts are taught by several items, the lowest item id is kept: "
-        + several.stream().limit(NOTE_EXAMPLES)
-            .map(s -> s + " (" + teachers.get(s).stream().map(String::valueOf).collect(Collectors.joining(", ")) + ")")
-            .collect(Collectors.joining("; "))
-        + (several.size() > NOTE_EXAMPLES ? "; ..." : ""));
   }
 
   /** Orders the Create Item rows of one spell: difficulty 0 first, then the lowest effect index. */

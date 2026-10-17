@@ -5,6 +5,7 @@ import dev.wowforever.importer.clientdata.ClientDataBundle;
 import dev.wowforever.importer.clientdata.ClientItem;
 import dev.wowforever.importer.clientdata.Craft;
 import dev.wowforever.importer.clientdata.CraftReagent;
+import dev.wowforever.importer.clientdata.CraftRecipeItem;
 import dev.wowforever.importer.clientdata.Crafts;
 import dev.wowforever.importer.clientdata.ItemClassNames;
 import dev.wowforever.importer.clientdata.ItemDamage;
@@ -128,8 +129,8 @@ public final class SqliteWriter {
   /**
    * Writes the model with everything the client-data stages produced, see {@link ClientDataBundle}. Icons and
    * zone maps fill {@code icon} and {@code zone_map} and set {@code zone.ui_map_id}, UI textures fill
-   * {@code ui_asset}, crafts fill {@code craft} and {@code craft_reagent}; with a build lock the {@code client_*} meta
-   * keys are written too.
+   * {@code ui_asset}, crafts fill {@code craft}, {@code craft_reagent} and {@code craft_recipe_item}; with a build
+   * lock the {@code client_*} meta keys are written too.
    */
   public static void write(Path out, ImportModel model, ImportReport report, ClientDataBundle client)
       throws IOException, SQLException {
@@ -211,7 +212,7 @@ public final class SqliteWriter {
     }
   }
 
-  /** {@code craft} and {@code craft_reagent}, the reagents in their given (slot) order. */
+  /** {@code craft}, {@code craft_reagent} (in the given slot order) and {@code craft_recipe_item}. */
   private static void writeCrafts(Connection c, Crafts crafts) throws SQLException {
     try (Batch rows = new Batch(c, "INSERT INTO craft(spell_id, spell_name, item_id, quantity_min, quantity_max,"
         + " skill_line_id, skill_name, min_skill, trivial_low, trivial_high, recipe_item_id)"
@@ -224,6 +225,11 @@ public final class SqliteWriter {
     try (Batch rows = new Batch(c, "INSERT INTO craft_reagent(spell_id, item_id, count) VALUES (?, ?, ?)")) {
       for (CraftReagent r : crafts.reagents()) {
         rows.add(r.spellId(), r.itemId(), r.count());
+      }
+    }
+    try (Batch rows = new Batch(c, "INSERT INTO craft_recipe_item(spell_id, item_id) VALUES (?, ?)")) {
+      for (CraftRecipeItem r : crafts.recipeItems()) {
+        rows.add(r.spellId(), r.itemId());
       }
     }
   }

@@ -7,6 +7,7 @@ import dev.wowforever.importer.clientdata.ClientDataBundle;
 import dev.wowforever.importer.clientdata.ClientDataSource;
 import dev.wowforever.importer.clientdata.Craft;
 import dev.wowforever.importer.clientdata.CraftReagent;
+import dev.wowforever.importer.clientdata.CraftRecipeItem;
 import dev.wowforever.importer.clientdata.Crafts;
 import dev.wowforever.importer.clientdata.ClientItem;
 import dev.wowforever.importer.clientdata.ItemClassNames;
@@ -384,7 +385,8 @@ class SqliteWriterClientDataTest {
         new Craft(21160, "Eye of Sulfuras", 17182, 1, 1, null, null, null, null, null, null),
         new Craft(3931, "Coarse Dynamite", 4365, 1, 3, 202L, "Engineering", 1, 90, 105, 4410L)),
         List.of(new CraftReagent(20649, 2319, 5), new CraftReagent(21160, 17204, 1),
-            new CraftReagent(21160, 17193, 1)));
+            new CraftReagent(21160, 17193, 1)),
+        List.of(new CraftRecipeItem(3931, 4410), new CraftRecipeItem(3931, 4411)));
     SqliteWriter.write(db, new Items().model(), new ImportReport(), new ClientDataBundle(Map.of(), null, Map.of(),
         ItemTooltips.empty(), Map.of(), ZoneMaps.EMPTY, null, Map.of(), crafts));
     try (Connection c = open(db)) {
@@ -396,6 +398,8 @@ class SqliteWriterClientDataTest {
       assertThat(scalar(c, "select count(*) from craft")).isEqualTo(3);
       assertThat(column(c, "select item_id || 'x' || count from craft_reagent where spell_id = 21160 order by rowid"))
           .containsExactly("17204x1", "17193x1");
+      assertThat(column(c, "select spell_id || ':' || item_id from craft_recipe_item order by item_id"))
+          .containsExactly("3931:4410", "3931:4411");
     }
   }
 
