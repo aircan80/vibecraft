@@ -93,6 +93,20 @@ public final class KeyMap {
 
   private KeyMap() {}
 
+  /**
+   * The keyboard map as the README's Markdown table: a {@code | Keys | Action |} header, then a row per binding in
+   * {@link #BINDINGS} order. The README carries it between {@code <!-- keymap:start -->} and
+   * {@code <!-- keymap:end -->}, and a test keeps the two equal.
+   */
+  public static String markdownTable() {
+    StringBuilder table = new StringBuilder("| Keys | Action |\n|---|---|\n");
+    for (Binding b : BINDINGS) {
+      table.append("| ").append(b.keys().replace("|", "\\|")).append(" | ")
+          .append(b.description().replace("|", "\\|")).append(" |\n");
+    }
+    return table.toString();
+  }
+
   /** The keys {@code b} binds; empty for a {@link #DOCUMENTED_ONLY} row. */
   public static List<Stroke> strokes(Binding b) {
     return STROKES.getOrDefault(b.action(), List.of());

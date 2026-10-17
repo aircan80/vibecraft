@@ -70,6 +70,23 @@ bosses by design (quest items, grey junk, reagents).
     Lua 5.1 binary and `generate.lua Forever`; a one-off script could diff names and drop lists
     entity by entity against our SQLite to prove the importer matches their Source-mode view.
 
+## D. UI follow-ups (left out of phase 2B)
+
+Collected 2026-10-17 at the end of the phase 2B UI overhaul.
+
+12. **HiDPI icons.** Item icons are 56 px PNGs downscaled per size, so at 150 % and above they are
+    soft. Multi-resolution icons need a 2× source in the client-data pipeline first.
+13. **Top 50 changed names in the import report.** Still deferred (see A6): the Conflicts section
+    should list the 50 item names the client data changed most against Questie (`item_alt_value`).
+14. **Kind chips at high scaling.** Beyond 150 % UI scaling the search box's kind chips overflow
+    the toolbar; they should fold into the "Kind ▾" menu as the compact window does.
+15. **Type-to-search zone combo.** The zone combo of the NPC and quest list pages lists hundreds of
+    zones; an editable combo that filters as you type is more than a small change, so it waits.
+16. **Equipment slot column.** Instance loot shows AtlasLoot's order, not an equipment slot; a real
+    Slot column (and slot filters) waits for `inventory_type` in the loot queries (v0.5).
+17. **Pinned pages list.** Ctrl+D pins and unpins entity pages and remembers them, but no view lists the
+    pins yet; Home or the rail should show them.
+
 ## Suggested order
 
 1. A1 + A2 + B7–B10 together (stats, quality, tooltip, icons, provenance), since they all touch
