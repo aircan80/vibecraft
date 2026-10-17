@@ -130,12 +130,14 @@ public final class Columns {
   public static List<Column<ZoneSummary>> zones() {
     return List.of(
         link("Name", ZoneSummary::displayName, z -> Optional.of(z.ref())),
-        plain("Kind", String.class, ZoneSummary::kind));
+        plain("Kind", String.class, ZoneSummary::kind),
+        link("Parent", ZoneSummary::parentName, z -> zoneRef(z.parentId())));
   }
 
+  /** Instances, each named with its wing when its key names one ({@link Labels#instanceTitle}). */
   public static List<Column<InstanceSummary>> instances() {
     return List.of(
-        link("Name", InstanceSummary::displayName, i -> Optional.of(i.ref())),
+        link("Name", i -> Labels.instanceTitle(i.displayName(), i.key()), i -> Optional.of(i.ref())),
         plain("Type", String.class, i -> Labels.contentType(i.contentType())),
         plain("Levels", Levels.class, i -> new Levels(i.levelMin(), i.levelMax())),
         link("Zone", InstanceSummary::zoneName, i -> zoneRef(i.zoneId())));

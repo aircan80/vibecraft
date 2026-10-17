@@ -3,18 +3,15 @@ package dev.wowforever.app.ui;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
-import dev.wowforever.app.model.InstanceSummary;
-import dev.wowforever.app.model.ItemClassNode;
-import dev.wowforever.app.model.ItemSummary;
-import dev.wowforever.app.model.NpcSummary;
-import dev.wowforever.app.model.ObjectSummary;
-import dev.wowforever.app.model.QuestSummary;
-import dev.wowforever.app.model.SearchHit;
-import dev.wowforever.app.model.ZoneSummary;
+import dev.wowforever.app.model.ListFilter;
+import dev.wowforever.app.model.NoFilter;
 import dev.wowforever.app.nav.NavigationHistory;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.detail.DetailPanels;
+import dev.wowforever.app.ui.pages.ListOptions;
+import dev.wowforever.app.ui.pages.ListPage;
+import dev.wowforever.app.ui.pages.ListRows;
 import dev.wowforever.app.ui.widgets.ListEntries;
 import dev.wowforever.app.ui.widgets.ListEntry;
 import dev.wowforever.app.ui.widgets.RailTarget;
@@ -23,9 +20,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.Executor;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -34,9 +31,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Turns view targets into master list contents and detail views. Every repository call runs on {@code worker}
- * through {@link Async}; the results are shown on the EDT, and a load that a newer one has overtaken is dropped.
- * All methods are called on the EDT.
+ * Turns view targets into master list contents and detail views: searches fill the master list; entities and the
+ * rail's list pages ({@link ListPage}) fill the detail. Every repository call runs on {@code worker} through
+ * {@link Async}; the results are shown on the EDT, and a load that a newer one has overtaken is dropped. All
+ * methods are called on the EDT.
+ *
+ * <p>A filter change on a list page reloads its table in place and replaces the list's history entry, so Back
+ * does not step through every filter tried, and Back from an entity opened off the list restores it filtered.
  *
  * <p>Arrowing through the list previews rows: the first preview after a navigation takes a new history slot and
  * later ones reuse it ({@link NavigationHistory#replaceCurrent}), so twenty rows previewed are one back step. A
@@ -44,7 +45,7 @@ import org.slf4j.LoggerFactory;
  * already on screen is neither previewed nor committed again: its history slot is kept and nothing reloads.
  */
 public final class AppController implements Navigator {
-  /** Most search hits shown; item class lists show every item. */
+  /** Most search hits shown; list pages show every row. */
   public static final int SEARCH_LIMIT = 200;
   private static final Logger LOG = LoggerFactory.getLogger(AppController.class);
 
@@ -57,20 +58,14 @@ public final class AppController implements Navigator {
   private int detailGeneration;
   /** Whether the current history slot was taken by a list preview, so the next preview may reuse it. */
   private boolean previewSlot;
-  /** The kind (NPC or QUEST) whose zone list a committed zone row opens, while the list is a zone picker. */
-  private EntityKind zonePicker;
-  private volatile List<ItemClassNode> classTree; // cached on the worker
-  private volatile List<ZoneSummary> zones; // cached on the worker
+  /** The list page on screen, null while the detail shows anything else. */
+  private ListPage listPage;
+  /** The target of {@link #listPage}'s history entry, updated as soon as a filter changes. */
+  private ViewTarget.List listTarget;
+  private volatile ListOptions listOptions; // cached on the worker
 
-  /**
-   * One list to show: its title and rows; {@code page} is the row limit of the query, 0 for none.
-   * {@code zonePicker} is the kind a committed zone row lists, null for an ordinary list.
-   */
-  private record Listing(String title, List<ListEntry> entries, int page, EntityKind zonePicker) {
-    Listing(String title, List<ListEntry> entries) {
-      this(title, entries, 0, null);
-    }
-
+  /** One list to show: its title and rows; {@code page} is the row limit of the query, 0 for none. */
+  private record Listing(String title, List<ListEntry> entries, int page) {
     /** Whether the rows fill the page, so the list probably goes on. */
     boolean capped() {
       return page > 0 && entries.size() >= page;
@@ -97,7 +92,7 @@ public final class AppController implements Navigator {
   public static ViewTarget target(RailTarget t) {
     return switch (t) {
       case HOME -> new ViewTarget.Home();
-      case ITEMS -> new ViewTarget.ItemClass(ViewTarget.ItemClass.ALL_CLASSES, ItemClassNode.CLASS_NODE);
+      case ITEMS -> new ViewTarget.List(EntityKind.ITEM);
       case NPCS -> new ViewTarget.List(EntityKind.NPC);
       case QUESTS -> new ViewTarget.List(EntityKind.QUEST);
       case ZONES -> new ViewTarget.List(EntityKind.ZONE);
@@ -138,14 +133,9 @@ public final class AppController implements Navigator {
 
   /**
    * Opens a list row for good: it takes the slot of a pending preview (or a new one) and stays in the history.
-   * A row already on screen (previewed, or clicked twice) is only kept in the history, not loaded again. A zone
-   * row of a zone picker lists that zone's NPCs or quests instead.
+   * A row already on screen (previewed, or clicked twice) is only kept in the history, not loaded again.
    */
   public void commit(EntityRef ref) {
-    if (zonePicker != null && ref.kind() == EntityKind.ZONE) {
-      openZoneList(zonePicker, ref.id());
-      return;
-    }
     ViewTarget t = new ViewTarget.Entity(ref);
     if (isCurrent(t)) {
       previewSlot = false;
@@ -180,15 +170,6 @@ public final class AppController implements Navigator {
     });
   }
 
-  /**
-   * Opens zone {@code zoneId} (pushed to history, shown in the detail area) and lists its {@code kind}
-   * (NPC, OBJECT or QUEST) entities in the master list.
-   */
-  public void openZoneList(EntityKind kind, long zoneId) {
-    open(new ViewTarget.Entity(new EntityRef(EntityKind.ZONE, zoneId)));
-    loadResults(() -> zoneList(kind, zoneId));
-  }
-
   public NavigationHistory history() {
     return history;
   }
@@ -217,8 +198,7 @@ public final class AppController implements Navigator {
     view.setHistoryState(history.canBack(), history.canForward());
     switch (t) {
       case ViewTarget.Search s -> loadResults(() -> search(s));
-      case ViewTarget.ItemClass c -> loadResults(() -> itemClass(c));
-      case ViewTarget.List l -> loadResults(() -> list(l.kind()));
+      case ViewTarget.List l -> showList(l);
       case ViewTarget.Entity e -> showEntity(e.ref());
       case ViewTarget.Home h -> showHome();
     }
@@ -229,11 +209,9 @@ public final class AppController implements Navigator {
     view.status().setMessage("Loading…");
     Async.run(worker, work, listing -> {
       if (generation == resultsGeneration) {
-        zonePicker = listing.zonePicker();
         view.masterList().show(listing.title(), listing.entries(), listing.capped());
         view.setTitleSuffix(cappedTitle(listing.title(), listing.entries().size(), listing.page()));
-        int n = listing.entries().size();
-        view.status().setMessage(n == 1 ? "1 result" : String.format(Locale.ROOT, "%,d results", n));
+        showCount(listing.entries().size());
       }
     }, e -> {
       if (generation == resultsGeneration) {
@@ -248,6 +226,7 @@ public final class AppController implements Navigator {
    */
   private void showEntity(EntityRef ref) {
     int generation = ++detailGeneration;
+    leaveListPage();
     view.setTitleSuffix(ref.kind().label() + " #" + ref.id());
     Async.run(worker, () -> DetailPanels.load(ref, repos), detail -> {
       if (generation == detailGeneration) {
@@ -268,11 +247,91 @@ public final class AppController implements Navigator {
   private void showHome() {
     resultsGeneration++; // drop loads still in flight
     detailGeneration++;
-    zonePicker = null;
+    leaveListPage();
     view.masterList().show("Results", List.of(), false);
     view.setDetail(welcome(meta));
     view.setTitleSuffix("");
     view.status().setMessage("Ready");
+  }
+
+  /** Shows the list page of {@code t} in the detail area; the master list is left as it is. */
+  private void showList(ViewTarget.List t) {
+    int generation = ++detailGeneration;
+    leaveListPage();
+    view.setTitleSuffix(ListPage.title(t.kind()));
+    view.status().setMessage("Loading…");
+    Async.run(worker, () -> new LoadedList(listOptions(t), ListRows.load(t, repos)), loaded -> {
+      if (generation == detailGeneration) {
+        AtomicReference<ListPage> self = new AtomicReference<>();
+        ListPage page = new ListPage(t, loaded.options(), loaded.rows(), this, f -> refilter(self.get(), f));
+        self.set(page);
+        listPage = page;
+        listTarget = t;
+        view.setDetail(page);
+        showCount(loaded.rows().size());
+      }
+    }, e -> {
+      if (generation == detailGeneration) {
+        fail(e);
+      }
+    });
+  }
+
+  /** A list page's filter options and rows, loaded together on the worker. */
+  private record LoadedList(ListOptions options, List<?> rows) {}
+
+  /** The filter bar options a list of {@code t} needs: none for zones and instances, else the cached ones. */
+  private ListOptions listOptions(ViewTarget.List t) {
+    if (t.filter() instanceof NoFilter) {
+      return ListOptions.EMPTY;
+    }
+    ListOptions o = listOptions;
+    if (o == null) {
+      o = ListOptions.load(repos);
+      listOptions = o;
+    }
+    return o;
+  }
+
+  /**
+   * Reloads the rows of {@code page} under {@code filter}. The list's history entry takes the new filter (when a
+   * search has been opened since, the filtered list is pushed after it instead). Ignored for a page no longer
+   * shown.
+   */
+  private void refilter(ListPage page, ListFilter filter) {
+    if (page == null || page != listPage) {
+      return;
+    }
+    ViewTarget.List t = new ViewTarget.List(listTarget.kind(), filter);
+    if (isCurrent(listTarget)) {
+      history.replaceCurrent(t);
+    } else {
+      history.push(t);
+    }
+    listTarget = t;
+    previewSlot = false;
+    view.setHistoryState(history.canBack(), history.canForward());
+    int generation = ++detailGeneration;
+    view.status().setMessage("Loading…");
+    Async.run(worker, () -> ListRows.load(t, repos), rows -> {
+      if (generation == detailGeneration && page == listPage) {
+        page.showRows(t, rows);
+        showCount(rows.size());
+      }
+    }, e -> {
+      if (generation == detailGeneration) {
+        fail(e);
+      }
+    });
+  }
+
+  private void leaveListPage() {
+    listPage = null;
+    listTarget = null;
+  }
+
+  private void showCount(int n) {
+    view.status().setMessage(n == 1 ? "1 result" : String.format(Locale.ROOT, "%,d results", n));
   }
 
   private void fail(Exception e) {
@@ -282,16 +341,7 @@ public final class AppController implements Navigator {
 
   private Listing search(ViewTarget.Search s) {
     var hits = repos.search().search(s.text(), s.kind(), SEARCH_LIMIT);
-    return new Listing("Search: " + s.text(), entries(hits, ListEntries::of), SEARCH_LIMIT, null);
-  }
-
-  private Listing itemClass(ViewTarget.ItemClass c) {
-    if (c.classId() == ViewTarget.ItemClass.ALL_CLASSES) {
-      return new Listing("All items", entries(repos.items().list(null, null, null, 0), AppController::entry));
-    }
-    Integer subclass = c.subclassId() == ItemClassNode.CLASS_NODE ? null : c.subclassId();
-    var items = repos.items().list(c.classId(), subclass, null, 0);
-    return new Listing(itemClassName(c.classId(), c.subclassId()), entries(items, AppController::entry));
+    return new Listing("Search: " + s.text(), entries(hits, ListEntries::of), SEARCH_LIMIT);
   }
 
   /** {@code name}, marked {@code (first <page>)} when {@code rows} fills a page; unchanged when {@code page} is 0. */
@@ -299,94 +349,8 @@ public final class AppController implements Navigator {
     return page > 0 && rows >= page ? name + " (first " + page + ")" : name;
   }
 
-  private String itemClassName(int classId, int subclassId) {
-    if (classTree == null) {
-      classTree = repos.items().classTree();
-    }
-    for (ItemClassNode cls : classTree) {
-      if (cls.classId() != classId) {
-        continue;
-      }
-      if (subclassId == ItemClassNode.CLASS_NODE) {
-        return cls.name();
-      }
-      for (ItemClassNode sub : cls.children()) {
-        if (sub.subclassId() == subclassId) {
-          return cls.name() + " › " + sub.name();
-        }
-      }
-      return cls.name() + " › #" + subclassId;
-    }
-    return "Item class #" + classId;
-  }
-
-  /** All zones or instances; for NPCs and quests the zones to pick one from (until the list pages exist). */
-  private Listing list(EntityKind kind) {
-    return switch (kind) {
-      case ZONE -> new Listing("Zones", entries(repos.zones().all(), AppController::entry));
-      case INSTANCE -> new Listing("Dungeons & Raids", instanceEntries(repos.instances().all()));
-      case NPC, QUEST -> new Listing((kind == EntityKind.NPC ? "NPCs" : "Quests") + ": pick a zone",
-          entries(repos.zones().all(), AppController::entry), 0, kind);
-      default -> throw new IllegalArgumentException("There is no list of " + kind.label() + " entities");
-    };
-  }
-
-  private Listing zoneList(EntityKind kind, long zoneId) {
-    if (zones == null) {
-      zones = repos.zones().all();
-    }
-    String name = zones.stream().filter(z -> z.id() == zoneId).findFirst()
-        .map(ZoneSummary::displayName).orElse(EntityKind.ZONE.unknownName(zoneId));
-    return switch (kind) {
-      case NPC -> new Listing("NPCs in " + name, entries(repos.npcs().byZone(zoneId), AppController::entry));
-      case OBJECT -> new Listing("Objects in " + name,
-          entries(repos.objects().byZone(zoneId), AppController::entry));
-      case QUEST -> new Listing("Quests in " + name, entries(repos.quests().byZone(zoneId), AppController::entry));
-      default -> throw new IllegalArgumentException("There is no zone list of " + kind.label() + " entities");
-    };
-  }
-
   private static <T> List<ListEntry> entries(List<T> rows, Function<T, ListEntry> toEntry) {
     return rows.stream().map(toEntry).toList();
-  }
-
-  private static ListEntry entry(ItemSummary i) {
-    return new ListEntry(i.ref(), i.displayName(), Labels.withKind(EntityKind.ITEM,
-        Labels.itemSubtitle(i.className(), i.subclassName(), i.itemLevel(), i.requiredLevel())), null, null);
-  }
-
-  private static ListEntry entry(NpcSummary n) {
-    return new ListEntry(n.ref(), n.displayName(), Labels.withKind(EntityKind.NPC,
-        Labels.npcSubtitle(n.rank(), n.minLevel(), n.maxLevel(), n.zoneName())), null, null);
-  }
-
-  private static ListEntry entry(ObjectSummary o) {
-    return new ListEntry(o.ref(), o.displayName(),
-        Labels.withKind(EntityKind.OBJECT, Labels.objectSubtitle(o.zoneName())), null, null);
-  }
-
-  private static ListEntry entry(QuestSummary q) {
-    return new ListEntry(q.ref(), q.displayName(),
-        Labels.withKind(EntityKind.QUEST, Labels.questSubtitle(q.questLevel(), q.zoneName())), null, null);
-  }
-
-  private static ListEntry entry(ZoneSummary z) {
-    return new ListEntry(z.ref(), z.displayName(), Labels.zoneSubtitle(z.kind(), z.parentName()), null, null);
-  }
-
-  /** Instance entries; an instance whose name another one in {@code instances} shares is titled with its wing. */
-  static List<ListEntry> instanceEntries(List<InstanceSummary> instances) {
-    Map<String, Long> perName = instances.stream().filter(i -> i.name() != null)
-        .collect(Collectors.groupingBy(InstanceSummary::name, Collectors.counting()));
-    return instances.stream().map(i -> entry(i, perName.getOrDefault(i.name(), 0L) > 1)).toList();
-  }
-
-  private static ListEntry entry(InstanceSummary i, boolean sharedName) {
-    // an instance's own zone usually carries its name; repeating it says nothing
-    String zone = Objects.equals(i.zoneName(), i.name()) ? null : i.zoneName();
-    String title = sharedName ? Labels.instanceTitle(i.displayName(), i.key()) : i.displayName();
-    return new ListEntry(i.ref(), title,
-        Labels.instanceSubtitle(i.contentType(), i.levelMin(), i.levelMax(), zone), null, null);
   }
 
   /** The home page text. */

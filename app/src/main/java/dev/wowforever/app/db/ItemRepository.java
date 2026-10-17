@@ -6,6 +6,7 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.ItemClassNode;
 import dev.wowforever.app.model.ItemDetail;
+import dev.wowforever.app.model.ItemFilter;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
 import java.sql.Connection;
@@ -19,7 +20,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-/** Items: detail pages, class-filtered lists and the class tree. */
+/** Items: detail pages, filtered lists and the class tree. */
 public final class ItemRepository {
   /** Summary columns over an {@code item i} row source joined with {@link #JOINS}. */
   private static final String COLUMNS = """
@@ -84,6 +85,23 @@ public final class ItemRepository {
    * missing from the subclass table.
    */
   public List<ItemSummary> list(Integer classId, Integer subclassId, Integer limit, int offset) {
+    return query(classId, subclassId, null, null, limit, offset);
+  }
+
+  /**
+   * Every item {@code filter} lets through, ordered by name (nameless stubs last). Lists are not capped, as in
+   * v0.1. Item quality is not in the database yet, so a filter with a quality is refused.
+   */
+  public List<ItemSummary> list(ItemFilter filter) {
+    if (filter.quality() != null) {
+      throw new IllegalArgumentException("Items cannot be filtered by quality yet: " + filter);
+    }
+    return query(filter.classId(), filter.subclassId(), filter.minLevel(), filter.maxLevel(), null, 0);
+  }
+
+  /** {@link #list(Integer, Integer, Integer, int)} with item level bounds (null: none; unknown levels fail any). */
+  private List<ItemSummary> query(Integer classId, Integer subclassId, Integer minLevel, Integer maxLevel,
+      Integer limit, int offset) {
     StringBuilder where = new StringBuilder(" WHERE 1 = 1");
     List<Object> params = new ArrayList<>();
     if (classId != null) {
@@ -95,6 +113,14 @@ public final class ItemRepository {
     } else if (subclassId != null) {
       where.append(" AND subclass_id = ?");
       params.add(subclassId);
+    }
+    if (minLevel != null) {
+      where.append(" AND item_level >= ?");
+      params.add(minLevel);
+    }
+    if (maxLevel != null) {
+      where.append(" AND item_level <= ?");
+      params.add(maxLevel);
     }
     params.add(limit == null ? -1 : limit); // a negative LIMIT is no limit in SQLite
     params.add(offset);

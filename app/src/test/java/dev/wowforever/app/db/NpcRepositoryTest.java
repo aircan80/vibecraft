@@ -3,6 +3,8 @@ package dev.wowforever.app.db;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.model.NpcDetail;
+import dev.wowforever.app.model.NpcFilter;
+import dev.wowforever.app.model.NpcSummary;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -37,5 +39,36 @@ class NpcRepositoryTest {
   @Test
   void byZoneListsSpawnZoneNpcs() {
     assertThat(repos.npcs().byZone(2437)).extracting(n -> n.id()).contains(11520L);
+  }
+
+  @Test
+  void npcsByRank() {
+    assertThat(repos.npcs().list(new NpcFilter(null, 3, null, null))).extracting(NpcSummary::name)
+        .containsExactly("Lucifron", "Ragnaros");
+    assertThat(repos.npcs().list(new NpcFilter(null, 1, null, null))).extracting(NpcSummary::name)
+        .containsExactly("Hogger", "Jergosh the Invoker", "Taragaman the Hungerer");
+    assertThat(repos.npcs().list(new NpcFilter(2437L, 1, null, null))).extracting(NpcSummary::name)
+        .containsExactly("Jergosh the Invoker", "Taragaman the Hungerer");
+    assertThat(repos.npcs().list(new NpcFilter(12L, 3, null, null))).isEmpty();
+  }
+
+  @Test
+  void npcLevelRangeOverlapsTheNpcLevels() {
+    assertThat(repos.npcs().list(new NpcFilter(null, null, 15, 25))).extracting(NpcSummary::name)
+        .containsExactly("Edwin VanCleef", "Gobbler", "Jergosh the Invoker", "Taragaman the Hungerer");
+    assertThat(repos.npcs().list(new NpcFilter(null, null, 60, null))).extracting(NpcSummary::name)
+        .containsExactly("Lucifron", "Ragnaros");
+    assertThat(repos.npcs().list(new NpcFilter(null, null, null, 11))).extracting(NpcSummary::name)
+        .containsExactly("Hogger");
+  }
+
+  @Test
+  void unfilteredNpcListHasEveryNpcByName() {
+    var all = repos.npcs().list(NpcFilter.ALL);
+    assertThat(all).hasSize(15);
+    assertThat(all).extracting(NpcSummary::name).filteredOn(n -> n != null)
+        .isSortedAccordingTo(String.CASE_INSENSITIVE_ORDER);
+    assertThat(repos.npcs().list(new NpcFilter(2437L, null, null, null)))
+        .isEqualTo(repos.npcs().byZone(2437));
   }
 }

@@ -1,11 +1,13 @@
 package dev.wowforever.app.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ItemClassNode;
 import dev.wowforever.app.model.ItemDetail;
+import dev.wowforever.app.model.ItemFilter;
 import dev.wowforever.app.model.ItemSummary;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -82,5 +84,34 @@ class ItemRepositoryTest {
     assertThat(armor).extracting(ItemSummary::name).filteredOn(n -> n != null).isSortedAccordingTo(String.CASE_INSENSITIVE_ORDER);
     ItemSummary cape = repos.items().detail(14149).get().summary();
     assertThat(cape.sourceCount()).isPositive();
+  }
+
+  @Test
+  void listWithLevelRange() {
+    assertThat(repos.items().list(new ItemFilter(null, null, 10, 20, null))).extracting(ItemSummary::name)
+        .containsExactly("An Unsent Letter", "Crystalline Cuffs", "Cursed Felblade", "Murloc Eye", "Subterranean Cape");
+    assertThat(repos.items().list(new ItemFilter(4, null, 10, 20, null))).extracting(ItemSummary::name)
+        .containsExactly("Crystalline Cuffs", "Subterranean Cape");
+    assertThat(repos.items().list(new ItemFilter(null, null, 66, null, null))).extracting(ItemSummary::name)
+        .containsExactly("Arcanist Boots", "Thunderfury, Blessed Blade of the Windseeker");
+    assertThat(repos.items().list(new ItemFilter(null, null, null, 8, null))).extracting(ItemSummary::name)
+        .containsExactly("Smelling Salts", "Worn Shortsword");
+    assertThat(repos.items().list(new ItemFilter(4, null, 30, 20, null))).isEmpty();
+  }
+
+  @Test
+  void listByFilterMatchesTheClassListAndKeepsUnknownLevelsWithoutABound() {
+    assertThat(repos.items().list(ItemFilter.ALL)).isEqualTo(repos.items().list(null, null, null, 0));
+    assertThat(repos.items().list(new ItemFilter(4, 1, null, null, null)))
+        .isEqualTo(repos.items().list(4, 1, null, 0)).isNotEmpty();
+    assertThat(repos.items().list(new ItemFilter(2, ItemClassNode.OTHER_SUBCLASSES, null, null, null)))
+        .isEqualTo(repos.items().list(2, ItemClassNode.OTHER_SUBCLASSES, null, 0));
+    assertThat(repos.items().list(ItemFilter.ALL)).extracting(ItemSummary::itemLevel).containsNull();
+  }
+
+  @Test
+  void qualityIsNotFilterableYet() {
+    assertThatThrownBy(() -> repos.items().list(new ItemFilter(null, null, null, null, 4)))
+        .isInstanceOf(IllegalArgumentException.class);
   }
 }

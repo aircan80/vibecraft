@@ -12,8 +12,14 @@ import dev.wowforever.app.db.Database;
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.ItemFilter;
+import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.ListFilter;
+import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.pages.FilterBar;
 import dev.wowforever.app.ui.pages.ItemPage;
+import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.pages.NpcPage;
 import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.ui.widgets.ListEntry;
@@ -27,8 +33,10 @@ import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,6 +44,9 @@ import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(FixtureDb.class)
 class AppControllerTest {
+  /** A search whose hits are at least three items, to arrow through. */
+  private static final ViewTarget.Search ITEMS_C = new ViewTarget.Search("c", Optional.of(ITEM));
+
   private final Repositories repos = FixtureDb.repositories();
   private final StubView view = new StubView();
 
@@ -53,6 +64,25 @@ class AppControllerTest {
     view.delay.fire();
   }
 
+  private ListPage listPage() {
+    assertThat(view.detail).isInstanceOf(ListPage.class);
+    return (ListPage) view.detail;
+  }
+
+  private static <V> void select(JComboBox<FilterBar.Choice<V>> combo, V value) {
+    for (int i = 0; i < combo.getItemCount(); i++) {
+      if (Objects.equals(combo.getItemAt(i).value(), value)) {
+        combo.setSelectedIndex(i);
+        return;
+      }
+    }
+    throw new AssertionError("No choice " + value);
+  }
+
+  private static <V> V selected(JComboBox<FilterBar.Choice<V>> combo) {
+    return combo.getItemAt(combo.getSelectedIndex()).value();
+  }
+
   @Test
   void searchFillsTheListAndPushesHistory() {
     AppController c = new AppController(repos, view, Runnable::run);
@@ -68,6 +98,7 @@ class AppControllerTest {
     c.open(new ViewTarget.List(INSTANCE));
     c.back();
     assertThat(c.current()).isEqualTo(new ViewTarget.List(ZONE));
+    assertThat(listPage().target()).isEqualTo(new ViewTarget.List(ZONE));
   }
 
   @Test
@@ -78,14 +109,13 @@ class AppControllerTest {
     assertThat(view.canBack).isTrue();
     assertThat(view.canForward).isFalse();
     c.back();
-    assertThat(list().heading()).startsWith("Zones (");
+    assertThat(listPage().header().title()).isEqualTo("Zones");
     assertThat(view.canBack).isFalse();
     assertThat(view.canForward).isTrue();
     c.forward();
     assertThat(c.current()).isEqualTo(new ViewTarget.List(INSTANCE));
-    int instances = repos.instances().all().size();
-    assertThat(list().entries()).hasSize(instances);
-    assertThat(list().heading()).isEqualTo("Dungeons & Raids (" + instances + ")");
+    assertThat(listPage().header().title()).isEqualTo("Dungeons & Raids");
+    assertThat(view.titleSuffix).isEqualTo("Dungeons & Raids");
     assertThat(c.history().canForward()).isFalse();
   }
 
@@ -134,52 +164,159 @@ class AppControllerTest {
   }
 
   @Test
-  void instanceListNamesTheWingsOfSameNamedInstances(@TempDir Path tmp) throws Exception {
+  void instanceListNamesTheWingsOfInstances(@TempDir Path tmp) throws Exception {
     Path copy = tmp.resolve("db.sqlite");
     Files.copy(FixtureDb.path(), copy);
     try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement s = conn.createStatement()) {
-      s.executeUpdate("insert into instance(id, key, name, content_type, zone_id) values "
-          + "(95001, 'LowerBlackrockSpire', 'Blackrock Spire', 'DUNGEON', 46), "
-          + "(95002, 'UpperBlackrockSpire', 'Blackrock Spire', 'DUNGEON', 46)");
+      s.executeUpdate("insert into instance(id, key, name, content_type, zone_id, level_min) values "
+          + "(95001, 'LowerBlackrockSpire', 'Blackrock Spire', 'DUNGEON', 46, 55), "
+          + "(95002, 'UpperBlackrockSpire', 'Blackrock Spire', 'DUNGEON', 46, 55)");
     }
     try (Database db = Database.open(copy)) {
       AppController c = new AppController(Repositories.of(db), view, Runnable::run);
       c.open(new ViewTarget.List(INSTANCE));
-      assertThat(list().entries()).extracting(ListEntry::title)
-          .contains("Blackrock Spire › Lower", "Blackrock Spire › Upper", "Molten Core");
+      List<Object> names = new ArrayList<>();
+      for (var section : listPage().sections()) {
+        var table = section.table().table();
+        for (int r = 0; r < table.getRowCount(); r++) {
+          names.add(table.getValueAt(r, 0));
+        }
+      }
+      assertThat(names).contains("Blackrock Spire › Lower", "Blackrock Spire › Upper", "Molten Core");
+      assertThat(listPage().sections()).extracting(s -> s.heading().getText()).contains("Levels 41–59 (2)");
     }
   }
 
   @Test
-  void itemClassListsEveryItemOfTheClass() {
-    AppController c = new AppController(repos, view, Runnable::run);
-    c.open(new ViewTarget.ItemClass(4, -1));
-    int all = repos.items().list(4, null, null, 0).size();
-    assertThat(list().entries()).hasSize(all).isNotEmpty()
-        .allSatisfy(e -> {
-          assertThat(e.ref().kind()).isEqualTo(ITEM);
-          assertThat(e.subtitle()).isNotBlank().doesNotContain("null", "iLvl 1 ", "Req 0");
-        });
-    assertThat(list().heading()).isEqualTo("Armor (" + all + ")");
-    assertThat(view.titleSuffix).isEqualTo("Armor");
+  void railTargets() {
+    assertThat(AppController.target(RailTarget.HOME)).isEqualTo(new ViewTarget.Home());
+    assertThat(AppController.target(RailTarget.ITEMS)).isEqualTo(new ViewTarget.List(ITEM, ItemFilter.ALL));
+    assertThat(AppController.target(RailTarget.NPCS)).isEqualTo(new ViewTarget.List(NPC, NpcFilter.ALL));
+    assertThat(AppController.target(RailTarget.QUESTS)).isEqualTo(new ViewTarget.List(QUEST));
+    assertThat(AppController.target(RailTarget.ZONES)).isEqualTo(new ViewTarget.List(ZONE));
+    assertThat(AppController.target(RailTarget.INSTANCES)).isEqualTo(new ViewTarget.List(INSTANCE));
   }
 
   @Test
-  void subclassListFiltersAndNamesBoth() {
+  void eachRailTargetOpensItsListPageWithTheDefaultFilterAndLeavesTheMasterList() {
     AppController c = new AppController(repos, view, Runnable::run);
-    c.open(new ViewTarget.ItemClass(4, 1));
-    assertThat(list().entries()).isNotEmpty().allSatisfy(e -> assertThat(e.subtitle()).startsWith("Cloth"));
-    assertThat(list().heading()).startsWith("Armor › Cloth (");
+    c.open(new ViewTarget.Search("hogger", Optional.of(NPC)));
+    for (RailTarget t : List.of(RailTarget.ITEMS, RailTarget.NPCS, RailTarget.QUESTS, RailTarget.ZONES,
+        RailTarget.INSTANCES)) {
+      c.open(AppController.target(t));
+      ViewTarget.List target = (ViewTarget.List) AppController.target(t);
+      assertThat(c.current()).isEqualTo(target);
+      assertThat(listPage().target()).as(t.label()).isEqualTo(target);
+      assertThat(target.filter()).isEqualTo(ListFilter.defaultFor(target.kind()));
+      assertThat(listPage().header().title()).isEqualTo(t.label());
+      assertThat(view.titleSuffix).isEqualTo(t.label());
+      assertThat(list().heading()).as("the master list keeps the search").isEqualTo("Search: hogger (1)");
+    }
   }
 
   @Test
-  void allItemsWhenClassIsMinusOne() {
+  void itemListShowsEveryItemInTheDetail() {
     AppController c = new AppController(repos, view, Runnable::run);
-    c.open(new ViewTarget.ItemClass(ViewTarget.ItemClass.ALL_CLASSES, -1));
-    int all = repos.items().list(null, null, null, 0).size();
-    assertThat(list().entries()).hasSize(all);
-    assertThat(all).isGreaterThan(repos.items().list(4, null, null, 0).size());
-    assertThat(list().heading()).isEqualTo("All items (" + all + ")");
+    c.open(AppController.target(RailTarget.ITEMS));
+    int all = repos.items().list(ItemFilter.ALL).size();
+    assertThat(listPage().results().rowCount()).isEqualTo(all);
+    assertThat(view.status().message()).isEqualTo(all + " results");
+  }
+
+  @Test
+  void itemClassLinkOpensTheListWithTheClassPreselected() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(ViewTarget.List.itemClass(4, 1));
+    assertThat(c.current()).isEqualTo(new ViewTarget.List(ITEM, new ItemFilter(4, 1, null, null, null)));
+    assertThat(selected(listPage().filterBar().classes())).isEqualTo(4);
+    assertThat(selected(listPage().filterBar().subclasses())).isEqualTo(1);
+    var model = listPage().results().model();
+    assertThat(model.getRowCount()).isPositive();
+    for (int r = 0; r < model.getRowCount(); r++) {
+      assertThat(((ItemSummary) model.rowAt(r)).subclassName()).isEqualTo("Cloth");
+    }
+  }
+
+  @Test
+  void aFilterChangeReloadsAndReplacesTheHistoryEntry() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.Home());
+    c.open(new ViewTarget.List(NPC));
+    ListPage page = listPage();
+    assertThat(page.results().rowCount()).isEqualTo(15);
+    select(page.filterBar().ranks(), 3);
+    select(page.filterBar().zones(), 2717L);
+    assertThat(view.detail).as("the page stays, its table reloads").isSameAs(page);
+    assertThat(page.results().rowCount()).isEqualTo(1);
+    assertThat(view.status().message()).isEqualTo("1 result");
+    assertThat(c.current()).isEqualTo(new ViewTarget.List(NPC, new NpcFilter(2717L, 3, null, null)));
+    c.back();
+    assertThat(c.current()).as("filter changes are not back steps").isEqualTo(new ViewTarget.Home());
+  }
+
+  @Test
+  void backAfterOpeningAnEntityFromAListRestoresTheListWithTheSameFilter() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(AppController.target(RailTarget.NPCS));
+    select(listPage().filterBar().ranks(), 3);
+    listPage().results().activateRow(0); // a click on the first name
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(NPC, 12118)));
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
+    c.back();
+    ViewTarget.List filtered = new ViewTarget.List(NPC, new NpcFilter(null, 3, null, null));
+    assertThat(c.current()).isEqualTo(filtered);
+    assertThat(listPage().target()).isEqualTo(filtered);
+    assertThat(selected(listPage().filterBar().ranks())).isEqualTo(3);
+    assertThat(listPage().results().rowCount()).isEqualTo(2);
+    c.forward();
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
+  }
+
+  @Test
+  void aFilterChangeAfterASearchPushesTheFilteredListAfterIt() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.List(NPC));
+    ListPage page = listPage();
+    c.open(new ViewTarget.Search("hogger", Optional.of(NPC))); // the list page stays in the detail
+    assertThat(view.detail).isSameAs(page);
+    select(page.filterBar().ranks(), 3);
+    ViewTarget.List bosses = new ViewTarget.List(NPC, new NpcFilter(null, 3, null, null));
+    assertThat(c.current()).isEqualTo(bosses);
+    assertThat(page.results().rowCount()).isEqualTo(2);
+    select(page.filterBar().ranks(), 1);
+    assertThat(c.current()).isEqualTo(new ViewTarget.List(NPC, new NpcFilter(null, 1, null, null)));
+    c.back();
+    assertThat(c.current()).isEqualTo(new ViewTarget.Search("hogger", Optional.of(NPC)));
+    c.back();
+    assertThat(c.current()).isEqualTo(new ViewTarget.List(NPC));
+  }
+
+  @Test
+  void aStaleFilterReloadIsDropped() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    c.open(new ViewTarget.List(NPC));
+    queued.remove(0).run();
+    ListPage page = listPage();
+    select(page.filterBar().ranks(), 1);
+    select(page.filterBar().ranks(), 3);
+    queued.get(1).run();
+    queued.get(0).run(); // the elite reload finishes last and must not replace the bosses
+    assertThat(page.results().rowCount()).isEqualTo(2);
+    assertThat(page.target().filter()).isEqualTo(new NpcFilter(null, 3, null, null));
+  }
+
+  @Test
+  void aFilterChangeOnAPageNoLongerShownIsIgnored() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.List(NPC));
+    ListPage old = listPage();
+    c.open(new ViewTarget.Entity(new EntityRef(NPC, 448)));
+    select(old.filterBar().ranks(), 3);
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(NPC, 448)));
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
+    c.back();
+    assertThat(c.current()).isEqualTo(new ViewTarget.List(NPC));
   }
 
   @Test
@@ -191,70 +328,10 @@ class AppControllerTest {
   }
 
   @Test
-  void zoneListShowsNpcsAndPushesZoneEntity() {
-    AppController c = new AppController(repos, view, Runnable::run);
-    c.openZoneList(NPC, 2437);
-    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(ZONE, 2437)));
-    String zone = repos.zones().detail(2437).get().summary().name();
-    assertThat(list().heading()).startsWith("NPCs in " + zone + " (");
-    assertThat(refs()).contains(new EntityRef(NPC, 11520));
-    assertThat(view.detail).isInstanceOf(ZonePage.class);
-  }
-
-  @Test
-  void objectZoneList() {
-    AppController c = new AppController(repos, view, Runnable::run);
-    c.openZoneList(OBJECT, 12);
-    assertThat(list().heading()).startsWith("Objects in Elwynn Forest (");
-    assertThat(list().entries()).isNotEmpty().allSatisfy(e -> {
-      assertThat(e.ref().kind()).isEqualTo(OBJECT);
-      assertThat(e.subtitle()).isEqualTo("Object · Elwynn Forest");
-    });
-  }
-
-  @Test
-  void railTargets() {
-    assertThat(AppController.target(RailTarget.HOME)).isEqualTo(new ViewTarget.Home());
-    assertThat(AppController.target(RailTarget.ITEMS))
-        .isEqualTo(new ViewTarget.ItemClass(ViewTarget.ItemClass.ALL_CLASSES, -1));
-    assertThat(AppController.target(RailTarget.NPCS)).isEqualTo(new ViewTarget.List(NPC));
-    assertThat(AppController.target(RailTarget.QUESTS)).isEqualTo(new ViewTarget.List(QUEST));
-    assertThat(AppController.target(RailTarget.ZONES)).isEqualTo(new ViewTarget.List(ZONE));
-    assertThat(AppController.target(RailTarget.INSTANCES)).isEqualTo(new ViewTarget.List(INSTANCE));
-  }
-
-  @Test
-  void npcListIsAZonePickerWhoseCommitListsTheZonesNpcs() {
-    AppController c = new AppController(repos, view, Runnable::run);
-    c.open(AppController.target(RailTarget.NPCS));
-    assertThat(list().heading()).startsWith("NPCs: pick a zone (");
-    assertThat(list().entries()).hasSize(repos.zones().all().size())
-        .allSatisfy(e -> assertThat(e.ref().kind()).isEqualTo(ZONE));
-    int row = refs().indexOf(new EntityRef(ZONE, 12));
-    assertThat(row).isNotNegative();
-    previewRow(row);
-    assertThat(view.detail).isInstanceOf(ZonePage.class);
-    list().commitSelected();
-    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(ZONE, 12)));
-    assertThat(list().heading()).startsWith("NPCs in Elwynn Forest (");
-    assertThat(list().entries()).allSatisfy(e -> assertThat(e.ref().kind()).isEqualTo(NPC));
-  }
-
-  @Test
-  void questListIsAZonePicker() {
-    AppController c = new AppController(repos, view, Runnable::run);
-    c.open(AppController.target(RailTarget.QUESTS));
-    assertThat(list().heading()).startsWith("Quests: pick a zone (");
-    list().selectIndex(refs().indexOf(new EntityRef(ZONE, 12)));
-    list().commitSelected();
-    assertThat(list().heading()).startsWith("Quests in Elwynn Forest (");
-  }
-
-  @Test
   void previewReplacesCurrentWithoutPushing() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(new ViewTarget.Home());
-    c.open(new ViewTarget.ItemClass(4, 1));
+    c.open(ITEMS_C);
     List<EntityRef> rows = refs();
     assertThat(rows).hasSizeGreaterThanOrEqualTo(3);
     previewRow(0);
@@ -263,10 +340,10 @@ class AppControllerTest {
     previewRow(2);
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(2)));
     assertThat(view.detail).isInstanceOf(ItemPage.class);
-    assertThat(list().heading()).startsWith("Armor › Cloth (");
+    assertThat(list().heading()).startsWith("Search: c (");
     // three previews took one history slot, right after the list
     c.back();
-    assertThat(c.current()).isEqualTo(new ViewTarget.ItemClass(4, 1));
+    assertThat(c.current()).isEqualTo(ITEMS_C);
     c.back();
     assertThat(c.current()).isEqualTo(new ViewTarget.Home());
     assertThat(c.history().canBack()).isFalse();
@@ -275,7 +352,7 @@ class AppControllerTest {
   @Test
   void commitPushesAndKeepsTheCommittedPage() {
     AppController c = new AppController(repos, view, Runnable::run);
-    c.open(new ViewTarget.ItemClass(4, 1));
+    c.open(ITEMS_C);
     List<EntityRef> rows = refs();
     previewRow(0);
     list().commitSelected(); // Enter on the previewed row pins it
@@ -286,7 +363,7 @@ class AppControllerTest {
     c.back();
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(0)));
     c.back();
-    assertThat(c.current()).isEqualTo(new ViewTarget.ItemClass(4, 1));
+    assertThat(c.current()).isEqualTo(ITEMS_C);
   }
 
   @Test
@@ -296,7 +373,7 @@ class AppControllerTest {
       loads.incrementAndGet();
       r.run();
     });
-    c.open(new ViewTarget.ItemClass(4, 1));
+    c.open(ITEMS_C);
     List<EntityRef> rows = refs();
     previewRow(0);
     int afterPreview = loads.get();
@@ -317,7 +394,7 @@ class AppControllerTest {
       loads.incrementAndGet();
       r.run();
     });
-    c.open(new ViewTarget.ItemClass(4, 1));
+    c.open(ITEMS_C);
     List<EntityRef> rows = refs();
     list().selectIndex(0);
     list().commitSelected();
@@ -326,7 +403,7 @@ class AppControllerTest {
     assertThat(loads.get()).isEqualTo(afterFirst);
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(0)));
     c.back();
-    assertThat(c.current()).isEqualTo(new ViewTarget.ItemClass(4, 1));
+    assertThat(c.current()).isEqualTo(ITEMS_C);
   }
 
   @Test
@@ -336,7 +413,7 @@ class AppControllerTest {
       loads.incrementAndGet();
       r.run();
     });
-    c.open(new ViewTarget.ItemClass(4, 1));
+    c.open(ITEMS_C);
     List<EntityRef> rows = refs();
     c.open(new ViewTarget.Entity(rows.get(0))); // opened on purpose, e.g. through a link
     int afterOpen = loads.get();
@@ -347,13 +424,13 @@ class AppControllerTest {
     c.back();
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(0)));
     c.back();
-    assertThat(c.current()).isEqualTo(new ViewTarget.ItemClass(4, 1));
+    assertThat(c.current()).isEqualTo(ITEMS_C);
   }
 
   @Test
   void commitBeforeThePreviewFiresOpensAtOnce() {
     AppController c = new AppController(repos, view, Runnable::run);
-    c.open(new ViewTarget.ItemClass(4, 1));
+    c.open(ITEMS_C);
     List<EntityRef> rows = refs();
     list().selectIndex(1);
     list().commitSelected();
@@ -361,13 +438,13 @@ class AppControllerTest {
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(1)));
     assertThat(view.detail).isInstanceOf(ItemPage.class);
     c.back();
-    assertThat(c.current()).isEqualTo(new ViewTarget.ItemClass(4, 1));
+    assertThat(c.current()).isEqualTo(ITEMS_C);
   }
 
   @Test
   void previewAfterBackDoesNotOverwriteTheEntryGoneBackTo() {
     AppController c = new AppController(repos, view, Runnable::run);
-    c.open(new ViewTarget.ItemClass(4, 1));
+    c.open(ITEMS_C);
     List<EntityRef> rows = refs();
     previewRow(0);
     c.open(new ViewTarget.Entity(new EntityRef(NPC, 448))); // a link inside the page
@@ -376,6 +453,17 @@ class AppControllerTest {
     previewRow(1);
     c.back();
     assertThat(c.current()).isEqualTo(new ViewTarget.Entity(rows.get(0)));
+  }
+
+  @Test
+  void committingAZoneRowOpensTheZone() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.Search("elwynn", Optional.of(ZONE)));
+    list().selectIndex(refs().indexOf(new EntityRef(ZONE, 12)));
+    list().commitSelected();
+    assertThat(c.current()).isEqualTo(new ViewTarget.Entity(new EntityRef(ZONE, 12)));
+    assertThat(view.detail).isInstanceOf(ZonePage.class);
+    assertThat(list().heading()).startsWith("Search: elwynn (");
   }
 
   @Test
@@ -432,6 +520,17 @@ class AppControllerTest {
   }
 
   @Test
+  void aStaleListPageIsDropped() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    c.open(new ViewTarget.List(ZONE));
+    c.open(new ViewTarget.Entity(new EntityRef(NPC, 639)));
+    queued.get(1).run();
+    queued.get(0).run(); // the zone list finishes last and must not replace the NPC
+    assertThat(view.detail).isInstanceOf(NpcPage.class);
+  }
+
+  @Test
   void stalePreviewIsDropped() {
     List<Runnable> queued = new ArrayList<>();
     AppController c = new AppController(repos, view, queued::add);
@@ -450,10 +549,10 @@ class AppControllerTest {
     List<Runnable> queued = new ArrayList<>();
     AppController c = new AppController(repos, view, queued::add);
     c.open(new ViewTarget.Search("subterr", Optional.empty()));
-    c.open(new ViewTarget.List(INSTANCE));
+    c.open(new ViewTarget.Search("hogger", Optional.empty()));
     queued.get(1).run();
-    queued.get(0).run(); // the older search finishes last and must not replace the newer list
-    assertThat(list().heading()).startsWith("Dungeons & Raids (");
+    queued.get(0).run(); // the older search finishes last and must not replace the newer one
+    assertThat(list().heading()).startsWith("Search: hogger (");
   }
 
   @Test

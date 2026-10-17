@@ -4,15 +4,17 @@ import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcDetail;
+import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.Spawn;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-/** NPCs: detail pages and zone lists. */
+/** NPCs: detail pages, filtered lists and zone lists. */
 public final class NpcRepository {
   private static final String SUMMARY = """
       SELECT n.id, n.name, n.sub_name, n.min_level, n.max_level, n.rank, n.zone_id, nz.name AS zone_name,
@@ -67,6 +69,33 @@ public final class NpcRepository {
   static List<NpcSummary> byZone(Connection c, long zoneId, int limit) throws SQLException {
     return Sql.list(c, SUMMARY + " WHERE n.zone_id = ? ORDER BY n.name IS NULL, n.name COLLATE NOCASE, n.id LIMIT ?",
         NpcRepository::summary, zoneId, limit);
+  }
+
+  /**
+   * Every NPC {@code filter} lets through, by name. The level bounds keep an NPC whose level range overlaps them (an
+   * NPC with one known level counts it as both ends); NPCs without a level drop out once a bound is set.
+   */
+  public List<NpcSummary> list(NpcFilter filter) {
+    StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+    List<Object> params = new ArrayList<>();
+    if (filter.zoneId() != null) {
+      where.append(" AND n.zone_id = ?");
+      params.add(filter.zoneId());
+    }
+    if (filter.rank() != null) {
+      where.append(" AND n.rank = ?");
+      params.add(filter.rank());
+    }
+    if (filter.minLevel() != null) {
+      where.append(" AND coalesce(n.max_level, n.min_level) >= ?");
+      params.add(filter.minLevel());
+    }
+    if (filter.maxLevel() != null) {
+      where.append(" AND coalesce(n.min_level, n.max_level) <= ?");
+      params.add(filter.maxLevel());
+    }
+    String sql = SUMMARY + where + " ORDER BY n.name IS NULL, n.name COLLATE NOCASE, n.id";
+    return db.read(c -> Sql.list(c, sql, NpcRepository::summary, params.toArray()));
   }
 
   /** Joins {@code item i} and {@code item_class ic} on the {@code item_id} of the table aliased {@code alias}. */

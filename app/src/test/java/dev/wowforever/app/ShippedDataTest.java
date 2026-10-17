@@ -14,6 +14,7 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.MainView;
 import dev.wowforever.app.ui.StatusBar;
+import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.widgets.MasterList;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -122,16 +123,18 @@ class ShippedDataTest {
     assertThat(armor).isGreaterThan(500);
     MasterList results = new MasterList();
     StatusBar status = new StatusBar();
+    JComponent[] detail = new JComponent[1];
     MainView view = new MainView() {
       @Override public MasterList masterList() { return results; }
-      @Override public void setDetail(JComponent c) { }
+      @Override public void setDetail(JComponent c) { detail[0] = c; }
       @Override public void setHistoryState(boolean canBack, boolean canForward) { }
       @Override public StatusBar status() { return status; }
       @Override public void setTitleSuffix(String s) { }
     };
-    new AppController(repos, view, Runnable::run).open(new ViewTarget.ItemClass(4, -1));
-    assertThat((long) results.entries().size()).isEqualTo(armor);
-    assertThat(results.heading()).isEqualTo(String.format(Locale.ROOT, "Armor (%,d)", armor));
+    new AppController(repos, view, Runnable::run).open(ViewTarget.List.itemClass(4, -1));
+    ListPage page = (ListPage) detail[0];
+    assertThat((long) page.results().rowCount()).isEqualTo(armor);
+    assertThat(page.section().heading().getText()).isEqualTo(String.format(Locale.ROOT, "Results (%,d)", armor));
   }
 
   @Test

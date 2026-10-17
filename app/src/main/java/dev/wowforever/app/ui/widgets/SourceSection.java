@@ -29,7 +29,7 @@ public final class SourceSection extends JPanel {
     if (!table.isInline()) {
       throw new IllegalArgumentException("A source section needs an inline link table: " + title);
     }
-    heading = new JLabel(String.format(Locale.ROOT, "%s (%,d)", title, count)) {
+    heading = new JLabel(headingText(title, count)) {
       @Override
       public Color getForeground() { // looked up per paint, so theme changes apply
         return Theme.current().accentGold();
@@ -42,6 +42,15 @@ public final class SourceSection extends JPanel {
     setAlignmentX(LEFT_ALIGNMENT);
     add(heading, BorderLayout.NORTH);
     add(table, BorderLayout.CENTER);
+  }
+
+  /** Shows {@code count} in the heading, for a section whose table was given new rows. */
+  public void setCount(int count) {
+    heading.setText(headingText(title, count));
+  }
+
+  private static String headingText(String title, int count) {
+    return String.format(Locale.ROOT, "%s (%,d)", title, count);
   }
 
   /** The kind of source, without the count: {@code "Dropped by"}. */
