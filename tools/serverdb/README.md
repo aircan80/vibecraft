@@ -32,6 +32,19 @@ The cache directory then holds:
 
 None of these files are committed.
 
+### Rebuilding this exact database
+
+`db_latest` is a moving release: when VMaNGOS republishes it, the old asset is replaced, and the pinned asset URL
+may answer 404. `fetch.py` then fails cleanly, and a fresh machine can no longer download the pinned archive. Keep
+the cached archive `~/.cache/wowforever-serverdb/4641790/db-sqlite-4641790.zip`, or mirror it somewhere you
+control, to rebuild this exact database: placed back in that directory, it passes the SHA-256 check and is
+extracted without a download. The licence is fetched from the pinned commit, which does not move.
+
+To move to a newer VMaNGOS database, change `serverdb.lock` and the `serverdb.dir` default in `importer/pom.xml`
+(the `4641790` in `~/.cache/wowforever-serverdb/4641790`) together. With only the lock bumped, the `import-data`
+profile looks in the old directory and the import skips the community rates. `ServerDbPinTest` fails the build
+when the two disagree.
+
 ## How the importer uses it
 
 The importer opens `mangos.sqlite` read-only and immutable and queries it directly (`--server-db-dir <dir>`, or

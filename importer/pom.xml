@@ -17,7 +17,8 @@
     <!-- import-data profile: the coverage gate's minimum percentage of named items with client data -->
     <clientdata.coverageMin>85</clientdata.coverageMin>
     <!-- import-data profile: the VMaNGOS world database (tools/serverdb/fetch.py output); the importer skips the
-         community drop rates, with a report note, when this directory has no mangos.sqlite -->
+         community drop rates, with a report note, when this directory has no mangos.sqlite. 4641790 is the short
+         commit of tools/serverdb/serverdb.lock: change the two together (ServerDbPinTest checks it) -->
     <serverdb.dir>${user.home}/.cache/wowforever-serverdb/4641790</serverdb.dir>
   </properties>
 
