@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -101,8 +102,18 @@ class ImportReportTest {
     assertThat(UiFields.isUiField(OBJECT, "questEnds")).isTrue();
     assertThat(UiFields.isUiField(OBJECT, "factionID")).isFalse();
     assertThat(UiFields.isUiField(QUEST, "objectivesText")).isTrue();
-    assertThat(UiFields.isUiField(QUEST, "objectives")).isFalse();
+    assertThat(UiFields.isUiField(QUEST, "reputationReward")).isFalse();
     assertThat(UiFields.isUiField(QUEST, "<id>")).isTrue();
+  }
+
+  @Test
+  void questFieldsOfThePhase3QuestPageAreUiFields() {
+    for (String field : List.of("objectives", "triggerEnd", "sourceItemId", "requiredSourceItems", "extraObjectives",
+        "preQuestGroup", "preQuestSingle", "childQuests", "inGroupWith", "exclusiveTo", "nextQuestInChain",
+        "parentQuest", "breadcrumbForQuestId", "breadcrumbs", "requiredSkill", "requiredMinRep")) {
+      assertThat(UiFields.isUiField(QUEST, field)).as(field).isTrue();
+    }
+    assertThat(UiFields.isUiField(QUEST, "requiredMaxRep")).as("not stored").isFalse();
   }
 
   @Test

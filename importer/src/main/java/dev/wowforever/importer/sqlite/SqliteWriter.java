@@ -45,6 +45,11 @@ import java.util.stream.Collectors;
  */
 public final class SqliteWriter {
   private static final String SCHEMA_RESOURCE = "/dev/wowforever/importer/schema.sql";
+  /**
+   * The {@code schema.sql} generation, written as {@code meta.schema_version}: 1 the v0.1 tables, 2 the phase 2A
+   * client data, 3 the phase 3A quest objectives, relations, source items and UI assets. Changes are additive.
+   */
+  public static final int SCHEMA_VERSION = 3;
   /** Separates the table definitions in {@code schema.sql} from the indexes created after the bulk load. */
   private static final Pattern INDEX_MARKER = Pattern.compile("^-- @indexes\\s*$", Pattern.MULTILINE);
   private static final List<String> PRAGMAS = List.of(
@@ -153,6 +158,7 @@ public final class SqliteWriter {
       c.setAutoCommit(false);
 
       writeMeta(c, model.meta());
+      writeMeta(c, Map.of("schema_version", String.valueOf(SCHEMA_VERSION)));
       writeItemClasses(c, classNames);
       LuaColumns columns = new LuaColumns(report);
       EntityWriter entities = new EntityWriter(c, columns, report);

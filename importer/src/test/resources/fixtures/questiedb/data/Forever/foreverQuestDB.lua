@@ -56,5 +56,6 @@ QuestieDB.questKeys = {
 QuestieDB.questData = [[return {
 [2] = {"Sharptalon's Claw",{nil,nil,{16305}},{{12696}},20,30,8589934770,nil,{"Bring Sharptalon's Claw to Senani Thunderheart at Splintertree Post, Ashenvale."},nil,nil,16305,nil,{6383},nil,{23,24},nil,331,nil,nil,nil,nil,nil,nil,nil,nil,{{81,250}}},
 [136] = {"Captain Sander's Hidden Treasure",{nil,nil,{1357}},{nil,{35}},10,16,0,nil,{"Find Captain Sanders' footlocker and search it for the next clue."},nil,nil,nil,nil,nil,nil,nil,nil,40,nil,nil,nil,nil,138},
+[176] = {"Wanted:  \"Hogger\"",{nil,{68,156561}},{{240}},5,11,4294967373,nil,{"Slay the gnoll Hogger and bring his Huge Gnoll Claw to Marshal Dughan."},nil,{nil,nil,{{1931}}},nil,nil,nil,nil,nil,nil,12,nil,nil,nil,nil,nil,8,nil,nil,{{72,250}}},
 [9422] = {"Scouring the Desert",{{17079}},{{17079}},55,60,8589934770,nil,{"Find and deliver Silithyst to the Silithyst Extractor then speak with General Kirika at the Horde encampment near Hive'Regal."},nil,{{{18199,"Deliver Silithyst"}}},nil,nil,nil,nil,nil,nil,1377,nil,nil,nil,nil,nil,72,nil,nil,{{609,250}}},
 }]]

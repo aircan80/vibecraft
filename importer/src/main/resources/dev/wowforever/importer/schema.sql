@@ -123,6 +123,12 @@ CREATE TABLE icon (
   png BLOB NOT NULL
 );
 
+-- client UI textures by name (e.g. rail.quests, rail.quests@24), PNG (schema v3)
+CREATE TABLE ui_asset (
+  name TEXT PRIMARY KEY,
+  png  BLOB NOT NULL
+);
+
 -- fully revealed zone map, one per UiMap
 CREATE TABLE zone_map (
   ui_map_id INTEGER PRIMARY KEY,
@@ -173,7 +179,15 @@ CREATE TABLE quest (
   required_classes INTEGER,
   objectives_text  TEXT,
   quest_flags      INTEGER,
-  special_flags    INTEGER
+  special_flags    INTEGER,
+  -- schema v3 (phase 3A): repeatable = special_flags & 1; required skill {skill, value} and minimum reputation
+  -- {faction, value}; sort_label names the QuestSort when zone_or_sort < 0 (a zone id > 0 stays in zone_or_sort)
+  repeatable               INTEGER NOT NULL DEFAULT 0,
+  required_skill_id        INTEGER,
+  required_skill_value     INTEGER,
+  required_min_rep_faction INTEGER,
+  required_min_rep_value   INTEGER,
+  sort_label               TEXT
 );
 
 -- kind: npc | object | item; role: start | end
@@ -182,6 +196,45 @@ CREATE TABLE quest_giver (
   kind      TEXT NOT NULL,
   entity_id INTEGER NOT NULL,
   role      TEXT NOT NULL
+);
+
+-- schema v3 (phase 3A). Questie objectives in its order; kind: creature | object | item | reputation | spell |
+-- explore. killCredit members share a credit_group (the base creature is the group's representative); reputation
+-- rows carry the faction id and value in text; explore rows carry the triggerEnd text, their points are in
+-- quest_objective_point. Questie records no counts, so there is deliberately no count column.
+CREATE TABLE quest_objective (
+  quest_id     INTEGER NOT NULL,
+  ordinal      INTEGER NOT NULL,
+  kind         TEXT NOT NULL,
+  entity_id    INTEGER,
+  text         TEXT,
+  credit_group INTEGER
+);
+
+-- the area points of an explore objective, by zone
+CREATE TABLE quest_objective_point (
+  quest_id INTEGER NOT NULL,
+  ordinal  INTEGER NOT NULL,
+  zone_id  INTEGER NOT NULL,
+  x        REAL,
+  y        REAL
+);
+
+-- kind: provided (sourceItemId, handed over by the starter) | required (requiredSourceItems)
+CREATE TABLE quest_source_item (
+  quest_id INTEGER NOT NULL,
+  item_id  INTEGER NOT NULL,
+  kind     TEXT NOT NULL,
+  PRIMARY KEY (quest_id, item_id, kind)
+);
+
+-- kind: pre_single | pre_group | next | child | parent | exclusive | group | breadcrumb_for | breadcrumb;
+-- related_id may name a quest absent from the quest table (kept on purpose, counted as quest.relation.missing)
+CREATE TABLE quest_relation (
+  quest_id   INTEGER NOT NULL,
+  related_id INTEGER NOT NULL,
+  kind       TEXT NOT NULL,
+  PRIMARY KEY (quest_id, related_id, kind)
 );
 
 -- origin: questie | atlasloot | both; disagrees / source_count describe the drop_rate_source rows (phase 2)
@@ -319,3 +372,9 @@ CREATE INDEX idx_item_set_item_set ON item_set_item(set_id);
 CREATE INDEX idx_item_set_item_item ON item_set_item(item_id);
 CREATE INDEX idx_item_tooltip_line_item ON item_tooltip_line(item_id);
 CREATE INDEX idx_drop_rate_source_item ON drop_rate_source(item_id);
+CREATE INDEX idx_quest_relation_related ON quest_relation(related_id);
+CREATE INDEX idx_quest_objective_entity ON quest_objective(entity_id, kind);
+CREATE INDEX idx_quest_objective_quest ON quest_objective(quest_id, ordinal);
+CREATE INDEX idx_quest_objective_point_quest ON quest_objective_point(quest_id, ordinal);
+CREATE INDEX idx_quest_giver_entity_role ON quest_giver(entity_id, kind, role);
+CREATE INDEX idx_quest_source_item_item ON quest_source_item(item_id);
