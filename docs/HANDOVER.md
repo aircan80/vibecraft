@@ -4,6 +4,11 @@ Written 2026-10-17 at the owner's request so that work can continue on another c
 person or by a different AI assistant. Everything a continuer needs is either in this repository
 or named here with its location. Read this file first, then `README.md`, then the files it points at.
 
+## Current resume entry point
+
+Read [RESUME.md](RESUME.md) first for the latest checkpoint, exact commands, verification, remaining work
+and copy-and-paste resume prompts. The Windows sections below are historical, not a current task status.
+
 ## Linux continuation — 2026-10-17
 
 Development resumed with the owner's authorization on Linux at
@@ -13,8 +18,8 @@ run `./mvnw -B -q verify` before code commits. Python tools use `tools/clientdat
 
 Tasks 8–15 and18 are implemented and independently reviewed: objective map layers, patrols, quest page/loading,
 objective locations, chain display, merged quest involvement, keyboard/copy links and Forever dungeon presentation.
-Task 16 layout/search audit fixes and reusable 42-panel visual/performance tooling are integrated; final combined
-verification and the accepted 42-panel capture are tracked in the continuation ledger. Search completion preserves newer user edits. Layout checks
+Task 16 layout/search audit fixes and visual/performance tooling are integrated; final combined
+verification and the accepted 46-panel capture plus 16 targeted source/chain captures are tracked in the continuation ledger. Search completion preserves newer user edits. Layout checks
 cover actual giver rows and objective links, including compact fallback text and dungeon source-note wrapping.
 
 The owner additionally approved **one-database versioned source ingestion and separate offline projection**.
@@ -59,7 +64,8 @@ rows establish the Sleeping Bag alternatives. [Runtime semantics](https://github
 and exact native quest URLs are recorded in BUG-CSB-001. The pinned parser smoke found 2,599 static quest rows,
 259 eligible link claims and 2,145 coverage/condition issues, including all six Sleeping Bag edges. These are
 parser counts, not counts of selected changes in the final app database. Its 16 regressions passed; combined
-importer/data/UI acceptance is pending and the bug is not yet closed.
+acceptance also passed. The final app attributes 257 links (15 new), withholds one conflicting group and reports
+2,146 coverage issues including one missing canonical endpoint. BUG-CSB-001 is resolved with authored source evidence.
 
 Projection fills missing prerequisite groups without overwriting or unioning conflicting Questie groups.
 Each accepted claim needs authored evidence status, exact snapshot/path/line and configured revision; local
@@ -74,8 +80,7 @@ originals, and must not be inferred from unrelated later build metadata. Task 19
 
 A desktop research tool for World of Warcraft: Forever (Blizzard's Classic-era-based release, in
 beta as product `wow_classic_beta`, live on 4 November 2026). Java 21, Swing + FlatLaf, one shipped
-SQLite database built at build time from addon databases (QuestieDB, AtlasLootClassic; AllTheThings integration
-is in progress as described above), Blizzard
+SQLite database built at build time from addon databases (QuestieDB, AtlasLootClassic and AllTheThings), Blizzard
 client tables (fetched from wago.tools), the Classic Era item table as a fallback, the VMaNGOS world
 database (community drop rates) and, since Task 19, the Raidbots mirror of the client's hotfix cache
 (revealed hidden items). It runs on Windows, macOS and Linux, uses no network at runtime, never
