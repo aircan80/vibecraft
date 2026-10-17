@@ -6,9 +6,21 @@ A desktop browser for World of Warcraft: Forever items and their sources. You se
 
 ![The home page: the rail, the search box over the results list, and the page](docs/screenshots/home.png)
 
+## Original interface and Explorer Journal
+
+Every normal launch asks which interface to open. **Original interface** preserves the existing browser; **Explorer Journal** adds labelled navigation, a task-based Home, a unified dungeon catalog, section breadcrumbs and tabbed dungeon/item details. Both use the same offline data. Window layout and list preferences are separate. The explicit `--ui=classic` and `--ui=journal` options bypass the chooser for automation; ordinary startup always asks.
+
+Database reads, map/portrait decoding and catalog acquisition run on workers. Stale results are discarded when navigating away. Journal retains bounded transient page state so Back restores filters, selection and tabs. Atlas floors decode asynchronously in Journal.
+
+**Forever values come from Forever evidence.** Era-only cards, names, levels and quality are masked in the shared browser read projection, including filters and search. Original archived values remain unchanged. **Compare with Classic Era** is an explicit collapsed action and uses genuine archived Era fields rather than the old mixed-source tooltip. Beta gaps stay unknown.
+
+Explorer Journal includes the first real generated NPC portrait: Mechanical Squirrel (2671). Its model, skin and texture are proven members of Blizzard's exact Forever 70450 root. The image loads asynchronously and is labelled as a generated model preview. Other NPCs do not get guessed portraits. See [rendering tooling](tools/npcmodels/README.md), [GUI review](docs/ui-review-2026-10-17/README.md) and [multi-game assessment](docs/multigame-research-2026-10-17/README.md).
+
+Verification of the dual-interface build passed **1,861 tests (six skipped), zero failures/errors**, plus 12 headless and 17 native X11 acceptance captures. Warm Journal worker p95 was 4.30 ms for Home and 0.20 ms for the dungeon index; observed EDT construction was 5.17–64.07 ms. [Exact artifact evidence](docs/verification/journal-preview.json).
+
 ## v0.4.1 development status
 
-The current development branch adds Forever systems and content alongside the existing item, quest and map browser. The new rail/catalog pages include the Forever hub and New/Changed filters, dungeon ladder and discovery pages, talents, Legacy, races, camping, item sets, situational trinkets, recipes, XP food, Comprehension, stat glossary and shared appearances. Item pages expose field knowledge and source comparisons; hidden and Classic Era fallback values retain distinct labels.
+The current development branch adds Forever systems and content alongside the existing item, quest and map browser. The new rail/catalog pages include the Forever hub and New/Changed filters, dungeon ladder and discovery pages, talents, Legacy, races, camping, item sets, situational trinkets, recipes, XP food, Comprehension, stat glossary and shared appearances. Item pages expose field knowledge and source comparisons; missing Forever values remain unknown and Era comparisons require an explicit action.
 
 Native item completion has filled 3,566 previously missing cards from the retained Forever ItemSparse evidence; the completion audit reports zero visible native sparse rows without a card. A separate repair corrected 87 selected knowledge assertions. These are candidate audit results, not a claim that every derived stat or formula is verified. Eleven test, monster, deprecated or QA item rows retain explicitly documented unresolved stat/damage details in the [execution ledger](docs/newv041execution.md).
 
@@ -236,7 +248,7 @@ Known gaps in the upstream data, as of this build:
 
 ## Client data
 
-The shipped database uses product `wow_classic_beta`, build 1.60.1.70450, with the Classic Era `ItemSparse` and `ItemEffect` of build 1.15.9.70003 as the fallback for items the beta lacks: their stats and their Use, Equip and Chance on hit effects come from Era, the effect texts from the beta's spell tables. `tools/clientdata/build.lock` records the build and the SHA-256 of every table.
+The shipped database targets product `wow_classic_beta`, build 1.60.1.70450. Historical imports also retained Classic Era `ItemSparse` and `ItemEffect` from 1.15.9.70003. Those Era-only canonical cards are now masked from normal Forever browsing; they are not missing Forever values filled by Classic. Explicit comparison reads genuine native Era fields and does not treat the old mixed-source tooltip as an authentic Classic card. `tools/clientdata/build.lock` records the build and the SHA-256 of every table.
 
 **Prerequisites.** Python 3 with the tool's own virtual environment (`tools/clientdata/README.md`, "Setup"), and network access to wago.tools or a local wow.tools.local (the fetch tool's default base URL, `http://localhost:5000`). Set `WOWFOREVER_CONTACT` to a contact URL before fetching from a public server; the User-Agent to wago.tools carries it, and no other host gets it (see the tools README, "Politeness"). The tool reads the exports only; it never touches a World of Warcraft installation.
 
@@ -265,7 +277,7 @@ java -jar importer/target/importer.jar --out app/src/main/resources/data/wowfore
 | Converted output (`out/current`) | 67 MB |
 | Shipped database | 81 MB, of which icons 13 MB, zone maps 11 MB, the VMaNGOS rate rows 9 MB, patrol routes 1.4 MB, the quest tables about 1 MB and crafting 0.7 MB |
 
-**Switching to the live build.** When Forever's live product `wowf` publishes a build, fetch it with `--product wowf` (and its build), convert it into a new `out/` directory, and import with `--client-data-dir` pointing there. Check the report's `clientdata.coverage.pct`, `clientdata.unverified.*` and `clientdata.unformatted` counters against this build's, run `./mvnw -B verify` (the shipped-data tests and the known-items oracle), and commit the database with the new `tools/clientdata/build.lock`. The Era fallback stays until the live `ItemSparse` covers those items.
+**Switching to the live build.** When Forever's live product `wowf` publishes a build, fetch it with `--product wowf` (and its build), convert it into a new `out/` directory, and import with `--client-data-dir` pointing there. Check the report's `clientdata.coverage.pct`, `clientdata.unverified.*` and `clientdata.unformatted` counters against this build's, run `./mvnw -B verify` (the shipped-data tests and the known-items oracle), and commit the database with the new `tools/clientdata/build.lock`. Retain Era snapshots only for explicit Classic comparison; missing Forever fields stay unknown until Forever evidence supplies them.
 
 ## Tests
 
@@ -371,7 +383,7 @@ This project is licensed under GPL-2.0-or-later, see `LICENSE`. Full credits are
 
 ## Known limitations
 
-- Item values come from the Forever beta client, not the live game. About 4,800 items use Classic Era rows for their stats and effects instead, and their tooltip says so.
+- Item values come from the Forever beta client, not the live game. Historical Era fallback rows remain archived; the browser now masks them from Forever cards, fields, filters and search.
 - 809 named items have no client data. 925 items with client data have no icon, and three more have an icon the converter cannot decode. All of them show a question mark.
 - 114 weapons show no damage (`clientdata.unverified.damage`): 98 caster weapons, whose damage the client data does not explain, 15 weapons without a speed and one Frying Pan without a damage table.
 - 171 spell descriptions keep placeholders the client data cannot fill, such as `$z` (your home inn). The tooltip shows each one as `?`.

@@ -68,7 +68,14 @@ public final class DetailPanels {
   public record LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
       Set<Long> bossNpcs, QuestInvolvement.Result involvement, List<dev.wowforever.app.model.SourceDifference> sourceDifferences,
       List<dev.wowforever.app.model.FieldKnowledgeView> knowledge, dev.wowforever.app.db.ItemContentRepository.Appearance appearance,
-      dev.wowforever.app.model.ForeverContent.Context foreverContext, dev.wowforever.app.model.NativeItemMetadata nativeMetadata) {
+      dev.wowforever.app.model.ForeverContent.Context foreverContext, dev.wowforever.app.model.NativeItemMetadata nativeMetadata,
+      dev.wowforever.app.db.ItemRepository.ClassicComparison classicComparison) {
+    public LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+        Set<Long> bossNpcs, QuestInvolvement.Result involvement, List<dev.wowforever.app.model.SourceDifference> sourceDifferences,
+        List<dev.wowforever.app.model.FieldKnowledgeView> knowledge, dev.wowforever.app.db.ItemContentRepository.Appearance appearance,
+        dev.wowforever.app.model.ForeverContent.Context foreverContext, dev.wowforever.app.model.NativeItemMetadata nativeMetadata) {
+      this(detail,icon,rateSources,bossNpcs,involvement,sourceDifferences,knowledge,appearance,foreverContext,nativeMetadata,null);
+    }
     public LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
         Set<Long> bossNpcs, QuestInvolvement.Result involvement, List<dev.wowforever.app.model.SourceDifference> sourceDifferences,
         List<dev.wowforever.app.model.FieldKnowledgeView> knowledge, dev.wowforever.app.db.ItemContentRepository.Appearance appearance,
@@ -130,7 +137,12 @@ public final class DetailPanels {
    */
   public record LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
       Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes,
-      QuestInvolvement.Result involvement) {
+      QuestInvolvement.Result involvement, dev.wowforever.app.db.NpcPortraits.Portrait portrait) {
+    public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
+        Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes,
+        QuestInvolvement.Result involvement) {
+      this(detail,mapZoneId,map,rateSources,bossNpcs,routes,involvement,null);
+    }
     public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
         Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs) {
       this(detail, mapZoneId, map, rateSources, bossNpcs, List.of(),
@@ -234,14 +246,15 @@ public final class DetailPanels {
             repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
                 .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
             repos.items().sourcesOfItem(id, rated), repos.npcs().bosses(rated), repos.quests().involvingResult(ref),
-            repos.items().sourceDifferences(id),repos.items().knowledge(id),repos.items().appearance(id),repos.items().foreverContext(id),repos.items().nativeMetadata(id));
+            repos.items().sourceDifferences(id),repos.items().knowledge(id),repos.items().appearance(id),repos.items().foreverContext(id),repos.items().nativeMetadata(id),repos.items().classicComparison(id).orElse(null));
       });
       case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells())).map(d -> {
         Long zone = mapZone(d.spawns());
         List<Long> rated = RateSource.ratedItems(d.drops());
         return new LoadedNpc(d, zone, zoneMap(zone, repos), repos.items().sourcesOfNpc(id, rated),
             rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)), repos.npcs().routes(id),
-            repos.quests().involvingResult(ref));
+            repos.quests().involvingResult(ref),
+            dev.wowforever.app.db.NpcPortraits.load(id,repos.instances().clientBuild()).orElse(null));
       });
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains())).map(d -> {
         Long zone = mapZone(d.spawns());
@@ -365,8 +378,12 @@ public final class DetailPanels {
       StatusSink status, SourceFilter filter, Consumer<SourceFilter> onFilterChange, BooleanSetting questPins,
       BooleanSetting routes) {
     return switch (detail) {
-      case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), p.bossNpcs(), filter, onFilterChange,
-          p.involvement(), nav, ClipboardPort.system(), p.sourceDifferences(),p.knowledge(),p.appearance(),p.foreverContext(),p.nativeMetadata());
+      case LoadedItem p -> {
+        var page = new ItemPage(p.detail(), p.icon(), p.rateSources(), p.bossNpcs(), filter, onFilterChange,
+            p.involvement(), nav, ClipboardPort.system(), p.sourceDifferences(),p.knowledge(),p.appearance(),p.foreverContext(),p.nativeMetadata());
+        page.setClassicComparison(p.classicComparison());
+        yield page;
+      }
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), p.bossNpcs(), filter,
           onFilterChange, p.involvement(), nav, ClipboardPort.system(), p.routes());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), p.involvement(), nav, ClipboardPort.system());

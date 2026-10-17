@@ -1,0 +1,30 @@
+{
+  "npc_id": 2671,
+  "build": "1.60.1.70450",
+  "image_sha256": "71982d7beff2d6452c37bd3c92ca784b08ca74bed7b482fea550da6a6308b10d",
+  "description": "Generated model preview; native bind pose, not an in-game screenshot",
+  "renderer": "Blender 4.5.3 LTS / Cycles CPU",
+  "camera": "orthographic three-quarter",
+  "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+  "root_content_key": "8a0ca94be2f6ace93991c04ca6e19b57",
+  "official_cdn_base": "https://us.cdn.blizzard.com/tpr/wow",
+  "source_assets": [
+    {
+      "file_data_id": 126062,
+      "content_md5": "e58b60c4968282be403add62e7c6bf3e"
+    },
+    {
+      "file_data_id": 126061,
+      "content_md5": "23767eabc8f426e33c4ac07708c68ae4"
+    },
+    {
+      "file_data_id": 479933,
+      "content_md5": "a90e0f3ecbfd3c27d8d2612187c4b21e"
+    }
+  ],
+  "npc_name": "Mechanical Squirrel",
+  "display_id": 7937,
+  "model_data_id": 134,
+  "pose": "native bind pose; no animation",
+  "source_identity": "Same-build Creature \u2192 CreatureDisplayInfo \u2192 CreatureModelData; archived native client records"
+}

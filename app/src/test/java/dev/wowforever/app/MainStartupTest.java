@@ -1,6 +1,8 @@
 package dev.wowforever.app;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import dev.wowforever.app.ui.UiExperience;
 
 import java.io.ByteArrayOutputStream;
 import java.io.PrintStream;
@@ -11,6 +13,17 @@ import org.junit.jupiter.api.Test;
 
 /** The GUI start-up's failure path: nothing may leave the window stuck on "Loading database…". */
 class MainStartupTest {
+
+  @Test
+  void interactiveStartupAlwaysAsksUnlessAnExplicitCliChoiceIsGiven() {
+    assertThat(Main.startupExperience(new String[0])).isNull();
+    assertThat(Main.startupExperience(new String[] {"--ui=classic"})).isEqualTo(UiExperience.CLASSIC);
+    assertThat(Main.startupExperience(new String[] {"--ui=journal"})).isEqualTo(UiExperience.JOURNAL);
+    assertThatThrownBy(() -> Main.startupExperience(new String[] {"--ui=other"}))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> Main.startupExperience(new String[] {"--ui=classic", "--ui=journal"}))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
 
   @Test
   void aWiringFailureGoesToTheFailureHandler() {

@@ -20,9 +20,9 @@ class FieldKnowledgePanelTest {
           new FieldKnowledgeView("stats",FieldKnowledgeView.State.KNOWN,"Public ItemSparse hotfix row","hotfix","70450","ItemSparse.csv:10")));
       var text=texts(panel);
       assertThat(text).doesNotContain(json,"Public ItemSparse hotfix row").contains("0","","A scalar fact");
-      assertThat(text).anySatisfy(value->assertThat(value).contains("Classic Era value","1.15.9.70003"));
+      assertThat(text).noneSatisfy(value->assertThat(value).contains("Classic Era"));
       assertThat(raw.value()).isEqualTo(json);assertThat(raw.evidence()).contains("ItemSparse.csv:42","archive-id");
-      assertThat(chips(panel)).hasSize(5).allSatisfy(chip->assertThat(chip.getText()).isEqualTo("Known"));
+      assertThat(chips(panel)).hasSize(4).allSatisfy(chip->assertThat(chip.getText()).isEqualTo("Known"));
     });
   }
   private static List<String> texts(Container root) {

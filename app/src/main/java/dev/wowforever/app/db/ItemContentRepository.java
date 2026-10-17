@@ -112,7 +112,7 @@ public final class ItemContentRepository {
   private static Snapshot stats(Tables t,long selected,boolean trinkets,boolean glossary)throws SQLException {
     List<Entry> out=new ArrayList<>();if(glossary){for(var e:new TreeMap<>(StatGlossary.NAMES).entrySet())out.add(new Entry(e.getKey(),e.getValue(),StatGlossary.mapping(e.getKey()),"Known","stat"));}
     else {String predicate=trinkets?" AND i.inventory_type=12 AND s.stat_id BETWEEN 125 AND 140":" AND s.stat_id=?";
-      String sql="SELECT i.id,i.name,s.stat_id,s.value FROM item_stat s JOIN item i ON i.id=s.item_id WHERE 1=1"+predicate+" ORDER BY s.stat_id,i.name";
+      String sql="SELECT i.id,i.name,s.stat_id,s.value FROM item_stat s JOIN item i ON i.id=s.item_id WHERE (i.client_source IS NULL OR i.client_source <> 'era')"+predicate+" ORDER BY s.stat_id,i.name";
       out.addAll(Sql.list(t.c,sql,r->new Entry(r.getLong(1),r.getString(2)==null?"Item #"+r.getLong(1):r.getString(2),StatGlossary.name(r.getInt(3))+": "+r.getInt(4),"Known","item"),trinkets?new Object[]{}:new Object[]{selected}));}
     if(trinkets) {
       Set<String> seen=new HashSet<>();for(var entry:out)seen.add(entry.id()+":"+entry.details().split(":")[0]);

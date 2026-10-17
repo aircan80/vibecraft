@@ -78,9 +78,14 @@ public final class MainFrame extends JFrame implements MainView {
   private final JPanel detailHolder = new JPanel(new BorderLayout());
   /** Where {@link #detailHolder} sits in the full layout. */
   private final JPanel detailSlot = new JPanel(new BorderLayout());
-  private final UiState uiState = UiState.load();
+  private final UiExperience experience;
+  private final dev.wowforever.app.ui.journal.JournalSidebar journalSidebar;
+  private final dev.wowforever.app.ui.journal.JournalBreadcrumbs journalBreadcrumbs;
+  private final JComponent pageHolder;
+  private JScrollPane journalNavigation;
+  private final UiState uiState;
   /** Created before any size is applied, so it scales from the look and feel's own font. */
-  private final TextSize textSize = new TextSize(uiState);
+  private final TextSize textSize;
   private final JToolBar toolbar;
   private final JPanel content;
   private final CompactShell compactShell = new CompactShell(this::back, this::forward, this::toggleAlwaysOnTop);
@@ -89,8 +94,24 @@ public final class MainFrame extends JFrame implements MainView {
   private final LayoutSwitch layout;
   private AppController controller;
 
-  public MainFrame() {
+  public MainFrame() { this(UiExperience.CLASSIC); }
+
+  public MainFrame(UiExperience experience) {
     super(APP_NAME);
+    this.experience = java.util.Objects.requireNonNull(experience);
+    uiState = experience == UiExperience.JOURNAL ? UiState.loadJournal() : UiState.load();
+    textSize = new TextSize(uiState);
+    journalSidebar = experience == UiExperience.JOURNAL
+        ? new dev.wowforever.app.ui.journal.JournalSidebar(t -> { if (controller != null) controller.open(t); }) : null;
+    journalBreadcrumbs = experience == UiExperience.JOURNAL
+        ? new dev.wowforever.app.ui.journal.JournalBreadcrumbs(t -> { if (controller != null) controller.open(t); }) : null;
+    if (journalSidebar != null) {
+      JPanel journalPage = new JPanel(new BorderLayout());
+      journalPage.add(journalBreadcrumbs, BorderLayout.NORTH);
+      journalPage.add(detailHolder, BorderLayout.CENTER);
+      pageHolder = journalPage;
+      journalSidebar.setReady(false);
+    } else pageHolder = detailHolder;
     searchBar = new SearchBar(new SearchBar.Opener() {
       @Override
       public void accept(ViewTarget t) {
@@ -125,8 +146,27 @@ public final class MainFrame extends JFrame implements MainView {
     detailHolder.add(new JLabel("Loading…", SwingConstants.CENTER), BorderLayout.CENTER);
 
     toolbar = toolbar(back, forward, searchBar);
-    detailSlot.add(detailHolder, BorderLayout.CENTER);
-    content = buildContent(toolbar, rail, list, detailSlot, status, uiState);
+    detailSlot.add(pageHolder, BorderLayout.CENTER);
+    JComponent navigation = rail;
+    if (journalSidebar != null) {
+      JScrollPane sidebarScroll = new JScrollPane(journalSidebar,
+          JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+      sidebarScroll.setBorder(BorderFactory.createEmptyBorder());
+      journalNavigation = sidebarScroll;
+      navigationWidth(false);
+      navigation = sidebarScroll;
+      toolbar.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
+    }
+    content = buildContent(toolbar, navigation, list, detailSlot, status, uiState);
+    if (journalSidebar != null) {
+      content.addComponentListener(new ComponentAdapter() {
+        @Override public void componentResized(ComponentEvent e) {
+          boolean collapsed = content.getWidth() < 980;
+          journalSidebar.setCollapsed(collapsed);
+          navigationWidth(collapsed);
+        }
+      });
+    }
     menuBar = menuBar();
     compactShell.setMenu(compactMenu());
     KeyMap.install(getRootPane(), handlers());
@@ -134,7 +174,7 @@ public final class MainFrame extends JFrame implements MainView {
     persistence = WindowStatePersistence.install(this, uiState);
     compactShell.setOnTop(isAlwaysOnTop());
     layout = new LayoutSwitch(new LayoutSwitch.Parts(toolbar, content, detailSlot, list, compactShell, searchBar,
-        detailHolder, status), uiState, layoutWindow(), this::rerender);
+        pageHolder, status), uiState, layoutWindow(), this::rerender);
     layout.start();
     textSize.applySaved();
     wireStatusToggles();
@@ -146,9 +186,25 @@ public final class MainFrame extends JFrame implements MainView {
    */
   private void wireStatusToggles() {
     status.themeToggle().setModel(new WindowMenus.LiveToggle(ThemeManager::isDark));
-    status.themeToggle().addActionListener(e -> ThemeManager.toggle(this));
+    status.themeToggle().addActionListener(e -> toggleTheme());
     status.layoutToggle().setModel(new WindowMenus.LiveToggle(layout::isCompact));
     status.layoutToggle().addActionListener(e -> toggleCompactMode());
+  }
+
+  private void navigationWidth(boolean collapsed) {
+    if (journalNavigation == null) return;
+    journalNavigation.setPreferredSize(new Dimension(collapsed ? 64 : 224, 0));
+    journalNavigation.setMinimumSize(new Dimension(collapsed ? 64 : 224, 0));
+    journalNavigation.revalidate();
+    if (journalNavigation.getParent() != null) journalNavigation.getParent().revalidate();
+  }
+
+  private void toggleTheme() {
+    ThemeManager.toggle(this);
+    if (journalSidebar != null) {
+      journalSidebar.refreshTheme();
+      rerender();
+    }
   }
 
   /** The top bar: {@code back}, {@code forward}, then {@code search}. */
@@ -326,9 +382,11 @@ public final class MainFrame extends JFrame implements MainView {
     MouseNavigation.install(controller, getRootPane());
     searchBar.attach(SearchBar.Source.of(controller.repos().search()), controller.worker());
     searchBar.setEnabled(true);
+    if (journalSidebar != null) journalSidebar.setReady(true);
     Async.run(controller.worker(), () -> RailIcons.load(controller.repos().assets()::uiIcon), icons -> {
       RailIcons.install(icons);
       rail.setIcons(icons);
+      if (journalSidebar != null) journalSidebar.refreshTheme();
     }, e -> LOG.warn("Loading the rail icons failed; the rail keeps its own glyphs", e));
   }
 
@@ -461,7 +519,7 @@ public final class MainFrame extends JFrame implements MainView {
 
   /** What the menu items both layouts share do ({@link WindowMenus}). */
   private WindowMenus.Actions menuActions() {
-    return new WindowMenus.Actions(ThemeManager::isDark, () -> ThemeManager.toggle(this), this::showShortcuts,
+    return new WindowMenus.Actions(ThemeManager::isDark, () -> toggleTheme(), this::showShortcuts,
         this::showAbout, this::showSources);
   }
 
@@ -470,6 +528,16 @@ public final class MainFrame extends JFrame implements MainView {
     JMenuItem full = new JMenuItem("Full window (F10)"); // no accelerator: F10 is the window's own key
     full.addActionListener(e -> toggleCompactMode());
     JPopupMenu menu = new JPopupMenu();
+    if (experience == UiExperience.JOURNAL) {
+      JMenu browse = new JMenu("Browse the journal");
+      for (RailTarget target : RailTarget.values()) {
+        JMenuItem item = new JMenuItem(target.label());
+        item.addActionListener(e -> { if (controller != null) controller.openRail(target); });
+        browse.add(item);
+      }
+      menu.add(browse);
+      menu.addSeparator();
+    }
     menu.add(full);
     WindowMenus.addViewItems(menu, menuActions());
     WindowMenus.addHelpItems(menu, menuActions());
@@ -615,7 +683,18 @@ public final class MainFrame extends JFrame implements MainView {
 
   @Override
   public void setTitleSuffix(String s) {
-    setTitle(s == null || s.isEmpty() ? APP_NAME : APP_NAME + " — " + s);
+    String app = experience == UiExperience.JOURNAL ? "WoW Forever — Explorer Journal" : APP_NAME;
+    setTitle(s == null || s.isEmpty() ? app : app + " — " + s);
+    if (journalBreadcrumbs != null) journalBreadcrumbs.setPageTitle(s);
+  }
+
+  @Override public UiExperience uiExperience() { return experience; }
+
+  @Override public void viewTargetChanged(ViewTarget target) {
+    if (journalSidebar != null && target != null) {
+      journalSidebar.select(target);
+      journalBreadcrumbs.showTarget(target);
+    }
   }
 
   @Override

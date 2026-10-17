@@ -1,0 +1,92 @@
+import dev.wowforever.app.db.*;
+import dev.wowforever.app.nav.*;
+import dev.wowforever.app.ui.*;
+import dev.wowforever.app.ui.journal.*;
+import dev.wowforever.app.ui.pages.PageState;
+import dev.wowforever.app.ui.pages.InstancePage;
+import dev.wowforever.app.ui.pages.ItemPage;
+import dev.wowforever.app.ui.theme.Fonts;
+import java.awt.*;
+import java.awt.event.*;
+import java.awt.image.BufferedImage;
+import java.nio.file.*;
+import java.security.*;
+import java.time.Instant;
+import java.util.*;
+import java.util.List;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.*;
+import javax.imageio.ImageIO;
+import javax.swing.*;
+
+/** Exact-artifact Journal acceptance. Native mode requires an explicitly selected isolated X11 display. */
+public final class JournalSnapshots {
+  static Path out; static final List<String> report=new ArrayList<>();static MainFrame frame;static AppController controller;static Robot robot;
+  interface Read<T>{T get();}
+  static <T>T edt(Read<T> f)throws Exception{AtomicReference<T> result=new AtomicReference<>();AtomicReference<Throwable> error=new AtomicReference<>();SwingUtilities.invokeAndWait(()->{try{result.set(f.get());}catch(Throwable t){error.set(t);}});if(error.get()!=null)throw new AssertionError(error.get());return result.get();}
+  static List<Component> all(Container c){List<Component> a=new ArrayList<>();for(Component x:c.getComponents()){a.add(x);if(x instanceof Container child)a.addAll(all(child));}return a;}
+  static void layout(Container c){c.doLayout();for(Component x:c.getComponents())if(x instanceof Container nested)layout(nested);}
+  static void check(boolean b,String message){if(!b)throw new AssertionError(message);report.add("PASS: "+message);}
+  static String hash(Path p)throws Exception{MessageDigest md=MessageDigest.getInstance("SHA-256");try(var in=Files.newInputStream(p)){byte[] bytes=new byte[65536];int n;while((n=in.read(bytes))>=0)md.update(bytes,0,n);}return HexFormat.of().formatHex(md.digest());}
+  static void paint(JComponent c,String name,int width,int height)throws Exception{edt(()->{c.setSize(width,height);for(int i=0;i<20;i++)layout(c);BufferedImage image=new BufferedImage(width,height,BufferedImage.TYPE_INT_RGB);Graphics2D g=image.createGraphics();c.printAll(g);g.dispose();try{ImageIO.write(image,"png",out.resolve(name+".png").toFile());}catch(Exception e){throw new RuntimeException(e);}return null;});}
+  static <T extends Component>T find(Class<T> type)throws Exception{return edt(()->all(frame).stream().filter(type::isInstance).filter(Component::isShowing).map(type::cast).findFirst().orElse(null));}
+  static void waitFor(Class<? extends Component> type)throws Exception{long end=System.nanoTime()+TimeUnit.SECONDS.toNanos(30);while(System.nanoTime()<end){if(find(type)!=null){robot.delay(350);return;}robot.delay(100);}throw new AssertionError("Timed out waiting for "+type.getSimpleName());}
+  static JButton button(String text)throws Exception{return edt(()->all(frame).stream().filter(c->c instanceof JButton b&&b.isShowing()&&text.equals(b.getText())).map(c->(JButton)c).findFirst().orElseThrow(()->new AssertionError("No button "+text)));}
+  static void click(Component c)throws Exception{Point p=edt(()->{Point q=c.getLocationOnScreen();q.translate(c.getWidth()/2,c.getHeight()/2);return q;});robot.mouseMove(p.x,p.y);robot.mousePress(InputEvent.BUTTON1_DOWN_MASK);robot.mouseRelease(InputEvent.BUTTON1_DOWN_MASK);robot.waitForIdle();robot.delay(300);}
+  static void snap(String name)throws Exception{robot.waitForIdle();robot.delay(300);ImageIO.write(robot.createScreenCapture(edt(()->frame.getBounds())),"png",out.resolve(name+".png").toFile());}
+  static void back()throws Exception{robot.keyPress(KeyEvent.VK_ALT);robot.keyPress(KeyEvent.VK_LEFT);robot.keyRelease(KeyEvent.VK_LEFT);robot.keyRelease(KeyEvent.VK_ALT);robot.waitForIdle();robot.delay(400);}
+  public static void main(String[] args)throws Exception{
+    if(args.length!=4)throw new IllegalArgumentException("REVIEW_JAR DATABASE EMPTY_OUTPUT headless|native");out=Path.of(args[2]);Files.createDirectories(out);try(var s=Files.list(out)){if(s.findAny().isPresent())throw new IllegalArgumentException("Output must be empty");}
+    report.add("Created: "+Instant.now());report.add("JAR SHA-256: "+hash(Path.of(args[0])));report.add("Scope: "+args[3]+"; native mode is isolated X11, not desktop Wayland acceptance");
+    ExecutorService worker=Executors.newSingleThreadExecutor();
+    try(var db=Database.open(Path.of(args[1]))){report.add("Database build: "+db.meta().get("build_id"));edt(()->{Fonts.install();ThemeManager.apply(ThemeManager.Mode.DARK);return null;});
+      if(args[3].equals("headless"))headless(db);else nativeRun(db,worker);
+    }catch(Throwable t){report.add("FAIL: "+t);throw t;}finally{if(frame!=null)edt(()->{frame.dispose();return null;});worker.shutdownNow();Files.write(out.resolve("report.txt"),report);System.out.println(String.join("\n",report));}System.exit(0);
+  }
+  static void headless(Database db)throws Exception{
+    Map<ViewTarget,Object> snapshots=new LinkedHashMap<>();
+    for(ViewTarget target:List.of(new ViewTarget.Home(),new ViewTarget.Forever("ladder"))){double[] times=new double[30];for(int i=-3;i<30;i++){long start=System.nanoTime();Object value=JournalCatalog.load(target,db);if(i>=0){times[i]=(System.nanoTime()-start)/1e6;snapshots.put(target,value);}}Arrays.sort(times);report.add(target+" warm worker load p95 ms: "+times[28]);check(times[28]<=300,"Warm load <=300ms: "+target);}
+    db.close();report.add("Database closed before page construction/render");
+    for(ThemeManager.Mode mode:ThemeManager.Mode.values()){edt(()->{ThemeManager.apply(mode);return null;});for(int width:new int[]{1280,420})for(var entry:snapshots.entrySet()){
+      long start=System.nanoTime();JComponent page=edt(()->JournalCatalog.render(entry.getValue(),ignored->{}));report.add(entry.getKey()+" EDT construction ms: "+(System.nanoTime()-start)/1e6);
+      paint(page,(entry.getKey() instanceof ViewTarget.Home?"home":"dungeons")+"-"+mode.name().toLowerCase(Locale.ROOT)+"-"+width,width,900);
+      if(page instanceof JournalDungeonPage d){var state=new JournalDungeonPage.State("Dalaran",1,0,0,0,0,null,0);edt(()->{d.restoreState(state);return null;});check(edt(d::saveState).equals(state),"Dungeon filter state round-trip "+mode+" "+width);paint(page,"dalaran-filter-"+mode.name().toLowerCase(Locale.ROOT)+"-"+width,width,900);}
+    }}
+    report.add("Headless captures are actual page components, not complete frame shells or native interaction evidence.");
+  }
+  static void nativeRun(Database db,ExecutorService worker)throws Exception{
+    check(!GraphicsEnvironment.isHeadless(),"Native graphics available");robot=new Robot();robot.setAutoDelay(60);
+    for(UiExperience experience:UiExperience.values()){
+      AtomicReference<Optional<UiExperience>> selected=new AtomicReference<>();SwingUtilities.invokeLater(()->selected.set(ExperienceChooser.choose()));JButton choice=null;long end=System.nanoTime()+TimeUnit.SECONDS.toNanos(10);
+      while(choice==null&&System.nanoTime()<end){choice=edt(()->Arrays.stream(Window.getWindows()).filter(Window::isShowing).flatMap(w->all(w).stream()).filter(c->c instanceof JButton b&&("choose-"+experience.name().toLowerCase(Locale.ROOT)).equals(b.getName())).map(c->(JButton)c).findFirst().orElse(null));robot.delay(100);}if(choice==null)throw new AssertionError("Chooser unavailable");click(choice);check(selected.get()!=null&&selected.get().orElseThrow()==experience,"Native chooser selected "+experience);
+    }
+    edt(()->{frame=new MainFrame(UiExperience.JOURNAL);controller=new AppController(Repositories.of(db),frame,worker,db.meta());frame.attach(controller);frame.setBounds(20,20,1280,900);frame.setVisible(true);controller.open(new ViewTarget.Home());return null;});waitFor(JournalHomePage.class);
+    for(ThemeManager.Mode mode:ThemeManager.Mode.values()){setNativeTheme(mode);for(int width:new int[]{1280,420}){edt(()->{frame.setMinimumSize(new Dimension(1,1));frame.setSize(width,900);return null;});snap("shell-home-"+mode.name().toLowerCase(Locale.ROOT)+"-"+width);if(width==420)check(edt(()->findUnchecked(JournalHomePage.class).getWidth())>=280,"Compact Journal leaves at least 280px for page content: "+mode);}}
+    edt(()->{frame.setSize(1280,900);return null;});click(button("Find a dungeon"));waitFor(JournalDungeonPage.class);JournalDungeonPage d=find(JournalDungeonPage.class);var state=new JournalDungeonPage.State("Dalaran",1,0,0,0,0,null,0);edt(()->{d.restoreState(state);return null;});robot.delay(400);snap("journey-dalaran-filter");click(button("Open dungeon guide"));waitFor(JTabbedPane.class);click(button("Browse bosses & loot →"));JTabbedPane tabs=find(JTabbedPane.class);check(edt(()->tabs.getTitleAt(tabs.getSelectedIndex())).equals("Bosses & loot"),"Bosses & loot tab selected via native click");snap("journey-boss-loot");
+    InstancePage instance=find(InstancePage.class);int lootRow=-1;
+    for(int boss=0;boss<edt(()->instance.encounters().getModel().getSize())&&lootRow<0;boss++){
+      final int at=boss;edt(()->{instance.selectBoss(at);return null;});
+      lootRow=edt(()->{var links=instance.lootTable();for(int row=0;row<links.table().getRowCount();row++)if(TableLinks.refAt(links.table(),links.model(),row).filter(ref->ref.kind()==dev.wowforever.app.model.EntityKind.ITEM).isPresent())return row;return -1;});
+    }
+    check(lootRow>=0,"A recorded loot item exists in a Dalaran encounter");
+    final int chosen=lootRow;JTable loot=edt(()->instance.lootTable().table());edt(()->{loot.setRowSelectionInterval(chosen,chosen);loot.scrollRectToVisible(loot.getCellRect(chosen,0,true));loot.requestFocusInWindow();return null;});robot.delay(200);robot.keyPress(KeyEvent.VK_ENTER);robot.keyRelease(KeyEvent.VK_ENTER);waitFor(ItemPage.class);check(edt(controller::current) instanceof ViewTarget.Entity e&&e.ref().kind()==dev.wowforever.app.model.EntityKind.ITEM,"Native Enter activated the selected loot item");snap("journey-item");back();waitFor(InstancePage.class);JTabbedPane restoredTabs=find(JTabbedPane.class);check(edt(()->restoredTabs.getTitleAt(restoredTabs.getSelectedIndex())).equals("Bosses & loot"),"Native Back preserved encounter tab");snap("journey-boss-tab-restored");back();waitFor(JournalDungeonPage.class);check(edt(()->((JournalDungeonPage.State)findUnchecked(JournalDungeonPage.class).saveState()).query()).equals("Dalaran"),"Native Back preserved dungeon search");check(edt(()->((JournalDungeonPage.State)findUnchecked(JournalDungeonPage.class).saveState()).scope())==1,"Native Back preserved source filter");snap("journey-filter-restored");
+    edt(()->{controller.open(new ViewTarget.WorldMap(947));return null;});waitButton("Eastern Kingdoms");click(button("Eastern Kingdoms"));waitButton("Westfall");click(button("Westfall"));waitButton("Eastern Kingdoms");snap("journey-zone-breadcrumbs");click(button("Eastern Kingdoms"));long mapEnd=System.nanoTime()+TimeUnit.SECONDS.toNanos(20);while(System.nanoTime()<mapEnd&&!edt(()->controller.current() instanceof ViewTarget.WorldMap m&&m.uiMapId()==1415))robot.delay(100);check(edt(()->controller.current() instanceof ViewTarget.WorldMap m&&m.uiMapId()==1415),"Native zone breadcrumb returned to Eastern Kingdoms");snap("journey-continent-restored");
+    edt(()->{controller.open(new ViewTarget.Entity(new dev.wowforever.app.model.EntityRef(dev.wowforever.app.model.EntityKind.ITEM,16806)));return null;});waitFor(ItemPage.class);
+    ItemPage eraItem=find(ItemPage.class);String cardText=edt(()->eraItem.card()==null?"":texts(eraItem.card()));
+    check(!cardText.contains("57 Armor")&&!cardText.contains("+15 Intellect")&&!cardText.contains("+18 Stamina"),"Default Forever item card excludes archived Era stats (16806)");
+    JToggleButton compare=edt(()->all(frame).stream().filter(c->c instanceof JToggleButton b&&"Compare with Classic Era".equals(b.getText())).map(c->(JToggleButton)c).findFirst().orElseThrow());
+    check(!edt(compare::isSelected),"Classic Era comparison starts collapsed");check(!edt(()->texts(eraItem)).contains("Classic Era · build 1.15.9.70003"),"Collapsed Classic comparison hides its field values");snap("era-item-default");
+    edt(()->{compare.scrollRectToVisible(new Rectangle(0,0,compare.getWidth(),compare.getHeight()));return null;});robot.delay(300);click(compare);check(edt(compare::isSelected),"Native pointer opened explicit Classic comparison");check(edt(()->texts(eraItem)).contains("Classic Era · build 1.15.9.70003"),"Expanded comparison identifies archived Classic build");check(edt(()->texts(eraItem)).contains("These values do not establish Forever values"),"Classic comparison keeps Forever provenance distinct");snap("era-item-explicit-comparison");
+    edt(()->{controller.open(new ViewTarget.Entity(new dev.wowforever.app.model.EntityRef(dev.wowforever.app.model.EntityKind.NPC,2671)));return null;});waitFor(JournalNpcPortrait.class);
+    check(edt(()->texts(findUnchecked(JournalNpcPortrait.class))).contains("Forever 1.60.1.70450"),"Native NPC preview identifies actual Forever build");
+    check(edt(()->texts(findUnchecked(JournalNpcPortrait.class))).contains("Native bind pose · not an in-game screenshot"),"Native NPC preview identifies generated bind pose honestly");
+    JComponent portrait=edt(()->all(findUnchecked(JournalNpcPortrait.class)).stream().filter(c->c instanceof JComponent j&&"Mechanical Squirrel · generated native model preview".equals(j.getToolTipText())).map(c->(JComponent)c).findFirst().orElseThrow());
+    check(edt(()->{BufferedImage image=new BufferedImage(portrait.getWidth(),portrait.getHeight(),BufferedImage.TYPE_INT_RGB);Graphics2D g=image.createGraphics();portrait.printAll(g);g.dispose();Set<Integer> colors=new HashSet<>();for(int y=0;y<image.getHeight();y++)for(int x=0;x<image.getWidth();x++)colors.add(image.getRGB(x,y));return colors.size()>64;}),"Native NPC preview paints model image with >64 distinct colors");
+    for(ThemeManager.Mode mode:ThemeManager.Mode.values()){setNativeTheme(mode);for(int width:new int[]{1280,420}){edt(()->{frame.setSize(width,900);return null;});snap("npc-2671-preview-"+mode.name().toLowerCase(Locale.ROOT)+"-"+width);}}
+
+  }
+  static void setNativeTheme(ThemeManager.Mode mode)throws Exception{edt(()->{frame.setSize(1280,900);if(ThemeManager.current()!=mode)all(frame).stream().filter(c->c instanceof AbstractButton b&&"Slate".equals(b.getText())).map(c->(AbstractButton)c).findFirst().orElseThrow().doClick();return null;});if(edt(controller::current) instanceof ViewTarget.Home)waitFor(JournalHomePage.class);else waitFor(JournalNpcPortrait.class);}
+  static String texts(Container root){StringBuilder text=new StringBuilder();for(Component c:all(root))if(c.isShowing()){if(c instanceof JLabel l)text.append(l.getText()).append("\n");else if(c instanceof JTextArea a)text.append(a.getText()).append("\n");}return text.toString();}
+  static void waitButton(String text)throws Exception{long end=System.nanoTime()+TimeUnit.SECONDS.toNanos(30);while(System.nanoTime()<end){try{button(text);robot.delay(500);return;}catch(AssertionError missing){robot.delay(100);}}throw new AssertionError("Timed out waiting for button "+text);}
+  static <T extends Component>T findUnchecked(Class<T> t){return all(frame).stream().filter(t::isInstance).filter(Component::isShowing).map(t::cast).findFirst().orElseThrow();}
+}

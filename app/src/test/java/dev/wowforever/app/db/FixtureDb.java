@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.SQLException;
+import java.sql.DriverManager;
 import java.util.Comparator;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -90,12 +91,27 @@ public final class FixtureDb implements BeforeAllCallback {
             Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), false, buildIdOut,
             ClientDataOptions.of(Fixtures.clientDataRoot()), FIXTURE_COVERAGE_MIN_PCT);
         ImportPipeline.run(opts, new PrintStream(OutputStream.nullOutputStream()));
+        seedSyntheticForeverUiItems(out);
         return new Built(out, Files.readString(buildIdOut, StandardCharsets.UTF_8).trim());
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       } catch (SQLException e) {
         throw new IllegalStateException(e);
       }
+    }
+  }
+
+  /**
+   * Synthetic known-Forever cards for the shared UI/search/loot exercises. The importer fixture intentionally
+   * supplies these five rows only through Era to test fallback ingestion; that is not the behavior these
+   * app interaction tests exercise. Keep this explicit allowlist local to the test database. In particular,
+   * Felheart Belt 16806 remains an Era-only control, and boundary tests set their own provenance explicitly.
+   * No production archive or importer source evidence is changed by this test setup.
+   */
+  private static void seedSyntheticForeverUiItems(Path file) throws SQLException {
+    try (var connection = DriverManager.getConnection("jdbc:sqlite:" + file);
+        var statement = connection.createStatement()) {
+      statement.executeUpdate("UPDATE item SET client_source='forever' WHERE id IN (14145,14148,14149,5191,16800)");
     }
   }
 

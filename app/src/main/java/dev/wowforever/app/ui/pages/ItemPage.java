@@ -71,7 +71,7 @@ public final class ItemPage extends SourcesPage {
    * The header note of an item without client data (no tooltip card): the game shows nothing of it until a realm has
    * seen it drop (pm-data-sources.md).
    */
-  public static final String STATS_HIDDEN = "Stats hidden until this item drops on a realm";
+  public static final String STATS_HIDDEN = "Forever stats are not available in this data build";
   /** The title of the section of NPC drops and dungeon loot lists. */
   public static final String DROPPED_BY = "Dropped by";
   private static final String SOURCE = "Source";
@@ -288,6 +288,32 @@ public final class ItemPage extends SourcesPage {
   /** The "Dropped by" table of NPCs and loot lists; null when neither drops the item. */
   public LinkTable<DropRow> droppedBy() {
     return droppedBy;
+  }
+
+  /** Explicit, initially closed Era comparison. Never fills any Forever card field. */
+  public void setClassicComparison(dev.wowforever.app.db.ItemRepository.ClassicComparison comparison) {
+    if(comparison==null)return;
+    JPanel panel=new JPanel();panel.setOpaque(false);
+    panel.setLayout(new javax.swing.BoxLayout(panel,javax.swing.BoxLayout.Y_AXIS));
+    panel.setAlignmentX(LEFT_ALIGNMENT);
+    panel.setBorder(BorderFactory.createEmptyBorder(12,12,12,12));
+    javax.swing.JToggleButton toggle=new javax.swing.JToggleButton("Compare with Classic Era");
+    toggle.setAlignmentX(LEFT_ALIGNMENT);panel.add(toggle);
+    JPanel details=new JPanel();details.setOpaque(false);
+    details.setLayout(new javax.swing.BoxLayout(details,javax.swing.BoxLayout.Y_AXIS));
+    details.setAlignmentX(LEFT_ALIGNMENT);details.setVisible(false);panel.add(details);
+    toggle.addActionListener(e -> {
+      if(toggle.isSelected() && details.getComponentCount()==0) {
+        details.add(new dev.wowforever.app.ui.widgets.WrappingText("Classic Era · build "+comparison.build(),"Classic comparison build"));
+        details.add(new dev.wowforever.app.ui.widgets.WrappingText("Name: "+(comparison.name()==null||comparison.name().isBlank()?"Not recorded":comparison.name()),"Classic item name"));
+        details.add(new dev.wowforever.app.ui.widgets.WrappingText("Item level: "+(comparison.itemLevel()==null?"Not recorded":comparison.itemLevel()),"Classic item level"));
+        details.add(new dev.wowforever.app.ui.widgets.WrappingText("Required level: "+(comparison.requiredLevel()==null?"Not recorded":comparison.requiredLevel()),"Classic required level"));
+        details.add(new dev.wowforever.app.ui.widgets.WrappingText("Archived Era fields for comparison. These values do not establish Forever values.","Classic comparison scope"));
+        details.add(new dev.wowforever.app.ui.widgets.WrappingText(comparison.evidence(),"Classic comparison evidence"));
+      }
+      details.setVisible(toggle.isSelected());panel.revalidate();panel.repaint();
+    });
+    content.add(panel,Math.min(card==null?1:2,content.getComponentCount()));content.revalidate();
   }
 
   /**

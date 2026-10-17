@@ -51,7 +51,7 @@ public final class SearchRepository {
   private static final String SQL = """
       WITH s AS MATERIALIZED (
         SELECT kind, id, name, bm25(search_index) AS score FROM search_index
-        WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%%'""" + " AND " + NOT_TWIN_SUBZONE
+        WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%%'""" + " AND " + NOT_TWIN_SUBZONE + " AND (kind <> 'item' OR EXISTS (SELECT 1 FROM item fi WHERE fi.id=search_index.id AND fi.name IS NOT NULL))"
       + """
        %s)
       SELECT s.kind, s.id, s.name,
@@ -101,7 +101,7 @@ public final class SearchRepository {
   private static final String COUNTS_SQL = """
       SELECT kind, CASE WHEN kind IN ('instance', 'zone') THEN count(*) ELSE count(DISTINCT name) END AS hits
       FROM search_index
-      WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%'""" + " AND " + NOT_TWIN_SUBZONE
+      WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%'""" + " AND " + NOT_TWIN_SUBZONE + " AND (kind <> 'item' OR EXISTS (SELECT 1 FROM item fi WHERE fi.id=search_index.id AND fi.name IS NOT NULL))"
       + """
 
       GROUP BY kind""";

@@ -405,7 +405,12 @@ class ShippedDataTest extends ShippedDataSupport {
   void clientSourceDistinguishesNativeHotfixAndEra() {
     assertThat(column("select distinct client_source from item where client_source is not null"))
         .allMatch(s -> s.equals("forever") || s.equals("era") || s.equals("hotfix"));
-    assertThat(scalar("select count(*) from item where has_client_data = 0 and client_source is not null")).isZero();
+    assertThat(scalar("select count(*) from item where has_client_data = 0 and client_source in ('forever','hotfix')")).isZero();
+    assertThat(scalar("select count(*) from main.item where has_client_data = 0 and client_source is not null")).isZero();
+    assertThat(scalar("select count(*) from item where client_source='era' and (has_client_data<>0 or name is not null or item_level is not null or quality is not null)"))
+        .as("Era archive values never become current Forever card fields").isZero();
+    assertThat(scalar("select count(*) from main.item where client_source='era' and has_client_data=1"))
+        .as("original Era cards remain archived for explicit comparison").isPositive();
     long era = scalar("select count(*) from item where client_source = 'era'");
     long forever = scalar("select count(*) from item where client_source = 'forever'");
     assertThat(era).isLessThan(forever);

@@ -1,0 +1,69 @@
+{
+  "version": "0.4.1-SNAPSHOT / Explorer Journal preview",
+  "completedAt": "2026-10-17T23:38:01.016724+00:00",
+  "appJarSha256": "48921236911228069af10af3a1857420611780e7509fb8d0b9b12245ce718036",
+  "databaseBuild": "40ca42c8e8c6442c0e2e633f76bf4f4638ebf23faf4029b568ee1ee038c207b7",
+  "databaseBytesChanged": false,
+  "modules": [
+    {
+      "name": "lua-table",
+      "tests": 71,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 1
+    },
+    {
+      "name": "importer",
+      "tests": 582,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 5
+    },
+    {
+      "name": "app",
+      "tests": 1208,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    }
+  ],
+  "ui": {
+    "startup": "Every launch: Original interface / Explorer Journal",
+    "headlessCaptures": 12,
+    "nativeCaptures": 17,
+    "nativeScope": "Isolated X11 Robot on :92; no Wayland automation claim",
+    "warmWorkerHomeP95Ms": 4.299834,
+    "warmWorkerDungeonP95Ms": 0.197106,
+    "maxObservedEdtConstructionMs": 64.07,
+    "restoration": "Filter/search/selected boss/tab and geographic return verified",
+    "originalInterfaceAvailable": true,
+    "headlessReport": ".local/journal-acceptance/headless-final/report.txt",
+    "nativeReport": ".local/journal-acceptance/native-final-3/report.txt",
+    "nativeStatus": "PASS"
+  },
+  "dataPolicy": {
+    "forever": "No implicit Era card or scalar fallback; beta gaps remain unknown",
+    "classicComparison": "Explicit collapsed action, genuine archived Era fields",
+    "rawArchivePreserved": true
+  },
+  "npcPortrait": {
+    "npcId": 2671,
+    "displayId": 7937,
+    "modelId": 134,
+    "build": "1.60.1.70450",
+    "pngSha256": "71982d7beff2d6452c37bd3c92ca784b08ca74bed7b482fea550da6a6308b10d",
+    "inputFileDataIds": [
+      126061,
+      479933,
+      126062
+    ],
+    "exactBuildMembership": "Verified official Blizzard config/encoding/root content hashes",
+    "decode": "Worker only, build checked, hash checked, cached",
+    "coverage": "One verified model preview; Seeking Remnant mapping unresolved",
+    "turntableFrames": 12,
+    "turntableBatchSeconds": 86.118,
+    "viewer": ".local/npc-render-poc/review/index.html"
+  },
+  "multigame": "Architecture/source/selector research complete; no other game catalog imported",
+  "releaseGate": "Genuine beta collector acceptance still open independently"
+}

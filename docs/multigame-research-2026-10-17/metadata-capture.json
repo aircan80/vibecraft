@@ -1,0 +1,32 @@
+{
+  "captured_at": "2026-10-17T23:25:39.896152+00:00",
+  "method": "urllib public Blizzard HTTPS versions metadata only; no client archive downloaded",
+  "wago_api": "HTTP 403; not bypassed",
+  "files": [
+    {
+      "file": "anniversary-versions.txt",
+      "sha256": "e717348a6b9693fd9ca96f39de2301a954cea7f66a90a0fe3b21790c66a769d5",
+      "bytes": 747
+    },
+    {
+      "file": "classic-versions.txt",
+      "sha256": "f8558d0162964ffcd88fc1844995934f4fb4dc6fd41f32c60c52b395a1c9f156",
+      "bytes": 747
+    },
+    {
+      "file": "era-versions.txt",
+      "sha256": "d10f90a7d12a2c3080202a223687c6c8ec89ff6f15c4535412b4d79b4a75c37d",
+      "bytes": 752
+    },
+    {
+      "file": "forever-versions.txt",
+      "sha256": "ab8dab6f16863c5b8a6186e3d851c335e3d6981c12c154e0956a3147be9cec43",
+      "bytes": 630
+    },
+    {
+      "file": "wow-versions.txt",
+      "sha256": "88824e3367bc0c446e0c2877990fc6170169b3cd56b9a7754034bb095adad407",
+      "bytes": 1220
+    }
+  ]
+}

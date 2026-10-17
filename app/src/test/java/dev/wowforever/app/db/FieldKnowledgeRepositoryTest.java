@@ -17,6 +17,7 @@ class FieldKnowledgeRepositoryTest {
       s.execute("INSERT INTO field_knowledge VALUES('item','2874','stats','KNOWN','forever','70450',1),('item','14149','stats','HIDDEN_BY_BLIZZARD','forever','70450',2),('item','14149','classic_stats','KNOWN','era','70003',3)");
       s.execute("INSERT INTO field_knowledge_assertion VALUES(1,'0','snapshot','ItemSparse.csv',7),(2,NULL,'snapshot','Item.csv',8),(3,'Era values','era-snapshot','ItemSparse.csv',9)");
       s.execute("UPDATE item SET item_level=0,required_level=0 WHERE id=2874");
+      s.execute("UPDATE item SET client_source='forever',has_client_data=0,name=NULL,item_level=NULL,required_level=NULL WHERE id=14149");
     }
     try(var db=Database.open(file)) {
       var known=new FieldKnowledgeRepository(db).item(2874);

@@ -45,7 +45,14 @@ public final class Database implements AutoCloseable {
     cfg.setOpenMode(SQLiteOpenMode.READONLY);
     cfg.resetOpenMode(SQLiteOpenMode.READWRITE);
     cfg.resetOpenMode(SQLiteOpenMode.CREATE);
-    return new Database(cfg.createConnection("jdbc:sqlite:" + file.toAbsolutePath()));
+    Connection connection = cfg.createConnection("jdbc:sqlite:" + file.toAbsolutePath());
+    try {
+      ForeverItemProjection.install(connection);
+      return new Database(connection);
+    } catch (SQLException failure) {
+      connection.close();
+      throw failure;
+    }
   }
 
   /** The underlying connection; callers must hold the lock on this object while using it. */

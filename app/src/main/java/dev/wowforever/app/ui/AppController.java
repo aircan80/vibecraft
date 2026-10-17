@@ -106,6 +106,21 @@ public final class AppController implements Navigator {
   private Loaded loaded;
   /** The view state a rerender saved for the page of a target that has to load again. */
   private PendingState pendingState;
+  /** Small transient view states, never page components or database records. Classic keeps its original path. */
+  private final java.util.LinkedHashMap<ViewTarget,Object> journalStates = new java.util.LinkedHashMap<>(16,.75f,true);
+  private boolean journal() { return view.uiExperience() == UiExperience.JOURNAL; }
+  private void rememberJournalState() {
+    if (journal() && pageTarget != null && page instanceof PageState state) {
+      journalStates.put(pageTarget,state.saveState());
+      while(journalStates.size()>128) journalStates.remove(journalStates.keySet().iterator().next());
+    }
+  }
+  private JComponent renderDetail(Object detail, StatusSink sink) {
+    return journal() ? dev.wowforever.app.ui.journal.JournalDetails.render(detail,repos,this,worker,sink,
+        view.sourceFilter(),this::changeSourceFilter,view.questPins(),view.routes())
+        : DetailPanels.render(detail,repos,this,worker,sink,
+        view.sourceFilter(),this::changeSourceFilter,view.questPins(),view.routes());
+  }
 
   /** A loaded entity record and the entity it is of. */
   private record Loaded(EntityRef ref, Object detail) {}
@@ -294,7 +309,8 @@ public final class AppController implements Navigator {
       if (lastPage == null || lastPage instanceof ViewTarget.Home) {
         detailGeneration++; // the welcome page behind the search; the list keeps its results
         leaveListPage();
-        setPage(new ViewTarget.Home(), welcome(meta), null);
+        if (journal()) showJournalCatalog(new ViewTarget.Home());
+        else setPage(new ViewTarget.Home(), welcome(meta), null);
       } else {
         reshow(lastPage, stateOf(lastPage));
       }
@@ -322,8 +338,7 @@ public final class AppController implements Navigator {
       int generation = ++detailGeneration; // a load still in flight for an older page is dropped
       loadingDelay.cancel();
       leaveListPage();
-      setPage(t, DetailPanels.render(loaded.detail(), repos, this, worker, pageStatus(generation),
-          view.sourceFilter(), this::changeSourceFilter, view.questPins(), view.routes()), state);
+      setPage(t, renderDetail(loaded.detail(), pageStatus(generation)), state);
       view.setTitleSuffix(DetailPanels.name(loaded.detail()));
       return;
     }
@@ -336,9 +351,11 @@ public final class AppController implements Navigator {
    * detail area, restored to {@code state} when it keeps one.
    */
   private void setPage(ViewTarget t, JComponent p, Object state) {
+    rememberJournalState();
     page = p;
     pageTarget = t;
     view.setDetail(p);
+    if (t != null) view.viewTargetChanged(t);
     if (state != null && p instanceof PageState s) {
       s.restoreState(state);
     }
@@ -348,7 +365,8 @@ public final class AppController implements Navigator {
   private void setPage(ViewTarget t, JComponent p) {
     PendingState pending = pendingState;
     pendingState = null;
-    setPage(t, p, pending != null && pending.target().equals(t) ? pending.state() : null);
+    setPage(t, p, pending != null && pending.target().equals(t) ? pending.state()
+        : journal() ? journalStates.get(t) : null);
   }
 
   /**
@@ -420,6 +438,7 @@ public final class AppController implements Navigator {
   }
 
   private void show(ViewTarget t, boolean captureSearchEdit) {
+    rememberJournalState();
     loadingDelay.cancel(); // the loading page of a page left behind
     if (!(t instanceof ViewTarget.Search)) {
       lastPage = t;
@@ -434,7 +453,9 @@ public final class AppController implements Navigator {
         }
         loadResults(() -> search(s), null);
       }
-      case ViewTarget.List l -> showList(l);
+      case ViewTarget.List l -> {
+        if (journal() && l.kind()==EntityKind.INSTANCE) showJournalCatalog(l); else showList(l);
+      }
       case ViewTarget.WorldMap w -> showWorldMap(w);
       case ViewTarget.Forever f -> showCatalog(f);
       case ViewTarget.ItemContent c -> showCatalog(c);
@@ -503,8 +524,7 @@ public final class AppController implements Navigator {
         loadingDelay.cancel();
         if (detail.isPresent()) {
           loaded = new Loaded(ref, detail.get());
-          setPage(new ViewTarget.Entity(ref), DetailPanels.render(detail.get(), repos, this, worker,
-              pageStatus(generation), view.sourceFilter(), this::changeSourceFilter, view.questPins(), view.routes()));
+          setPage(new ViewTarget.Entity(ref), renderDetail(detail.get(), pageStatus(generation)));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
           followCommittedPage(ref, detail.get());
         } else {
@@ -545,6 +565,12 @@ public final class AppController implements Navigator {
   }
 
   private void showHome() {
+    if (journal()) {
+      resultsGeneration++;
+      view.masterList().clear();
+      showJournalCatalog(new ViewTarget.Home());
+      return;
+    }
     resultsGeneration++; // drop loads still in flight
     detailGeneration++;
     leaveListPage();
@@ -624,6 +650,10 @@ public final class AppController implements Navigator {
 
   /** Content catalogs follow the same worker/EDT split and stale-load protection as entity pages. */
   private void showCatalog(ViewTarget target) {
+    if (journal() && target instanceof ViewTarget.Forever f && f.section().equals("ladder")) {
+      showJournalCatalog(target);
+      return;
+    }
     int generation = ++detailGeneration;
     leaveListPage();
     String title = target instanceof ViewTarget.Forever ? "WoW: Forever" : "Item research";
@@ -639,6 +669,28 @@ public final class AppController implements Navigator {
       setPage(target, CatalogPages.render(target, data, this));
       view.status().setMessage("Ready");
     }, failure -> { if (generation == detailGeneration) fail(failure); });
+  }
+
+  /** The Journal home and unified dungeon catalog share the normal stale-load and history rules. */
+  private void showJournalCatalog(ViewTarget target) {
+    int generation=++detailGeneration;
+    leaveListPage();
+    String title=target instanceof ViewTarget.Home?"Explorer Journal":"Dungeons & raids";
+    view.setTitleSuffix(title);
+    view.status().setMessage("Loading…");
+    loadingDelay.cancel();
+    loadingDelay.schedule(() -> {
+      if(generation==detailGeneration)setPage(null,new LoadingPage(title,"Opening your journal…"),null);
+    });
+    Async.run(worker, () -> dev.wowforever.app.ui.journal.JournalCatalog.load(target,repos.database()), data -> {
+      if(generation!=detailGeneration)return;
+      loadingDelay.cancel();
+      JComponent component=dev.wowforever.app.ui.journal.JournalCatalog.render(data,this);
+      if(component==null)throw new IllegalStateException("Unsupported journal catalog: "+target);
+      setPage(target,component);
+      view.setTitleSuffix(title);
+      view.status().setMessage("Ready to explore");
+    },failure -> { if(generation==detailGeneration)fail(failure); });
   }
 
   /** A list page's filter options and rows, loaded together on the worker. */

@@ -19,13 +19,16 @@ public final class FieldKnowledgeRepository {
       var raw=Sql.one(c,"SELECT name,item_level,required_level,has_client_data,client_source FROM item WHERE id=?",r->new Object[]{r.getString(1),r.getObject(2),r.getObject(3),r.getBoolean(4),r.getString(5)},id);
       if(raw.isEmpty())return List.of();
       Object[] row=raw.get();String source=Objects.toString(row[4],"questie");
+      if(source.equals("era")) {
+        for(String field:List.of("name","item_level","required_level","stats"))values.remove(field);
+      }
       boolean current=Boolean.TRUE.equals(row[3]) && (source.equals("forever") || source.equals("hotfix"));
       String build=Sql.one(c,"SELECT value FROM meta WHERE key=?",r->r.getString(1),source.equals("era")?"client_fallback_build":"client_build").orElse("");
       String[] names={"name","item_level","required_level"};
       for(int i=0;i<names.length;i++) {
         Object value=row[i];String displayed=value==null?null:value.toString();
         values.putIfAbsent(names[i],new FieldKnowledgeView(names[i],value==null?State.NOT_YET_DISCOVERED:current?State.KNOWN:State.REPORTED,
-            displayed,source,build,source.equals("era")?"Classic Era value; Forever value not established":"Retained item field"));
+            displayed,source,build,source.equals("era")?"Forever value not yet discovered; Classic Era comparison is separate":"Retained item field"));
       }
       values.putIfAbsent("stats",new FieldKnowledgeView("stats",current?State.KNOWN:State.NOT_YET_DISCOVERED,null,source,build,
           current?"Forever client item data retained":"No explicit Forever stats assertion retained"));

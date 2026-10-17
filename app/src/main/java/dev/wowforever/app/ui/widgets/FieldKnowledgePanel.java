@@ -11,11 +11,11 @@ public final class FieldKnowledgePanel extends JPanel {
     setOpaque(false);setLayout(new BoxLayout(this,BoxLayout.Y_AXIS));setAlignmentX(LEFT_ALIGNMENT);
     setBorder(BorderFactory.createEmptyBorder(4,12,8,12));
     for(var field:fields) {
+      if(field.field().equals("classic_stats"))continue; // Era is available only through an explicit comparison.
       JPanel row=new JPanel(new BorderLayout(8,0));row.setOpaque(false);row.setAlignmentX(LEFT_ALIGNMENT);
       row.add(new WrappingText(field.label(),field.label()),BorderLayout.CENTER);
       row.add(new KnowledgeChip(field),BorderLayout.EAST);add(row);
       if(field.value()!=null && !aggregateStats(field))add(new WrappingText(field.displayValue(),field.label()+" value"));
-      if(field.field().equals("classic_stats"))add(new WrappingText("Classic Era value · build "+field.version()+"; Forever stats remain separate.","Classic Era fallback"));
     }
   }
   private static boolean aggregateStats(FieldKnowledgeView field) {

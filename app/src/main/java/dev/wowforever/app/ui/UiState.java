@@ -70,6 +70,11 @@ public final class UiState {
     return new UiState(Preferences.userNodeForPackage(UiState.class));
   }
 
+  /** Journal layout preferences do not move or collapse the Classic window. */
+  public static UiState loadJournal() {
+    return new UiState(Preferences.userNodeForPackage(UiState.class).node("explorer-journal"));
+  }
+
   /** The saved bounds of the normal (not compact, not maximised) window; null when none are saved. */
   public Rectangle bounds() {
     return rectangle(BOUNDS);

@@ -8,6 +8,8 @@ import dev.wowforever.app.db.UserDataDir;
 import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.Async;
 import dev.wowforever.app.ui.MainFrame;
+import dev.wowforever.app.ui.ExperienceChooser;
+import dev.wowforever.app.ui.UiExperience;
 import dev.wowforever.app.ui.ThemeManager;
 import dev.wowforever.app.ui.theme.Fonts;
 import dev.wowforever.app.ui.widgets.IconCache;
@@ -41,11 +43,15 @@ public final class Main {
     if (args.length == 1 && args[0].equals("--self-test")) {
       System.exit(runSelfTest());
     }
-    if (args.length > 0) {
-      System.err.println("Usage: java -jar wow-forever-browser.jar [--self-test]");
+    UiExperience override;
+    try {
+      override = startupExperience(args);
+    } catch (IllegalArgumentException e) {
+      System.err.println("Usage: java -jar wow-forever-browser.jar [--self-test | --ui=classic | --ui=journal]");
       System.exit(2);
+      return;
     }
-    SwingUtilities.invokeLater(Main::startGui);
+    SwingUtilities.invokeLater(() -> startGui(override));
   }
 
   /** Prints {@code items=<n> npcs=<n> instances=<n> build_id=<id>} for the database at {@code db}; returns 0. */
@@ -74,10 +80,29 @@ public final class Main {
    * On the EDT: shows the window, then opens the database in the background and wires the controller. A failure
    * of either step is logged and shown, and the application exits with status 1.
    */
-  private static void startGui() {
+  /** Explicit command-line choices support repeatable previews; normal startup always asks. */
+  static UiExperience startupExperience(String[] args) {
+    if (args.length == 0) {
+      return null;
+    }
+    if (args.length == 1) {
+      return switch (args[0]) {
+        case "--ui=classic" -> UiExperience.CLASSIC;
+        case "--ui=journal" -> UiExperience.JOURNAL;
+        default -> throw new IllegalArgumentException("Unknown startup argument");
+      };
+    }
+    throw new IllegalArgumentException("Expected a single startup option");
+  }
+
+  private static void startGui(UiExperience override) {
     Fonts.install();
     ThemeManager.applySaved();
-    MainFrame frame = new MainFrame();
+    UiExperience experience = override != null ? override : ExperienceChooser.choose().orElse(null);
+    if (experience == null) {
+      return; // No frame, database installation or background worker has been created.
+    }
+    MainFrame frame = new MainFrame(experience);
     AtomicReference<Database> open = new AtomicReference<>();
     frame.addWindowListener(new WindowAdapter() {
       @Override

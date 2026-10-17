@@ -81,6 +81,26 @@ public final class ItemRepository {
     this.db = db;
   }
 
+  /** Explicit comparison from the archived Era native record; never used by the Forever card. */
+  public record ClassicComparison(String build, String name, Integer itemLevel, Integer requiredLevel,
+      String evidence) {}
+
+  public Optional<ClassicComparison> classicComparison(long id) {
+    return db.read(c -> {
+      if (!Sql.hasTable(c, "client_table_row") || !Sql.hasTable(c, "client_table_dataset")) return Optional.empty();
+      return Sql.one(c, """
+          SELECT d.build,json_extract(r.payload,'$.Display_lang') AS name,
+                 CAST(json_extract(r.payload,'$.ItemLevel') AS INTEGER) AS item_level,
+                 CAST(json_extract(r.payload,'$.RequiredLevel') AS INTEGER) AS required_level,
+                 r.snapshot_id,r.source_path,r.source_line
+          FROM client_table_row r JOIN client_table_dataset d USING(snapshot_id)
+          WHERE d.build LIKE '1.15.%' AND r.table_name='ItemSparse' AND r.row_id=?
+          ORDER BY d.build DESC LIMIT 1""", r -> new ClassicComparison(r.getString("build"),
+              r.getString("name"), Sql.integer(r,"item_level"), Sql.integer(r,"required_level"),
+              r.getString("source_path")+":"+r.getLong("source_line")+" · snapshot "+r.getString("snapshot_id")), Long.toString(id));
+    });
+  }
+
   /** The item page, or empty when there is no such item. */
   public Optional<ItemDetail> detail(long id) {
     return db.read(c -> {
@@ -167,7 +187,7 @@ public final class ItemRepository {
       params.add(quality);
     }
     if (statId != null) {
-      where.append(" AND EXISTS (SELECT 1 FROM item_stat s WHERE s.item_id=item.id AND s.stat_id=?)");
+      where.append(" AND (client_source IS NULL OR client_source <> 'era') AND EXISTS (SELECT 1 FROM item_stat s WHERE s.item_id=item.id AND s.stat_id=?)");
       params.add(statId);
     }
     params.add(limit == null ? -1 : limit); // a negative LIMIT is no limit in SQLite

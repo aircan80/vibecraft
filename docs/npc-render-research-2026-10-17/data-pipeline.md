@@ -62,3 +62,44 @@ Suggested projection tables, once proven: `npc_appearance_fact` (many source-qua
 ## What this investigation did not establish
 
 No Seeking Remnant display ID, model ID, FileDataID, model bytes, or rendered image has been verified. No success rate across the NPC catalog can yet be claimed. The deliverable here is a grounded acquisition boundary and testable pipeline, not a completed renderer.
+
+## Authorized asset proof of concept follow-up
+
+Actual raw assets have now been acquired under `.local/npc-render-poc`: model **126061** (80,832 bytes, MD21), texture **126062** (175,948 bytes, BLP2), and model-declared skin **479933** (1,952 bytes, SKIN). The M2's SFID chunk references that skin; its TXID entry is zero and its replacement texture comes from native display 7937. There are no external AFID or SKID chunks in this model. Conversion/rendering is handled by the separate renderer workstream.
+
+Reproduce the small download with:
+
+```sh
+python3 tools/npcmodels/fetch_assets.py --build 1.60.1.70450 \
+  --product wow_classic_beta --model 126061 --texture 126062 \
+  --output .local/npc-render-poc
+```
+
+**Initial acquisition limitation, subsequently resolved by official root proof below:** The raw API accepted the requested version but also returned identical model bytes for a deliberately invalid `version=0.0.0.1`. Its metadata endpoint records the downloaded model's MD5 under an 8.1.0.27826 wowt change entry, the skin under a 7.0.1.20740 wow_beta entry, and the texture under a 4.4.0.53973 wow_classic_beta entry. A change entry is not a complete build membership table; these results neither prove nor disprove presence in Forever 70450. Preserve this distinction: the **display relationship** is sourced from build 70450 exports, while the **raw model bytes** are genuine WoW assets fetched by file ID with unverified exact build membership. The renderer must not silently present this as a fully verified 70450 appearance.
+
+The acquisition script records URLs, SHA-256, response headers, dependency edges and this qualification in `assets-manifest.json`. A stronger future check should resolve these IDs through the exact build's CASC root/encoding content hashes and compare decompressed content hashes. The current proof of concept deliberately avoids downloading a whole client.
+
+
+## Exact Forever 70450 asset membership: verified
+
+The proof of concept's **existing three assets are now verified members of Forever build 1.60.1.70450**. Their old metadata change dates do not mean they belong only to those older clients. This supersedes the initial build uncertainty above; the Wago query itself remains insufficient proof.
+
+The independent chain uses Blizzard endpoints:
+
+1. `https://us.version.battle.net/wow_classic_beta/versions` identifies build 70450 and build configuration `84bea4233331e390fda8724c6f91ffa5`.
+2. The official CDN configuration at `https://us.cdn.blizzard.com/tpr/wow/config/84/be/84bea4233331e390fda8724c6f91ffa5` has exactly that MD5 and identifies `WOW-70450patch1.60.1_ForeverBeta`.
+3. Its encoding data is downloaded from official CDN encoding key `9a0263e06fdace8ab940a4a45a8e28fb` (141,273,036 encoded bytes). Every BLTE block checksum and decoded length is checked; decoded content MD5 equals build-config content key `c441a5427cb86b23bbfb6ed9c6cf0114`.
+4. Encoding resolves the root to encoding key `1330591ebe7f1259debd53c2f6e5a721`. The decoded official root is 50,525,924 bytes and its MD5 equals build-config root content key `8a0ca94be2f6ace93991c04ca6e19b57`.
+5. Root records associate the **same file IDs** with **the exact MD5 hashes of the downloaded bytes**:
+
+| File ID | Role | Verified content MD5 |
+| --- | --- | --- |
+| 126061 | M2 | `23767eabc8f426e33c4ac07708c68ae4` |
+| 479933 | SKIN | `a90e0f3ecbfd3c27d8d2612187c4b21e` |
+| 126062 | Replacement texture | `e58b60c4968282be403add62e7c6bf3e` |
+
+The root also carries a second texture variant for 126062, MD5 `3b64637cd54cf90bb01136fd5e2f29d3`; it does not invalidate the verified 175,948-byte texture used by this proof of concept. All matching records have locale mask 95222, including enUS. Preserve the alternative records and content flags rather than flattening them.
+
+`tools/npcmodels/attest.py` implements fail-closed, selective encoding/root lookup. Evidence is in `.local/npc-render-poc/attestation/`, especially `content-proof.json`; `assets-manifest.json` embeds the result. This downloaded approximately 141 MB of encoding metadata and one root, **not a full client**. Direct unarchived asset requests on the official CDN returned 404 (the bytes can reside in archives); exact root membership plus matching raw content hashes establishes the build relationship without needing those larger archive downloads.
+
+Seeking Remnant's NPC-to-display mapping remains independently unresolved. This successful proof is for **Mechanical Squirrel 2671**, not a guessed substitute for Seeking Remnant.

@@ -1,5 +1,18 @@
 # Resume development — current checkpoint
 
+## Latest checkpoint: dual interface and native portrait
+
+Normal startup now asks **Original interface** or **Explorer Journal**. CLI overrides: `--ui=classic` / `--ui=journal`. Original remains the default constructor for compatibility harnesses; ordinary interactive startup always asks. Journal has separate layout preferences, labelled routes, a task Home with genuine Dalaran art, a unified dungeon index and stateful detail tabs. No production DB bytes changed.
+
+User's explicit data rule is enforced: Forever must not use Era values as fallback, even while beta. `Database.open()` installs a connection-local item projection masking Era-only scalar/card facts; raw `main.item` remains unchanged. Genuine archived native Era name/level fields are available only through the collapsed Compare Classic control. Generic UI fixtures have five explicitly synthetic Forever rows; 16806 remains the Era boundary control.
+
+NPC 2671 Mechanical Squirrel has the first locally generated portrait from actual M2/SKIN/BLP assets. Exact membership in Forever70450 is independently proven through official Blizzard config/encoding/root hashes. Journal's optional portrait is preloaded and decoded off EDT, hash checked and build scoped. Missing NPC renders are not guessed. Seeking Remnant247003's NPC/display mapping remains unresolved. Tooling: `tools/npcmodels/`; retained proof: `.local/npc-render-poc/attestation/content-proof.json` and research evidence copy.
+
+Multi-game work is **research**, not imported catalogs or a shipping selector: see `docs/multigame-research-2026-10-17/README.md` for one-file edition-scoped schema, official product/build captures, UI context and hard no-cross-game-fallback policy.
+
+Full verify passed after integration: 71 Lua +582 importer +1208 app =1861 tests, 6 skipped, zero failures/errors. Frozen review JAR `.local/journal-acceptance/app-review.jar`, SHA256 `48921236911228069af10af3a1857420611780e7509fb8d0b9b12245ce718036`. Exact headless Journal captures passed; native checks/evidence recorded in the Journal verification report. The user desktop service was relaunched from this exact JAR with the chooser; no option was preselected for them. Earlier checkpoints below remain historical.
+
+
 ## Current continuation — authorized v0.4.1 development, acceptance pending
 
 Codex, 2026-10-17. This checkpoint supersedes the older implementation/status summaries below. Historical test counts, build IDs and screenshots remain evidence for their original revisions only.

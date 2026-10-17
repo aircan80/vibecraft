@@ -1,0 +1,72 @@
+{
+  "proof_status": "all_three_poc_assets_match_official_build_root",
+  "official_versions_url": "https://us.version.battle.net/wow_classic_beta/versions",
+  "official_cdn_base": "https://us.cdn.blizzard.com/tpr/wow",
+  "encoding_content_key": "c441a5427cb86b23bbfb6ed9c6cf0114",
+  "encoding_content_md5_verified": true,
+  "root_content_md5_verified": true,
+  "build": "1.60.1.70450",
+  "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+  "build_name": "WOW-70450patch1.60.1_ForeverBeta",
+  "root_content_key": "8a0ca94be2f6ace93991c04ca6e19b57",
+  "root_decoded_bytes": 50525924,
+  "encoding_decoded_bytes": 141574945,
+  "files": [
+    {
+      "file_data_id": 126062,
+      "content_key": "e58b60c4968282be403add62e7c6bf3e",
+      "content_flags": 302514177,
+      "locale_flags": 95222,
+      "encoding": {
+        "size": 175948,
+        "encoding_keys": [
+          "485136390e81d63b30470104bd46c6f7"
+        ]
+      },
+      "existing_poc_md5": "e58b60c4968282be403add62e7c6bf3e",
+      "existing_poc_matches": true
+    },
+    {
+      "file_data_id": 126062,
+      "content_key": "3b64637cd54cf90bb01136fd5e2f29d3",
+      "content_flags": 302514176,
+      "locale_flags": 95222,
+      "encoding": {
+        "size": 12108,
+        "encoding_keys": [
+          "d72d5bab24ee8a0e0c8f147b31d0b611"
+        ]
+      },
+      "existing_poc_md5": "e58b60c4968282be403add62e7c6bf3e",
+      "existing_poc_matches": false
+    },
+    {
+      "file_data_id": 126061,
+      "content_key": "23767eabc8f426e33c4ac07708c68ae4",
+      "content_flags": 302776320,
+      "locale_flags": 95222,
+      "encoding": {
+        "size": 80832,
+        "encoding_keys": [
+          "77ce62cc71c7f1d2908d6996e9283cdd"
+        ]
+      },
+      "existing_poc_md5": "23767eabc8f426e33c4ac07708c68ae4",
+      "existing_poc_matches": true
+    },
+    {
+      "file_data_id": 479933,
+      "content_key": "a90e0f3ecbfd3c27d8d2612187c4b21e",
+      "content_flags": 303169536,
+      "locale_flags": 95222,
+      "encoding": {
+        "size": 1952,
+        "encoding_keys": [
+          "4da187f218106a1c750e54245fde8dc6"
+        ]
+      },
+      "existing_poc_md5": "a90e0f3ecbfd3c27d8d2612187c4b21e",
+      "existing_poc_matches": true
+    }
+  ]
+}

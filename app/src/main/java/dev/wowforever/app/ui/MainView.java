@@ -7,6 +7,12 @@ import javax.swing.JComponent;
 
 /** What {@link AppController} drives: the main window in production, a headless stub in tests. */
 public interface MainView {
+  /** The optional shell; existing views retain their original behavior. */
+  default UiExperience uiExperience() { return UiExperience.CLASSIC; }
+
+  /** A committed page changed; the Journal shell updates its location and labelled navigation. */
+  default void viewTargetChanged(dev.wowforever.app.nav.ViewTarget target) {}
+
   /** The master list left of the detail. */
   MasterList masterList();
 

@@ -45,7 +45,7 @@ public final class NativeItemMetadataRepository {
           }
         }
       }
-      if(sets.isEmpty() && set!=null && set>0) {
+      if(sets.isEmpty() && !"era".equals(item[3]) && set!=null && set>0) {
         String name=Sql.one(c,"SELECT name FROM item_set WHERE id=?",r->r.getString(1),set).orElse("Set #"+set);
         sets.add(new SetMembership(set,name,"Retained canonical item_set_id; "+evidence));
       }

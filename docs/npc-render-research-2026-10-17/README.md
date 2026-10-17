@@ -2,6 +2,16 @@
 
 17 October 2026. Three research agents examined the Wowhead reference, native appearance data and independent rendering tools. This is a grounded proposal with acquired data, not a completed NPC renderer. The app and bundled database are unchanged.
 
+## Implemented proof of concept
+
+A genuine Mechanical Squirrel portrait has now been generated from the native M2, SKIN and replacement texture. [View the rendered portrait](previews/mechanical-squirrel.png). Conversion used pinned wow.export code and CPU Blender 4.5.3; the 768×768 transparent PNG took about 8.34 seconds to render in the recorded run. It is a generated model preview in the native bind pose, not an in-game screenshot.
+
+**Exact Forever 70450 membership is verified for all three input assets.** Wago's version fallback was discovered through a negative control, then resolved independently: Blizzard's official 70450 build configuration → hash-verified encoding manifest → hash-verified root → matching model/skin/texture content hashes. See the [retained content proof](evidence/forever-70450-content-proof.json). Old file-change dates do not invalidate a shared asset that the current build's root actually includes.
+
+A separate offline review viewer now includes twelve rotatable native views and a studio portrait, generated in an 86.118-second CPU batch. Local output: `.local/npc-render-poc/review/index.html`; the reusable viewer template and renderer are under `tools/npcmodels/`.
+
+The new Journal interface has a build-checked, asynchronously decoded portrait for NPC 2671. Other NPCs do not acquire guessed pictures. Seeking Remnant's identity-to-display mapping remains unresolved. Reproduction tools are in [tools/npcmodels](../../tools/npcmodels/README.md). The earlier findings below describe the initial research boundary and are superseded where this completed proof supplies evidence.
+
 ## Conclusion
 
 **Proceed with a small native-data proof of concept, beginning with generated portraits.** Use the same identity and asset pipeline later for rotatable turntables and an optional animated model viewer. Render actual game assets rather than using AI illustrations or copying Wowhead images.
@@ -27,7 +37,7 @@ The strongest initial tool candidate is [wow.export](https://github.com/Kruithne
 
 The canonical data contains **247003, Seeking Remnant**, as a named NPC. It is absent from the newly acquired Creature table, which is not a complete NPC catalog. Its exact display/model mapping remains unresolved. A creature-query/cache record or another same-build native source must establish that link; name matching is insufficient.
 
-The supplied Wowhead page was inaccessible to the research browser. We did not inspect its current network/model requests or extract its images. No M2/SKIN dependency set or actual rendered portrait has been produced. Bounded searches found no game installation in the checked local paths; this is not a claim about every drive or location.
+The supplied Wowhead page was inaccessible to the research browser. We did not inspect its current network/model requests or extract its images. The initial research had no model files or rendered portrait; the verified control above now closes that gap. Bounded searches found no game installation in the checked local paths; this is not a claim about every drive or location.
 
 ## Proposed first deliverable
 
