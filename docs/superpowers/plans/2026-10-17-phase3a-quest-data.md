@@ -103,3 +103,15 @@ Questie records no despawn points, so the UI will mark the route's END as "route
 - Test: `EntityWriterTest.waypointsAreWrittenInOrder`, `NpcRepositoryTest.routesOfTheDefiasMessenger` (ordinal order,
   loop detection false), `ShippedDataTest` (550 has ≥ 30 points in zone 40; `npc.waypoints.npcs` reported).
 - [ ] Tests red → green; commit `feat(importer): NPC patrol waypoints`.
+
+### Task 8: Crafting data from the client (owner request)
+
+**Files:** tools/clientdata `REQUIRED_TABLES` + `SpellReagents`, `SkillLineAbility` (and `SkillRaceClassInfo` if present); importer `clientdata/CraftLoader` (SpellEffect Effect = 24 "Create Item" → `EffectItemType`, `EffectBasePoints`+1 = quantity; SkillLineAbility → skill id, min/trivial ranks; SpellReagents → reagents; recipe items: `ItemEffect` with a "learn spell" trigger whose taught spell creates an item → `source recipe_item_id`); schema `craft`, `craft_reagent` (+ indexes on item_id); `ClientDataStage` wiring; report counters `clientdata.crafts`, `clientdata.crafts.noSkill`; fixture CSVs cut for a few crafts (e.g. Heavy Leather, a Blacksmithing weapon, a cooking recipe); shipped-data checks (3+ crafts for a known item, reagent lists non-empty).
+**Tests:** `CraftLoaderTest` (created item + quantity, reagents, skill ranks, recipe item link, a spell that creates nothing is skipped), `ImportPipelineTest` counts.
+- [ ] Commit `feat(clientdata): crafting recipes and reagents`.
+
+### Task 9: Community drop rates from a server database (owner request)
+
+**Files:** `tools/serverdb/fetch.py` (downloads the VMaNGOS world database SQL dump from its GitHub release, pinned by tag + sha256, into `~/.cache/wowforever-serverdb/<tag>/`; licence file kept beside it), `tools/serverdb/extract.py` (streams the dump and writes `creature_loot_template`, `reference_loot_template`, `gameobject_loot_template`, `npc_vendor` rows as CSV — no MySQL needed), importer `serverdb/ServerDbSource` + `ServerDropRates` (resolves reference loot groups; converts ChanceOrQuestChance to a percentage, negative = quest-only drop; adds `drop_rate_source(source='vmangos')` rows; feeds `DropRates` with precedence after questie corrections and before atlasloot, per the spec ruling); `--server-db-dir` option (optional; skipped when absent); NOTICE (VMaNGOS data licence); report counters `serverdb.loot.rows`, `serverdb.unmatched.npcs`.
+**Tests:** Python tests on a tiny dump fixture; `ServerDropRatesTest` (reference loot resolution, negative chance, precedence, disagreement flagging), shipped-data check that `drop_rate_source` has `vmangos` rows for Hogger's Huge Gnoll Claw.
+- [ ] Commit `feat(importer): community drop rates from the VMaNGOS world database`.
