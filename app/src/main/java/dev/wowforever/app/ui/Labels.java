@@ -108,6 +108,11 @@ public final class Labels {
     };
   }
 
+  /** The client's one known tuning level, without inventing an upper bound. */
+  public static String tunedLevel(Integer level) {
+    return level == null || level <= 0 ? null : "Level " + level + "+";
+  }
+
   /** {@code "Level 10–20"}, {@code "Level 60"} when equal or only one is known; null when neither is above 0. */
   public static String levels(Integer min, Integer max) {
     Integer low = positive(min) != null ? positive(min) : positive(max);

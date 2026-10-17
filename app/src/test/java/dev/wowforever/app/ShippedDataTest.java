@@ -307,6 +307,36 @@ class ShippedDataTest extends ShippedDataSupport {
   }
 
   @Test
+  void cityOfDalaranReadsAsPlanned() {
+    InstanceSummary dalaran = repos.instances().all().stream().filter(instance -> "client:2959".equals(instance.key()))
+        .findFirst().orElseThrow();
+    var page = (InstancePage) TestPages.build(dalaran.ref(), repos, target -> {});
+    assertThat(page.header().chips()).extracting(chip -> ((dev.wowforever.app.ui.widgets.Chip) chip).getText())
+        .containsExactly("New in Forever", "Level 28+");
+    assertThat(page.encounters().getModel().getSize()).isEqualTo(9);
+    assertThat(page.encounters().getModel().getElementAt(0).name()).isEqualTo("Arcane Anomaly");
+    assertThat(page.coverage().getText()).isEqualTo(
+        "Bosses: 9 named in client data · Loot: 0 confirmed items · Client build 1.60.1.70450");
+    assertThat(page.encounterCaption().getText()).isEqualTo("Encounter order in the game client");
+    javax.swing.JPanel compact = new javax.swing.JPanel(new java.awt.BorderLayout());
+    compact.putClientProperty(dev.wowforever.app.ui.detail.CompactColumns.KEY, true);
+    compact.add(page);
+    compact.setSize(420, 720);
+    for (int index = 0; index < 4; index++) layoutForever(compact);
+    assertThat(page.getWidth()).isLessThanOrEqualTo(420);
+    assertThat(page.isStacked()).isTrue();
+    assertThat(page.coverage().getWidth()).isLessThanOrEqualTo(420);
+    assertThat(page.lootTable()).isNull();
+  }
+
+  private static void layoutForever(java.awt.Container container) {
+    container.doLayout();
+    for (java.awt.Component child : container.getComponents()) {
+      if (child instanceof java.awt.Container nested) layoutForever(nested);
+    }
+  }
+
+  @Test
   void foreverDungeonsAreShipped() {
     // the client's own dungeons (3B Task 17): Map, LFGDungeons, ContentTuning and DungeonEncounter, no loot
     assertThat(longs("select client_map_id from instance where source = 'client' order by client_map_id"))

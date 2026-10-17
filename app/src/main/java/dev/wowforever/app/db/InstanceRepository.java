@@ -35,6 +35,11 @@ public final class InstanceRepository {
     this.db = db;
   }
 
+  /** Build of the shipped client snapshot; load before rendering a page on the EDT. */
+  public String clientBuild() {
+    return db.meta().getOrDefault("client_build", "unknown");
+  }
+
   /** All instances in AtlasLoot order, then the client dungeons by map id. */
   public List<InstanceSummary> all() {
     return db.read(c -> Sql.list(c,

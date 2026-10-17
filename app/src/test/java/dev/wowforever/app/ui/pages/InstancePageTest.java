@@ -58,6 +58,51 @@ class InstancePageTest {
     return rows;
   }
 
+  private static InstanceDetail forever(boolean recorded) {
+    return new InstanceDetail(new InstanceSummary(900, "City of Dalaran", "DUNGEON", 28, null,
+        2959L, "City of Dalaran", "client:2959", "client", 28, "client_named", recorded ? "reported" : "none"),
+        List.of(new BossSummary(901, "Arcane Anomaly", null, null, null, false),
+            new BossSummary(902, "Mana Wraith", null, null, null, false)), recorded ? List.of("NORMAL") : List.of());
+  }
+
+  @Test
+  void foreverDungeonReadsItsStateWithoutQueryingLoot() {
+    var page = new InstancePage(forever(false), List.of(), (boss, mode) -> {
+      throw new AssertionError("No recorded loot must not query on the EDT");
+    }, "fixture-build", t -> {});
+    assertThat(page.header().chips()).extracting(c -> ((dev.wowforever.app.ui.widgets.Chip) c).getText()).containsExactly("New in Forever", "Level 28+");
+    assertThat(page.header().chips().get(1).getToolTipText()).isEqualTo("Tuning level from the game client");
+    assertThat(page.coverage().getText()).isEqualTo(InstancePage.COVERAGE_LINE.formatted(2, 0, "fixture-build"));
+    assertThat(page.encounterCaption().getText()).isEqualTo("Encounter order in the game client");
+    assertThat(page.bossesNote().getText()).isEqualTo(InstancePage.BOSSES_NOTE);
+    var cell = page.encounters().getCellRenderer().getListCellRendererComponent(page.encounters(),
+        page.encounters().getModel().getElementAt(0), 0, false, false);
+    assertThat(cell.getAccessibleContext().getAccessibleName()).contains("1", "Arcane Anomaly", "Loot not recorded yet");
+    assertThat(page.noLootNote().getText()).isEqualTo(InstancePage.NO_LOOT_NOTE);
+    assertThat(page.lootTable()).isNull();
+    assertThat(page.extraListsHeading().isVisible()).isFalse();
+    page.selectBoss(1);
+    assertThat(page.lootTable()).isNull();
+  }
+
+  @Test
+  void atlasLootInstanceHasNoForeverCoverageOrChips() {
+    var page = deadmines(new ArrayList<>());
+    assertThat(page.header().chips()).isEmpty();
+    assertThat(page.coverage()).isNull();
+    assertThat(page.encounterCaption()).isNull();
+    assertThat(page.lootTable()).isNotNull();
+  }
+
+  @Test
+  void futureRecordedClientLootStaysVisibleAndUnverified() {
+    LootRow item = new LootRow(new EntityRef(ITEM, 1), "Recorded blade", 20, null, null, null, 2, "Weapon", 7);
+    var page = new InstancePage(forever(true), List.of(), (boss, mode) -> List.of(item), "future-build", t -> {});
+    assertThat(page.coverage().getText()).contains("recorded", "unverified").doesNotContain("confirmed");
+    assertThat(page.lootTable().rowCount()).isPositive();
+    assertThat(page.lootSection().note().getText()).contains("unverified");
+  }
+
   @Test
   void encountersAreNumberedWithLevelAndKind() {
     var p = deadmines(new ArrayList<>());

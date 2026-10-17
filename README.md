@@ -42,6 +42,9 @@ Pasting a whole item link, an `item:19019` text, a Wowhead URL or a bare id over
 
 The rail opens Home and the list pages: Items, NPCs, Quests, Zones, and Dungeons & Raids. A list page has a filter bar over a sortable table. Items filter by class, subclass, quality and item level, NPCs by zone, rank and level, quests by zone and level. Dungeons and raids are grouped by level band. A click on a name opens it, and Back returns to the list with its filters.
 
+The four client-named Forever dungeons show their tuning level (for example, “Level 28+”), numbered encounter badges and the caption “Encounter order in the game client”. Their coverage line names the shipped client build. Boss names are known; loot is not recorded in this snapshot, so these pages show an explicit empty state. Future recorded client loot is shown as unverified. The Dungeons & Raids list includes a dated research footnote linking the Blizzard announcement; it describes the pinned snapshot rather than current availability.
+
+
 ### Item pages
 
 An item with client data opens with its tooltip card as the game shows it: the icon, the name in its quality colour, stats, effects and set bonuses. Set pieces on the card open their own pages. Below the card come the item's sources: Dropped by, ranked by drop rate, then In instance loot, Contained in, Sold by, Quest reward and Related quests. Ctrl+1 to Ctrl+6 jump to the first six sections.

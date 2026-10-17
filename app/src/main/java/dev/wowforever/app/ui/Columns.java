@@ -101,7 +101,9 @@ public final class Columns {
   }
 
   /** A level range that sorts numerically (unknown last) and prints as {@code 20}, {@code 20–21} or blank. */
-  public record Levels(Integer min, Integer max) implements Comparable<Levels> {
+  public record Levels(Integer min, Integer max, boolean tuned) implements Comparable<Levels> {
+    public Levels(Integer min, Integer max) { this(min, max, false); }
+
     private static final Comparator<Levels> ORDER =
         Comparator.comparing(Levels::low, Comparator.nullsLast(Comparator.naturalOrder()))
             .thenComparing(Levels::high, Comparator.nullsLast(Comparator.naturalOrder()));
@@ -123,6 +125,10 @@ public final class Columns {
     public String toString() {
       if (low() == null) {
         return "";
+      }
+      if (tuned) {
+        String text = Labels.tunedLevel(low());
+        return text == null ? "" : text;
       }
       return low().equals(high()) ? String.valueOf(low()) : low() + "–" + high();
     }
@@ -214,7 +220,8 @@ public final class Columns {
     return List.of(
         link("Name", i -> Labels.instanceTitle(i.displayName(), i.key()), i -> Optional.of(i.ref())),
         plain("Type", String.class, i -> Labels.contentType(i.contentType())),
-        plain("Levels", Levels.class, i -> new Levels(i.levelMin(), i.levelMax())),
+        plain("Levels", Levels.class, i -> InstanceSummary.CLIENT.equals(i.source())
+            ? new Levels(i.tunedMinLevel(), null, true) : new Levels(i.levelMin(), i.levelMax())),
         link("Zone", InstanceSummary::zoneName, i -> zoneRef(i.zoneId())));
   }
 

@@ -50,6 +50,40 @@ class DetailPanelsTest {
   }
 
   @Test
+  void clientLootAndBuildAreLoadedBeforeRendering(@org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+    java.nio.file.Path copy = temp.resolve("client-loot.sqlite");
+    java.nio.file.Files.copy(FixtureDb.path(), copy);
+    long instanceId;
+    long bossId;
+    try (var connection = java.sql.DriverManager.getConnection("jdbc:sqlite:" + copy);
+        var statement = connection.createStatement()) {
+      try (var result = statement.executeQuery("select b.instance_id,b.id from boss b join instance i on i.id=b.instance_id where i.source='client' order by b.id limit 1")) {
+        result.next();
+        instanceId = result.getLong(1);
+        bossId = result.getLong(2);
+      }
+      statement.executeUpdate("insert into boss_loot(boss_id,item_id,difficulty) values (" + bossId + ",14149,'NORMAL')");
+    }
+    DetailPanels.LoadedInstance loaded;
+    Repositories source;
+    try (var database = dev.wowforever.app.db.Database.open(copy)) {
+      source = Repositories.of(database);
+      loaded = (DetailPanels.LoadedInstance) DetailPanels.load(new EntityRef(INSTANCE, instanceId), source).orElseThrow();
+      assertThat(loaded.clientBuild()).isEqualTo(source.instances().clientBuild());
+      assertThat(loaded.clientLoot().lookup(bossId, "NORMAL")).hasSize(1);
+    }
+    // The database is closed: rendering and switching client encounters must use only the loaded snapshot.
+    javax.swing.SwingUtilities.invokeAndWait(() -> {
+      var page = new InstancePage(loaded.detail(), loaded.quests(), source, loaded.clientBuild(), loaded.clientLoot(), target -> {});
+      assertThat(page.lootTable().rowCount()).isPositive();
+      assertThat(page.coverage().getText()).contains("unverified").doesNotContain("confirmed");
+      page.selectBoss(1);
+      page.selectBoss(0);
+      assertThat(page.lootTable().rowCount()).isPositive();
+    });
+  }
+
+  @Test
   void rendersAPanelForEveryNavigableKind() {
     assertThat(render(ITEM, 14149)).isInstanceOf(ItemPage.class);
     assertThat(render(NPC, 639)).isInstanceOf(NpcPage.class);

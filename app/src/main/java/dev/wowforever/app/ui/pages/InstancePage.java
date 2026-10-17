@@ -20,9 +20,11 @@ import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.widgets.Chip;
 import dev.wowforever.app.ui.widgets.RailIcons;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import dev.wowforever.app.ui.widgets.SourceSection;
+import dev.wowforever.app.ui.widgets.WrappingText;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
@@ -59,6 +61,16 @@ import javax.swing.ListSelectionModel;
 public final class InstancePage extends JPanel implements PageState {
   /** The page width, in logical pixels, below which the encounters stack above the loot in one column. */
   public static final int STACK_BELOW = 600;
+  public static final String COVERAGE_LINE = "Bosses: %d named in client data · Loot: %d confirmed items · Client build %s";
+  public static final String BOSSES_NOTE = "Boss names come from the game client. WoW: Forever has no Dungeon Journal, so abilities and loot are recorded only after players meet these bosses.";
+  public static final String NO_LOOT_NOTE = "No loot recorded yet for this dungeon. Drops appear here when a data update records them.";
+  public static final String ENCOUNTER_CAPTION = "Encounter order in the game client";
+  private final boolean client;
+  private final boolean clientNoLoot;
+  private final WrappingText coverage;
+  private final WrappingText encounterCaption;
+  private final WrappingText bossesNote;
+  private WrappingText noLootNote;
   /** The title of the section of the quests filed under the instance's zone. */
   private static final String QUESTS = "Quests";
   /** The title of the selected encounter's loot section. */
@@ -100,7 +112,14 @@ public final class InstancePage extends JPanel implements PageState {
    * off the EDT ({@link dev.wowforever.app.ui.detail.DetailPanels#load}).
    */
   public InstancePage(InstanceDetail d, List<QuestSummary> quests, Repositories repos, Navigator nav) {
-    this(d, quests, BossLoot.of(repos), nav);
+    this(d, quests, BossLoot.of(repos), "unknown", nav);
+  }
+
+  /** The app supplies client loot and build metadata already loaded off the EDT. */
+  public InstancePage(InstanceDetail d, List<QuestSummary> quests, Repositories repos, String clientBuild,
+      BossLoot clientLoot, Navigator nav) {
+    this(d, quests, InstanceSummary.CLIENT.equals(d.summary().source()) && clientLoot != null ? clientLoot : BossLoot.of(repos),
+        clientBuild, nav);
   }
 
   /** The page reading each boss's loot from {@code bossLoot}, without quests. */
@@ -110,7 +129,21 @@ public final class InstancePage extends JPanel implements PageState {
 
   /** The page with {@code quests}, reading each boss's loot from {@code bossLoot}. */
   public InstancePage(InstanceDetail d, List<QuestSummary> quests, BossLoot bossLoot, Navigator nav) {
+    this(d, quests, bossLoot, "unknown", nav);
+  }
+
+  public InstancePage(InstanceDetail d, List<QuestSummary> quests, BossLoot bossLoot, String clientBuild,
+      Navigator nav) {
     super(new BorderLayout());
+    client = InstanceSummary.CLIENT.equals(d.summary().source());
+    clientNoLoot = client && d.difficulties().isEmpty();
+    String build = clientBuild == null || clientBuild.isBlank() ? "unknown" : clientBuild;
+    coverage = !client ? null : new WrappingText(clientNoLoot
+        ? COVERAGE_LINE.formatted(d.bosses().stream().filter(b -> !b.extraList()).count(), 0, build)
+        : "Bosses: " + d.bosses().stream().filter(b -> !b.extraList()).count()
+            + " named in client data · Loot: recorded (unverified) · Client build " + build, "Dungeon data coverage");
+    encounterCaption = client ? new WrappingText(ENCOUNTER_CAPTION, "Encounter order source") : null;
+    bossesNote = client ? new WrappingText(BOSSES_NOTE, "Boss data source") : null;
     this.bossLoot = bossLoot;
     this.dungeonBosses = d.summary().zoneId() != null;
     this.nav = nav;
@@ -120,6 +153,7 @@ public final class InstancePage extends JPanel implements PageState {
     mainBosses = d.bosses().stream().filter(b -> !b.extraList()).toList();
     extraBosses = d.bosses().stream().filter(BossSummary::extraList).toList();
     encounters = bossList(mainBosses, i -> encounterLabel(i + 1, mainBosses.get(i)));
+    if (client) installClientEncounters();
     encounters.getAccessibleContext().setAccessibleName("Encounters");
     extraLists = bossList(extraBosses, i -> extraBosses.get(i).displayName());
     extraLists.getAccessibleContext().setAccessibleName(extraListsHeading.getText());
@@ -136,10 +170,21 @@ public final class InstancePage extends JPanel implements PageState {
     split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, encounterPane(), right);
     split.setResizeWeight(0.3);
     split.setBorder(null);
-    add(header, BorderLayout.NORTH);
+    if (client) {
+      JPanel top = new JPanel(new BorderLayout());
+      top.setOpaque(false);
+      top.add(header, BorderLayout.NORTH);
+      coverage.setBorder(BorderFactory.createEmptyBorder(0, UIScale.scale(12), UIScale.scale(8), UIScale.scale(12)));
+      top.add(coverage, BorderLayout.CENTER);
+      add(top, BorderLayout.NORTH);
+    } else {
+      add(header, BorderLayout.NORTH);
+    }
     add(split, BorderLayout.CENTER);
     if (!d.bosses().isEmpty()) {
       selectBoss(0); // firstBoss(d): main encounters come first
+    } else if (client) {
+      showEmptyLoot(NO_LOOT_NOTE);
     } else {
       addSections(questsSection);
     }
@@ -210,8 +255,19 @@ public final class InstancePage extends JPanel implements PageState {
 
   /** The instance name over its type, levels, a zone link and an "NPCs in" link to the NPC list of that zone. */
   private static HeaderPanel header(InstanceSummary s, Navigator nav) {
+    boolean client = InstanceSummary.CLIENT.equals(s.source());
     HeaderPanel header = new HeaderPanel(Labels.instanceTitle(s.displayName(), s.key()),
-        Labels.instanceSubtitle(s.contentType(), s.levelMin(), s.levelMax(), null));
+        client ? Labels.contentType(s.contentType())
+            : Labels.instanceSubtitle(s.contentType(), s.levelMin(), s.levelMax(), null));
+    if (client) {
+      header.addChip(new Chip("New in Forever", Chip.Style.PLAIN));
+      String level = Labels.tunedLevel(s.tunedMinLevel());
+      if (level != null) {
+        Chip tuning = new Chip(level, Chip.Style.PLAIN);
+        tuning.setToolTipText("Tuning level from the game client");
+        header.addChip(tuning);
+      }
+    }
     header.setPlate(SourcesPage.plateIcon(RailTarget.INSTANCES));
     header.setKindWord(EntityKind.INSTANCE.label());
     if (s.zoneId() != null) {
@@ -258,6 +314,30 @@ public final class InstancePage extends JPanel implements PageState {
     return list;
   }
 
+  private void installClientEncounters() {
+    encounters.setCellRenderer((list, boss, index, selected, focus) -> {
+      JPanel row = new JPanel(new BorderLayout(UIScale.scale(6), 0));
+      row.setBorder(BorderFactory.createEmptyBorder(UIScale.scale(4), 0, UIScale.scale(4), UIScale.scale(4)));
+      row.setBackground(selected ? list.getSelectionBackground() : list.getBackground());
+      Chip badge = new Chip(Integer.toString(index + 1), Chip.Style.PLAIN);
+      row.add(badge, BorderLayout.WEST);
+      JPanel text = new JPanel();
+      text.setOpaque(false);
+      text.setLayout(new BoxLayout(text, BoxLayout.PAGE_AXIS));
+      JLabel name = new JLabel(boss.displayName());
+      name.setForeground(selected ? list.getSelectionForeground() : list.getForeground());
+      String note = clientNoLoot ? "Loot not recorded yet" : "Loot status unverified";
+      JLabel status = new JLabel(note);
+      status.setForeground(selected ? list.getSelectionForeground() : Theme.current().textMuted());
+      status.setFont(status.getFont().deriveFont(status.getFont().getSize2D() * 0.9f));
+      text.add(name);
+      text.add(status);
+      row.add(text, BorderLayout.CENTER);
+      row.getAccessibleContext().setAccessibleName((index + 1) + ". " + boss.displayName() + ", " + note);
+      return row;
+    });
+  }
+
   /** A selection in {@code from} clears {@code other} and shows the selected loot. */
   private void linkSelections(JList<BossSummary> from, JList<BossSummary> other) {
     from.addListSelectionListener(e -> {
@@ -273,6 +353,13 @@ public final class InstancePage extends JPanel implements PageState {
     JPanel left = new JPanel();
     left.setLayout(new BoxLayout(left, BoxLayout.PAGE_AXIS));
     left.setBorder(BorderFactory.createEmptyBorder(0, 8, 8, 8));
+    if (client) {
+      left.add(goldHeading("Encounters"));
+      encounterCaption.setAlignmentX(LEFT_ALIGNMENT);
+      bossesNote.setAlignmentX(LEFT_ALIGNMENT);
+      left.add(encounterCaption);
+      left.add(bossesNote);
+    }
     left.add(encounters);
     extraListsHeading.setAlignmentX(LEFT_ALIGNMENT);
     left.add(extraListsHeading);
@@ -369,7 +456,7 @@ public final class InstancePage extends JPanel implements PageState {
   private void showLoot(BossSummary boss) {
     shown = boss;
     List<LootRow> loot = difficulty == null ? List.of() : bossLoot.lookup(boss.id(), difficulty);
-    Map<RateSource.Key, List<RateSource>> sources = boss.npcId() == null ? Map.of()
+    Map<RateSource.Key, List<RateSource>> sources = boss.npcId() == null || loot.isEmpty() ? Map.of()
         : bossLoot.sources(boss.npcId(), RateSource.ratedItems(loot));
     String level = levelText(boss.level());
     bossHeader = new HeaderPanel(boss.displayName(), Labels.join(level == null ? null : "Level " + level));
@@ -377,12 +464,18 @@ public final class InstancePage extends JPanel implements PageState {
     if (boss.npcId() != null) {
       bossHeader.addLink("NPC page", new EntityRef(EntityKind.NPC, boss.npcId()), nav);
     }
+    if (client && loot.isEmpty()) {
+      showEmptyLoot(clientNoLoot ? NO_LOOT_NOTE : "No loot recorded yet for this encounter.");
+      return;
+    }
+    noLootNote = null;
     // AtlasLoot's entry order ("#") orders the rows but is no equipment slot: the column is left out
     lootTable = LootTables.grouped(loot, new LootTables.Grouping(SlotGroups::of, SlotGroups.ORDER, null, Set.of(),
         Set.of(Columns.LOOT_ORDER)),
         boss.npcId() == null ? LootTables.NO_SOURCES : LootTables.sourcesOf(boss.npcId(), sources),
         dungeonBosses, nav);
     lootSection = new SourceSection(LOOT, loot.size(), lootTable);
+    if (client) lootSection.setNote("Recorded loot is unverified.");
     lootSection.setRowLimited(false); // the page's main content, rebuilt for every encounter: never cut
     lootPane.removeAll();
     lootPane.add(bossHeader);
@@ -393,6 +486,29 @@ public final class InstancePage extends JPanel implements PageState {
     lootPane.revalidate();
     lootPane.repaint();
   }
+
+  private void showEmptyLoot(String message) {
+    lootTable = null;
+    LinkTable<String> hidden = LinkTable.inline(List.of(
+        new Columns.Column<String>("Name", String.class, value -> value, null)), nav);
+    hidden.setRows(List.of());
+    hidden.setVisible(false);
+    lootSection = new SourceSection(LOOT, 0, hidden);
+    lootSection.heading().label().setText(LOOT);
+    noLootNote = new WrappingText(message, "Loot coverage");
+    lootSection.addAboveTable(noLootNote);
+    lootPane.removeAll();
+    if (bossHeader != null) lootPane.add(bossHeader);
+    if (difficultyControl != null) lootPane.add(difficultyControl);
+    addSections(lootSection, questsSection);
+    lootPane.revalidate();
+    lootPane.repaint();
+  }
+
+  public WrappingText coverage() { return coverage; }
+  public WrappingText encounterCaption() { return encounterCaption; }
+  public WrappingText bossesNote() { return bossesNote; }
+  public WrappingText noLootNote() { return noLootNote; }
 
   private static JLabel goldHeading(String text) {
     JLabel heading = new JLabel(text) {

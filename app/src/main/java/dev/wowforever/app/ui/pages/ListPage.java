@@ -9,16 +9,24 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.widgets.ChipCellRenderer;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailIcons;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import dev.wowforever.app.ui.widgets.SourceSection;
+import dev.wowforever.app.ui.widgets.WrappingText;
+import java.awt.BorderLayout;
+import java.awt.Desktop;
+import java.io.IOException;
+import java.net.URI;
 import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.Icon;
+import javax.swing.JButton;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
 
 /**
  * A list page opened from the category rail, one scrolling page: the title, a {@link FilterBar} for items, NPCs
@@ -30,6 +38,10 @@ import javax.swing.JLabel;
 public final class ListPage extends SourcesPage {
   /** The heading of the single results table. */
   static final String RESULTS = "Results";
+  public static final String FOREVER_FOOTNOTE = "Announced by Blizzard, not yet in this client build: Drowned City, Krol'dok Stronghold, Alcaz Island Prison, Blackmaw Hold, The Shaper's Terrace; raids Barrow Deeps and Hyjal Summit (open 9 Dec 2026).";
+  public static final String FOREVER_SOURCE = "https://www.wowhead.com/forever/blue-tracker/news/eu/24303313";
+  private WrappingText foreverFootnote;
+  private JButton foreverSource;
 
   private final HeaderPanel header;
   private final FilterBar filterBar;
@@ -51,6 +63,12 @@ public final class ListPage extends SourcesPage {
   /** As above, with {@code levelDelay} debouncing the level spinners (a seam for tests). */
   public ListPage(ViewTarget.List target, ListOptions options, List<?> rows, Navigator nav,
       Consumer<ListFilter> onFilter, MasterList.Delay levelDelay) {
+    this(target, options, rows, nav, onFilter, levelDelay, ListPage::browse);
+  }
+
+  /** External announcement navigation is user-initiated; the port keeps tests offline. */
+  public ListPage(ViewTarget.List target, ListOptions options, List<?> rows, Navigator nav,
+      Consumer<ListFilter> onFilter, MasterList.Delay levelDelay, Consumer<URI> sourceOpener) {
     super(nav);
     this.target = Objects.requireNonNull(target, "target");
     emptyText = target.filter() instanceof NoFilter ? "No entries." : "Nothing matches these filters.";
@@ -66,7 +84,10 @@ public final class ListPage extends SourcesPage {
       results = null;
       section = null;
       for (LevelBands.Band band : LevelBands.of(cast(rows))) {
-        addSection(band.title(), band.instances().size(), Columns.instances(), band.instances());
+        LinkTable<InstanceSummary> table = addSection(band.title(), band.instances().size(), Columns.instances(), band.instances());
+        var name = table.table().getColumnModel().getColumn(table.table().getColumnModel().getColumnIndex("Name"));
+        ChipCellRenderer.install(name, row -> InstanceSummary.CLIENT.equals(table.model()
+            .rowAt(table.table().convertRowIndexToModel(row)).source()) ? "New in Forever" : null);
       }
     } else {
       results = table(target.kind(), nav);
@@ -78,6 +99,24 @@ public final class ListPage extends SourcesPage {
     emptyNote.setBorder(BorderFactory.createEmptyBorder(8, 12, 8, 12));
     emptyNote.setVisible(rows.isEmpty());
     content.add(emptyNote);
+    if (target.kind() == EntityKind.INSTANCE) {
+      JPanel footnote = new JPanel(new BorderLayout(0, 4));
+      footnote.setOpaque(false);
+      footnote.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+      foreverFootnote = new WrappingText("2026-10-17 research snapshot · Client build 1.60.1.70450. "
+          + FOREVER_FOOTNOTE, "Announced dungeons research snapshot");
+      foreverSource = new JButton("Blizzard announcement ↗");
+      foreverSource.addActionListener(e -> {
+        try {
+          sourceOpener.accept(URI.create(FOREVER_SOURCE));
+        } catch (RuntimeException failure) {
+          foreverSource.setToolTipText("Could not open the browser: " + failure.getMessage());
+        }
+      });
+      footnote.add(foreverFootnote, BorderLayout.CENTER);
+      footnote.add(foreverSource, BorderLayout.SOUTH);
+      content.add(footnote);
+    }
     Icon icon = RailIcons.shared().small(RailTarget.of(target.kind()).orElseThrow(), RailIcons.SMALL);
     for (SourceSection s : sections()) { // the rail icon of the list, rows or not
       s.heading().setIcon(icon);
@@ -85,6 +124,20 @@ public final class ListPage extends SourcesPage {
     }
     bindJumpKeys();
   }
+
+  private static void browse(URI uri) {
+    if (!Desktop.isDesktopSupported() || !Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+      throw new IllegalStateException("Browser opening is unavailable");
+    }
+    try {
+      Desktop.getDesktop().browse(uri);
+    } catch (IOException failure) {
+      throw new IllegalStateException(failure.getMessage(), failure);
+    }
+  }
+
+  public WrappingText foreverFootnote() { return foreverFootnote; }
+  public JButton foreverSource() { return foreverSource; }
 
   /** The page title of a list of {@code kind}, as the rail names it. */
   public static String title(EntityKind kind) {

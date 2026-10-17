@@ -9,6 +9,12 @@ import org.junit.jupiter.api.Test;
 class LabelsTest {
 
   @Test
+  void tunedLevel() {
+    assertThat(Labels.tunedLevel(28)).isEqualTo("Level 28+");
+    assertThat(Labels.tunedLevel(null)).isNull();
+  }
+
+  @Test
   void idTextNamesTheKindAndId() {
     assertThat(Labels.idText(new EntityRef(EntityKind.ITEM, 19019))).contains("item:19019");
     assertThat(Labels.idText(new EntityRef(EntityKind.NPC, 448))).contains("npc:448");

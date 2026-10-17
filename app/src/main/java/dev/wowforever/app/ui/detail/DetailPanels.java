@@ -5,6 +5,7 @@ import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.GiverSpot;
 import dev.wowforever.app.model.InstanceDetail;
+import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.LootRow;
@@ -26,6 +27,7 @@ import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.BooleanSetting;
 import dev.wowforever.app.ui.StatusSink;
+import dev.wowforever.app.ui.pages.BossLoot;
 import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.NpcPage;
@@ -121,7 +123,16 @@ public final class DetailPanels {
    * What {@link #load} returns for a dungeon or raid: the instance and the quests filed under its zone
    * ({@link dev.wowforever.app.db.QuestRepository#byZone}; none without a zone), which its page lists after the loot.
    */
-  public record LoadedInstance(InstanceDetail detail, List<QuestSummary> quests) {
+  public record LoadedInstance(InstanceDetail detail, List<QuestSummary> quests, String clientBuild,
+      BossLoot clientLoot) {
+    public LoadedInstance(InstanceDetail detail, List<QuestSummary> quests) {
+      this(detail, quests, "unknown", null);
+    }
+
+    public LoadedInstance(InstanceDetail detail, List<QuestSummary> quests, String clientBuild) {
+      this(detail, quests, clientBuild, null);
+    }
+
     public LoadedInstance {
       quests = List.copyOf(quests);
     }
@@ -201,7 +212,8 @@ public final class DetailPanels {
       case ZONE -> repos.zones().detail(id).map(d -> loadedZone(d, repos));
       case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)))
           .map(d -> new LoadedInstance(d, d.summary().zoneId() == null ? List.of()
-              : repos.quests().byZone(d.summary().zoneId())));
+              : repos.quests().byZone(d.summary().zoneId()), repos.instances().clientBuild(),
+              InstanceSummary.CLIENT.equals(d.summary().source()) ? BossLoot.preloaded(d, repos) : null));
       case BOSS -> Optional.empty();
     };
     return detail.map(Object.class::cast);
@@ -309,7 +321,7 @@ public final class DetailPanels {
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
               worker, status, nav, questPins, routes), nav);
-      case LoadedInstance p -> new InstancePage(p.detail(), p.quests(), repos, nav);
+      case LoadedInstance p -> new InstancePage(p.detail(), p.quests(), repos, p.clientBuild(), p.clientLoot(), nav);
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
   }

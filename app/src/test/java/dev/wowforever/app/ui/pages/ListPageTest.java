@@ -83,6 +83,30 @@ class ListPageTest {
   }
 
   @Test
+  void foreverDungeonsSortAmongClassicByLevel() {
+    var client = new InstanceSummary(900, "Client 28", "DUNGEON", 28, null, null, null,
+        "client:2959", "client", 28, "client_named", "none");
+    var lower = new InstanceSummary(901, "Classic 26", "DUNGEON", 26, 30, null, null);
+    var higher = new InstanceSummary(902, "Classic 30", "DUNGEON", 30, 35, null, null);
+    List<java.net.URI> external = new ArrayList<>();
+    var page = new ListPage(new ViewTarget.List(INSTANCE), options, List.of(higher, client, lower),
+        opened::add, filters::add, levels, external::add);
+    var table = page.sections().getFirst().table().table();
+    assertThat(column(table, 0)).containsExactly("Classic 26", "Client 28", "Classic 30");
+    int level = table.getColumnModel().getColumnIndex("Levels");
+    assertThat(table.getValueAt(1, level).toString()).isEqualTo("Level 28+");
+    int name = table.getColumnModel().getColumnIndex("Name");
+    var cell = table.prepareRenderer(table.getCellRenderer(1, name), 1, name);
+    assertThat(cell.getAccessibleContext().getAccessibleName()).contains("New in Forever");
+    assertThat(page.foreverFootnote().getText()).contains("2026-10-17", "1.60.1.70450", ListPage.FOREVER_FOOTNOTE);
+    assertThat(page.foreverSource().getParent()).isEqualTo(page.foreverFootnote().getParent());
+    var footnote = page.foreverFootnote().getParent();
+    assertThat(List.of(footnote.getParent().getComponents())).last().isSameAs(footnote);
+    page.foreverSource().doClick();
+    assertThat(external).containsExactly(java.net.URI.create(ListPage.FOREVER_SOURCE));
+  }
+
+  @Test
   void filtersProduceTheExpectedQuery() {
     ItemFilter armor = new ItemFilter(4, null, 10, 20, null);
     assertThat(ListRows.load(new ViewTarget.List(ITEM, armor), repos)).isEqualTo(repos.items().list(armor));
