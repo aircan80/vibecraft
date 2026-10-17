@@ -21,6 +21,9 @@ class SourceCatalogPanelTest {
       assertThat(panel.snapshotsTable().isCellEditable(0, 0)).isFalse();
       assertThat(panel.snapshotsTable().getAutoResizeMode()).isEqualTo(javax.swing.JTable.AUTO_RESIZE_OFF);
       assertThat(panel.filesTable().getAutoResizeMode()).isEqualTo(javax.swing.JTable.AUTO_RESIZE_OFF);
+      assertThat(panel.snapshotsTable().createToolTip().getClientProperty("html.disable")).isEqualTo(true);
+      assertThat(((javax.swing.JComponent) panel.snapshotsTable().prepareRenderer(
+          panel.snapshotsTable().getCellRenderer(0, 0), 0, 0)).getClientProperty("html.disable")).isEqualTo(true);
       panel.snapshotsTable().setRowSelectionInterval(0, 0);
       panel.filesTable().setRowSelectionInterval(0, 0);
       assertThat(opened).isEmpty();
@@ -31,6 +34,30 @@ class SourceCatalogPanelTest {
       assertThat(panel.openButton().isEnabled()).isFalse();
       panel.filesTable().setRowSelectionInterval(2, 2);
       assertThat(panel.openButton().isEnabled()).isFalse();
+    });
+  }
+
+  @Test void comparisonUsesExplicitBaselineAndRejectsOtherSources() throws Exception {
+    SwingUtilities.invokeAndWait(() -> {
+      var baseline = new Snapshot("old", "questie", "v1", "", "", "", "2026-01-01", List.of());
+      var selected = new Snapshot("new", "questie", "v2", "", "", "", "2026-02-01", List.of(new SourceFile("q.lua", null, "hash")));
+      var other = new Snapshot("other", "atlas", "v3", "", "", "", "2026-03-01", List.of());
+      var shown = new ArrayList<javax.swing.JComponent>();
+      var panel = new SourceCatalogPanel(new Catalog(true, List.of(baseline, selected, other)), uri -> {}, shown::add);
+      assertThat(panel.compareButton().isEnabled()).isFalse();
+      panel.snapshotsTable().setRowSelectionInterval(0, 0);
+      panel.useBaselineButton().doClick();
+      assertThat(panel.compareButton().isEnabled()).isFalse();
+      panel.snapshotsTable().setRowSelectionInterval(1, 1);
+      assertThat(panel.compareButton().isEnabled()).isTrue();
+      assertThat(shown).isEmpty();
+      panel.compareButton().doClick();
+      assertThat(shown).hasSize(1);
+      panel.snapshotsTable().setRowSelectionInterval(2, 2);
+      assertThat(panel.compareButton().isEnabled()).isFalse();
+      var legacy = new SourceCatalogPanel(new Catalog(false, List.of()), uri -> {}, shown::add);
+      assertThat(legacy.useBaselineButton().isEnabled()).isFalse();
+      assertThat(legacy.compareButton().isEnabled()).isFalse();
     });
   }
 
