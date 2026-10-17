@@ -47,6 +47,15 @@ public final class ArchiveWorkflow {
         inputs.put("server", directory(options.serverDbDir().orElseThrow()));
         descriptions.put("server", metadata("vmangos", inputs.get("server"), "serverdb.lock"));
       }
+      SourceSpec att = null;
+      if (!options.skipAllTheThings()) {
+        att = attSpec();
+        Path root=fetcher.resolve(att,options.allTheThingsDir());
+        // ATT projection is intentionally strict: a declared acquisition cannot be partial.
+        for(String path:att.paths()) if(!Files.isRegularFile(root.resolve(path)))
+          throw new IOException("Missing AllTheThings source input: "+path);
+        captureSpec(inputs,descriptions,"allthethings",att,root,options.allTheThingsDir().isPresent());
+      }
       byte[] config;
       try (InputStream stream = SourceSpec.class.getResourceAsStream("/dev/wowforever/importer/sources.properties")) {
         config = Objects.requireNonNull(stream).readAllBytes();
@@ -59,8 +68,10 @@ public final class ArchiveWorkflow {
       settings.store(bytes, null);
       String canonical = bytes.toString(java.nio.charset.StandardCharsets.ISO_8859_1).lines()
           .filter(line -> !line.startsWith("#")).sorted().collect(java.util.stream.Collectors.joining("\n"));
-      inputs.put("configuration", List.of(new Artifact("sources.properties", "", config),
+      List<Artifact> configuration=new ArrayList<>(List.of(new Artifact("sources.properties", "", config),
           new Artifact("projection.properties", "", canonical.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1))));
+      if(att!=null) configuration.addAll(attConfiguration(att));
+      inputs.put("configuration", configuration);
       descriptions.put("configuration", new Snapshot("import-configuration", "1", "", "", ""));
       try (Connection connection = connect(database)) {
         connection.setAutoCommit(false);
@@ -102,19 +113,27 @@ public final class ArchiveWorkflow {
       Path work = Files.createTempDirectory(database.getParent(), ".projection-");
       try {
         Map<String,String> selection = new TreeMap<>();
+        boolean pinnedAtt=true;
         try (Connection connection = connect(database);
             PreparedStatement statement = connection.prepareStatement("SELECT role,snapshot_id FROM source_ingestion_input WHERE ingestion_id=?")) {
           statement.setString(1,ingestion);
           try (ResultSet rows = statement.executeQuery()) { while(rows.next()) selection.put(rows.getString(1), rows.getString(2)); }
-          if (!selection.keySet().containsAll(List.of("configuration", "questiedb", "atlasloot")))
+          boolean legacy=selection.containsKey("legacy-app");
+          if (!(legacy ? selection.keySet().containsAll(List.of("configuration","legacy-app","allthethings"))
+              : selection.keySet().containsAll(List.of("configuration", "questiedb", "atlasloot"))))
             throw new IllegalArgumentException("Unknown or incomplete ingestion: " + ingestion);
-          if (!Set.of("configuration","questiedb","atlasloot","atlasloot-baseline","client","server").containsAll(selection.keySet()))
+          if (!Set.of("configuration","questiedb","atlasloot","atlasloot-baseline","client","server","allthethings","legacy-app").containsAll(selection.keySet()))
             throw new IOException("Unexpected archived input role");
+          if(selection.containsKey("allthethings")) pinnedAtt=!SourceArchive.snapshot(connection,selection.get("allthethings"))
+              .metadata().version().contains("(local input;");
           for (var entry : selection.entrySet()) SourceArchive.extract(connection,entry.getValue(),work.resolve(entry.getKey()));
         }
         Properties specs = new Properties(), settings = new Properties();
-        try (InputStream stream = Files.newInputStream(work.resolve("configuration/sources.properties"))) { specs.load(stream); }
+        boolean legacy=selection.containsKey("legacy-app");
+        if(!legacy) try (InputStream stream = Files.newInputStream(work.resolve("configuration/sources.properties"))) { specs.load(stream); }
         try (InputStream stream = Files.newInputStream(work.resolve("configuration/projection.properties"))) { settings.load(stream); }
+        if(!Set.of("true","false").contains(settings.getProperty("failOnUnsupported","")) || !settings.containsKey("coverageMin"))
+          throw new IOException("Archived projection settings are incomplete or invalid");
         Path candidate = work.resolve("candidate.sqlite");
         ImportOptions options = new ImportOptions(candidate, work.resolve("empty-cache"),
             Optional.of(work.resolve("questiedb")), Optional.of(work.resolve("atlasloot")),
@@ -122,11 +141,45 @@ public final class ArchiveWorkflow {
             selection.containsKey("client") ? ClientDataOptions.of(work.resolve("client")) : ClientDataOptions.skipped(),
             Integer.parseInt(settings.getProperty("coverageMin")),
             selection.containsKey("server") ? Optional.of(work.resolve("server")) : Optional.empty());
-        List<SourceSpec> sourceSpecs = SourceSpec.load(specs);
-        if (sourceSpecs.stream().anyMatch(s -> s.baseline() != null) && !selection.containsKey("atlasloot-baseline"))
-          throw new IOException("Archived AtlasLoot baseline is missing; offline projection refused");
-        ImportReport report = ImportPipeline.runResolved(options, console, sourceSpecs,
-            selection.containsKey("atlasloot-baseline") ? work.resolve("atlasloot-baseline") : null);
+        ImportReport report;
+        if(legacy) {
+          if(!selection.keySet().equals(Set.of("configuration","legacy-app","allthethings")))
+            throw new IOException("Legacy ingestion contains unexpected input roles");
+          Files.copy(work.resolve("legacy-app/base.sqlite"),candidate);
+          try(Connection c=connect(candidate); Statement query=c.createStatement();
+              ResultSet rows=query.executeQuery("SELECT name FROM sqlite_master WHERE type='table' AND name GLOB 'source_*'")) {
+            if(rows.next()) throw new IOException("Legacy baseline must predate source archiving");
+          }
+          report=new ImportReport();
+          report.note("Legacy baseline retained; core data was not regenerated or revalidated for client coverage.");
+        } else {
+          List<SourceSpec> sourceSpecs = SourceSpec.load(specs);
+          if (sourceSpecs.stream().anyMatch(x -> x.baseline() != null) && !selection.containsKey("atlasloot-baseline"))
+            throw new IOException("Archived AtlasLoot baseline is missing; offline projection refused");
+          report = ImportPipeline.runResolved(options, console, sourceSpecs,
+              selection.containsKey("atlasloot-baseline") ? work.resolve("atlasloot-baseline") : null);
+        }
+        if(selection.containsKey("allthethings")) {
+          SourceSpec att=archivedAttSpec(work.resolve("configuration"));
+          try(Connection connection=connect(candidate)) {
+            connection.setAutoCommit(false);
+            var stats=dev.wowforever.importer.sqlite.AllTheThingsProjection.apply(connection,
+                work.resolve("allthethings"),selection.get("allthethings"),att,pinnedAtt);
+            report.count("allthethings.questLinksSelected",stats.selected());
+            report.count("allthethings.questGroupsConflicting",stats.conflicts());
+            report.count("allthethings.conditionsUnsupported",stats.unsupported());
+            String original;
+            try(Statement query=connection.createStatement();ResultSet value=query.executeQuery("SELECT value FROM meta WHERE key='build_id'")) {
+              if(!value.next())throw new SQLException("Candidate build ID missing");original=value.getString(1);
+            }
+            String build=hash("att-project-v1\n"+ingestion+"\n"+transformationVersion()+"\n"+(legacy ? original : "core"));
+            try(PreparedStatement update=connection.prepareStatement("INSERT OR REPLACE INTO meta(key,value) VALUES ('build_id',?)")) {
+              update.setString(1,build);update.executeUpdate();
+            }
+            connection.commit();Files.writeString(work.resolve("build-id.txt"),build);
+          }
+        }
+        if(selection.containsKey("allthethings") || legacy) Files.writeString(work.resolve("import-report.txt"),report.render());
         long lost = report.skipsOnUiFields()+Main.unsupportedCounters(report)
             +(ClientDataStage.coverageTooLow(report,options.coverageMinPct()) ? 1 : 0);
         if (Main.exitCode(options.failOnUnsupported(), lost) != 0) {
@@ -164,8 +217,10 @@ public final class ArchiveWorkflow {
               if (!value.next()) throw new SQLException("Candidate build ID missing");
               statement.setString(5,value.getString(1));
             }
-            statement.setString(6,"UI skips="+report.skipsOnUiFields()+"; unsupported fields="+Main.unsupportedCounters(report)
-                +"; client coverage="+report.get(ClientDataStage.COVERAGE_PCT)+"%; client data skipped="+report.get(ClientDataStage.SKIPPED));
+            statement.setString(6,(legacy ? "Legacy baseline retained; core client coverage not revalidated; " : "")+"UI skips="+report.skipsOnUiFields()+"; unsupported fields="+Main.unsupportedCounters(report)
+                +"; client coverage="+report.get(ClientDataStage.COVERAGE_PCT)+"%; client data skipped="+report.get(ClientDataStage.SKIPPED)
+                +"; ATT selected="+report.get("allthethings.questLinksSelected")+"; ATT conflicts="+report.get("allthethings.questGroupsConflicting")
+                +"; ATT unsupported="+report.get("allthethings.conditionsUnsupported"));
             statement.executeUpdate();
           }
           try (Statement statement=connection.createStatement()) {
@@ -173,6 +228,9 @@ public final class ArchiveWorkflow {
           }
           try (PreparedStatement statement=connection.prepareStatement("INSERT OR REPLACE INTO meta(key,value) VALUES ('source_ingestion_id',?)")) {
             statement.setString(1,ingestion);statement.executeUpdate();
+          }
+          if(legacy) try(PreparedStatement statement=connection.prepareStatement("INSERT OR REPLACE INTO meta(key,value) VALUES ('source_base_snapshot_id',?)")) {
+            statement.setString(1,selection.get("legacy-app"));statement.executeUpdate();
           }
           connection.commit();
           try (Statement statement=connection.createStatement(); ResultSet rows=statement.executeQuery("PRAGMA quick_check")) {
@@ -189,7 +247,7 @@ public final class ArchiveWorkflow {
     }
   }
 
-  private static void initialize(Connection c) throws SQLException {
+  static void initialize(Connection c) throws SQLException {
     SourceArchive.initialize(c);
     try (Statement s=c.createStatement()) {
       s.execute("CREATE TABLE IF NOT EXISTS source_ingestion(id TEXT PRIMARY KEY,captured_at TEXT NOT NULL)");
@@ -208,7 +266,7 @@ public final class ArchiveWorkflow {
         s.execute("ALTER TABLE source_projection ADD COLUMN "+column.getKey()+" "+column.getValue());
       }
   }
-  private static void captureSpec(Map<String,List<Artifact>> inputs, Map<String,Snapshot> descriptions,
+  static void captureSpec(Map<String,List<Artifact>> inputs, Map<String,Snapshot> descriptions,
       String role, SourceSpec spec, Path root, boolean local) throws IOException {
     List<Artifact> files = new ArrayList<>();
     List<String> missing = new ArrayList<>();
@@ -224,6 +282,27 @@ public final class ArchiveWorkflow {
     inputs.put(role,files);
     descriptions.put(role,new Snapshot(role,spec.pin()+(!missing.isEmpty() ? " (partial selection; see missing-inputs.txt)" : "")+(local ? " (local input; content identified by hash)" : ""),
         role.startsWith("atlasloot") ? "classic" : "forever","",""));
+  }
+  static SourceSpec attSpec() {
+    return new SourceSpec("allthethings",dev.wowforever.importer.allthethings.AllTheThingsSource.OWNER,
+        dev.wowforever.importer.allthethings.AllTheThingsSource.REPOSITORY,
+        dev.wowforever.importer.allthethings.AllTheThingsSource.PIN,
+        dev.wowforever.importer.allthethings.AllTheThingsSource.paths());
+  }
+  static List<Artifact> attConfiguration(SourceSpec spec) {
+    String properties="allthethings.owner="+spec.owner()+"\nallthethings.repo="+spec.repo()+"\nallthethings.commit="+spec.commit()+"\n";
+    return List.of(new Artifact("allthethings.properties","",properties.getBytes(java.nio.charset.StandardCharsets.ISO_8859_1)),
+        new Artifact("allthethings-paths.txt","",String.join("\n",spec.paths()).getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+  }
+  static SourceSpec archivedAttSpec(Path configuration) throws IOException {
+    Properties properties=new Properties();
+    try(InputStream input=Files.newInputStream(configuration.resolve("allthethings.properties"))) { properties.load(input); }
+    List<String> paths=Files.readAllLines(configuration.resolve("allthethings-paths.txt"),java.nio.charset.StandardCharsets.UTF_8);
+    if(paths.isEmpty() || paths.stream().anyMatch(String::isBlank))throw new IOException("Empty ATT acquisition manifest");
+    for(String key:List.of("owner","repo","commit"))
+      if(properties.getProperty("allthethings."+key,"").isBlank())throw new IOException("Missing archived ATT "+key);
+    return new SourceSpec("allthethings",properties.getProperty("allthethings.owner"),properties.getProperty("allthethings.repo"),
+        properties.getProperty("allthethings.commit"),paths);
   }
   private static List<Artifact> directory(Path directory) throws IOException {
     List<Artifact> files = new ArrayList<>();
@@ -293,7 +372,7 @@ public final class ArchiveWorkflow {
         || (Files.exists(a) && Files.exists(b) && Files.isSameFile(a,b));
   }
   private static Connection connect(Path file) throws SQLException { return DriverManager.getConnection("jdbc:sqlite:"+file); }
-  private static String hash(String value) {
+  static String hash(String value) {
     try { return HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(value.getBytes(java.nio.charset.StandardCharsets.UTF_8))); }
     catch(java.security.NoSuchAlgorithmException e) { throw new IllegalStateException(e); }
   }

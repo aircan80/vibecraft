@@ -72,8 +72,9 @@ public final class Main {
       try { return ArchiveWorkflow.project(java.nio.file.Path.of(args[2]), args[4], out, err); }
       catch (Exception e) { e.printStackTrace(err); return 1; }
     }
+    boolean captureAtt = args.length > 0 && args[0].equals("ingest-att");
     boolean captureOnly = args.length > 0 && args[0].equals("ingest");
-    if (captureOnly) args = Arrays.copyOfRange(args, 1, args.length);
+    if (captureOnly || captureAtt) args = Arrays.copyOfRange(args, 1, args.length);
     ImportOptions options;
     try {
       options = ImportOptions.parse(args);
@@ -82,9 +83,9 @@ public final class Main {
       return 1;
     }
     try {
-      String ingestion = ArchiveWorkflow.ingest(options);
+      String ingestion = captureAtt ? LegacyAttWorkflow.ingest(options) : ArchiveWorkflow.ingest(options);
       out.println("Captured ingestion: " + ingestion);
-      if (captureOnly) return 0;
+      if (captureOnly || captureAtt) return 0;
       int result = ArchiveWorkflow.project(options.out(), ingestion, out, err);
       if (result == 0 && !options.buildIdOut().toAbsolutePath().equals(ImportOptions.defaultBuildIdOut(options.out()))) {
         try {

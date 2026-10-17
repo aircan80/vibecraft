@@ -99,7 +99,9 @@ public record SourceSpec(String key, String owner, String repo, String commit, L
 
   /** The URL of a file at the pinned commit below {@code base} ({@code base/owner/repo/commit/path}). */
   public URI rawUrl(URI base, String path) {
-    return base.resolve(owner + "/" + repo + "/" + commit + "/" + path);
+    try {
+      return base.resolve(new URI(null,null,owner + "/" + repo + "/" + commit + "/" + path,null).toASCIIString());
+    } catch(java.net.URISyntaxException e) { throw new IllegalArgumentException("Invalid source path",e); }
   }
 
   private static List<String> list(String value) {
