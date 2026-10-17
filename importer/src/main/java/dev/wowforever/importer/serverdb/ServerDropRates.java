@@ -30,6 +30,9 @@ import java.util.function.LongPredicate;
  *       ({@value #MAX_REFERENCE_DEPTH}), deeper ones count as {@code serverdb.references.depthCapped}, unknown ones
  *       as {@code serverdb.references.missing}.</li>
  *   <li>An item reached by several rows combines as independent rolls: {@code 1 - prod(1 - p)}.</li>
+ *   <li>A rate is quest-only when every path to the item is: its own row, or a reference row on the way, has a
+ *       negative chance. A quest-only rate goes in at {@link #QUEST_ONLY_PRECEDENCE}, below every other source, and
+ *       is marked {@link DropRate#questOnly()}; an item with at least one ordinary path is an ordinary rate.</li>
  * </ul>
  * Creatures reach their table through {@code creature_template.loot_id}; creature entries are the Classic NPC ids
  * Questie uses. Rates go into {@link DropRates} under source {@value #SOURCE} at precedence {@link #PRECEDENCE}.
@@ -37,13 +40,17 @@ import java.util.function.LongPredicate;
 public final class ServerDropRates {
   public static final String SOURCE = "vmangos";
   public static final int PRECEDENCE = DropRateLoader.VMANGOS;
+  public static final int QUEST_ONLY_PRECEDENCE = DropRateLoader.VMANGOS_QUEST_ONLY;
   /** VMaNGOS patch index of 1.12, the last Classic patch; rows are read as they are at this patch. */
   public static final int PATCH = 10;
   public static final int MAX_REFERENCE_DEPTH = 5;
 
+  /** An item's drop probability (0 to 1) from one table, and whether every path to it is quest-only. */
+  private record Drop(double probability, boolean questOnly) {}
+
   private final Map<Long, List<LootRow>> references;
   private final ImportReport report;
-  private final Map<Long, Map<Long, Double>> referenceMemo = new HashMap<>();
+  private final Map<Long, Map<Long, Drop>> referenceMemo = new HashMap<>();
 
   private ServerDropRates(Map<Long, List<LootRow>> references, ImportReport report) {
     this.references = references;
@@ -54,7 +61,8 @@ public final class ServerDropRates {
    * Computes the rates of every creature {@code knownNpc} accepts and puts them into {@code rates}. Counters:
    * {@code serverdb.loot.rows} and {@code serverdb.reference.rows} (rows read at {@value #PATCH}),
    * {@code serverdb.creatures} (creatures with a loot table), {@code serverdb.unmatched.npcs} (of those, the ones
-   * {@code knownNpc} rejects), {@code serverdb.rates} ((npc, item) pairs put) and the rule counters above.
+   * {@code knownNpc} rejects), {@code serverdb.rates} ((npc, item) pairs put), {@code serverdb.rates.questOnlyPairs}
+   * (of those, the quest-only ones) and the rule counters above.
    *
    * @return the number of (npc, item) pairs put
    */
@@ -65,12 +73,12 @@ public final class ServerDropRates {
     report.count("serverdb.loot.rows", loot.values().stream().mapToLong(List::size).sum());
     report.count("serverdb.reference.rows", references.values().stream().mapToLong(List::size).sum());
     for (String counter : List.of("serverdb.creatures", "serverdb.unmatched.npcs", "serverdb.rates",
-        "serverdb.rates.questOnly", "serverdb.zeroChance.ungrouped", "serverdb.references.depthCapped",
-        "serverdb.references.missing")) {
+        "serverdb.rates.questOnly", "serverdb.rates.questOnlyPairs", "serverdb.zeroChance.ungrouped",
+        "serverdb.references.depthCapped", "serverdb.references.missing")) {
       report.count(counter, 0);
     }
     ServerDropRates computer = new ServerDropRates(references, report);
-    Map<Long, Map<Long, Double>> tables = new HashMap<>();
+    Map<Long, Map<Long, Drop>> tables = new HashMap<>();
     int pairs = 0;
     for (Map.Entry<Long, Long> creature : new TreeMap<>(db.creatureLootIds(PATCH)).entrySet()) {
       List<LootRow> rows = loot.get(creature.getValue());
@@ -83,9 +91,14 @@ public final class ServerDropRates {
         report.count("serverdb.unmatched.npcs", 1);
         continue;
       }
-      Map<Long, Double> table = tables.computeIfAbsent(creature.getValue(), k -> computer.roll(rows, 0));
-      for (Map.Entry<Long, Double> item : table.entrySet()) {
-        rates.put(npcId, item.getKey(), new DropRate(percent(item.getValue()), SOURCE), PRECEDENCE);
+      Map<Long, Drop> table = tables.computeIfAbsent(creature.getValue(), k -> computer.roll(rows, 0));
+      for (Map.Entry<Long, Drop> item : table.entrySet()) {
+        Drop d = item.getValue();
+        rates.put(npcId, item.getKey(), new DropRate(percent(d.probability()), SOURCE, d.questOnly()),
+            d.questOnly() ? QUEST_ONLY_PRECEDENCE : PRECEDENCE);
+        if (d.questOnly()) {
+          report.count("serverdb.rates.questOnlyPairs", 1);
+        }
         pairs++;
       }
     }
@@ -99,11 +112,10 @@ public final class ServerDropRates {
   }
 
   /**
-   * Item id to drop probability (0 to 1) of one table's rows; {@code depth} is the number of references followed to
-   * reach them. Each creature table and each top-level reference is computed once, so the rule counters count rows
-   * per computed table.
+   * Item id to drop of one table's rows; {@code depth} is the number of references followed to reach them. Each
+   * creature table and each top-level reference is computed once, so the rule counters count rows per computed table.
    */
-  private Map<Long, Double> roll(List<LootRow> rows, int depth) {
+  private Map<Long, Drop> roll(List<LootRow> rows, int depth) {
     Map<Integer, Double> explicit = new HashMap<>();
     Map<Integer, Integer> equal = new HashMap<>();
     for (LootRow r : rows) {
@@ -115,7 +127,8 @@ public final class ServerDropRates {
         }
       }
     }
-    Map<Long, Double> miss = new HashMap<>(); // item -> probability that no row drops it
+    // item -> (probability that no row drops it, whether every path so far is quest-only)
+    Map<Long, Drop> miss = new HashMap<>();
     for (LootRow r : rows) {
       double p;
       if (r.chance() != 0) {
@@ -129,30 +142,35 @@ public final class ServerDropRates {
       if (p <= 0) {
         continue;
       }
+      boolean questRow = r.chance() < 0;
       if (r.isReference()) {
-        Map<Long, Double> inner = reference(r.reference(), depth + 1);
         int times = Math.max(1, r.maxcount());
-        for (Map.Entry<Long, Double> e : inner.entrySet()) {
-          double q = p * (1 - Math.pow(1 - e.getValue(), times));
-          miss.merge(e.getKey(), 1 - q, (a, b) -> a * b);
+        for (Map.Entry<Long, Drop> e : reference(r.reference(), depth + 1).entrySet()) {
+          double q = p * (1 - Math.pow(1 - e.getValue().probability(), times));
+          miss.merge(e.getKey(), new Drop(1 - q, questRow || e.getValue().questOnly()), ServerDropRates::both);
         }
       } else {
-        if (r.chance() < 0) {
+        if (questRow) {
           report.count("serverdb.rates.questOnly", 1);
         }
-        miss.merge(r.item(), 1 - p, (a, b) -> a * b);
+        miss.merge(r.item(), new Drop(1 - p, questRow), ServerDropRates::both);
       }
     }
-    Map<Long, Double> drops = new HashMap<>();
+    Map<Long, Drop> drops = new HashMap<>();
     miss.forEach((item, m) -> {
-      if (m < 1) {
-        drops.put(item, 1 - m);
+      if (m.probability() < 1) {
+        drops.put(item, new Drop(1 - m.probability(), m.questOnly()));
       }
     });
     return drops;
   }
 
-  private Map<Long, Double> reference(long id, int depth) {
+  /** Two independent misses of one item: both must miss; quest-only only when both paths are. */
+  private static Drop both(Drop a, Drop b) {
+    return new Drop(a.probability() * b.probability(), a.questOnly() && b.questOnly());
+  }
+
+  private Map<Long, Drop> reference(long id, int depth) {
     if (depth > MAX_REFERENCE_DEPTH) {
       report.count("serverdb.references.depthCapped", 1);
       return Map.of();
@@ -164,11 +182,11 @@ public final class ServerDropRates {
     }
     // Only top-level references (depth 1) are memoised: deeper results depend on how much depth is left.
     if (depth == 1) {
-      Map<Long, Double> memo = referenceMemo.get(id);
+      Map<Long, Drop> memo = referenceMemo.get(id);
       if (memo != null) {
         return memo;
       }
-      Map<Long, Double> result = roll(rows, depth);
+      Map<Long, Drop> result = roll(rows, depth);
       referenceMemo.put(id, result);
       return result;
     }

@@ -54,11 +54,24 @@ Rates are computed as the server would roll them at patch 1.12 (VMaNGOS patch in
 
 Every (NPC, item) pair that Questie or AtlasLoot lists as a drop gets a `drop_rate_source` row with
 `source = 'vmangos'`. VMaNGOS-only pairs add no drop rows, because its reference tables carry the world-drop pools
-and world drops are never a mob's own loot. In the merged `item_npc_drop.drop_pct` a VMaNGOS rate ranks after the
-Questie corrections and before AtlasLoot and Questie's Wowhead data.
+and world drops are never a mob's own loot.
+
+VMaNGOS rates are a vanilla emulator's configured chances, and Forever's loot is reworked, so observed and curated
+data outranks them. The merged `item_npc_drop.drop_pct` takes the first of:
+
+1. Questie corrections
+2. AtlasLoot item overrides
+3. Questie's Wowhead data
+4. VMaNGOS, ordinary rows
+5. the AtlasLoot drop table
+6. VMaNGOS quest-only rows
+
+A quest-only rate is the chance while the looter is on the quest, not per kill. An item is quest-only when every row
+that reaches it has a negative chance. Such a rate headlines only when no other source rates the pair, and its
+`drop_rate_source` row has `quest_only = 1`. It still counts in `source_count` and may set `disagrees`.
 
 Report counters: `serverdb.loot.rows`, `serverdb.reference.rows`, `serverdb.creatures`, `serverdb.unmatched.npcs`
-(creatures with loot that are not in the NPC table), `serverdb.rates`, `serverdb.rates.questOnly`,
+(creatures with loot that are not in the NPC table), `serverdb.rates`, `serverdb.rates.questOnlyPairs`, `serverdb.rates.questOnly` (rows),
 `serverdb.zeroChance.ungrouped`, `serverdb.references.depthCapped`, `serverdb.references.missing` and
 `serverdb.skipped`; `provenance.sources.vmangos` counts the rows written.
 

@@ -18,18 +18,22 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Loads drop percentages from four sources and defines the precedence of all five (lower wins): 1 Questie manual
- * corrections, 2 VMaNGOS server rates (loaded separately by
- * {@link dev.wowforever.importer.serverdb.ServerDropRates}), 3 AtlasLoot item overrides, 4 Questie Wowhead data,
- * 5 AtlasLoot drop table.
+ * Loads drop percentages from four sources and defines the precedence of all of them (lower wins): 1 Questie manual
+ * corrections, 2 AtlasLoot item overrides, 3 Questie Wowhead data, 4 VMaNGOS server rates, 5 AtlasLoot drop table,
+ * 6 VMaNGOS quest-only rates. The VMaNGOS rates are loaded separately by
+ * {@link dev.wowforever.importer.serverdb.ServerDropRates}: they are a vanilla emulator's configured chances, while
+ * Forever's loot is reworked, so observed and curated data outranks them, and a quest-only chance (the chance while
+ * on the quest) is a different quantity that headlines only when no other source rates the pair.
  */
 public final class DropRateLoader {
   public static final int QUESTIE_CORRECTION = 1;
-  /** The VMaNGOS world database: after the Questie corrections, before every other source. */
-  public static final int VMANGOS = 2;
-  public static final int ATLASLOOT_OVERRIDE = 3;
-  public static final int QUESTIE_WOWHEAD = 4;
+  public static final int ATLASLOOT_OVERRIDE = 2;
+  public static final int QUESTIE_WOWHEAD = 3;
+  /** VMaNGOS rates of ordinary rows: below Questie's observed data, above the AtlasLoot drop table. */
+  public static final int VMANGOS = 4;
   public static final int ATLASLOOT = 5;
+  /** VMaNGOS quest-only rates (negative {@code ChanceOrQuestChance}): below every other source. */
+  public static final int VMANGOS_QUEST_ONLY = 6;
 
   private static final Path QUESTIE_DROPS = Path.of("support/Forever/DropTables/classicItemDrops.lua");
   private static final Path QUESTIE_CORRECTIONS = Path.of("support/Forever/DropTables/itemDropCorrections.lua");

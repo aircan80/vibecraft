@@ -70,7 +70,30 @@ class ServerDropRatesTest {
     load(new ServerDbFixture().creature(448, 448).loot(448, 1931, -100, 0, 1, 1).loot(448, 2, -35, 0, 1, 1));
     assertThat(pct(448, 1931)).isEqualTo(100.0);
     assertThat(pct(448, 2)).isEqualTo(35.0);
+    assertThat(rates.get(448, 1931).orElseThrow().questOnly()).isTrue();
     assertThat(report.get("serverdb.rates.questOnly")).isEqualTo(2);
+  }
+
+  @Test
+  void aQuestOnlyRateHeadlinesOnlyWhenNothingElseRatesThePair() throws Exception {
+    load(new ServerDbFixture().creature(448, 448)
+        .loot(448, 1931, -100, 0, 1, 1).loot(448, 2, -50, 0, 1, 1).loot(448, 3, -40, 0, 1, 1));
+    rates.put(448, 1931, new DropRate(83.9965, "questie-wowhead"), DropRateLoader.QUESTIE_WOWHEAD);
+    rates.put(448, 2, new DropRate(20, "atlasloot"), DropRateLoader.ATLASLOOT);
+    assertThat(rates.get(448, 1931).orElseThrow()).isEqualTo(new DropRate(83.9965, "questie-wowhead"));
+    assertThat(rates.allSources(448, 1931))
+        .containsExactly(new DropRate(83.9965, "questie-wowhead"), new DropRate(100, "vmangos", true));
+    assertThat(rates.get(448, 2).orElseThrow().source()).as("below AtlasLoot too").isEqualTo("atlasloot");
+    assertThat(rates.get(448, 3).orElseThrow()).as("alone, it headlines").isEqualTo(new DropRate(40, "vmangos", true));
+  }
+
+  @Test
+  void aRateIsQuestOnlyWhenEveryPathToTheItemIs() throws Exception {
+    load(new ServerDbFixture().creature(100, 100)
+        .lootRef(100, 500, 50, 0, 1).ref(500, 1, -100, 0, 1, 1) // quest-only inside a reference
+        .loot(100, 2, -50, 0, 1, 1).lootRef(100, 501, 100, 0, 1).ref(501, 2, 50, 0, 1, 1)); // one path is normal
+    assertThat(rates.get(100, 1).orElseThrow()).isEqualTo(new DropRate(50, "vmangos", true));
+    assertThat(rates.get(100, 2).orElseThrow()).isEqualTo(new DropRate(75, "vmangos", false));
   }
 
   @Test
@@ -192,21 +215,24 @@ class ServerDropRatesTest {
   }
 
   @Test
-  void vmangosRanksAfterQuestieCorrectionsAndBeforeEveryOtherSource() throws Exception {
+  void vmangosRanksBelowQuestieObservedDataAndAboveTheAtlasLootDropTable() throws Exception {
     load(new ServerDbFixture().creature(100, 100)
-        .loot(100, 1, 12, 0, 1, 1).loot(100, 2, 12, 0, 1, 1).loot(100, 3, 12, 0, 1, 1));
+        .loot(100, 1, 12, 0, 1, 1).loot(100, 2, 12, 0, 1, 1).loot(100, 3, 12, 0, 1, 1).loot(100, 4, 12, 0, 1, 1));
     rates.put(100, 1, new DropRate(60, "questie-correction"), DropRateLoader.QUESTIE_CORRECTION);
     rates.put(100, 1, new DropRate(50, "questie-wowhead"), DropRateLoader.QUESTIE_WOWHEAD);
     rates.put(100, 2, new DropRate(50, "questie-wowhead"), DropRateLoader.QUESTIE_WOWHEAD);
     rates.put(100, 2, new DropRate(40, "atlasloot"), DropRateLoader.ATLASLOOT);
-    rates.putItem(3, new DropRate(30, "atlasloot-override"), DropRateLoader.ATLASLOOT_OVERRIDE);
+    rates.put(100, 3, new DropRate(40, "atlasloot"), DropRateLoader.ATLASLOOT);
+    rates.putItem(4, new DropRate(30, "atlasloot-override"), DropRateLoader.ATLASLOOT_OVERRIDE);
     assertThat(rates.get(100, 1).orElseThrow().source()).isEqualTo("questie-correction");
-    assertThat(rates.get(100, 2).orElseThrow()).isEqualTo(new DropRate(12, "vmangos"));
+    assertThat(rates.get(100, 2).orElseThrow()).isEqualTo(new DropRate(50, "questie-wowhead"));
     assertThat(rates.get(100, 3).orElseThrow()).isEqualTo(new DropRate(12, "vmangos"));
-    assertThat(rates.allSources(100, 1)).extracting(DropRate::source)
-        .containsExactly("questie-correction", "vmangos", "questie-wowhead");
-    assertThat(DropRateLoader.QUESTIE_CORRECTION).isLessThan(ServerDropRates.PRECEDENCE);
-    assertThat(ServerDropRates.PRECEDENCE).isLessThan(DropRateLoader.ATLASLOOT_OVERRIDE);
+    assertThat(rates.get(100, 4).orElseThrow().source()).isEqualTo("atlasloot-override");
+    assertThat(rates.allSources(100, 2)).extracting(DropRate::source)
+        .containsExactly("questie-wowhead", "vmangos", "atlasloot");
+    assertThat(ServerDropRates.PRECEDENCE).isGreaterThan(DropRateLoader.QUESTIE_WOWHEAD)
+        .isLessThan(DropRateLoader.ATLASLOOT);
+    assertThat(ServerDropRates.QUEST_ONLY_PRECEDENCE).isGreaterThan(DropRateLoader.ATLASLOOT);
   }
 
   @Test
@@ -232,13 +258,14 @@ class ServerDropRatesTest {
         written);
     try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + out)) {
       assertThat(scalar(c, "select source_count || '/' || disagrees || '/' || pct_source from item_npc_drop"
-          + " where item_id = 14149")).isEqualTo("2/0/vmangos");
+          + " where item_id = 14149")).isEqualTo("2/0/questie-wowhead");
       assertThat(scalar(c, "select source_count || '/' || disagrees || '/' || drop_pct from item_npc_drop"
-          + " where item_id = 14148")).isEqualTo("2/1/40.0");
+          + " where item_id = 14148")).isEqualTo("2/1/10.0");
       assertThat(scalar(c, "select count(*) from drop_rate_source where source = 'vmangos'")).isEqualTo(2);
+      assertThat(scalar(c, "select sum(quest_only) from drop_rate_source")).isEqualTo(0);
     }
     assertThat(written.get("provenance.sources.vmangos")).isEqualTo(2);
-    assertThat(written.render()).contains("vmangos vs questie-wowhead: 1 disagreeing of 2 shared");
+    assertThat(written.render()).contains("questie-wowhead vs vmangos: 1 disagreeing of 2 shared");
   }
 
   private static Object scalar(Connection c, String sql) throws Exception {

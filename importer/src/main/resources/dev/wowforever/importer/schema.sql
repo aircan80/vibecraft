@@ -249,12 +249,15 @@ CREATE TABLE item_npc_drop (
   PRIMARY KEY (item_id, npc_id)
 );
 
--- every drop rate source's value for an npc/item pair
+-- every drop rate source's value for an npc/item pair; source: questie-correction | atlasloot-override |
+-- questie-wowhead | vmangos | atlasloot. quest_only (phase 3A, additive to schema v3) is 1 for a VMaNGOS quest-only
+-- chance: the chance while the looter is on the quest, not per kill.
 CREATE TABLE drop_rate_source (
-  npc_id  INTEGER NOT NULL,
-  item_id INTEGER NOT NULL,
-  source  TEXT NOT NULL,
-  pct     REAL,
+  npc_id     INTEGER NOT NULL,
+  item_id    INTEGER NOT NULL,
+  source     TEXT NOT NULL,
+  pct        REAL,
+  quest_only INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (npc_id, item_id, source)
 );
 

@@ -80,7 +80,7 @@ class ImportPipelineTest {
   @Test
   void endToEndWithTheServerDatabase(@TempDir Path tmp) throws Exception {
     Path serverDb = new ServerDbFixture()
-        .creature(639, 639).loot(639, 2874, 61.0, 0, 1, 1).loot(639, 1, 3.0, 0, 1, 1)
+        .creature(639, 639).loot(639, 2874, -100.0, 0, 1, 1).loot(639, 1, 3.0, 0, 1, 1)
         .creature(11520, 11520).lootRef(11520, 9000, 100, 0, 1).ref(9000, 14149, 10.0, 0, 1, 1)
         .creature(999999, 999999).loot(999999, 2874, 5.0, 0, 1, 1)
         .write(tmp.resolve("serverdb"));
@@ -93,12 +93,13 @@ class ImportPipelineTest {
         ClientDataStage.DEFAULT_MIN_COVERAGE_PCT, Optional.of(serverDb));
     ImportReport r = ImportPipeline.run(o, QUIET);
     try (Connection c = open(o.out())) {
-      // the Questie correction still wins; VMaNGOS is the fifth source
+      // the Questie correction still wins; the quest-only VMaNGOS rate is the fifth source, marked
       assertThat(scalar(c, "select drop_pct || '/' || pct_source || '/' || source_count || '/' || disagrees"
           + " from item_npc_drop where item_id = 2874 and npc_id = 639")).isEqualTo("60.0/questie-correction/5/1");
-      assertThat(scalar(c, "select pct from drop_rate_source where npc_id = 639 and item_id = 2874"
-          + " and source = 'vmangos'")).isEqualTo(61.0);
-      // VMaNGOS outranks AtlasLoot's 33.3 and disagrees with it
+      assertThat(scalar(c, "select pct || '/' || quest_only from drop_rate_source where npc_id = 639"
+          + " and item_id = 2874 and source = 'vmangos'")).isEqualTo("100.0/1");
+      assertThat(scalar(c, "select count(*) from drop_rate_source where quest_only = 1")).isEqualTo(1);
+      // VMaNGOS outranks the AtlasLoot drop table's 33.3 and disagrees with it
       assertThat(scalar(c, "select drop_pct || '/' || pct_source || '/' || source_count || '/' || disagrees"
           + " from item_npc_drop where item_id = 14149 and npc_id = 11520")).isEqualTo("10.0/vmangos/2/1");
       assertThat(scalar(c, "select min(source_count || '/' || disagrees) from boss_loot bl join boss b"
