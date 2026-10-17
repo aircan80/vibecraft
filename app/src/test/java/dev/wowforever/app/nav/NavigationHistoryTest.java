@@ -78,4 +78,16 @@ class NavigationHistoryTest {
   void backAtStartIsEmpty() {
     assertThat(new NavigationHistory().back()).isEmpty();
   }
+
+  @Test
+  void sizeCountsEveryEntryBackAndForward() {
+    var h = new NavigationHistory();
+    assertThat(h.size()).isZero();
+    h.push(new Home());
+    h.push(new List(ZONE));
+    h.replaceCurrent(new Entity(new EntityRef(ITEM, 1)));
+    assertThat(h.size()).isEqualTo(2);
+    h.back();
+    assertThat(h.size()).isEqualTo(2);
+  }
 }

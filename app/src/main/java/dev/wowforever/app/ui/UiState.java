@@ -48,6 +48,10 @@ public final class UiState {
   public static final int DEFAULT_WIDTH = 1280;
   /** The height of a window that has no usable saved bounds. */
   public static final int DEFAULT_HEIGHT = 800;
+  /** The width of a compact window that has no usable saved bounds, in logical pixels. */
+  public static final int COMPACT_WIDTH = 420;
+  /** The height of a compact window that has no usable saved bounds, in logical pixels. */
+  public static final int COMPACT_HEIGHT = 720;
   /** The top strip of a saved window, in pixels, that must be on a screen for its bounds to be kept. */
   static final int TITLE_STRIP = 40;
   /** How many pinned pages are kept; pinning more drops the oldest. */
@@ -102,11 +106,8 @@ public final class UiState {
       throw new IllegalArgumentException("No screens");
     }
     Rectangle saved = bounds();
-    if (saved != null && saved.width > 0 && saved.height > 0) {
-      Rectangle titleBar = new Rectangle(saved.x, saved.y, saved.width, Math.min(TITLE_STRIP, saved.height));
-      if (screens.stream().anyMatch(titleBar::intersects)) {
-        return saved;
-      }
+    if (reachable(saved, screens)) {
+      return saved;
     }
     Rectangle screen = screens.get(0);
     int w = Math.min(DEFAULT_WIDTH, screen.width);
@@ -114,7 +115,31 @@ public final class UiState {
     return new Rectangle(screen.x + (screen.width - w) / 2, screen.y + (screen.height - h) / 2, w, h);
   }
 
-  /** Whether the window was maximised. */
+  /**
+   * Where to put the compact window on {@code screens}: the saved {@link #compactBounds()} when their title bar is
+   * on a screen (as for {@link #windowBounds}); else a {@value #COMPACT_WIDTH}×{@value #COMPACT_HEIGHT}
+   * logical-pixel window (shrunk to fit) at the top right of {@code current}, the screen the window is on.
+   */
+  public Rectangle compactWindowBounds(List<Rectangle> screens, Rectangle current) {
+    Rectangle saved = compactBounds();
+    if (reachable(saved, screens)) {
+      return saved;
+    }
+    int w = Math.min(UIScale.scale(COMPACT_WIDTH), current.width);
+    int h = Math.min(UIScale.scale(COMPACT_HEIGHT), current.height);
+    return new Rectangle(current.x + current.width - w, current.y, w, h);
+  }
+
+  /** Whether {@code saved} is a window whose top {@value #TITLE_STRIP} px overlap one of {@code screens}. */
+  private static boolean reachable(Rectangle saved, List<Rectangle> screens) {
+    if (saved == null || saved.width <= 0 || saved.height <= 0) {
+      return false;
+    }
+    Rectangle titleBar = new Rectangle(saved.x, saved.y, saved.width, Math.min(TITLE_STRIP, saved.height));
+    return screens.stream().anyMatch(titleBar::intersects);
+  }
+
+  /** Whether the normal (not compact) window was maximised. */
   public boolean maximised() {
     return prefs.getBoolean(MAXIMISED, false);
   }

@@ -102,4 +102,25 @@ class AccessibilityTest {
     assertThat(clear).allSatisfy(b -> assertThat(b.getAccessibleContext().getAccessibleName())
         .isEqualTo(SearchBar.CLEAR_NAME));
   }
+
+  /** The compact window: its own back, forward and pin buttons, and the search bar with its clear button. */
+  private CompactShell compactShell() {
+    SearchBar search = new SearchBar(t -> {}, state, new ManualDelay(), new SearchDropdown(new FakeDropdownHost()));
+    search.textField().setText("hogger");
+    CompactShell shell = new CompactShell(() -> {}, () -> {}, () -> {});
+    shell.claim(search, new JPanel(), new StatusBar());
+    return shell;
+  }
+
+  @Test
+  void everyIconOnlyButtonOfTheCompactShellHasAnAccessibleName() {
+    CompactShell shell = compactShell();
+    List<AbstractButton> buttons = iconOnlyButtons(shell);
+    // back, forward, pin, and the search box's clear button
+    assertThat(buttons).hasSizeGreaterThanOrEqualTo(4).contains(shell.backButton(), shell.forwardButton(),
+        shell.pinButton());
+    for (AbstractButton b : buttons) {
+      assertThat(b.getAccessibleContext().getAccessibleName()).as(describe(b)).isNotBlank();
+    }
+  }
 }

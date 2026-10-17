@@ -403,10 +403,20 @@ public final class SearchDropdown {
         }
         Point p = anchor.getLocationOnScreen();
         int width = Math.max(anchor.getWidth(), UIScale.scale(MIN_WIDTH));
-        window.setBounds(p.x, p.y + anchor.getHeight() + UIScale.scale(2), width, height);
+        int x = left(p.x, width, anchor.getGraphicsConfiguration().getBounds());
+        window.setBounds(x, p.y + anchor.getHeight() + UIScale.scale(2), width, height);
         window.validate();
       }
     };
+  }
+
+  /**
+   * The left edge of a dropdown {@code width} wide under a field starting at {@code anchorX}: the field's own,
+   * moved left as far as needed to end on {@code screen} (the narrow compact window sits at a screen's right edge),
+   * but never past the screen's left edge.
+   */
+  static int left(int anchorX, int width, Rectangle screen) {
+    return Math.max(screen.x, Math.min(anchorX, screen.x + screen.width - width));
   }
 
   /** An immutable list model. */

@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.ui.widgets.SearchDropdown.Row;
+import java.awt.Rectangle;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.IntStream;
@@ -288,5 +289,15 @@ class SearchDropdownTest {
     assertThat(Keys.press(field, "ESCAPE")).isFalse();
     press("ENTER"); // nothing on screen to open: the full search runs
     assertThat(listener.calls).containsExactly("show all");
+  }
+
+  @Test
+  void theDropdownStaysOnTheAnchorsScreen() {
+    Rectangle screen = new Rectangle(1920, 0, 2560, 1440);
+    assertThat(SearchDropdown.left(2000, 420, screen)).isEqualTo(2000);
+    // the compact window at the top right: a field starting 300 px from the edge cannot fit 420 px of dropdown
+    assertThat(SearchDropdown.left(1920 + 2560 - 300, 420, screen)).isEqualTo(1920 + 2560 - 420);
+    // wider than the screen: it starts at the screen's left edge
+    assertThat(SearchDropdown.left(1950, 3000, screen)).isEqualTo(1920);
   }
 }

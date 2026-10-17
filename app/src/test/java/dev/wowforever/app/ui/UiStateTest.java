@@ -243,4 +243,47 @@ class UiStateTest {
     List<Rectangle> screens = List.of(new Rectangle(0, 0, 1024, 768));
     assertThat(new UiState(node).windowBounds(screens)).isEqualTo(new Rectangle(0, 0, 1024, 768));
   }
+
+  @Test
+  void compactBoundsSeparate() {
+    UiState state = new UiState(node);
+    state.setBounds(new Rectangle(10, 20, 1000, 700));
+    state.setCompactBounds(new Rectangle(1500, 0, 420, 720));
+    assertThat(state.bounds()).isEqualTo(new Rectangle(10, 20, 1000, 700));
+    state.setCompactBounds(new Rectangle(1400, 30, 440, 760));
+    assertThat(new UiState(node).bounds()).isEqualTo(new Rectangle(10, 20, 1000, 700));
+    state.setBounds(new Rectangle(50, 60, 1100, 800));
+    assertThat(new UiState(node).compactBounds()).isEqualTo(new Rectangle(1400, 30, 440, 760));
+    state.setBounds(null);
+    assertThat(new UiState(node).compactBounds()).isEqualTo(new Rectangle(1400, 30, 440, 760));
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080));
+    assertThat(state.compactWindowBounds(screens, screens.get(0))).isEqualTo(new Rectangle(1400, 30, 440, 760));
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(320, 140, 1280, 800));
+  }
+
+  @Test
+  void missingCompactBoundsGoToTheTopRightOfTheCurrentScreen() {
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080), new Rectangle(1920, 0, 2560, 1440));
+    int w = UIScale.scale(UiState.COMPACT_WIDTH);
+    int h = UIScale.scale(UiState.COMPACT_HEIGHT);
+    assertThat(new UiState(node).compactWindowBounds(screens, screens.get(1)))
+        .isEqualTo(new Rectangle(1920 + 2560 - w, 0, w, h));
+  }
+
+  @Test
+  void offscreenCompactBoundsAreReset() {
+    UiState state = new UiState(node);
+    state.setCompactBounds(new Rectangle(5000, 3000, 420, 720));
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080));
+    int w = UIScale.scale(UiState.COMPACT_WIDTH);
+    int h = UIScale.scale(UiState.COMPACT_HEIGHT);
+    assertThat(state.compactWindowBounds(screens, screens.get(0))).isEqualTo(new Rectangle(1920 - w, 0, w, h));
+  }
+
+  @Test
+  void theDefaultCompactWindowShrinksToASmallScreen() {
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 400, 600));
+    assertThat(new UiState(node).compactWindowBounds(screens, screens.get(0)))
+        .isEqualTo(new Rectangle(0, 0, 400, 600));
+  }
 }

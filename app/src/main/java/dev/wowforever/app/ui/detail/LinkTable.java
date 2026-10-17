@@ -7,8 +7,12 @@ import dev.wowforever.app.ui.KeyMap;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.ResultsTableModel;
 import dev.wowforever.app.ui.TableLinks;
+import dev.wowforever.app.ui.pages.CompactColumns;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
 import java.awt.BorderLayout;
+import java.awt.event.HierarchyEvent;
+import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -18,20 +22,35 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.table.TableColumn;
+import javax.swing.table.TableColumnModel;
 
 /**
  * A sortable table of linked rows; a click on a link cell opens it, Enter or a double-click elsewhere opens the
  * row's first link. With a row selected, Ctrl+C copies its name (the first link column, else the first column) and
  * Ctrl+Shift+C its id text: {@code item:ID}, {@code npc:ID} and so on by default ({@link #setIdText}).
+ *
+ * <p>Inside the compact window ({@link CompactColumns#within}) the table is compact: it shows only the columns
+ * {@link CompactColumns#kept} keeps, and the row's tooltip tells the others. It follows the window it is moved
+ * into.
  */
 public final class LinkTable<T> extends JPanel {
   private final Navigator nav;
   private final ResultsTableModel<T> model;
-  private final JTable table = new JTable();
+  private final JTable table = new JTable() {
+    @Override
+    public String getToolTipText(MouseEvent e) {
+      String row = rowTooltip(rowAtPoint(e.getPoint()));
+      return row != null ? row : super.getToolTipText(e);
+    }
+  };
+  /** Every column in model order, so that compact mode can take some away and put them back. */
+  private final List<TableColumn> columns = new ArrayList<>();
 
   private final boolean inline;
   private ClipboardPort clipboard = ClipboardPort.system();
   private Function<T, Optional<String>> idText = this::entityIdText;
+  private boolean compact;
 
   /** A link table in its own scroll pane. */
   public LinkTable(List<Columns.Column<T>> cols, Navigator nav) {
@@ -44,6 +63,14 @@ public final class LinkTable<T> extends JPanel {
     this.model = new ResultsTableModel<>(cols);
     this.inline = inline;
     TableLinks.setModel(table, model);
+    for (int c = 0; c < table.getColumnModel().getColumnCount(); c++) {
+      columns.add(table.getColumnModel().getColumn(c));
+    }
+    addHierarchyListener(e -> {
+      if ((e.getChangeFlags() & HierarchyEvent.PARENT_CHANGED) != 0) {
+        setCompact(CompactColumns.within(this));
+      }
+    });
     TableLinks.bindActivation(table, this::activateRow, ref -> nav.open(new ViewTarget.Entity(ref)));
     KeyMap.installRowCopy(table, this::copyName, this::copyId);
     if (inline) {
@@ -82,6 +109,39 @@ public final class LinkTable<T> extends JPanel {
 
   public ResultsTableModel<T> model() {
     return model;
+  }
+
+  /**
+   * Shows only the columns {@link CompactColumns#kept} keeps, the others in the row tooltip; or every column again,
+   * in model order. Each column keeps its renderer and width. Called as the table moves in or out of the compact
+   * window.
+   */
+  public void setCompact(boolean compact) {
+    if (compact == this.compact) {
+      return;
+    }
+    this.compact = compact;
+    TableColumnModel shown = table.getColumnModel();
+    while (shown.getColumnCount() > 0) {
+      shown.removeColumn(shown.getColumn(0));
+    }
+    for (TableColumn c : columns) {
+      if (!compact || CompactColumns.kept(model, c.getModelIndex())) {
+        shown.addColumn(c);
+      }
+    }
+  }
+
+  public boolean isCompact() {
+    return compact;
+  }
+
+  /** The tooltip of view row {@code viewRow} in compact mode ({@link CompactColumns#tooltip}); null otherwise. */
+  public String rowTooltip(int viewRow) {
+    if (!compact || viewRow < 0 || viewRow >= table.getRowCount()) {
+      return null;
+    }
+    return CompactColumns.tooltip(model, table.convertRowIndexToModel(viewRow));
   }
 
   /** Where Ctrl+C and Ctrl+Shift+C copy to; the system clipboard unless set. */

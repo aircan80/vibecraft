@@ -5,6 +5,7 @@ import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.widgets.KindChips;
+import dev.wowforever.app.ui.widgets.KindMenu;
 import dev.wowforever.app.ui.widgets.ListEntries;
 import dev.wowforever.app.ui.widgets.ListEntry;
 import dev.wowforever.app.ui.widgets.MasterList;
@@ -41,6 +42,7 @@ import org.slf4j.LoggerFactory;
  * full search, and re-runs the search at once while the dropdown is closed. Pasting a link, item string, Wowhead
  * URL or bare number over the whole text opens that page; pasting {@code [Name]} searches for the name
  * ({@link PasteParser}). Every search that runs, and the text of every hit opened, goes to the recent searches.
+ * In the compact window ({@link #setCompact}) the "Search:" label goes and the chips fold into a {@link KindMenu}.
  */
 public final class SearchBar extends JPanel {
   public static final int DEBOUNCE_MILLIS = 250;
@@ -87,6 +89,8 @@ public final class SearchBar extends JPanel {
   private final MasterList.Delay delay;
   private final SearchDropdown dropdown;
   private final KindChips chips = new KindChips();
+  private final KindMenu kindMenu = new KindMenu(chips);
+  private final JLabel label = new JLabel("Search:");
   private final JTextField text = new JTextField(32) {
     @Override
     public void paste() {
@@ -180,7 +184,7 @@ public final class SearchBar extends JPanel {
     });
     chips.onSelect(kind -> kindChanged());
     setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
-    add(new JLabel("Search:"), BorderLayout.WEST);
+    add(label, BorderLayout.WEST);
     add(text, BorderLayout.CENTER);
     add(chips, BorderLayout.EAST);
   }
@@ -221,6 +225,21 @@ public final class SearchBar extends JPanel {
     super.setEnabled(enabled);
     text.setEnabled(enabled);
     chips.setEnabled(enabled);
+    kindMenu.setEnabled(enabled);
+  }
+
+  /** For the narrow compact window: no "Search:" label, and the kind menu in place of the chips; or back. */
+  public void setCompact(boolean compact) {
+    label.setVisible(!compact);
+    remove(compact ? chips : kindMenu);
+    add(compact ? kindMenu : chips, BorderLayout.EAST);
+    kindMenu.refresh();
+    revalidate();
+    repaint();
+  }
+
+  public KindMenu kindMenu() {
+    return kindMenu;
   }
 
   public JTextField textField() {

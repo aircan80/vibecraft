@@ -70,4 +70,24 @@ class WindowStatePersistenceTest {
     assertThat(state.compactBounds()).isEqualTo(new Rectangle(1900, 40, 420, 720));
     assertThat(state.bounds()).isNull();
   }
+
+  @Test
+  void inCompactModeTheFullWindowsMaximisedStateIsKept() {
+    state.setMaximised(true);
+    state.setCompactMode(true);
+    window = new WindowStatePersistence.Snapshot(new Rectangle(1900, 40, 420, 720), Frame.NORMAL, "\\Display2");
+    persistence.saveNow();
+    assertThat(state.maximised()).isTrue();
+    assertThat(state.compactBounds()).isEqualTo(new Rectangle(1900, 40, 420, 720));
+  }
+
+  @Test
+  void aMaximisedCompactWindowSavesNoBounds() {
+    state.setCompactMode(true);
+    persistence.saveNow();
+    window = new WindowStatePersistence.Snapshot(new Rectangle(0, 0, 1920, 1040), Frame.MAXIMIZED_BOTH, "\\Display1");
+    persistence.saveNow();
+    assertThat(state.compactBounds()).isEqualTo(new Rectangle(10, 20, 1000, 700));
+    assertThat(state.maximised()).isFalse();
+  }
 }

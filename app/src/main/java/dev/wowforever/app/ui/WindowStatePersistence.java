@@ -18,7 +18,8 @@ import java.util.function.Supplier;
 /**
  * Saves the window's bounds, maximised state and screen to {@link UiState}: {@value #SAVE_DELAY_MILLIS} ms after
  * it last moved or resized, and at once when it closes. A maximised window keeps its earlier normal bounds; a
- * minimised one saves nothing; in compact mode the bounds go to the compact bounds.
+ * minimised one saves nothing; in compact mode the bounds go to the compact bounds, and the normal window's
+ * maximised state is left as it was.
  */
 final class WindowStatePersistence {
   static final int SAVE_DELAY_MILLIS = 500;
@@ -37,13 +38,18 @@ final class WindowStatePersistence {
   }
 
   /**
-   * Places {@code frame} as saved (bounds on a current screen, else centred on the default one; maximised; on top)
-   * and saves its state from now on.
+   * Places {@code frame} as saved (bounds on a current screen, else centred on the default one, or for the compact
+   * window at its top right; maximised unless compact; on top) and saves its state from now on; returns the saver.
    */
-  static void install(Frame frame, UiState state) {
-    frame.setBounds(state.windowBounds(screens()));
-    if (state.maximised()) {
-      frame.setExtendedState(frame.getExtendedState() | Frame.MAXIMIZED_BOTH);
+  static WindowStatePersistence install(Frame frame, UiState state) {
+    List<Rectangle> screens = screens();
+    if (state.compactMode()) {
+      frame.setBounds(state.compactWindowBounds(screens, screens.get(0)));
+    } else {
+      frame.setBounds(state.windowBounds(screens));
+      if (state.maximised()) {
+        frame.setExtendedState(frame.getExtendedState() | Frame.MAXIMIZED_BOTH);
+      }
     }
     frame.setAlwaysOnTop(state.alwaysOnTop());
     WindowStatePersistence saver = new WindowStatePersistence(state, () -> snapshot(frame),
@@ -66,6 +72,7 @@ final class WindowStatePersistence {
         saver.saveNow();
       }
     });
+    return saver;
   }
 
   /** The window moved or resized: saves once it has rested for {@value #SAVE_DELAY_MILLIS} ms. */
@@ -82,11 +89,13 @@ final class WindowStatePersistence {
       return;
     }
     boolean maximised = (s.extendedState() & Frame.MAXIMIZED_BOTH) == Frame.MAXIMIZED_BOTH;
-    state.setMaximised(maximised);
-    if (!maximised) {
-      if (state.compactMode()) {
+    if (state.compactMode()) {
+      if (!maximised) {
         state.setCompactBounds(s.bounds());
-      } else {
+      }
+    } else {
+      state.setMaximised(maximised);
+      if (!maximised) {
         state.setBounds(s.bounds());
       }
     }
@@ -99,7 +108,7 @@ final class WindowStatePersistence {
   }
 
   /** The bounds of every screen, the default screen first. */
-  private static List<Rectangle> screens() {
+  static List<Rectangle> screens() {
     GraphicsEnvironment env = GraphicsEnvironment.getLocalGraphicsEnvironment();
     GraphicsDevice main = env.getDefaultScreenDevice();
     List<Rectangle> screens = new ArrayList<>();

@@ -14,6 +14,7 @@ import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.pages.ListRows;
 import dev.wowforever.app.ui.widgets.ListEntries;
 import dev.wowforever.app.ui.widgets.ListEntry;
+import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.util.List;
 import java.util.Locale;
@@ -43,6 +44,9 @@ import org.slf4j.LoggerFactory;
  * later ones reuse it ({@link NavigationHistory#replaceCurrent}), so twenty rows previewed are one back step. A
  * commit (Enter, a click) or any other navigation keeps that slot, and the next preview takes a new one. A row
  * already on screen is neither previewed nor committed again: its history slot is kept and nothing reloads.
+ *
+ * <p>Where the view shows no master list (the compact window, {@link MainView#showsMasterList}), a full search's
+ * results fill the detail area as a list of their own, without previews: Enter or a click opens a row.
  */
 public final class AppController implements Navigator {
   /** Most search hits shown; list pages show every row. */
@@ -173,6 +177,14 @@ public final class AppController implements Navigator {
     return history.current().filter(t::equals).isPresent();
   }
 
+  /**
+   * Shows the current target again without touching the history, say after the window switched between its full
+   * and compact layouts; nothing happens before the first {@link #open}.
+   */
+  public void rerender() {
+    history.current().ifPresent(this::show);
+  }
+
   /** Re-shows the previous target, if any. */
   public void back() {
     history.back().ifPresent(t -> {
@@ -217,7 +229,13 @@ public final class AppController implements Navigator {
     view.setHistoryState(history.canBack(), history.canForward());
     view.selectRail(railSection(t));
     switch (t) {
-      case ViewTarget.Search s -> loadResults(() -> search(s));
+      case ViewTarget.Search s -> {
+        if (!view.showsMasterList()) {
+          detailGeneration++; // the results take the detail area: drop a page still loading
+          leaveListPage();
+        }
+        loadResults(() -> search(s));
+      }
       case ViewTarget.List l -> showList(l);
       case ViewTarget.Entity e -> showEntity(e.ref());
       case ViewTarget.Home h -> showHome();
@@ -226,10 +244,14 @@ public final class AppController implements Navigator {
 
   private void loadResults(Supplier<Listing> work) {
     int generation = ++resultsGeneration;
+    int detail = detailGeneration;
     view.status().setMessage("Loading…");
     Async.run(worker, work, listing -> {
       if (generation == resultsGeneration) {
         view.masterList().show(listing.title(), listing.entries(), listing.capped());
+        if (!view.showsMasterList() && detail == detailGeneration) {
+          view.setDetail(resultsPage(listing));
+        }
         view.setTitleSuffix(cappedTitle(listing.title(), listing.entries().size(), listing.page()));
         showCount(listing.entries().size());
       }
@@ -299,6 +321,14 @@ public final class AppController implements Navigator {
 
   /** A list page's filter options and rows, loaded together on the worker. */
   private record LoadedList(ListOptions options, List<?> rows) {}
+
+  /** {@code listing} as the detail of a view without a master list: Enter or a click opens a row. */
+  private MasterList resultsPage(Listing listing) {
+    MasterList results = new MasterList();
+    results.show(listing.title(), listing.entries(), listing.capped());
+    results.onCommit(e -> commit(e.ref()));
+    return results;
+  }
 
   /** The filter bar options a list of {@code t} needs: none for zones and instances, else the cached ones. */
   private ListOptions listOptions(ViewTarget.List t) {

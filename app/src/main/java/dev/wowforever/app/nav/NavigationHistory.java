@@ -65,4 +65,9 @@ public final class NavigationHistory {
   public Optional<ViewTarget> current() {
     return cursor < 0 ? Optional.empty() : Optional.of(entries.get(cursor));
   }
+
+  /** How many targets the history holds, back and forward of the current one included. */
+  public int size() {
+    return entries.size();
+  }
 }

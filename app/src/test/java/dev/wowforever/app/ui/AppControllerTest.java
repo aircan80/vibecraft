@@ -604,4 +604,21 @@ class AppControllerTest {
     c.open(new ViewTarget.List(ZONE));
     assertThat(view.status().message()).startsWith("Error: ");
   }
+
+  @Test
+  void rerenderShowsTheCurrentPageAgainWithoutTouchingTheHistory() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.rerender(); // nothing opened yet: nothing to show
+    assertThat(view.detail).isNull();
+    c.open(new ViewTarget.Home());
+    c.open(new ViewTarget.List(ZONE));
+    ListPage before = listPage();
+    c.rerender();
+    assertThat(listPage()).isNotSameAs(before);
+    assertThat(listPage().target()).isEqualTo(new ViewTarget.List(ZONE));
+    assertThat(c.current()).isEqualTo(new ViewTarget.List(ZONE));
+    assertThat(c.history().size()).isEqualTo(2);
+    assertThat(view.canBack).isTrue();
+    assertThat(view.canForward).isFalse();
+  }
 }

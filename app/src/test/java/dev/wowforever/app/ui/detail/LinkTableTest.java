@@ -12,17 +12,23 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.DropRow;
 import dev.wowforever.app.ui.LinkRenderer;
+import dev.wowforever.app.ui.pages.CompactColumns;
 import dev.wowforever.app.ui.widgets.Keys;
+import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
 import java.awt.event.ActionEvent;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.KeyStroke;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
 import javax.swing.SwingUtilities;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.TableCellRenderer;
 import org.junit.jupiter.api.Test;
 
 class LinkTableTest {
@@ -170,5 +176,65 @@ class LinkTableTest {
     assertThat(SwingUtilities.getAncestorOfClass(JScrollPane.class, t.table())).isNull();
     assertThat(t.table().getTableHeader().getParent()).isSameAs(t);
     assertThat(new LinkTable<>(Columns.lootRows(), v -> {}).isInline()).isFalse();
+  }
+
+  private static List<String> names(LinkTable<?> t) {
+    List<String> names = new ArrayList<>();
+    for (int c = 0; c < t.table().getColumnCount(); c++) {
+      names.add(t.table().getColumnName(c));
+    }
+    return names;
+  }
+
+  @Test
+  void compactKeepsNameRateAndOriginAndPutsTheRestInTheRowTooltip() {
+    var t = new LinkTable<>(Columns.lootRated(), v -> {});
+    t.setRows(List.of(new LootRow(new EntityRef(ITEM, 1), "Sword", 21, 5.0, "questie", 7),
+        new LootRow(new EntityRef(ITEM, 2), "Axe", null, null, "both", null)));
+    t.setCompact(true);
+    assertThat(t.isCompact()).isTrue();
+    assertThat(names(t)).containsExactly("Item", "Rate", "Origin");
+    assertThat(t.rowTooltip(0)).isEqualTo("Item level 21 · Slot 7");
+    assertThat(t.rowTooltip(1)).isNull(); // nothing hidden has a value
+    t.setCompact(false);
+    assertThat(names(t)).containsExactly("Item", "Item level", "Rate", "Origin", "Slot");
+    assertThat(t.rowTooltip(0)).isNull();
+  }
+
+  @Test
+  void compactTooltipsGiveTextAColonAndNumbersNone() {
+    var t = new LinkTable<>(Columns.dropSourcesRanked(), v -> {});
+    t.setRows(List.of(dropSource(1, "A", 56.0)));
+    t.setCompact(true);
+    assertThat(names(t)).containsExactly("Source", "Rate", "Origin");
+    assertThat(t.rowTooltip(0)).isEqualTo("Level 30–31 · Zone: Ragefire Chasm");
+    Rectangle cell = t.table().getCellRect(0, 0, true);
+    MouseEvent over = new MouseEvent(t.table(), MouseEvent.MOUSE_MOVED, 0, 0, cell.x + 1, cell.y + 1, 0, false);
+    assertThat(t.table().getToolTipText(over)).isEqualTo("Level 30–31 · Zone: Ragefire Chasm");
+  }
+
+  @Test
+  void compactKeepsEachColumnsRenderer() {
+    var t = new LinkTable<>(Columns.lootRated(), v -> {});
+    TableCellRenderer rate = new DefaultTableCellRenderer();
+    t.table().getColumnModel().getColumn(2).setCellRenderer(rate);
+    t.setCompact(true);
+    t.setCompact(false);
+    assertThat(t.table().getColumnModel().getColumn(2).getCellRenderer()).isSameAs(rate);
+  }
+
+  @Test
+  void compactFollowsTheEnclosingArea() {
+    var t = new LinkTable<>(Columns.lootRated(), v -> {});
+    JPanel page = new JPanel();
+    page.add(t);
+    JPanel compactArea = new JPanel();
+    compactArea.putClientProperty(CompactColumns.KEY, Boolean.TRUE);
+    compactArea.add(page);
+    assertThat(t.isCompact()).isTrue();
+    assertThat(names(t)).containsExactly("Item", "Rate", "Origin");
+    new JPanel().add(page);
+    assertThat(t.isCompact()).isFalse();
+    assertThat(names(t)).hasSize(5);
   }
 }

@@ -23,4 +23,12 @@ public interface MainView {
 
   /** Highlights the rail section of the page on screen, without opening it; null highlights none. */
   void selectRail(RailTarget target);
+
+  /**
+   * Whether the master list is on screen. The compact window has none: there a full search's results take the
+   * detail area instead.
+   */
+  default boolean showsMasterList() {
+    return true;
+  }
 }
