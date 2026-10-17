@@ -160,7 +160,17 @@ class SearchBarTest {
     press("ENTER");
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 448)));
     assertThat(dropdown.isShowing()).isFalse();
-    assertThat(state.recentSearches()).containsExactly("hog");
+    assertThat(state.recentSearches()).as("the hit opened, not the half-typed text").containsExactly("Hogger");
+  }
+
+  @Test
+  void typeAheadAloneRemembersNothing() {
+    attachInline();
+    typeAndWait("westfa");
+    typeAndWait("west");
+    bar.focusChanged(false);
+    assertThat(lookups).isNotEmpty();
+    assertThat(state.recentSearches()).isEmpty();
   }
 
   @Test
@@ -388,6 +398,7 @@ class SearchBarTest {
     bar.kindChips().chips().get(1).doClick(); // Items
     assertThat(opened).containsExactly(new ViewTarget.Search("hog", Optional.of(ITEM)));
     assertThat(delay.pending()).isZero();
+    assertThat(state.recentSearches()).as("no Enter, Show all or hit: not a search to remember").isEmpty();
   }
 
   @Test
@@ -426,6 +437,7 @@ class SearchBarTest {
     assertThat(bar.textField().getText()).isEqualTo("Captain Sanders' Hidden Treasure");
     assertThat(opened).containsExactly(new ViewTarget.Search("Captain Sanders' Hidden Treasure", Optional.of(ITEM)));
     assertThat(delay.pending()).isZero();
+    assertThat(state.recentSearches()).isEmpty();
   }
 
   @Test

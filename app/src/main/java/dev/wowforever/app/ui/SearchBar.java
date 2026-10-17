@@ -41,8 +41,9 @@ import org.slf4j.LoggerFactory;
  * full search when there is none (or the text changed since the hits came); Shift+Enter and "Show all" run the
  * full search. A kind chip filters the dropdown and the full search, and re-runs the search at once while the
  * dropdown is closed. Pasting a link, item string, Wowhead URL or bare number over the whole text opens that page;
- * pasting {@code [Name]} searches for the name ({@link PasteParser}). Every search that runs, and the text of every
- * hit opened, goes to the recent searches.
+ * pasting {@code [Name]} searches for the name ({@link PasteParser}). Only what the user asked for goes to the recent
+ * searches: the text of a search run with Enter, Shift+Enter or "Show all" (or a recent one run again), and the name
+ * of a hit opened; never the text of a type-ahead lookup, a chip's re-run or a paste.
  * In the compact window ({@link #setCompact}) the "Search:" label goes and the chips fold into a {@link KindMenu}.
  */
 public final class SearchBar extends JPanel {
@@ -178,18 +179,18 @@ public final class SearchBar extends JPanel {
     dropdown.install(text, new SearchDropdown.Listener() {
       @Override
       public void open(ListEntry hit) {
-        openHit(new ViewTarget.Entity(hit.ref()));
+        openHit(hit);
       }
 
       @Override
       public void showAll() {
-        commit();
+        commit(true);
       }
 
       @Override
       public void searchRecent(String recent) {
         setTextQuietly(recent);
-        commit();
+        commit(true);
       }
 
       @Override
@@ -288,7 +289,7 @@ public final class SearchBar extends JPanel {
     }
     if (target.get() instanceof ViewTarget.Search s) {
       setTextQuietly(s.text());
-      commit();
+      commit(false);
     } else {
       stop();
       onOpen.accept(target.get());
@@ -324,7 +325,7 @@ public final class SearchBar extends JPanel {
       dropdown.markStale(); // Enter must not open the old kind's top hit before the new rows come
       lookUp();
     } else {
-      commit();
+      commit(false); // a re-run for the new kind, not a search the user ran
     }
   }
 
@@ -357,14 +358,19 @@ public final class SearchBar extends JPanel {
     }
   }
 
-  /** Runs the full search for the text and the selected kind; blank text does nothing. */
-  private void commit() {
+  /**
+   * Runs the full search for the text and the selected kind, the text going to the recent searches when
+   * {@code remember}; blank text does nothing.
+   */
+  private void commit(boolean remember) {
     stop();
     String q = query();
     if (q.isEmpty()) {
       return;
     }
-    state.addRecentSearch(q);
+    if (remember) {
+      state.addRecentSearch(q);
+    }
     countsFor(q);
     onOpen.accept(new ViewTarget.Search(q, chips.selected()));
   }
@@ -391,17 +397,18 @@ public final class SearchBar extends JPanel {
   }
 
   /**
-   * Opens {@code hit}, picked for the text, with the search for the text and the selected kind (so the list can
-   * show the hit among its search); the text goes to the recent searches.
+   * Opens {@code entry}, picked for the text, with the search for the text and the selected kind (so the list can
+   * show the hit among its search); the hit's name, not the text typed so far, goes to the recent searches.
    */
-  private void openHit(ViewTarget.Entity hit) {
+  private void openHit(ListEntry entry) {
     stop();
+    ViewTarget.Entity hit = new ViewTarget.Entity(entry.ref());
     String q = query();
     if (q.isEmpty()) {
       onOpen.accept(hit);
       return;
     }
-    state.addRecentSearch(q);
+    state.addRecentSearch(entry.title() != null && !entry.title().isBlank() ? entry.title() : q);
     countsFor(q);
     onOpen.openHit(hit, new ViewTarget.Search(q, chips.selected()));
   }
