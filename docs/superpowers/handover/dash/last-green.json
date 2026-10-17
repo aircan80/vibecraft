@@ -1,0 +1,1 @@
+[{"module": "app", "role": "Swing browser", "tests": 259, "failures": 0, "classes": 38}, {"module": "importer", "role": "Data importer", "tests": 376, "failures": 0, "classes": 52}, {"module": "lua-table", "role": "Lua table reader", "tests": 61, "failures": 0, "classes": 8}]

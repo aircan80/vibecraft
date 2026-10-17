@@ -1,0 +1,124 @@
+diff --git a/app/src/test/java/dev/wowforever/app/ShippedDataTest.java b/app/src/test/java/dev/wowforever/app/ShippedDataTest.java
+index 0e6d10c..98aefc9 100644
+--- a/app/src/test/java/dev/wowforever/app/ShippedDataTest.java
++++ b/app/src/test/java/dev/wowforever/app/ShippedDataTest.java
+@@ -347,9 +347,9 @@ class ShippedDataTest extends ShippedDataSupport {
+   }
+ 
+   @Test
+-  void clientSourceIsForeverOrEraAndForeverDominates() {
++  void clientSourceIsHotfixForeverOrEraAndForeverDominates() {
+     assertThat(column("select distinct client_source from item where client_source is not null"))
+-        .allMatch(s -> s.equals("forever") || s.equals("era"));
++        .allMatch(s -> s.equals("hotfix") || s.equals("forever") || s.equals("era"));
+     assertThat(scalar("select count(*) from item where has_client_data = 0 and client_source is not null")).isZero();
+     long era = scalar("select count(*) from item where client_source = 'era'");
+     long forever = scalar("select count(*) from item where client_source = 'forever'");
+@@ -389,9 +389,10 @@ class ShippedDataTest extends ShippedDataSupport {
+ 
+   @Test
+   void iconOnlyItemsCarryTheirEmbeddedIcon() {
+-    // Illari's Key has only an Item row: no card, but its own icon
+-    assertThat(scalar("select has_client_data from item where id = 212347")).isZero();
+-    assertThat(scalar("select icon_id from item where id = 212347")).isEqualTo(134236L);
++    // Shiny Green Apple has only an Item row: no card, but its own icon (Illari's Key, the earlier example, was
++    // revealed by a hotfix in 3B Task 19)
++    assertThat(scalar("select has_client_data from item where id = 249791")).isZero();
++    assertThat(scalar("select icon_id from item where id = 249791")).isEqualTo(133977L);
+     assertThat(scalar("select count(*) from item i where i.has_client_data = 0 and i.icon_id is not null"
+         + " and not exists (select 1 from icon c where c.id = i.icon_id)")).isZero();
+   }
+diff --git a/app/src/test/java/dev/wowforever/app/ShippedHotfixDataTest.java b/app/src/test/java/dev/wowforever/app/ShippedHotfixDataTest.java
+new file mode 100644
+index 0000000..3cccb19
+--- /dev/null
++++ b/app/src/test/java/dev/wowforever/app/ShippedHotfixDataTest.java
+@@ -0,0 +1,88 @@
++package dev.wowforever.app;
++
++import static org.assertj.core.api.Assertions.assertThat;
++
++import dev.wowforever.app.model.EntityKind;
++import dev.wowforever.app.model.EntityRef;
++import dev.wowforever.app.ui.detail.TestPages;
++import dev.wowforever.app.ui.pages.ItemPage;
++import java.util.List;
++import org.junit.jupiter.api.Tag;
++import org.junit.jupiter.api.Test;
++
++/**
++ * Shipped-data checks for the hidden items a Blizzard hotfix revealed (3B Task 19, pm-data-sources.md acceptance
++ * checks 1 to 5): the hotfix overlay of build 1.60.1.70450's cache, mirrored by Raidbots. Facts are pinned by id,
++ * totals as floors. Skip them with {@code -DexcludedGroups=shipped-data}.
++ */
++@Tag("shipped-data")
++class ShippedHotfixDataTest extends ShippedDataSupport {
++  private static final String HOTFIX_FOOTER =
++      "Forever stats revealed by a Blizzard hotfix · beta 70450 · cache 17 Oct 2026";
++  private static final String ERA_FOOTER = "Classic Era values. Forever stats are still hidden.";
++
++  private static List<Object> footer(long item) {
++    return column("select text from item_tooltip_line where item_id = " + item + " and kind = 'source_note'");
++  }
++
++  @Test
++  void rotmendersGarbIsRevealedWithItsSetAndStats() {
++    assertThat(rows("select name, quality, item_level, client_source, has_client_data, item_set_id from item"
++        + " where id = 286978").getFirst())
++        .containsExactly("Rotmender's Garb", 3, 23, "hotfix", 1, 2133);
++    assertThat(scalar("select count(*) from item_stat where item_id = 286978")).isPositive();
++    assertThat(footer(286978)).containsExactly(HOTFIX_FOOTER);
++
++    var page = (ItemPage) TestPages.build(new EntityRef(EntityKind.ITEM, 286978), repos, t -> {});
++    assertThat(page.card()).isNotNull();
++    assertThat(page.card().lines().texts()).last().isEqualTo(HOTFIX_FOOTER);
++    assertThat(page.header().note()).as("no Stats hidden line").isNull();
++  }
++
++  @Test
++  void dazzlingLongswordMovedFromEraToHotfix() {
++    assertThat(column("select client_source from item where id = 869")).containsExactly("hotfix");
++    assertThat(footer(869)).containsExactly(HOTFIX_FOOTER).doesNotContain(ERA_FOOTER);
++  }
++
++  @Test
++  void felheartBeltStaysEraWithTheNewFooter() {
++    // negative control: not in the 70450 cache
++    assertThat(column("select client_source from item where id = 16806")).containsExactly("era");
++    assertThat(footer(16806)).containsExactly(ERA_FOOTER);
++  }
++
++  @Test
++  void worgenbaneTalismanIsRevealedUnderQuestiesNameOrKeepsIt() {
++    assertThat(column("select client_source from item where id = 273643")).containsExactly("hotfix");
++    String name = (String) column("select name from item where id = 273643").getFirst();
++    List<Object> questie = column("select value from item_alt_value where item_id = 273643 and field = 'name'");
++    assertThat(name.equals("Worgenbane Talisman") || !questie.isEmpty())
++        .as("the client name %s, Questie's %s", name, questie).isTrue();
++  }
++
++  @Test
++  void itemsWithoutClientDataHaveNoFooterAndHotfixDataIsNeverCalledLiveOrConfirmed() {
++    assertThat(scalar("select count(*) from item_tooltip_line l join item i on i.id = l.item_id"
++        + " where l.kind = 'source_note' and i.client_source = 'forever'")).as("forever: no footer").isZero();
++    assertThat(scalar("select count(*) from item_tooltip_line where kind = 'source_note'"
++        + " and (lower(text) like '%live%' or lower(text) like '%confirmed%')")).isZero();
++    assertThat(scalar("select count(*) from item where client_source = 'hotfix'")).isGreaterThanOrEqualTo(3_800);
++    assertThat(db.meta().get("client_hotfix_header_build")).isEqualTo("70450");
++    assertThat(db.meta().get("client_hotfix_sha256"))
++        .isEqualTo("6decce9f13b485f5c920ce2f0601a61fc4175724de88cdf959a3050cd334b1cf");
++  }
++
++  @Test
++  void committedImportReportShowsTheHotfixCounters() throws Exception {
++    String report = committedReport();
++    assertThat(reportCounter(report, "hotfix.itemsparse.valid")).isGreaterThanOrEqualTo(4_800);
++    assertThat(reportCounter(report, "hotfix.itemsparse.applied")).isGreaterThanOrEqualTo(3_800);
++    assertThat(reportCounter(report, "hotfix.itemsparse.invalidated")).isGreaterThanOrEqualTo(0);
++    assertThat(reportCounter(report, "hotfix.itemsparse.notInItemTable")).isGreaterThanOrEqualTo(0);
++    assertThat(reportCounter(report, "hotfix.fromEra")).as("3,173 on 2026-10-17")
++        .isGreaterThanOrEqualTo(3_100);
++    assertThat(reportCounter(report, "hotfix.fromNoClient")).as("626 on 2026-10-17")
++        .isGreaterThanOrEqualTo(600);
++  }
++}

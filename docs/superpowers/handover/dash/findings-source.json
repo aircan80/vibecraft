@@ -1,0 +1,86 @@
+[
+ {
+  "id": "a",
+  "area": "Search",
+  "finding": "Opening a dropdown hit with Enter leaves the results list empty instead of showing the search",
+  "status": "Fixed"
+ },
+ {
+  "id": "b",
+  "area": "Item page",
+  "finding": "A large empty gap sits between the header and the sources sections",
+  "status": "Fixed"
+ },
+ {
+  "id": "c",
+  "area": "Instance page",
+  "finding": "Every boss shows its level as Lv ??",
+  "status": "Fixed"
+ },
+ {
+  "id": "d",
+  "area": "Home",
+  "finding": "The empty results list is headed Results (0)",
+  "status": "Fixed"
+ },
+ {
+  "id": "e",
+  "area": "Compact mode",
+  "finding": "The status bar prints the full database build hash, which overflows the 420 px window",
+  "status": "Fixed"
+ },
+ {
+  "id": "f",
+  "area": "Compact mode",
+  "finding": "The instance page keeps its two-column layout, so the boss list is clipped",
+  "status": "Fixed"
+ },
+ {
+  "id": "g",
+  "area": "Data: dungeons",
+  "finding": "Owner report 17 Oct: the new WoW: Forever dungeons do not appear. Cause: the instance list comes from AtlasLootClassic (vanilla only, 33 instances); the Forever client build 1.60.1.70425 names four new dungeon maps (City of Dalaran, Excavation Site: Wetlands, Ruins of Lordaeron, The Hall of Thanes) in Map and LFGDungeons, and three more only as zones (Blackmaw Hold, Shaper's Terrace, Krol'dok Stronghold); Drowned City and Alcaz Island Prison are not in the client yet. No boss or loot data exists for any of them (no Dungeon Journal, bosses secret until first kill).",
+  "status": "Open"
+ },
+ {
+  "id": "h",
+  "area": "Data: client build",
+  "finding": "Owner question 17 Oct: is the data current? The shipped database was built from Forever beta 1.60.1.70425 (fetched 05:52Z); the installed client is now 1.60.1.70450 and wago.tools serves it. 70450 adds the Darkspear Islands battleground map but no further dungeon maps. A client-data refresh plus one DB regeneration is needed to be current.",
+  "status": "Open"
+ },
+ {
+  "id": "i",
+  "area": "Zone map",
+  "finding": "Owner report 17 Oct: with Objects on, clicking Bosses & rares leaves the object pins on the map; expected only bosses and rares. Cause: Bosses & rares / All NPCs is the NPC-layer scope pair while Objects and Quests are independent layers. Ruling: Bosses & rares acts as a 'just the notable NPCs' preset that switches the other layers off; folded into 3B Task 8 (map layers and legend toggles).",
+  "status": "Planned (3B-8)"
+ },
+ {
+  "id": "j",
+  "area": "Zone map",
+  "finding": "Owner request 17 Oct: show dungeon and raid entrances (and exits) on zone maps. Data: VMaNGOS areatrigger_teleport gives world coordinates per instance entrance; the client UiMapAssignment table gives the world-to-map transform. Sized by the PM.",
+  "status": "Requested"
+ },
+ {
+  "id": "k",
+  "area": "Zone map",
+  "finding": "Owner request 17 Oct: show flight paths on zone maps. Data: client TaxiNodes (100 nodes with world positions in build 70450) and TaxiPath/TaxiPathNode; needs the same world-to-map transform. Sized by the PM.",
+  "status": "Requested"
+ },
+ {
+  "id": "l",
+  "area": "Data sources",
+  "finding": "Owner request 17 Oct: use the best possible data sources for WoW: Forever, incl. direct Battle.net CDN mining. Review done (24 sources scored). Adopting: the Raidbots public hotfix-cache mirror (fills 4,776 of 12,618 hidden items today), a build-watch against the patch service and wago, and the GPL AtlasLoot Classic Forever fork (Forever boss loot) as a 3B data task; an own in-game collector addon before the beta ends ~22 Oct; direct CDN/CASC mining documented as a fallback.",
+  "status": "Reviewed; planning"
+ },
+ {
+  "id": "m",
+  "area": "Zones page",
+  "finding": "Owner request 17 Oct: the Zones rail page should open on a map of Azeroth; click Kalimdor or Eastern Kingdoms to see that continent with all its zones, click a zone to drill in (more intuitive than searching). Data: the client UiMap hierarchy (Azeroth 947 > Kalimdor 1414 / Eastern Kingdoms 1415 > zones), UiMapArt tiles for the continent maps and UiMapAssignment child bounds are in the tables we already fetch. Sized by the PM.",
+  "status": "Requested"
+ },
+ {
+  "id": "n",
+  "area": "Dungeon page",
+  "finding": "Owner request 17 Oct: show instance/dungeon maps (floors) on the dungeon page. Fact: the Forever beta client build 70425 has no dungeon-type UiMap rows at all (only world, continent and zone maps), so there is no Blizzard floor art to fetch yet; checking whether Classic Era ships them and what third-party map art (e.g. the Atlas addon) would be allowed. Boss positions are not in Questie for instances; the collector addon records kill positions. Sized by the PM.",
+  "status": "Requested"
+ }
+]

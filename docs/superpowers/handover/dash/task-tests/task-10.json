@@ -1,0 +1,1 @@
+{"task": 10, "commit": "befc422", "exit": 0, "modules": {"lua-table": {"tests": 61, "failures": 0}, "importer": {"tests": 415, "failures": 0}, "app": {"tests": 267, "failures": 0}}}

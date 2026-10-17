@@ -1,0 +1,26 @@
+[
+ {
+  "module": "app",
+  "role": "Swing browser",
+  "tests": 804,
+  "failures": 0,
+  "classes": 0,
+  "build": "main 3A merge (18cdf05)"
+ },
+ {
+  "module": "importer",
+  "role": "Data importer",
+  "tests": 420,
+  "failures": 0,
+  "classes": 0,
+  "build": "main 3A merge (18cdf05)"
+ },
+ {
+  "module": "lua-table",
+  "role": "Lua table reader",
+  "tests": 61,
+  "failures": 0,
+  "classes": 0,
+  "build": "main 3A merge (18cdf05)"
+ }
+]

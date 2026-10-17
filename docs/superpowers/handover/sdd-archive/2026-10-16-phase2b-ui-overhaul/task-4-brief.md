@@ -1,0 +1,6 @@
+### Task 4: Search ranking, merged hits, worded subtitles
+
+**Files:** modify `db/SearchRepository.java` (ranking per Global Constraints; `kind_priority` CASE; boss/rare NPC detection via `npc.rank` 3/4 or `boss.npc_id` existence; the zone→instance merge: a zone hit whose id is the `zone_id` of exactly one instance becomes that instance hit (dedupe if the instance also matched); collapse same-name same-kind hits into one `SearchHit` with `count` and the first ref — add `int count` to `SearchHit`), create `ui/Labels.java` (`contentType("RAID40") → "Raid (40)"`, `zoneKind("raid") → "Raid zone"`, `rank(int)`, `levels(a, b)`, `itemSubtitle(className, subclassName, itemLevel, requiredLevel)` → "Mail waist · iLvl 37 · Req 32" (omit null parts; never "iLvl 1" for quest/junk: omit iLvl when ≤ 1)), subtitles built through `Labels`.
+**Tests:** `SearchRankingTest` (fixture DB: exact match first; "Molten Core"-style case: build a temp DB where a zone is the zone of one instance → the instance hit wins and no separate zone hit; `zoneWithTwoInstancesStaysAZone`; same-name signposts collapse with count 4; kind priority order), `LabelsTest` (each mapping, including unknown content type passthrough).
+- [ ] Commit `feat(ui): search ranking, merged instance hits and worded labels`.
+

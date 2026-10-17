@@ -1,0 +1,643 @@
+<style>
+  .wf { display: flex; flex-direction: column; gap: var(--cds-gap-xl); font-family: var(--font-anthropic-sans); color: var(--color-fg); }
+  .wf-head { display: flex; flex-direction: column; gap: var(--cds-gap-xs); max-width: 48rem; }
+  .wf-eyebrow { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); letter-spacing: .06em; text-transform: uppercase; }
+  .wf-head h1 { margin: 0; font-family: var(--font-anthropic-serif); font-weight: 400; font-size: calc(var(--cds-font-size-title) * 1.35); line-height: 1.15; text-wrap: balance; }
+  .wf-takeaway { margin: 0; font-size: var(--cds-font-size-body); color: var(--color-fg-muted); line-height: 1.5; max-width: 42rem; min-height: 1.5em; }
+
+  .wf-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: var(--cds-gap-md); }
+  .wf-tile { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-xs); min-width: 0; }
+  .wf-tile-label { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .wf-tile-num { font-family: var(--font-anthropic-serif); font-weight: 400; font-size: calc(var(--cds-font-size-title) * 1.6); line-height: 1.1; font-variant-numeric: tabular-nums; min-height: 1.1em; }
+  .wf-tile-sub { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+
+  .wf-section { display: flex; flex-direction: column; gap: var(--cds-gap-md); }
+  .wf-section > h2 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+  .wf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: var(--cds-gap-md); }
+  .wf-card { background: var(--color-panel); border: 1px solid var(--color-border-line); border-radius: var(--cds-radius); padding: var(--cds-pad-lg); display: flex; flex-direction: column; gap: var(--cds-gap-sm); min-width: 0; }
+  .wf-card h3 { margin: 0; font-size: var(--cds-font-size-heading); font-weight: var(--cds-font-weight-medium); }
+  .wf-note { margin: 0; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .wf-wide { grid-column: 1 / -1; }
+
+  .wf-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr)); gap: var(--cds-gap-md); min-height: 5rem; }
+  .wf-step { display: grid; grid-template-columns: auto 1fr; column-gap: var(--cds-gap-sm); row-gap: 2px; align-items: start; }
+  .wf-dot { width: .75rem; height: .75rem; border-radius: 50%; margin-top: .3em; grid-row: span 3; box-sizing: border-box; border: 2px solid var(--cds-chart-muted); }
+  .wf-step[data-status="Done"] .wf-dot { background: var(--color-ok); border-color: var(--color-ok); }
+  .wf-step[data-status="In progress"] .wf-dot { border-color: var(--wf-accent); background: color-mix(in srgb, var(--wf-accent) 35%, transparent); }
+  .wf-step-name { font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-body); }
+  .wf-step-detail, .wf-step-when { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+
+  .wf-parts { display: flex; flex-direction: column; gap: var(--cds-gap-md); min-height: 4rem; border-top: 1px solid var(--color-border-line); padding-top: var(--cds-pad-md); }
+  .wf-part { display: flex; flex-direction: column; gap: var(--cds-gap-xs); }
+  .wf-part-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--cds-gap-sm); font-size: var(--cds-font-size-caption); }
+  .wf-part-head b { font-weight: var(--cds-font-weight-medium); font-size: var(--cds-font-size-body); }
+  .wf-part-count { color: var(--color-fg-muted); font-variant-numeric: tabular-nums; }
+  .wf-bar { display: flex; gap: 3px; height: .6rem; }
+  .wf-seg { flex: 1; border-radius: 3px; background: color-mix(in srgb, var(--cds-chart-muted) 30%, transparent); }
+  .wf-seg[data-status="Done"] { background: var(--color-ok); }
+  .wf-seg[data-status="In review"] { background: var(--wf-accent); }
+  .wf-seg[data-status="Up next"] { background: color-mix(in srgb, var(--wf-accent) 30%, transparent); }
+
+  .wf-tablebox { overflow-x: auto; }
+  .wf-table { width: 100%; border-collapse: collapse; font-size: var(--cds-font-size-body); font-variant-numeric: tabular-nums; }
+  .wf-table th { text-align: left; font-size: var(--cds-font-size-caption); font-weight: var(--cds-font-weight-medium); color: var(--color-fg-muted); padding: var(--cds-pad-xs) var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); white-space: nowrap; }
+  .wf-table td { padding: var(--cds-pad-sm); border-bottom: 1px solid var(--color-border-line); vertical-align: top; }
+  .wf-table tr:last-child td { border-bottom: none; }
+  .wf-table .wf-num { text-align: right; }
+  .wf-table .wf-mono { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .wf-table .wf-muted { color: var(--color-fg-muted); }
+  .wf-pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: var(--cds-font-size-caption); white-space: nowrap; border: 1px solid transparent; }
+  .wf-pill[data-status="Done"] { color: var(--color-ok); background: color-mix(in srgb, var(--color-ok) 12%, transparent); }
+  .wf-pill[data-status="In review"] { color: var(--wf-accent); background: color-mix(in srgb, var(--wf-accent) 14%, transparent); }
+  .wf-pill[data-status="Up next"] { color: var(--color-fg); border-color: var(--wf-accent); }
+  .wf-pill[data-status="Planned"] { color: var(--color-fg-muted); border-color: var(--color-border-line); }
+  .wf-pill[data-status="Open"] { color: var(--color-warn); background: color-mix(in srgb, var(--color-warn) 12%, transparent); }
+  @media (max-width: 40rem) { .wf-hide-narrow { display: none; } }
+
+  .wf-chart { position: relative; min-width: 0; }
+  .wf-chart svg { display: block; overflow: visible; }
+  .wf-chart svg text { font-family: var(--font-anthropic-sans); font-size: var(--cds-font-size-caption); fill: var(--color-fg-muted); }
+  .wf-chart svg text.wf-strong { fill: var(--color-fg); font-variant-numeric: tabular-nums; }
+  .wf-tip { position: absolute; pointer-events: none; background: var(--cds-surface-popover); border: 1px solid var(--cds-border); border-radius: var(--cds-radius); box-shadow: var(--cds-shadow-popover); padding: var(--cds-pad-xs) var(--cds-pad-sm); font-size: var(--cds-font-size-caption); max-width: 16rem; z-index: 2; }
+  .wf-tip-head { color: var(--cds-text-secondary); }
+  .wf-failed { display: flex; align-items: center; justify-content: center; gap: var(--cds-gap-xs); height: 100%; min-height: inherit; font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); }
+  .wf-failed::before { content: ""; width: .375rem; height: .375rem; border-radius: 50%; background: var(--color-bad); }
+  [data-dash-source-state=empty] { color: transparent; }
+  [data-dash-source-state=refreshing] { opacity: .5; transition: opacity var(--cds-dur-slow); }
+
+  .wf-foot { font-size: var(--cds-font-size-caption); color: var(--color-fg-muted); border-top: 1px solid var(--color-border-line); padding-top: var(--cds-pad-md); }
+  .wf-foot b { font-weight: var(--cds-font-weight-medium); color: var(--color-fg); }
+</style>
+
+<div class="wf" id="wf">
+  <header class="wf-head">
+    <div class="wf-eyebrow">Item &amp; drop browser · phase 2B UI overhaul</div>
+    <h1 id="title">WoW Forever Browser progress</h1>
+    <p class="wf-takeaway dash-skeleton" id="takeaway" data-source="parts tasks">—</p>
+  </header>
+
+  <section class="wf-tiles" id="headline" aria-label="Headline figures">
+    <div class="wf-tile">
+      <div class="wf-tile-label">Phase 2B tasks done</div>
+      <div class="wf-tile-num dash-skeleton" data-source="progress" data-field="done" data-row="0">—</div>
+      <div class="wf-tile-sub">of <span data-source="progress" data-field="total" data-row="0">—</span> planned · <span data-source="progress" data-field="review" data-row="0">—</span> in review</div>
+    </div>
+    <div class="wf-tile">
+      <div class="wf-tile-label">Automated tests passing</div>
+      <div class="wf-tile-num dash-skeleton" data-source="testsum" data-field="total" data-row="0">—</div>
+      <div class="wf-tile-sub"><span data-source="testsum" data-field="failures" data-row="0">—</span> failing across <span data-source="testsum" data-field="modules" data-row="0">—</span> modules</div>
+    </div>
+    <div class="wf-tile">
+      <div class="wf-tile-label">Commits on the phase 2B branch</div>
+      <div class="wf-tile-num dash-skeleton" data-source="commitstats" data-field="total" data-row="0">—</div>
+      <div class="wf-tile-sub"><span data-source="commitstats" data-field="feat" data-row="0">—</span> features · <span data-source="commitstats" data-field="fix" data-row="0">—</span> review fixes</div>
+    </div>
+    <div class="wf-tile">
+      <div class="wf-tile-label">Review fix rounds</div>
+      <div class="wf-tile-num dash-skeleton" data-source="progress" data-field="fix_rounds" data-row="0">—</div>
+      <div class="wf-tile-sub">over <span data-source="progress" data-field="done" data-row="0">—</span> reviewed tasks, all passed re-review</div>
+    </div>
+  </section>
+
+  <section class="wf-section" id="roadmap">
+    <h2>Where the project stands</h2>
+    <div class="wf-card">
+      <ol class="wf-steps dash-skeleton" id="steps" data-source="milestones"></ol>
+      <div class="wf-parts dash-skeleton" id="parts" data-source="parts tasks"></div>
+    </div>
+  </section>
+
+  <section class="wf-section" id="tasks-section">
+    <h2>Phase 2B and 3A tasks</h2>
+    <div class="wf-card">
+      <p class="wf-note">Each task is built test-first, then reviewed; a fix round is one pass of review findings fixed and re-reviewed.</p>
+      <div class="wf-tablebox">
+        <table class="wf-table" id="task-table" data-source="tasks" data-row-key="task">
+          <thead>
+            <tr>
+              <th data-field="task">#</th>
+              <th data-field="title">Task</th>
+              <th data-field="status">Status</th>
+              <th data-field="part" class="wf-hide-narrow">Part</th>
+              <th data-field="fix_rounds" class="wf-num wf-hide-narrow">Fix rounds</th>
+              <th data-field="app_tests" class="wf-num wf-hide-narrow">App tests</th>
+              <th data-field="importer_tests" class="wf-num wf-hide-narrow">Importer tests</th>
+              <th data-field="commit" class="wf-hide-narrow">Commit</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="wf-section" id="activity">
+    <h2>Build activity</h2>
+    <div class="wf-grid">
+      <div class="wf-card wf-wide">
+        <h3 id="timeline-title">Commits through the day</h3>
+        <p class="wf-note">Every phase 2B and 3A commit, by kind; the number above a dot is its task (21 to 30 are 3A-1 to 3A-10). The dashed line marks phase 2A landing on main.</p>
+        <div class="wf-chart dash-skeleton" id="timeline" data-source="commits milestones" style="min-height: 180px"></div>
+      </div>
+      <div class="wf-card wf-wide">
+        <h3 id="loc-title">Lines of code through the day</h3>
+        <p class="wf-note">Code lines in the repository (Java, Python, SQL, Lua and scripts; docs excluded) after every commit, one line per branch. Hover a point for the main/test split.</p>
+        <div class="wf-chart dash-skeleton" id="loc" data-source="loc milestones" style="min-height: 220px"></div>
+      </div>
+      <div class="wf-card">
+        <h3 id="growth-title">App tests after each task</h3>
+        <p class="wf-note">Phase 2B rows from the review log from task 6 on; phase 3A rows (21 to 30) measured by running the suite at each task’s final commit.</p>
+        <div class="wf-chart dash-skeleton" id="growth" data-source="tasks" style="min-height: 200px"></div>
+      </div>
+      <div class="wf-card">
+        <h3 id="modules-title">Tests by module</h3>
+        <p class="wf-note">From the last full build; none failing or skipped.</p>
+        <div class="wf-chart dash-skeleton" id="modules" data-source="tests" style="min-height: 140px"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="wf-section" id="findings-section">
+    <h2>Open findings for the Part 1 fix wave</h2>
+    <div class="wf-card">
+      <p class="wf-note">Found in the early visual check of the running app; they are fixed before the Part 1 gate.</p>
+      <div class="wf-tablebox">
+        <table class="wf-table" id="findings-table" data-source="findings" data-row-key="id">
+          <thead>
+            <tr>
+              <th data-field="area">Area</th>
+              <th data-field="finding">Finding</th>
+              <th data-field="status">Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <footer class="wf-foot" id="foot">
+    Snapshot of the phase 2B branch at commit <b data-source="commitstats" data-field="latest" data-row="0">—</b>,
+    <span data-source="commitstats" data-field="latest_time" data-row="0">—</span>.
+  </footer>
+</div>
+
+<script>
+  dash.calc('progress', {
+    inputs: ['tasks'],
+    title: 'Phase 2B task counts',
+    description: 'Counts the phase 2B tasks by status and adds up their review fix rounds.',
+    fn: (tasks) => {
+      const count = (s) => tasks.filter((t) => t.status === s).length;
+      return [{
+        total: tasks.length,
+        done: count('Done'),
+        review: count('In review'),
+        next: count('Up next'),
+        planned: count('Planned'),
+        fix_rounds: tasks.reduce((sum, t) => sum + (Number(t.fix_rounds) || 0), 0)
+      }];
+    }
+  });
+
+  dash.calc('parts', {
+    inputs: ['tasks'],
+    title: 'Tasks by plan part',
+    description: 'Counts done and in-review tasks in each part of the phase 2B plan.',
+    fn: (tasks) => ['Part 1', 'Part 2'].map((part) => {
+      const rows = tasks.filter((t) => t.part === part);
+      return {
+        part: part,
+        total: rows.length,
+        done: rows.filter((t) => t.status === 'Done').length,
+        review: rows.filter((t) => t.status === 'In review').length
+      };
+    })
+  });
+
+  dash.calc('testsum', {
+    inputs: ['tests'],
+    title: 'Tests across modules',
+    description: 'Adds up the tests and failures of every module in the last full build.',
+    fn: (tests) => [{
+      total: tests.reduce((s, t) => s + Number(t.tests), 0),
+      failures: tests.reduce((s, t) => s + Number(t.failures), 0),
+      modules: tests.length
+    }]
+  });
+
+  dash.calc('commitstats', {
+    inputs: ['commits'],
+    title: 'Phase 2B commit counts',
+    description: 'Counts the phase 2B commits by kind and finds the latest one.',
+    fn: (commits) => {
+      const count = (k) => commits.filter((c) => c.type === k).length;
+      const latest = commits.reduce((a, c) => (c.time > a.time ? c : a));
+      return [{ total: commits.length, feat: count('feat'), fix: count('fix'), docs: count('docs'),
+        latest: latest.hash, latest_time: latest.time }];
+    }
+  });
+</script>
+
+<script>
+(function () {
+  const root = document.getElementById('wf');
+  root.style.setProperty('--wf-accent', dash.colors[0]);
+
+  const parseTime = d3.timeParse('%Y-%m-%dT%H:%M');
+  const fmtClock = d3.timeFormat('%H:%M');
+  const fmtWhen = d3.timeFormat('%b %-d, %H:%M');
+  const fmtCount = d3.format(',');
+  const PART_NOTES = { 'Part 1': 'UI overhaul without the new data', 'Part 2': 'Built on the phase 2A client data' };
+  const KIND_NAMES = { feat: 'Features', fix: 'Review fixes', docs: 'Docs' };
+
+  const isOk = (d) => d.status === 'ok';
+  const failed = (d) => d.status === 'error' || d.status === 'connect' || d.status === 'declined' || d.status === 'missing';
+
+  function settle(el, d) {
+    if (isOk(d) || failed(d)) el.classList.remove('dash-skeleton');
+    else el.classList.add('dash-skeleton');
+  }
+
+  function failLine(el) {
+    el.textContent = '';
+    const div = document.createElement('div');
+    div.className = 'wf-failed';
+    div.textContent = 'Failed to load';
+    el.appendChild(div);
+  }
+
+  function fillMarks(id, format) {
+    const d = dash.data(id);
+    document.querySelectorAll('[data-source="' + id + '"][data-field]').forEach((el) => {
+      settle(el, d);
+      if (isOk(d) && d.data[0]) {
+        const v = d.data[0][el.dataset.field];
+        el.textContent = format && format[el.dataset.field] ? format[el.dataset.field](v) : (typeof v === 'number' ? fmtCount(v) : String(v));
+      } else {
+        el.textContent = '—';
+      }
+    });
+  }
+
+  function measure(svg, texts) {
+    const probe = svg.append('g').attr('opacity', 0);
+    let w = 0;
+    texts.forEach((t) => { w = Math.max(w, probe.append('text').text(t).node().getComputedTextLength()); });
+    probe.remove();
+    return w;
+  }
+
+  function tooltip(box) {
+    const tip = document.createElement('div');
+    tip.className = 'wf-tip';
+    tip.hidden = true;
+    box.appendChild(tip);
+    return {
+      show(event, head, lines) {
+        tip.textContent = '';
+        const h = document.createElement('div');
+        h.className = 'wf-tip-head';
+        h.textContent = head;
+        tip.appendChild(h);
+        lines.forEach((l) => { const div = document.createElement('div'); div.textContent = l; tip.appendChild(div); });
+        tip.hidden = false;
+        const rect = box.getBoundingClientRect();
+        const x = event.clientX - rect.left, y = event.clientY - rect.top;
+        const w = tip.offsetWidth, h2 = tip.offsetHeight;
+        tip.style.left = Math.max(0, Math.min(rect.width - w, x + 12)) + 'px';
+        tip.style.top = Math.max(0, y - h2 - 10) + 'px';
+      },
+      hide() { tip.hidden = true; }
+    };
+  }
+
+  function drawTakeaway() {
+    const el = document.getElementById('takeaway');
+    const parts = dash.data('parts'), tasks = dash.data('tasks');
+    if (!isOk(parts) || !isOk(tasks)) { settle(el, failed(parts) ? parts : tasks); el.textContent = '—'; return; }
+    el.classList.remove('dash-skeleton');
+    const p1 = parts.data.find((p) => p.part === 'Part 1');
+    const p2 = parts.data.find((p) => p.part === 'Part 2');
+    const next = tasks.data.find((t) => t.status === 'Up next');
+    let text = 'Part 1 of the UI overhaul has ' + p1.done + ' of ' + p1.total + ' tasks done';
+    text += p1.review ? ' and ' + p1.review + ' in review.' : '.';
+    if (next) text += ' Next up: ' + next.title.toLowerCase() + ', then the Part 1 gate and the ' + p2.total + ' tasks of Part 2.';
+    el.textContent = text;
+  }
+
+  function drawSteps() {
+    const el = document.getElementById('steps');
+    const d = dash.data('milestones');
+    settle(el, d);
+    if (!isOk(d)) { if (failed(d)) failLine(el); else el.textContent = ''; return; }
+    const rows = d.data.slice().sort((a, b) => Number(a.step) - Number(b.step));
+    d3.select(el).selectAll('li').data(rows, (r) => r.step).join((enter) => {
+      const li = enter.append('li').attr('class', 'wf-step');
+      li.append('span').attr('class', 'wf-dot').attr('aria-hidden', 'true');
+      li.append('span').attr('class', 'wf-step-name');
+      li.append('span').attr('class', 'wf-step-detail');
+      li.append('span').attr('class', 'wf-step-when');
+      return li;
+    }).attr('data-status', (r) => r.status)
+      .call((li) => {
+        li.select('.wf-step-name').text((r) => r.milestone);
+        li.select('.wf-step-detail').text((r) => r.detail);
+        li.select('.wf-step-when').text((r) => r.when ? r.status + ' · ' + fmtWhen(parseTime(r.when)) : r.status);
+      });
+  }
+
+  function drawParts() {
+    const el = document.getElementById('parts');
+    const d = dash.data('parts');
+    settle(el, d);
+    if (!isOk(d)) { if (failed(d)) failLine(el); else el.textContent = ''; return; }
+    const tasks = dash.data('tasks');
+    el.textContent = '';
+    d.data.forEach((p) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'wf-part';
+      const head = document.createElement('div');
+      head.className = 'wf-part-head';
+      const name = document.createElement('span');
+      const b = document.createElement('b');
+      b.textContent = p.part;
+      name.appendChild(b);
+      name.appendChild(document.createTextNode(' · ' + (PART_NOTES[p.part] || '')));
+      const count = document.createElement('span');
+      count.className = 'wf-part-count';
+      count.textContent = p.done + ' of ' + p.total + ' done' + (p.review ? ' · ' + p.review + ' in review' : '');
+      head.appendChild(name);
+      head.appendChild(count);
+      const bar = document.createElement('div');
+      bar.className = 'wf-bar';
+      bar.setAttribute('role', 'img');
+      bar.setAttribute('aria-label', p.part + ': ' + count.textContent);
+      const rows = isOk(tasks) ? tasks.data.filter((t) => t.part === p.part) : [];
+      rows.forEach((t) => {
+        const seg = document.createElement('span');
+        seg.className = 'wf-seg';
+        seg.dataset.status = t.status;
+        seg.title = 'Task ' + t.task + ': ' + t.title + ' (' + t.status + ')';
+        bar.appendChild(seg);
+      });
+      wrap.appendChild(head);
+      wrap.appendChild(bar);
+      el.appendChild(wrap);
+    });
+  }
+
+  function cell(tr, text, cls) {
+    const td = document.createElement('td');
+    if (cls) td.className = cls;
+    td.textContent = text;
+    tr.appendChild(td);
+    return td;
+  }
+
+  function pillCell(tr, status, cls) {
+    const td = document.createElement('td');
+    if (cls) td.className = cls;
+    const pill = document.createElement('span');
+    pill.className = 'wf-pill';
+    pill.dataset.status = status;
+    pill.textContent = status;
+    td.appendChild(pill);
+    tr.appendChild(td);
+  }
+
+  function drawTaskTable() {
+    const table = document.getElementById('task-table');
+    const body = table.querySelector('tbody');
+    const d = dash.data('tasks');
+    body.textContent = '';
+    if (!isOk(d)) {
+      const tr = document.createElement('tr');
+      const td = cell(tr, failed(d) ? '' : '—');
+      td.colSpan = 7;
+      if (failed(d)) failLine(td);
+      body.appendChild(tr);
+      return;
+    }
+    d.data.slice().sort((a, b) => Number(a.task) - Number(b.task)).forEach((t) => {
+      const tr = document.createElement('tr');
+      cell(tr, String(t.task), 'wf-muted');
+      cell(tr, t.title);
+      pillCell(tr, t.status);
+      cell(tr, t.part, 'wf-hide-narrow wf-muted');
+      cell(tr, t.fix_rounds == null ? '—' : String(t.fix_rounds), 'wf-num wf-hide-narrow');
+      cell(tr, t.app_tests == null ? '—' : fmtCount(Number(t.app_tests)), 'wf-num wf-hide-narrow');
+      cell(tr, t.importer_tests == null ? '—' : fmtCount(Number(t.importer_tests)), 'wf-num wf-hide-narrow');
+      cell(tr, t.commit || '—', 'wf-mono wf-hide-narrow');
+      body.appendChild(tr);
+    });
+  }
+
+  function drawFindings() {
+    const table = document.getElementById('findings-table');
+    const body = table.querySelector('tbody');
+    const d = dash.data('findings');
+    body.textContent = '';
+    if (!isOk(d)) {
+      const tr = document.createElement('tr');
+      const td = cell(tr, failed(d) ? '' : '—');
+      td.colSpan = 3;
+      if (failed(d)) failLine(td);
+      body.appendChild(tr);
+      return;
+    }
+    d.data.forEach((f) => {
+      const tr = document.createElement('tr');
+      tr.dataset.key = f.id;
+      cell(tr, f.area, 'wf-muted');
+      cell(tr, f.finding);
+      pillCell(tr, f.status);
+      body.appendChild(tr);
+    });
+  }
+
+  function drawTimeline() {
+    const box = document.getElementById('timeline');
+    const c = dash.data('commits'), m = dash.data('milestones');
+    box.textContent = '';
+    settle(box, c);
+    if (!isOk(c)) { if (failed(c)) failLine(box); return; }
+    const rows = c.data.map((r) => Object.assign({}, r, { t: parseTime(r.time) })).filter((r) => r.t);
+    const kinds = ['feat', 'fix', 'docs'].filter((k) => rows.some((r) => r.type === k));
+    const merge = isOk(m) ? m.data.find((r) => r.milestone === 'Phase 2A client data' && r.when) : null;
+    const mergeT = merge ? parseTime(merge.when) : null;
+
+    const W = Math.max(280, box.clientWidth), H = 180;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', '0 0 ' + W + ' ' + H)
+      .attr('role', 'img').attr('aria-labelledby', 'timeline-title');
+    const left = measure(svg, kinds.map((k) => KIND_NAMES[k])) + 16;
+    const times = rows.map((r) => r.t).concat(mergeT ? [mergeT] : []);
+    const x = d3.scaleTime([d3.timeMinute.offset(d3.min(times), -6), d3.timeMinute.offset(d3.max(times), 6)], [left, W - 10]);
+    const y = d3.scalePoint(kinds, [44, H - 44]).padding(0.4);
+    const color = (k) => dash.colors[kinds.indexOf(k)];
+
+    const ticks = x.ticks(W > 640 ? d3.timeMinute.every(30) : d3.timeHour.every(1));
+    svg.append('g').selectAll('line').data(ticks).join('line')
+      .attr('x1', (t) => x(t)).attr('x2', (t) => x(t)).attr('y1', 24).attr('y2', H - 26)
+      .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+    svg.append('g').selectAll('text').data(ticks).join('text')
+      .attr('x', (t) => x(t)).attr('y', H - 8).attr('text-anchor', 'middle').text((t) => fmtClock(t));
+    svg.append('g').selectAll('line').data(kinds).join('line')
+      .attr('x1', left).attr('x2', W - 10).attr('y1', (k) => y(k)).attr('y2', (k) => y(k))
+      .attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 1).attr('opacity', 0.5);
+    svg.append('g').selectAll('text').data(kinds).join('text')
+      .attr('x', 0).attr('y', (k) => y(k)).attr('dy', '0.32em').text((k) => KIND_NAMES[k]);
+
+    if (mergeT) {
+      const mx = x(mergeT);
+      svg.append('line').attr('x1', mx).attr('x2', mx).attr('y1', 18).attr('y2', H - 26)
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-width', 1).attr('stroke-dasharray', '4 3');
+      svg.append('text').attr('x', mx - 4).attr('y', 12).attr('text-anchor', 'end').text('Phase 2A merged ' + fmtClock(mergeT));
+    }
+
+    const tip = tooltip(box);
+    const dots = svg.append('g').selectAll('g').data(rows).join('g')
+      .attr('transform', (r) => 'translate(' + x(r.t) + ',' + y(r.type) + ')');
+    dots.append('circle').attr('r', 6).attr('fill', (r) => color(r.type))
+      .attr('stroke', 'var(--color-panel)').attr('stroke-width', 2)
+      .on('mousemove', (event, r) => tip.show(event, fmtClock(r.t) + ' · ' + r.hash, [r.subject]))
+      .on('mouseleave', () => tip.hide());
+    dots.filter((r) => r.task != null).append('text').attr('class', 'wf-strong').attr('y', -11)
+      .attr('text-anchor', 'middle').text((r) => r.task);
+  }
+
+  function drawGrowth() {
+    const box = document.getElementById('growth');
+    const d = dash.data('tasks');
+    box.textContent = '';
+    settle(box, d);
+    if (!isOk(d)) { if (failed(d)) failLine(box); return; }
+    const rows = d.data.filter((t) => t.app_tests != null)
+      .map((t) => ({ task: Number(t.task), title: t.title, n: Number(t.app_tests) }))
+      .sort((a, b) => a.task - b.task);
+    const W = Math.max(240, box.clientWidth), H = 200, top = 26, bottom = 28;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', '0 0 ' + W + ' ' + H)
+      .attr('role', 'img').attr('aria-labelledby', 'growth-title');
+    const x = d3.scaleBand(rows.map((r) => r.task), [0, W]).padding(0.35);
+    const y = d3.scaleLinear([0, d3.max(rows, (r) => r.n) * 1.05], [H - bottom, top]);
+    svg.append('g').selectAll('line').data(y.ticks(4)).join('line')
+      .attr('x1', 0).attr('x2', W).attr('y1', (v) => y(v)).attr('y2', (v) => y(v))
+      .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+    const bw = Math.min(32, x.bandwidth());
+    const tip = tooltip(box);
+    const g = svg.append('g').selectAll('g').data(rows).join('g')
+      .attr('transform', (r) => 'translate(' + (x(r.task) + x.bandwidth() / 2) + ',0)');
+    g.append('rect').attr('x', -bw / 2).attr('width', bw).attr('y', (r) => y(r.n)).attr('height', (r) => y(0) - y(r.n))
+      .attr('rx', 4).attr('fill', dash.colors[0])
+      .on('mousemove', (event, r) => tip.show(event, 'Task ' + r.task, [r.title, fmtCount(r.n) + ' app tests']))
+      .on('mouseleave', () => tip.hide());
+    g.append('text').attr('class', 'wf-strong').attr('y', (r) => y(r.n) - 6).attr('text-anchor', 'middle').text((r) => fmtCount(r.n));
+    g.append('text').attr('y', H - 8).attr('text-anchor', 'middle').text((r) => 'Task ' + r.task);
+    svg.append('line').attr('x1', 0).attr('x2', W).attr('y1', y(0)).attr('y2', y(0))
+      .attr('stroke', 'var(--cds-chart-axis)').attr('stroke-width', 1);
+  }
+
+  function drawLoc() {
+    const box = document.getElementById('loc');
+    const d = dash.data('loc'), m = dash.data('milestones');
+    box.textContent = '';
+    settle(box, d);
+    if (!isOk(d)) { if (failed(d)) failLine(box); return; }
+    const rows = d.data.map((r) => ({ series: r.series, hash: r.hash, t: parseTime(String(r.time).slice(0, 16)),
+      main: Number(r.main), test: Number(r.test), docs: Number(r.docs), total: Number(r.total) })).filter((r) => r.t);
+    if (!rows.length) { failLine(box); return; }
+    const names = Array.from(new Set(rows.map((r) => r.series)));
+    const marks = isOk(m) ? m.data.filter((r) => r.when).map((r) => ({ name: r.milestone, t: parseTime(String(r.when).slice(0, 16)) })).filter((r) => r.t) : [];
+    const W = Math.max(280, box.clientWidth), H = 220, top = 30, bottom = 26;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', '0 0 ' + W + ' ' + H)
+      .attr('role', 'img').attr('aria-labelledby', 'loc-title');
+    const maxTotal = d3.max(rows, (r) => r.total);
+    const left = measure(svg, [fmtCount(maxTotal)]) + 12;
+    const x = d3.scaleTime([d3.timeMinute.offset(d3.min(rows, (r) => r.t), -6), d3.timeMinute.offset(d3.max(rows, (r) => r.t), 6)], [left, W - 10]);
+    const y = d3.scaleLinear([0, maxTotal * 1.08], [H - bottom, top]);
+    const color = (s) => dash.colors[names.indexOf(s) % dash.colors.length];
+    const shown = marks.filter((k) => k.t >= x.domain()[0] && k.t <= x.domain()[1]);
+    svg.append('g').selectAll('line').data(y.ticks(4)).join('line')
+      .attr('x1', left).attr('x2', W - 10).attr('y1', (v) => y(v)).attr('y2', (v) => y(v))
+      .attr('stroke', 'var(--cds-chart-grid)').attr('stroke-width', 1);
+    svg.append('g').selectAll('text').data(y.ticks(4)).join('text')
+      .attr('x', left - 6).attr('y', (v) => y(v)).attr('dy', '0.32em').attr('text-anchor', 'end').text((v) => fmtCount(v));
+    const ticks = x.ticks(W > 640 ? d3.timeHour.every(1) : d3.timeHour.every(3));
+    svg.append('g').selectAll('text').data(ticks).join('text')
+      .attr('x', (t) => x(t)).attr('y', H - 8).attr('text-anchor', 'middle').text((t) => fmtClock(t));
+    shown.forEach((k) => {
+      const mx = x(k.t);
+      svg.append('line').attr('x1', mx).attr('x2', mx).attr('y1', top - 4).attr('y2', H - bottom)
+        .attr('stroke', 'var(--cds-chart-reference)').attr('stroke-width', 1).attr('stroke-dasharray', '4 3');
+    });
+    const line = d3.line().x((r) => x(r.t)).y((r) => y(r.total)).curve(d3.curveStepAfter);
+    const tip = tooltip(box);
+    names.forEach((s) => {
+      const pts = rows.filter((r) => r.series === s).sort((a, b) => a.t - b.t);
+      svg.append('path').datum(pts).attr('fill', 'none').attr('stroke', color(s)).attr('stroke-width', 2).attr('d', line);
+      svg.append('g').selectAll('circle').data(pts).join('circle')
+        .attr('cx', (r) => x(r.t)).attr('cy', (r) => y(r.total)).attr('r', 3.5).attr('fill', color(s))
+        .attr('stroke', 'var(--color-panel)').attr('stroke-width', 1.5)
+        .on('mousemove', (event, r) => tip.show(event, fmtClock(r.t) + ' \u00b7 ' + r.hash,
+          [s, fmtCount(r.total) + ' code lines: ' + fmtCount(r.main) + ' main, ' + fmtCount(r.test) + ' tests', fmtCount(r.docs) + ' lines of docs']))
+        .on('mouseleave', () => tip.hide());
+    });
+    let lx = left + 4;
+    names.forEach((s) => {
+      const g = svg.append('g').attr('transform', 'translate(' + lx + ',' + (top - 22) + ')');
+      g.append('rect').attr('width', 10).attr('height', 10).attr('rx', 2).attr('y', 1).attr('fill', color(s));
+      g.append('text').attr('x', 14).attr('y', 10).text(s);
+      lx += measure(svg, [s]) + 30;
+    });
+    shown.forEach((k) => {
+      const mx = x(k.t);
+      svg.append('text').attr('x', mx - 4).attr('y', H - bottom - 4).attr('text-anchor', 'end').attr('class', 'wf-muted').text(k.name);
+    });
+  }
+
+  function drawModules() {
+    const box = document.getElementById('modules');
+    const d = dash.data('tests');
+    box.textContent = '';
+    settle(box, d);
+    if (!isOk(d)) { if (failed(d)) failLine(box); return; }
+    const rows = d.data.map((r) => Object.assign({}, r, { n: Number(r.tests) })).sort((a, b) => b.n - a.n);
+    const W = Math.max(240, box.clientWidth), row = 40, H = rows.length * row + 8;
+    const svg = d3.select(box).append('svg').attr('width', '100%').attr('viewBox', '0 0 ' + W + ' ' + H)
+      .attr('role', 'img').attr('aria-labelledby', 'modules-title');
+    const left = measure(svg, rows.map((r) => r.module)) + 14;
+    const right = measure(svg, rows.map((r) => fmtCount(r.n))) + 10;
+    const x = d3.scaleLinear([0, d3.max(rows, (r) => r.n)], [0, W - left - right]);
+    const tip = tooltip(box);
+    const g = svg.append('g').selectAll('g').data(rows).join('g')
+      .attr('transform', (r, i) => 'translate(0,' + (i * row + 8) + ')');
+    g.append('text').attr('x', 0).attr('y', 12).attr('dy', '0.32em').text((r) => r.module);
+    g.append('rect').attr('x', left).attr('y', 2).attr('height', 20).attr('width', (r) => Math.max(2, x(r.n)))
+      .attr('rx', 4).attr('fill', dash.colors[1])
+      .on('mousemove', (event, r) => tip.show(event, r.module, [r.role, fmtCount(r.n) + ' tests in ' + r.classes + ' classes', r.failures + ' failing']))
+      .on('mouseleave', () => tip.hide());
+    g.append('text').attr('class', 'wf-strong').attr('x', (r) => left + Math.max(2, x(r.n)) + 6).attr('y', 12)
+      .attr('dy', '0.32em').text((r) => fmtCount(r.n));
+  }
+
+  let drawn = false;
+  dash.onData(() => {
+    fillMarks('progress');
+    fillMarks('testsum');
+    fillMarks('commitstats', { latest: (v) => String(v), latest_time: (v) => fmtWhen(parseTime(v)) });
+    drawTakeaway();
+    drawSteps();
+    drawParts();
+    drawTaskTable();
+    drawFindings();
+    drawTimeline();
+    drawLoc();
+    drawGrowth();
+    drawModules();
+    if (!drawn && location.hash) {
+      const named = document.getElementById(location.hash.slice(1));
+      if (named) { named.scrollIntoView(); dash.setLink(named.id); drawn = true; }
+    }
+  });
+})();
+</script>

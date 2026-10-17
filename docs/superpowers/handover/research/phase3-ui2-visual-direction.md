@@ -1,0 +1,18 @@
+# UI designer 2 memo (revised) — WoW visual direction with client icons (2026-10-17)
+
+## Rail icons: client textures (first / second choice), verify paths against the client listfile
+Home: Interface/Icons/INV_Misc_Rune_01 / Spell_Nature_AstralRecal. Items: INV_Misc_Bag_08 / Interface/Buttons/Button-Backpack-Up.
+NPCs: Interface/GossipFrame/GossipGossipIcon / INV_Misc_Head_Human_01 (not with the dragon head). Quests: Interface/GossipFrame/AvailableQuestIcon ("!") / INV_Misc_Note_01.
+Zones: INV_Misc_Map_01 / Interface/WorldMap/UI-World-Icon. Dungeons & Raids: INV_Misc_Head_Dragon_01 / INV_Misc_Key_03.
+Presentation: every entry on a 28 px navy #0C1424 plate (both themes); Interface/Icons art cropped to the central 86 % (0.07–0.93) to drop the bevel, rendered at 24 px bicubic; GossipFrame art centred at native (≤ 2×) size; idle = full colour at ~85 % brightness (never desaturated: grey = unusable in WoW); hover = full brightness + 1 px gold hairline at 50 %; selected = solid 1 px gold #D6B25E border + soft outer glow (~6 px, 25 %) + 3 px gold bar on the rail's left edge (one glow on screen); tooltips on the navy card. Section headers may reuse the icons at 16 px without a plate. Fallback for a texture that fails verification: original monochrome SVG (hearthstone, pouch, open helm, "!" on scroll, zigzag map with route to X, stone arch with spiral).
+## Panels, headings, bars, chips, status bar
+Panels: 1 px gold hairline at 35 % alpha, 4 px radius; detail headers may add 6 px L-shaped gold corner ticks. Section headings: heading font small caps 12–13 pt, gold, 0.06 em tracking, followed by a 1 px gold rule fading to transparent on the right. Page titles 20 pt; item titles in quality colour. Rate bars: 6 px, dark-gold→gold fill on bg.raised, faint ticks every 10 %, percentage right-aligned in tabular figures. Chips: outline, 1 px border, transparent, 10 pt uppercase semibold — Elite gold; Rare silver #C0C6CF; Rare Elite silver border + gold text; Boss red #C8463C border, text #F08A7E dark / #9E2A20 parchment. Status bar 22 px on bg.base with a gold top hairline at 20 %; provenance left ("Forever beta 1.60.1, 12,431 items"), theme/density toggles right.
+## Typography
+Headings: Marcellus + Marcellus SC (OFL), fallback Cinzel (OFL), Georgia, serif; never bundle Friz Quadrata (commercial). Body/lists/numbers/inputs: Inter (FlatLaf ships it) → Segoe UI.
+## Themes
+Dark "Slate": current tokens, bg.base nudged to #12161D; rare #0070DD / epic #A335EE are ~3.8:1 on navy → small text uses #4A9EF0 / #B864F5 or bold ≥ 14 pt.
+Light "Parchment": base #F3E9D2, surface #EADCBB, raised #FBF5E6; text #2B2416, muted #6B5E45 (5.3:1); link #1F4E8C; gold #8A6D1E (4.1:1) only for borders/bars/large headings, gold text < 18 pt uses #7A5E14 (5.1:1); quality on parchment: poor #6B6B6B, uncommon #1A7A00, rare #0057B0, epic #7B22B8, legendary #A85300. The tooltip card and rail plates stay navy in both themes.
+## Quick wins (~1 day each)
+Client-icon rail (extract, verify, crop, plates, states, tooltips); heading pass (Marcellus, gold small-caps headings with fading rule, gold hairlines on raised panels); chips + rate bars + status bar (token-driven). Parchment token swap as a fourth day.
+## What not to do
+Client art for icons only (no frame textures, portraits, stone/parchment bitmaps, cursors); no mixed icon families; no fantasy font in body/tables/numbers; gold only for headings, selection, borders, bars; quality colours only on item names; nothing < 4.5:1 for small text; no quest yellow / uncommon green text on parchment; no pulsing glows; compact mode intact (plates 24 px, headings 11 pt, no corner ticks).

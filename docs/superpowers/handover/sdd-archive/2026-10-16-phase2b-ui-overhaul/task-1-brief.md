@@ -1,0 +1,6 @@
+### Task 1: Theme tokens, dark default, quality colours
+
+**Files:** Create `app/src/main/java/dev/wowforever/app/ui/theme/Theme.java` (token constants as `Color` for the active mode + `static Theme current()`), `Tokens.java` (both palettes), `QualityColors.java` (`text(int quality, boolean dark)`, `canonical(int quality)`, `rateBand(double pct)`), `app/src/main/resources/dev/wowforever/app/ui/theme/WowForeverDark.properties` and `WowForeverLight.properties` (FlatLaf properties: `@background`, `@foreground`, `@accentColor`, `Component.linkColor`, `Table.selectionBackground`, `Table.alternateRowColor`, `Component.focusWidth`, `Component.arc`); modify `ui/ThemeManager.java` (default `dark`, `apply(mode)`, `isDark()`, `toggle(root)` keeps working; loads the properties via `FlatLaf.registerCustomDefaultsSource` or subclasses `FlatDarkLaf`/`FlatLightLaf` with `IntelliJTheme`-style properties).
+**Tests:** `QualityColorsTest` (every quality 0–7 has text/canonical; band thresholds at 25/5/1 exactly), `ThemeManagerTest` (default dark when no preference; preference round-trip; `Theme.current()` flips with the mode; properties resources load and contain the token values).
+- [ ] Steps: write failing tests → run → implement → pass → commit `feat(ui): theme tokens, dark default and quality colours`.
+

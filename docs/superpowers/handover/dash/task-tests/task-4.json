@@ -1,0 +1,1 @@
+{"task": 4, "commit": "7ac1847", "exit": 0, "modules": {"lua-table": {"tests": 61, "failures": 0}, "importer": {"tests": 364, "failures": 0}, "app": {"tests": 203, "failures": 0}}}

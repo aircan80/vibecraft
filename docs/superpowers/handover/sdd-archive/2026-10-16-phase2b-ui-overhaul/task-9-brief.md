@@ -1,0 +1,6 @@
+### Task 9: Keyboard map, window state persistence, text size, accessibility
+
+**Files:** `ui/KeyMap.java` (bindings per review §P2.6 on the root pane; `Help → Keyboard shortcuts` dialog content as a `JTable` built from the same table so the help never drifts), `ui/UiState.java` complete (bounds, maximised, screen device id, dividers, compact mode, always-on-top, text size, column widths + sort per table kind, last search kind, pinned, recent), `MainFrame` save on `windowClosing` and a 500 ms debounced move/resize; restore validates bounds intersect a current screen else centre 1280×800; text size 90–150 % via `UIManager.put("defaultFont", …)` + `FlatLaf.updateUI()`; focus ring (`Component.focusWidth` = 2, gold); accessible names on every icon-only button; `Esc` chain (close dropdown → clear search → focus list).
+**Tests:** `UiStateTest` (round-trip every field through a `Preferences` test node; `offscreenBoundsAreReset`), `KeyMapTest` (every documented binding present in the input map; help table rows equal the binding list), `AccessibilityTest` (every `AbstractButton` without text in `MainFrame.buildContent` has an accessible name).
+- [ ] Commit `feat(ui): keyboard map, window state persistence, text size and accessibility`.
+
