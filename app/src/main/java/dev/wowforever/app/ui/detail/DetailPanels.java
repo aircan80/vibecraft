@@ -82,9 +82,14 @@ public final class DetailPanels {
    * What {@link #load} returns for a zone: the zone, its decoded map (null: none, or it does not decode) and the
    * spawn points of its bosses and rares, which the map pins at first (empty without a map).
    */
-  public record LoadedZone(ZoneDetail detail, BufferedImage map, List<SpawnPin> pins) {
+  public record LoadedZone(ZoneDetail detail, BufferedImage map, List<SpawnPin> pins,
+      List<dev.wowforever.app.model.GeographyStep> breadcrumbs) {
     public LoadedZone {
       pins = List.copyOf(pins);
+      breadcrumbs = List.copyOf(breadcrumbs);
+    }
+    public LoadedZone(ZoneDetail detail, BufferedImage map, List<SpawnPin> pins) {
+      this(detail,map,pins,List.of());
     }
   }
 
@@ -124,7 +129,10 @@ public final class DetailPanels {
    * ({@link dev.wowforever.app.db.QuestRepository#byZone}; none without a zone), which its page lists after the loot.
    */
   public record LoadedInstance(InstanceDetail detail, List<QuestSummary> quests, String clientBuild,
-      BossLoot clientLoot) {
+      BossLoot clientLoot, List<dev.wowforever.app.model.GeographyStep> breadcrumbs) {
+    public LoadedInstance(InstanceDetail detail, List<QuestSummary> quests, String clientBuild, BossLoot clientLoot) {
+      this(detail,quests,clientBuild,clientLoot,List.of());
+    }
     public LoadedInstance(InstanceDetail detail, List<QuestSummary> quests) {
       this(detail, quests, "unknown", null);
     }
@@ -135,6 +143,7 @@ public final class DetailPanels {
 
     public LoadedInstance {
       quests = List.copyOf(quests);
+      breadcrumbs = List.copyOf(breadcrumbs);
     }
   }
 
@@ -210,15 +219,22 @@ public final class DetailPanels {
         return new LoadedQuest(data, maps, repos.zones().names(data.mapZones()));
       });
       case ZONE -> repos.zones().detail(id).map(d -> loadedZone(d, repos));
-      case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)))
+      case INSTANCE -> repos.instances().detail(id)
           .map(d -> new LoadedInstance(d, d.summary().zoneId() == null ? List.of()
               : repos.quests().byZone(d.summary().zoneId()), repos.instances().clientBuild(),
-              (InstanceSummary.CLIENT.equals(d.summary().source())
-                  || d.difficulties().contains(dev.wowforever.app.db.InstanceRepository.OBSERVED_DIFFICULTY))
-                  ? BossLoot.preloaded(d, repos) : null));
+              BossLoot.preloaded(d, repos), instanceBreadcrumbs(d,repos)));
       case BOSS -> Optional.empty();
     };
     return detail.map(Object.class::cast);
+  }
+
+  private static List<dev.wowforever.app.model.GeographyStep> instanceBreadcrumbs(InstanceDetail d, Repositories repos) {
+    var path=new ArrayList<dev.wowforever.app.model.GeographyStep>();
+    if(d.summary().zoneId()!=null)path.addAll(repos.zones().breadcrumbs(d.summary().zoneId()));
+    String name=d.summary().displayName();
+    if(!path.isEmpty() && path.getLast().name().equalsIgnoreCase(name))path.removeLast();
+    path.add(new dev.wowforever.app.model.GeographyStep(name,d.summary().id(),dev.wowforever.app.model.GeographyStep.Kind.INSTANCE));
+    return List.copyOf(path);
   }
 
   /** The NPCs of item {@code d}'s drops and loot lists' bosses whose rate has sources. */
@@ -233,7 +249,8 @@ public final class DetailPanels {
   /** The zone with its decoded map and, when it has one, the pins of its bosses and rares. */
   private static LoadedZone loadedZone(ZoneDetail d, Repositories repos) {
     BufferedImage map = d.map().flatMap(MapCache.shared()::decoded).orElse(null);
-    return new LoadedZone(d, map, map == null ? List.of() : repos.zones().npcSpawnsInZone(d.summary().id(), true));
+    return new LoadedZone(d, map, map == null ? List.of() : repos.zones().npcSpawnsInZone(d.summary().id(), true),
+        repos.zones().breadcrumbs(d.summary().id()));
   }
 
   /** The zone of the first spawn point {@linkplain MapCoordinates#onMap on the map}; null when none is. */
@@ -271,17 +288,6 @@ public final class DetailPanels {
     return d;
   }
 
-  /**
-   * The loot the instance page shows on opening: its {@linkplain InstancePage#firstBoss first boss}'s in the first
-   * difficulty; empty without bosses or difficulties.
-   */
-  private static List<LootRow> firstBossLoot(InstanceDetail d, Repositories repos) {
-    if (d.difficulties().isEmpty()) {
-      return List.of();
-    }
-    return InstancePage.firstBoss(d).map(b -> repos.instances().bossLoot(b.id(), d.difficulties().get(0)))
-        .orElse(List.of());
-  }
 
   /** The summary's icon id, else the card's (null when neither has one). */
   private static Long iconId(ItemDetail d) {
@@ -322,8 +328,8 @@ public final class DetailPanels {
       case LoadedQuest p -> new QuestPage(p.data(), p.maps(), p.zoneNames(), nav, ClipboardPort.system());
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
-              worker, status, nav, questPins, routes), nav);
-      case LoadedInstance p -> new InstancePage(p.detail(), p.quests(), repos, p.clientBuild(), p.clientLoot(), nav);
+              worker, status, nav, questPins, routes), p.breadcrumbs(), nav);
+      case LoadedInstance p -> new InstancePage(p.detail(), p.quests(), repos, p.clientBuild(), p.clientLoot(), p.breadcrumbs(), nav);
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
   }

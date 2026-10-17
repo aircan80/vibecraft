@@ -261,7 +261,8 @@ public final class ItemRepository {
   private static List<InstanceLoot> inInstanceLoot(Connection c, long itemId) throws SQLException {
     List<InstanceLoot> rows = new ArrayList<>(Sql.list(c, """
         SELECT i.id AS instance_id, i.name AS instance_name, b.id AS boss_id, b.name AS boss_name, b.npc_id,
-               bl.slot, bl.drop_pct, bl.disagrees, bl.source_count, bl.pct_source
+               bl.slot, bl.drop_pct, bl.disagrees, bl.source_count, bl.pct_source,
+        """ + ForeverLootFacts.origin(c)+" AS presence_origin " + """
         FROM boss_loot bl
         JOIN boss b ON b.id = bl.boss_id
         JOIN instance i ON i.id = b.instance_id
@@ -271,7 +272,7 @@ public final class ItemRepository {
         rs -> new InstanceLoot(new EntityRef(EntityKind.INSTANCE, rs.getLong("instance_id")),
             rs.getString("instance_name"), rs.getLong("boss_id"), rs.getString("boss_name"),
             Sql.longValue(rs, "npc_id"), Sql.integer(rs, "slot"), Sql.doubleValue(rs, "drop_pct"),
-            rs.getInt("disagrees") != 0, rs.getInt("source_count"), rs.getString("pct_source")),
+            rs.getInt("disagrees") != 0, rs.getInt("source_count"), rs.getString("pct_source"), false, rs.getString("presence_origin")),
         itemId));
     if (Sql.hasTable(c, "collector_fact")) {
       List<InstanceLoot> observed = Sql.list(c, """
@@ -285,7 +286,7 @@ public final class ItemRepository {
               Sql.longValue(rs, "npc_id"), null, null, false, 0, null, true), itemId);
       var observedBosses = observed.stream().map(InstanceLoot::bossId).collect(java.util.stream.Collectors.toSet());
       rows.replaceAll(l -> new InstanceLoot(l.instance(), l.instanceName(), l.bossId(), l.bossName(), l.bossNpcId(),
-          l.slot(), l.dropPct(), l.disagrees(), l.sourceCount(), l.pctSource(), observedBosses.contains(l.bossId())));
+          l.slot(), l.dropPct(), l.disagrees(), l.sourceCount(), l.pctSource(), observedBosses.contains(l.bossId()), l.presenceOrigin()));
       var existingBosses = rows.stream().map(InstanceLoot::bossId).collect(java.util.stream.Collectors.toSet());
       observed.stream().filter(l -> !existingBosses.contains(l.bossId())).forEach(rows::add);
     }

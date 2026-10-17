@@ -42,7 +42,7 @@ Pasting a whole item link, an `item:19019` text, a Wowhead URL or a bare id over
 
 The rail opens Home and the list pages: Items, NPCs, Quests, Zones, and Dungeons & Raids. A list page has a filter bar over a sortable table. Items filter by class, subclass, quality and item level, NPCs by zone, rank and level, quests by zone and level. Dungeons and raids are grouped by level band. A click on a name opens it, and Back returns to the list with its filters.
 
-The four client-named Forever dungeons show their tuning level (for example, “Level 28+”), numbered encounter badges and the caption “Encounter order in the game client”. Their coverage line names the shipped client build. Boss names are known; loot is not recorded in this snapshot, so these pages show an explicit empty state. Future recorded client loot is shown as unverified. The Dungeons & Raids list includes a dated research footnote linking the Blizzard announcement; it describes the pinned snapshot rather than current availability.
+The four client-named Forever dungeons show their tuning level (for example, “Level 28+”), numbered encounter badges and the caption “Encounter order in the game client”. Their coverage line names the shipped client build. The snapshot now includes 78 reported loot rows from separately archived AtlasLoot Forever and AtlasLoot Continued inputs, labelled “Addon reported” with provider attribution and an unverified qualification. Five client encounters still have no matching loot list; source names that differ from the client remain separate under “Other loot lists”. The Dungeons & Raids list includes a dated research footnote linking the Blizzard announcement; it describes the pinned snapshot rather than current availability.
 
 
 ### Item pages
@@ -138,7 +138,7 @@ The shipped database `app/src/main/resources/data/wowforever.sqlite` is generate
 
 Quests come from QuestieDB as well. Schema version 3 adds their objectives (`quest_objective`, with the exploration points in `quest_objective_point`), the items a quest provides or requires (`quest_source_item`) and the chain relations between quests (`quest_relation`: prerequisites, follow-ups, exclusive and grouped quests, breadcrumbs).
 
-Dungeons and raids come from AtlasLootClassic, with their bosses and loot. The four WoW: Forever dungeons AtlasLoot does not know come from the client's own tables (schema version 4): City of Dalaran, Excavation Site: Wetlands, Ruins of Lordaeron and The Hall of Thanes. Each has `instance.source = 'client'`, its tuned minimum level and the bosses the client names, in order; the client has no loot tables, so they have no boss loot. The tools README, "Dungeon tables", gives the rule. Without the client's `LFGDungeons`, `ContentTuning` and `DungeonEncounter` tables the import leaves them out and reports `clientdata.instances.skipped = 1`.
+Dungeons and raids come from AtlasLootClassic, with their bosses and loot. The four WoW: Forever dungeons absent from the historical Classic pin come from the client's own tables (schema version 4): City of Dalaran, Excavation Site: Wetlands, Ruins of Lordaeron and The Hall of Thanes. Each has `instance.source = 'client'`, its tuned minimum level and the bosses the client names, in order; the client has no loot tables. A separate additive overlay supplies reported addon loot while preserving those client encounters, stats and maps. The tools README, "Dungeon tables", gives the rule. Without the client's `LFGDungeons`, `ContentTuning` and `DungeonEncounter` tables the import leaves them out and reports `clientdata.instances.skipped = 1`.
 
 The same schema holds three more data sets, which the browser does not show yet:
 
@@ -394,10 +394,44 @@ Unknown entity IDs remain unresolved rather than creating fabricated entities. N
 Lua keys may share JSON display keys, and nonfinite numeric display values are tagged strings;
 exact archived bytes remain authoritative.
 
-Applied collector/map overlays are protected from ordinary core rebuilds, which refuse instead
+Applied collector/map/Forever-loot overlays are protected from ordinary core rebuilds, which refuse instead
 of silently removing them. Real beta-session acceptance remains pending; synthetic fixtures verify
 tooling only. The addon remains on its separate `feature/collector-addon` branch.
 
-The next roadmap slice adds [world-map drill-down](docs/WORLD_MAP_IMPORT.md) through archived
-client geography in the same database. Its hierarchy source build is labelled separately from
-the main client data; Era comparison badges and later map layers remain open.
+[World-map drill-down](docs/WORLD_MAP_IMPORT.md) uses archived client geography in the same database.
+Clickable breadcrumbs continue from Azeroth through continent, zone and any known subzone ancestry,
+and onto an instance when its zone relationship is recorded. Every parent opens its own map or detail
+page; the current location is plain text. The path wraps in narrow windows and supports keyboard focus
+and Enter. Missing parents stop the path without inventing geography. The hierarchy source build is
+labelled separately from the main client data; Era comparison badges and later map layers remain open.
+
+### Archive and project reported Forever dungeon loot
+
+The narrow overlay uses two independent GPLv2 source snapshots: Sliccer's AtlasLoot Classic Forever
+`1.2.5-131026-16001` ([release page](https://www.curseforge.com/wow/addons/atlasloot-forever/files/9152045))
+and the user-provided `AtlasLootClassic-Continued_12488.zip`, version `12488`. No upstream acquisition
+URL is asserted for the local Continued archive. The importer pins both original ZIP hashes, retains
+their complete bytes, selected native module, unmodified license and manifest, then indexes source
+records separately. A full-module parse error or partial index does not discard original evidence.
+
+Use a separate candidate copied from the existing application database. Capture each ZIP first, then
+project its returned snapshot offline:
+
+```sh
+java -jar importer/target/importer.jar ingest-forever-loot --database candidate.sqlite --archive "/path/to/AtlasLoot Classic Forever 1.2.5-131026-16001.zip"
+java -jar importer/target/importer.jar project-forever-loot --database candidate.sqlite --snapshot SNAPSHOT_ID
+java -jar importer/target/importer.jar ingest-forever-loot --database candidate.sqlite --archive /path/to/AtlasLootClassic-Continued_12488.zip
+java -jar importer/target/importer.jar project-forever-loot --database candidate.sqlite --snapshot SECOND_SNAPSHOT_ID
+```
+
+Projection reads verified archived bytes, builds a candidate with `VACUUM INTO`, validates it and
+publishes atomically. It preserves existing application rows, rates, client art/stats and source history.
+The 65 Forever rows and 78 Continued rows form a union of 78 canonical loot rows with 143 supporting
+facts; Continued contributes 13 additional rows, including five Ruins of Lordaeron trash items.
+Nineteen client encounter names match exactly within four explicitly reviewed dungeon mappings.
+Magmatus, The Baron and Arcanic Enigma remain separate unverified source lists; no aliases or NPC
+identities are guessed. Claimed addon NPC IDs stay in source facts. New rates remain unknown.
+Replaying either archive does not duplicate loot, and source order does not change the resulting build.
+
+This delivers reported dungeon loot only. The broader Task 19 hotfix/Questie refresh and real collector
+beta-session acceptance remain open; this overlay does not complete a release gate.

@@ -3,6 +3,7 @@ package dev.wowforever.app.ui.pages;
 import dev.wowforever.app.model.WorldMapCatalog;
 import dev.wowforever.app.model.WorldMapRegion;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.widgets.BreadcrumbTrail;
 import java.awt.*;
 import java.awt.event.*;
 import java.awt.image.BufferedImage;
@@ -22,14 +23,10 @@ public final class WorldMapPage extends JPanel {
     setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
     setFocusable(true);
     JPanel header = new JPanel(new BorderLayout());
-    JPanel breadcrumb = new JPanel(new FlowLayout(FlowLayout.LEADING, 4, 0));
-    JButton azeroth = new JButton("Azeroth");
-    azeroth.addActionListener(e -> root.run());
-    breadcrumb.add(azeroth);
-    if (target.uiMapId() != 947) {
-      breadcrumb.add(new JLabel("› " + catalog.map(target.uiMapId()).map(WorldMapRegion::name)
-          .orElse("Map " + target.uiMapId())));
-    }
+    BreadcrumbTrail breadcrumb = new BreadcrumbTrail(catalog.breadcrumbs(target.uiMapId()), parent -> {
+      long id=((ViewTarget.WorldMap)parent).uiMapId();
+      if(id==947)root.run(); else catalog.map(id).ifPresent(open);
+    });
     header.add(breadcrumb, BorderLayout.CENTER);
     header.add(viewToggle(true, root, list), BorderLayout.EAST);
     add(header, BorderLayout.NORTH);

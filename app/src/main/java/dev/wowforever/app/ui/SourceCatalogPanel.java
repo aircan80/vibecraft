@@ -49,7 +49,7 @@ public final class SourceCatalogPanel extends JPanel {
             + (catalog.legacySources().isEmpty() ? "" : " Baseline references identify earlier inputs whose original files are not archived; the derived app database is retained.")
         : "Legacy build metadata; original inputs not archived. Links identify recorded revisions or reference sites, not field-level evidence.", "Source archive scope"), BorderLayout.NORTH);
     var rows = new ArrayList<Object[]>();
-    for (var s : catalog.snapshots()) rows.add(new Object[] {"wowforever-collector".equals(s.source()) ? "In-game collector" : s.source(), s.version(), s.product(), s.build(),
+    for (var s : catalog.snapshots()) rows.add(new Object[] {switch(s.source()) { case "wowforever-collector" -> "In-game collector"; case "atlasloot-forever" -> "AtlasLoot Forever (reported)"; case "atlasloot-continued-forever" -> "AtlasLoot Continued (reported)"; default -> s.source(); }, s.version(), s.product(), s.build(),
         s.locale(), s.capturedAt(), String.join(", ", catalog.activeRoles().getOrDefault(s.id(), List.of())), s.id()});
     for (var source : catalog.legacySources()) rows.add(catalog.available()
         ? new Object[] {source.source()+" (baseline reference)", source.version(), "Original inputs not archived", "", "", "", "", ""}

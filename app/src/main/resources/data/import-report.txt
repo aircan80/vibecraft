@@ -255,3 +255,12 @@ Additive world-map projection (core data retained; not a full data refresh)
 Hierarchy source build: 1.60.1.70374; main client build: 1.60.1.70450
 54 maps; 53 hierarchy links; 2 unplaced islands. Local CSV bytes are hash-qualified in the source archive.
 Existing app facts and previous source/history rows verified unchanged.
+
+Reported Forever dungeon loot overlay (two independently archived addons; not a complete Task 19 refresh)
+AtlasLoot Forever 1.2.5-131026-16001: ee8a6d68eb14c1ac38372485f03d9e44921e3b7feb1d5728e85db90fc97bc090
+AtlasLoot Continued 12488: 8eaee376a19b26da4a50f4f7f7304f9f41b3eadfd0bd38c4fd98f67495fa82bd
+78 unique loot rows; 143 separately attributed supporting facts (65 + 78). All new percentages are unknown.
+19 exact client encounter names matched within four reviewed dungeon mappings. Three unmatched source boss lists and one trash list remain separate.
+Canonical NPC IDs and original row values retained; four instance loot states changed from none to reported.
+No matching loot is recorded for Mana Elemental, Mana Wraith, Highland Horror, The Butcher or Infurnus.
+Original source ZIPs and GPLv2 license texts retained. Full-module generic parse diagnostics remain visible; narrow static extraction covers the reviewed four instances.

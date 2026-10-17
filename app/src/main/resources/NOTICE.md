@@ -37,3 +37,21 @@ The application bundles these libraries:
 - JSVG (https://github.com/weisJ/jsvg), included through FlatLaf Extras. Licensed under MIT.
 - SQLite JDBC (https://github.com/xerial/sqlite-jdbc). Licensed under Apache-2.0.
 - SLF4J API and SLF4J Simple (https://www.slf4j.org). Licensed under MIT.
+
+## AtlasLoot Classic Forever reported dungeon loot
+
+Sliccer's AtlasLoot Classic Forever release 1.2.5-131026-16001,
+https://www.curseforge.com/wow/addons/atlasloot-forever/files/9152045,
+ZIP SHA-256 ee8a6d68eb14c1ac38372485f03d9e44921e3b7feb1d5728e85db90fc97bc090,
+provides reported, unverified loot lists for four Forever dungeons. Licensed under GPL-2.0;
+the original ZIP and its unmodified AtlasLootClassic/LICENSE are retained in source archives.
+The narrow overlay preserves the historical Classic source and client data. Exact boss names
+are matched only within explicitly reviewed dungeon mappings; unmatched lists retain their original
+names separately. No NPC identities, drop percentages, or in-game verification are inferred.
+
+The supplemental local archive AtlasLootClassic-Continued_12488.zip (authors Okrah and Lag,
+version 12488), SHA-256 8eaee376a19b26da4a50f4f7f7304f9f41b3eadfd0bd38c4fd98f67495fa82bd,
+provides its native Forever module as a separate reported source, licensed under GPL-2.0.
+Its original ZIP and unmodified AtlasLootContinued/LICENSE are archived. Acquisition was a
+user-provided local file; no upstream download URL is asserted. Both supporting source facts
+remain separate, including source order and claimed NPC IDs; canonical NPC identities are unchanged.

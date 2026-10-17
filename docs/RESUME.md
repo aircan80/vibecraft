@@ -1,7 +1,50 @@
 # Resume development — current checkpoint
 
 
-## Latest continuation — collector projection and world-map drill-down
+## Latest continuation — full geography breadcrumbs and reported Forever loot
+
+Codex, 2026-10-17. This section supersedes earlier continuation checkpoints below.
+
+- Geographic breadcrumbs now continue through known map, zone and subzone ancestry, and onto an
+  instance when its zone relationship is recorded. Parent segments are clickable and keyboard accessible;
+  the current location is plain text, and the trail wraps at compact widths. Missing geography is not inferred.
+- The bundled database includes **78 reported loot rows** across the four Forever dungeons: City of Dalaran 26,
+  Excavation Site: Wetlands 12, Ruins of Lordaeron 27 and The Hall of Thanes 13. They retain **143 source supports**:
+  65 from AtlasLoot Forever and 78 from AtlasLoot Continued. Continued adds 13 rows, including five trash items.
+- Inputs are separately archived original ZIPs, selected native modules, GPLv2 licenses and pinned manifests.
+  AtlasLoot Forever version `1.2.5-131026-16001`, SHA-256
+  `ee8a6d68eb14c1ac38372485f03d9e44921e3b7feb1d5728e85db90fc97bc090`, uses
+  https://www.curseforge.com/wow/addons/atlasloot-forever/files/9152045 as its declared release source.
+  AtlasLoot Continued version `12488`, SHA-256
+  `8eaee376a19b26da4a50f4f7f7304f9f41b3eadfd0bd38c4fd98f67495fa82bd`, was a user-provided local ZIP;
+  no upstream acquisition URL is asserted. No claim that one source is newer is made.
+- Acquisition is `ingest-forever-loot --database CANDIDATE --archive ZIP`; separate offline projection is
+  `project-forever-loot --database CANDIDATE --snapshot ID`. Full commands are in README. Raw acquisition commits
+  before structured indexing; Sliccer's full-module Lua index records its unsupported `%` syntax as a parse error,
+  and Continued's full-module index is partial. Both originals survive; the reviewed static projection succeeds.
+- Nineteen client encounters receive exact-name matches within explicitly reviewed instance mappings. Three
+  unmatched addon names (Magmatus, The Baron, Arcanic Enigma) and Ruins trash remain extra lists. Five client
+  encounters still lack matching loot: Infurnus, The Butcher, Highland Horror, Mana Elemental and Mana Wraith.
+  Do not infer aliases from order. Addon NPC claims remain source facts; canonical NPC IDs and existing rates stay intact.
+- UI provenance reads “Addon reported”, names supporting providers and explicitly qualifies loot as unverified.
+  It does not promote addon reports to observed-in-game evidence. New rates remain unknown.
+- Bundled build ID: `ebca2510ed46107d5f9c2b1de299867850e272850805d7ee7381a940b0ec00a4`.
+  It retains 256 archived artifacts and 114,832 structured records. Preservation comparison covered 58 original
+  tables: no original rows were lost or changed apart from four authorized `instance.loot_state` updates to
+  `reported` and active build/projection metadata. Existing client stats, maps, rates and source history were retained.
+  Evidence: `.local/forever-loot-candidate/preservation-report.json`; SQLite integrity and foreign-key checks passed.
+- Additive projection composes both sources with earlier map/collector inputs. Replay is idempotent and order-stable;
+  ordinary core rebuilds refuse applied loot overlays until explicit replay is supported.
+- Pending owner follow-up: make source comparisons/conflicts visible on entity pages (ROADMAP item 21).
+  Preserve original provider facts and show genuine disagreements separately from missing/not-listed coverage;
+  provider labels alone do not complete that request. Implementation review is underway; no conflict UI is claimed shipped.
+- Broader Task 19 hotfix/Questie regeneration and Task 20 real beta-capture acceptance remain partial.
+  No synthetic observations are shipped; no release, merge-to-main or game-install writes are implied.
+- Combined Maven verify passed: **1,729 tests, six skipped, zero failures/errors** (Lua 61, importer 544, app 1,124).
+  Final JAR SHA-256: `59ecce4b888063bd5458ad43f2476f7bbc754d42e6c6fe08889e1ceb784c32a6`.
+  Final-JAR captures passed: 66 panels with zero geometry failures (maximum warm p95 96.62 ms), plus 12 map captures (p95 22.91 ms). Compact breadcrumbs and reported-loot provenance were visually reviewed. Evidence: `.local/forever-loot-acceptance/panels-release` and `world-maps-release`. Native interaction acceptance remains limited under Wayland. Earlier evidence totals and JAR hashes below describe older checkpoints.
+
+## Previous continuation — collector projection and world-map drill-down
 
 Codex, 2026-10-17. This section supersedes the historical checkpoint below.
 
@@ -214,17 +257,14 @@ Do not use the historical dashboard scripts to replace the current Sites workflo
 
 1. Read the roadmap and phase-3B ledger, inspect actual available input files, then pick an unblocked task. Do not assume
    the following external inputs have appeared since this checkpoint.
-2. **Task 19 data gate:** AtlasLoot Classic Forever release archive by sliccer; historical download source is
-   https://www.curseforge.com/wow/addons/atlasloot-forever/files . Recheck current version/details when resuming.
-   The Windows handoff required a manually downloaded zip because automated acquisition was refused. Check local caches
-   first; use the new platform's actual cache paths, not the old C:\Users path. Pin version/SHA/license/credits and test
-   its rates/Forever applicability. Hotfix/hidden-item regeneration and a deliberate Questie refresh remain data work.
-   The historical Task 19 acceptance patch is `docs/superpowers/handover/t19-shipped-tests.patch`.
-3. **Task 20b:** collector importer and real-observation acceptance. Collector addon code is on the separate
-   `feature/collector-addon` branch at `4be8b9f`, worktree `.worktrees/collector-addon`; it has not been merged into
-   the current app branch. Inspect its README and ledger before integrating. Actual SavedVariables observations need
-   an owner beta session; never fabricate them. Import observations as their own versioned source, with provenance,
-   followed by separate projection consistent with the new source architecture.
+2. **Task 19 broader data gate:** both reviewed AtlasLoot ZIPs are now durably archived and their narrow reported
+   dungeon-loot overlay is integrated. Do not repeat the old missing-archive handoff. The historical Classic base pin
+   remains intact; this is not a global edition swap. Hotfix/hidden-item regeneration, deliberate Questie refresh,
+   rate spot-checks and the remaining shipped-data acceptance still need completion. See the latest checkpoint above.
+3. **Task 20 real-observation acceptance:** collector acquisition, offline presence projection and app provenance are
+   implemented. Actual SavedVariables observations still require an owner beta session; never fabricate them.
+   The addon remains on separate `feature/collector-addon`; inspect its README and ledger before integration.
+   Keep observations versioned and preserve the distinction between addon reports and in-game observations.
 4. If external data gates remain unavailable, progress on independent importer/collector tooling or source diagnostics
    without claiming real-data acceptance. Later advanced source-record browsing, wider fact lineage and native Blizzard
    adapters are planned; user approved browsing later, not a claim that a full explorer already exists.

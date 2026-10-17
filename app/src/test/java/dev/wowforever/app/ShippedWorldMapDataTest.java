@@ -25,6 +25,17 @@ class ShippedWorldMapDataTest extends ShippedDataSupport {
     assertThat(scalar("SELECT count(*) FROM zone z JOIN ui_map m ON m.id=z.ui_map_id WHERE m.parent_id IN(1414,1415)"
         + " AND NOT EXISTS(SELECT 1 FROM ui_map_child r WHERE r.parent_ui_map_id=m.parent_id AND r.child_ui_map_id=m.id)")).isZero();
   }
+  @Test void areaAndInstancePathsContinueThroughTheLowestKnownArea() {
+    assertThat(repos.zones().breadcrumbs(40)).extracting(r -> r.name())
+        .containsExactly("Azeroth","Eastern Kingdoms","Westfall");
+    assertThat(repos.zones().breadcrumbs(6170)).extracting(r -> r.name())
+        .containsExactly("Azeroth","Eastern Kingdoms","Elwynn Forest","Northshire");
+    var loaded=(dev.wowforever.app.ui.detail.DetailPanels.LoadedInstance)
+        dev.wowforever.app.ui.detail.DetailPanels.load(
+            new dev.wowforever.app.model.EntityRef(dev.wowforever.app.model.EntityKind.INSTANCE,3),repos).orElseThrow();
+    assertThat(loaded.breadcrumbs()).extracting(r -> r.name())
+        .containsExactly("Azeroth","Eastern Kingdoms","Westfall","The Deadmines");
+  }
   @Test void hierarchyHasArtAndKeepsTheOriginalEvidenceActive() {
     for(long id:new long[]{947,1414,1415}) assertThat(repos.zones().mapByUiMap(id)).isPresent();
     String snapshot=db.meta().get("world_map_snapshot_id");

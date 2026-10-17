@@ -36,6 +36,18 @@ public final class Main {
   }
 
   static int run(String[] args, PrintStream out, PrintStream err) {
+    if (args.length > 0 && (args[0].equals("ingest-forever-loot") || args[0].equals("project-forever-loot"))) {
+      boolean capture=args[0].equals("ingest-forever-loot");
+      if(args.length!=5 || !args[1].equals("--database") || !args[3].equals(capture?"--archive":"--snapshot")) {
+        err.println("Usage: "+args[0]+" --database <candidate.sqlite> "+(capture?"--archive <release.zip>":"--snapshot <id>"));return 1;
+      }
+      try {
+        var database=java.nio.file.Path.of(args[2]);
+        if(capture)out.println("Captured archive-only Forever loot snapshot: "+ForeverLootArchiveWorkflow.ingest(database,java.nio.file.Path.of(args[4])));
+        else {ForeverLootArchiveWorkflow.project(database,args[4]);out.println("Reported Forever loot projected offline; unverified addon data. Broader Task 19 data gates remain open.");}
+        return 0;
+      } catch(Exception failure){err.println(failure.getMessage());return 1;}
+    }
     if (args.length > 0 && args[0].equals("project-collector")) {
       if (args.length != 5 || !args[1].equals("--database") || !args[3].equals("--ingestion")) {
         err.println("Usage: project-collector --database <file.sqlite> --ingestion <id>"); return 1;

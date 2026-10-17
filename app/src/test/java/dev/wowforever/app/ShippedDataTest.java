@@ -325,7 +325,7 @@ class ShippedDataTest extends ShippedDataSupport {
     assertThat(page.encounters().getModel().getSize()).isEqualTo(9);
     assertThat(page.encounters().getModel().getElementAt(0).name()).isEqualTo("Arcane Anomaly");
     assertThat(page.coverage().getText()).isEqualTo(
-        "Bosses: 9 named in client data · Loot: 0 confirmed items · Client build 1.60.1.70450");
+        "Bosses: 9 named in client data · Loot: recorded (unverified) · Client build 1.60.1.70450");
     assertThat(page.encounterCaption().getText()).isEqualTo("Encounter order in the game client");
     javax.swing.JPanel compact = new javax.swing.JPanel(new java.awt.BorderLayout());
     compact.putClientProperty(dev.wowforever.app.ui.detail.CompactColumns.KEY, true);
@@ -335,7 +335,8 @@ class ShippedDataTest extends ShippedDataSupport {
     assertThat(page.getWidth()).isLessThanOrEqualTo(420);
     assertThat(page.isStacked()).isTrue();
     assertThat(page.coverage().getWidth()).isLessThanOrEqualTo(420);
-    assertThat(page.lootTable()).isNull();
+    assertThat(page.lootTable()).isNotNull();
+    assertThat(page.lootSection().note().getText()).contains("Addon-reported", "Not verified in game");
   }
 
   private static void layoutForever(java.awt.Container container) {
@@ -347,30 +348,30 @@ class ShippedDataTest extends ShippedDataSupport {
 
   @Test
   void foreverDungeonsAreShipped() {
-    // the client's own dungeons (3B Task 17): Map, LFGDungeons, ContentTuning and DungeonEncounter, no loot
+    // Client hierarchy retained; separately attributed addon-reported loot is layered onto exact encounter names.
     assertThat(longs("select client_map_id from instance where source = 'client' order by client_map_id"))
         .containsExactly(2959L, 2998L, 2999L, 3065L);
     assertThat(rows("select i.name, i.tuned_min_level, i.level_min, i.zone_id, i.bosses_state, i.loot_state,"
-        + " i.content_type, (select count(*) from boss b where b.instance_id = i.id) from instance i"
+        + " i.content_type, (select count(*) from boss b where b.instance_id = i.id AND b.is_extra_list=0) from instance i"
         + " where i.source = 'client' order by i.client_map_id"))
         .extracting(r -> java.util.Arrays.asList(r))
         .containsExactly(
-            List.of("City of Dalaran", 28, 28, 16544, "client_named", "none", "DUNGEON", 9),
-            List.of("Excavation Site: Wetlands", 26, 26, 16732, "client_named", "none", "DUNGEON", 4),
-            List.of("Ruins of Lordaeron", 15, 15, 16611, "client_named", "none", "DUNGEON", 7),
-            List.of("The Hall of Thanes", 13, 13, 16919, "client_named", "none", "DUNGEON", 4));
+            List.of("City of Dalaran", 28, 28, 16544, "client_named", "reported", "DUNGEON", 9),
+            List.of("Excavation Site: Wetlands", 26, 26, 16732, "client_named", "reported", "DUNGEON", 4),
+            List.of("Ruins of Lordaeron", 15, 15, 16611, "client_named", "reported", "DUNGEON", 7),
+            List.of("The Hall of Thanes", 13, 13, 16919, "client_named", "reported", "DUNGEON", 4));
     assertThat(scalar("select min(id) from instance where source = 'client'"))
         .as("ids continue the AtlasLoot sequence").isEqualTo(scalar("select max(id) from instance"
             + " where source = 'atlasloot'") + 1);
     assertThat(scalar("select count(*) from boss_loot bl join boss b on b.id = bl.boss_id join instance i"
-        + " on i.id = b.instance_id where i.source = 'client'")).isZero();
+        + " on i.id = b.instance_id where i.source = 'client'")).isEqualTo(78);
 
     InstanceSummary dalaran = repos.instances().all().stream().filter(i -> "client:2959".equals(i.key()))
         .findFirst().orElseThrow();
     assertThat(dalaran.tunedMinLevel()).isEqualTo(28);
     assertThat(dalaran.source()).isEqualTo("client");
     var dalaranBosses = repos.instances().detail(dalaran.id()).orElseThrow().bosses();
-    assertThat(dalaranBosses).hasSize(9);
+    assertThat(dalaranBosses).filteredOn(b -> !b.extraList()).hasSize(9);
     assertThat(dalaranBosses.get(0).name()).isEqualTo("Arcane Anomaly");
     assertThat(dalaranBosses.get(8).name()).isEqualTo("Mana Wraith");
     long thanes = longs("select id from instance where key = 'client:3065'").get(0);

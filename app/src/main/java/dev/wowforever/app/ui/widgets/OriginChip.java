@@ -39,6 +39,7 @@ public final class OriginChip extends DefaultTableCellRenderer {
     if (origin == null || origin.isBlank()) {
       return null;
     }
+    if(origin.endsWith(" (reported)"))return "Addon reported";
     return switch (origin.strip().toLowerCase(Locale.ROOT)) {
       case "questie" -> null;
       case "collector" -> "Observed in game";
@@ -52,6 +53,7 @@ public final class OriginChip extends DefaultTableCellRenderer {
   public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
       int row, int column) {
     chip = label(value == null ? null : value.toString());
+    setToolTipText(value == null ? null : value.toString());
     super.getTableCellRendererComponent(table, chip == null ? "" : chip, isSelected, hasFocus, row, column);
     setBorder(BorderFactory.createCompoundBorder(getBorder(),
         BorderFactory.createEmptyBorder(0, UIScale.scale(INDENT + PAD_X), 0, UIScale.scale(PAD_X))));

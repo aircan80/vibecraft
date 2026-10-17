@@ -26,7 +26,7 @@ public interface BossLoot {
     return Map.of();
   }
 
-  /** A bounded snapshot for client pages; call off the EDT, including icon and rate-source warming. */
+  /** A bounded snapshot for instance pages; call off the EDT, including icon and rate-source warming. */
   static BossLoot preloaded(InstanceDetail detail, Repositories repos) {
     record Key(long boss, String difficulty) {}
     Map<Key, List<LootRow>> rows = new HashMap<>();

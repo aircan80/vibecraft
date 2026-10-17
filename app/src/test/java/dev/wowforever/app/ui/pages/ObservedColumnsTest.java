@@ -12,6 +12,19 @@ import java.util.List;
 
 class ObservedColumnsTest {
   @Test
+  void addonReportedLootKeepsItsSourcesAndQualificationVisible() {
+    var detail=new dev.wowforever.app.model.InstanceDetail(
+        new dev.wowforever.app.model.InstanceSummary(1,"Synthetic dungeon","DUNGEON",1,10,null,null),
+        List.of(new dev.wowforever.app.model.BossSummary(1,"Synthetic boss",null,10,null,false)),List.of("NORMAL"));
+    var row=new LootRow(new EntityRef(EntityKind.ITEM,1),"Synthetic loot",1,null,
+        "AtlasLoot Continued + AtlasLoot Forever (reported)",null);
+    var page=new InstancePage(detail,(id,difficulty)->List.of(row),target->{});
+    assertThat(page.lootSection().note().getText()).contains("AtlasLoot Continued","AtlasLoot Forever","Not verified in game");
+    assertThat(VisibleColumns.of(Columns.lootRows(),List.of(row),null)).anySatisfy(c -> assertThat(c.title()).isEqualTo("Origin"));
+    assertThat(dev.wowforever.app.ui.widgets.OriginChip.label(row.origin())).isEqualTo("Addon reported");
+  }
+
+  @Test
   void loneObservedDifficultyExplainsItsScopeEvenWithoutADifficultySwitch() {
     var detail = new dev.wowforever.app.model.InstanceDetail(
         new dev.wowforever.app.model.InstanceSummary(1, "Synthetic dungeon", "DUNGEON", 1, 10, null, null),

@@ -62,7 +62,7 @@ public final class InstancePage extends JPanel implements PageState {
   /** The page width, in logical pixels, below which the encounters stack above the loot in one column. */
   public static final int STACK_BELOW = 600;
   public static final String COVERAGE_LINE = "Bosses: %d named in client data · Loot: %d confirmed items · Client build %s";
-  public static final String BOSSES_NOTE = "Boss names come from the game client. WoW: Forever has no Dungeon Journal, so abilities and loot are recorded only after players meet these bosses.";
+  public static final String BOSSES_NOTE = "Boss names come from the game client. Loot may be reported by addons or observed by players; each entry shows its source. Abilities still need player observations.";
   public static final String NO_LOOT_NOTE = "No loot recorded yet for this dungeon. Drops appear here when a data update records them.";
   public static final String ENCOUNTER_CAPTION = "Encounter order in the game client";
   private final boolean client;
@@ -120,6 +120,20 @@ public final class InstancePage extends JPanel implements PageState {
       BossLoot clientLoot, Navigator nav) {
     this(d, quests, clientLoot != null ? clientLoot : BossLoot.of(repos),
         clientBuild, nav);
+  }
+
+  /** The geographic path is loaded alongside the instance, including any known parent zones. */
+  public InstancePage(InstanceDetail d, List<QuestSummary> quests, Repositories repos, String clientBuild,
+      BossLoot clientLoot, List<dev.wowforever.app.model.GeographyStep> breadcrumbs, Navigator nav) {
+    this(d,quests,repos,clientBuild,clientLoot,nav);
+    if(!breadcrumbs.isEmpty()) {
+      Component heading=((BorderLayout)getLayout()).getLayoutComponent(BorderLayout.NORTH);
+      remove(heading);
+      JPanel top=new JPanel(new BorderLayout());top.setOpaque(false);
+      var trail=new dev.wowforever.app.ui.widgets.BreadcrumbTrail(breadcrumbs,nav);
+      trail.setBorder(BorderFactory.createEmptyBorder(4,12,8,12));
+      top.add(trail,BorderLayout.NORTH);top.add(heading,BorderLayout.CENTER);add(top,BorderLayout.NORTH);
+    }
   }
 
   /** The page reading each boss's loot from {@code bossLoot}, without quests. */
@@ -480,6 +494,11 @@ public final class InstancePage extends JPanel implements PageState {
     lootSection = new SourceSection(LOOT, loot.size(), lootTable);
     if (InstanceRepository.OBSERVED_DIFFICULTY.equals(difficulty)) {
       lootSection.setNote("Observed in game; difficulty unknown.");
+    } else if (loot.stream().anyMatch(l -> l.origin()!=null && l.origin().endsWith(" (reported)"))) {
+      String presenceSources=loot.stream().map(LootRow::origin).filter(java.util.Objects::nonNull)
+          .filter(o -> o.endsWith(" (reported)")).map(o -> o.substring(0,o.length()-11)).distinct()
+          .collect(java.util.stream.Collectors.joining("; "));
+      lootSection.setNote("Addon-reported loot: "+presenceSources+". Not verified in game.");
     } else if (client && !loot.stream().allMatch(LootRow::observedInGame)) {
       lootSection.setNote(loot.stream().anyMatch(LootRow::observedInGame)
           ? "Some drops were observed in game; other recorded loot is unverified."

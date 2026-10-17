@@ -43,7 +43,7 @@ final class VisibleColumns {
       return true;
     }
     if (ORIGIN.equals(c.title()) && values.stream().anyMatch(v ->
-        "collector".equals(v) || "Observed in game".equals(v))) {
+        "collector".equals(v) || "Observed in game".equals(v) || (v instanceof String s && s.endsWith(" (reported)")))) {
       return false;
     }
     if (HIDDEN_WHEN_UNIFORM.contains(c.title())) {

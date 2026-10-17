@@ -227,3 +227,45 @@ Task 19/20 real-data gates remain open; no v0.3/v0.3.1 release or merge-to-main 
 
 Native interaction acceptance remains open: Robot delivered different coordinates than requested, and
 Wayland frame capture blocked. Scratch automation was closed; no product defect or native pass is claimed.
+
+
+## Reported Forever loot and complete known geography paths (Codex, 2026-10-17)
+
+The owner's missing-loot report was a data gap: client encounters were present but had no boss loot.
+Two owner-provided GPLv2 archives now contribute a narrow additive overlay, preserving the historical
+Classic pin and all existing client facts. Sliccer AtlasLoot Forever `1.2.5-131026-16001` contributes 65
+rows; AtlasLoot Continued `12488` contains those pairs plus 13 additions. Their union is 78 canonical
+rows with 143 separately retained provider supports. Coverage: City of Dalaran 26, Excavation Site:
+Wetlands 12, Ruins of Lordaeron 27, Hall of Thanes 13. Five of the additions are Ruins trash items.
+Original ZIPs, exact licenses, native modules and manifests are archived with pinned hashes; Continued's
+local acquisition has no asserted upstream URL. See README for capture and offline projection commands.
+
+Nineteen client boss names match exactly inside four explicit source-key-to-map mappings. Magmatus,
+The Baron and Arcanic Enigma remain extra source lists; no aliases are inferred. Five client encounters
+still have no matching loot list. Claimed NPC IDs remain in provider facts, canonical NPC IDs are unchanged,
+and unknown rates remain unknown. The UI labels reports and supporting providers explicitly as unverified.
+Full-module source indexing honestly records Sliccer's parse error and Continued's partial index;
+original acquisition commits before indexing, and the separate reviewed static projection succeeds.
+
+The workflow uses a SQLite candidate, validation and atomic publication, composes source identity/history
+through AdditiveProjection and refuses destructive core rebuilds until overlays can be explicitly replayed.
+Repeated projection retains both supports without duplicate loot, and replay order preserves build identity.
+Preservation evidence compares 58 original tables: no original rows changed except four authorized
+instance loot-state updates and active build/projection metadata. Existing stats, maps, rates and archive
+history remain intact. Build: `ebca2510ed46107d5f9c2b1de299867850e272850805d7ee7381a940b0ec00a4`.
+Report: `.local/forever-loot-candidate/preservation-report.json`; integrity and foreign-key checks passed.
+
+Geography navigation now extends the clickable trail through known map, zone and subzone parents and
+onto an instance when its zone link exists. Current locations are plain text; parents support focus/Enter,
+and compact layouts wrap the trail. Missing or cyclic ancestry does not invent geography.
+
+Combined Maven verify passed: 1,729 tests, six skipped, zero failures/errors (Lua 61, importer 544, app 1,124).
+Final JAR SHA-256: `59ecce4b888063bd5458ad43f2476f7bbc754d42e6c6fe08889e1ceb784c32a6`.
+Final-JAR captures passed: 66 panels with zero geometry failures (maximum warm p95 96.62 ms), plus 12 map captures (p95 22.91 ms). Compact breadcrumb and loot views were visually reviewed. Native interaction acceptance remains limited under Wayland. Evidence is in `.local/forever-loot-acceptance/{panels-release,world-maps-release}`. Task 19 remains partial for the broader hotfix/Questie refresh
+and acceptance; Task 20 remains partial for real beta-capture acceptance. No release or merge-to-main is claimed.
+
+Owner follow-up, pending: source conflicts/comparisons must be visible to app users, with each original
+provider fact retained. ROADMAP item 21 records the work. Distinguish contradictory assertions from an item
+or field merely being absent/not listed in one source; do not treat missing coverage as negative evidence.
+Existing rate markers and addon provider attribution do not fulfill this broader UI request. Implementation
+options are under review; no new conflict-comparison feature is claimed complete.

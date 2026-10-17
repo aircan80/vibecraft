@@ -50,6 +50,24 @@ class DetailPanelsTest {
   }
 
   @Test
+  void historicalLootAndBreadcrumbsRenderAfterTheDatabaseCloses(
+      @org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
+    var copy=temp.resolve("historical.sqlite");java.nio.file.Files.copy(FixtureDb.path(),copy);
+    DetailPanels.LoadedInstance loaded;Repositories source;
+    try(var database=dev.wowforever.app.db.Database.open(copy)) {
+      source=Repositories.of(database);
+      loaded=(DetailPanels.LoadedInstance)DetailPanels.load(new EntityRef(INSTANCE,2),source).orElseThrow();
+      assertThat(loaded.clientLoot()).isNotNull();
+      assertThat(loaded.breadcrumbs()).extracting(r -> r.name()).containsExactly("Westfall","The Deadmines");
+    }
+    javax.swing.SwingUtilities.invokeAndWait(() -> {
+      var page=(InstancePage)TestPages.render(loaded,source,target->{});
+      for(int i=0;i<loaded.detail().bosses().size();i++)page.selectBoss(i);
+      assertThat(page.lootSection()).isNotNull();
+    });
+  }
+
+  @Test
   void collectorLootOnHistoricalInstancesIsFrozenBeforeEdtRendering(
       @org.junit.jupiter.api.io.TempDir java.nio.file.Path temp) throws Exception {
     var copy = temp.resolve("collector-loot.sqlite");

@@ -1,6 +1,7 @@
 package dev.wowforever.app.db;
 
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.GeographyStep;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.LevelBand;
 import dev.wowforever.app.model.MapCoordinates;
@@ -85,6 +86,46 @@ public final class ZoneRepository {
       Sql.list(c, "SELECT id, name FROM zone WHERE id IN (" + parameters + ") AND name IS NOT NULL",
           rs -> { names.put(rs.getLong("id"), rs.getString("name")); return 0; }, zoneIds.toArray());
       return Map.copyOf(names);
+    });
+  }
+
+  /** Known map and area ancestry, loaded with the detail page on its worker. */
+  public List<GeographyStep> breadcrumbs(long id) {
+    return db.read(c -> {
+      record Area(long id,String name,Long parent,Long map) {}
+      var areas=new ArrayList<Area>();
+      var seen=new LinkedHashSet<Long>();
+      Long next=id;
+      while(next!=null && areas.size()<64) {
+        if(!seen.add(next)) return List.of(new GeographyStep(areas.getFirst().name(),id,GeographyStep.Kind.ZONE));
+        var found=Sql.one(c,"SELECT id,name,parent_id,ui_map_id FROM zone WHERE id=?",r ->
+            new Area(r.getLong("id"),new EntityRef(EntityKind.ZONE,r.getLong("id")).displayName(r.getString("name")),
+                Sql.longValue(r,"parent_id"),Sql.longValue(r,"ui_map_id")),next);
+        if(found.isEmpty())break;
+        areas.add(found.get());next=found.get().parent();
+      }
+      java.util.Collections.reverse(areas);
+      var result=new ArrayList<GeographyStep>();
+      if(Sql.hasTable(c,"ui_map")) for(var area:areas) {
+        if(area.map()==null)continue;
+        var maps=new ArrayList<GeographyStep>();
+        var visited=new LinkedHashSet<Long>();
+        Long map=area.map();boolean cycle=false;
+        while(map!=null && map>0 && maps.size()<64) {
+          if(!visited.add(map)){cycle=true;break;}
+          var row=Sql.one(c,"SELECT id,name,parent_id FROM ui_map WHERE id=?",r ->
+              new Object[]{r.getLong("id"),r.getString("name"),Sql.longValue(r,"parent_id")},map);
+          if(row.isEmpty())break;
+          maps.add(new GeographyStep((String)row.get()[1],(Long)row.get()[0],GeographyStep.Kind.MAP));
+          map=(Long)row.get()[2];
+        }
+        if(!maps.isEmpty() && !cycle) {
+          maps.removeFirst(); // the matching area itself is represented by its zone-page link
+          java.util.Collections.reverse(maps);result.addAll(maps);break;
+        }
+      }
+      for(var area:areas)result.add(new GeographyStep(area.name(),area.id(),GeographyStep.Kind.ZONE));
+      return List.copyOf(result);
     });
   }
 

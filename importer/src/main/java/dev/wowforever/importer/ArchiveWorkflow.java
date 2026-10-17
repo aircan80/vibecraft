@@ -131,6 +131,11 @@ public final class ArchiveWorkflow {
               if(map.next() && !map.getString(1).isBlank())throw new IllegalArgumentException("Core projection refused: world map overlay requires explicit replay; existing database preserved");
             }
           }
+          try(var tables=connection.createStatement();var present=tables.executeQuery("SELECT 1 FROM sqlite_master WHERE name='meta'")) {
+            if(present.next())try(var metadata=connection.createStatement();var overlay=metadata.executeQuery("SELECT value FROM meta WHERE key='forever_loot_snapshot_id'")) {
+              if(overlay.next() && !overlay.getString(1).isBlank())throw new IllegalArgumentException("Core projection refused: Forever loot overlay requires explicit replay; existing database preserved");
+            }
+          }
           boolean legacy=selection.containsKey("legacy-app");
           if (selection.keySet().stream().anyMatch(role -> role.equals("collector") || role.startsWith("collector-")))
             throw new IllegalArgumentException("Collector ingestion is archive-only until explicit project-collector; use that command to project observations");

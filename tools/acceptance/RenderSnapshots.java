@@ -62,7 +62,7 @@ public final class RenderSnapshots {
       ref(EntityKind.QUEST, 176), ref(EntityKind.QUEST, 166), ref(EntityKind.QUEST, 6502),
       ref(EntityKind.QUEST, 79976),
       ref(EntityKind.QUEST, 7787), ref(EntityKind.QUEST, 7791), ref(EntityKind.NPC, 550),
-      ref(EntityKind.NPC, 412), ref(EntityKind.ZONE, 40));
+      ref(EntityKind.NPC, 412), ref(EntityKind.ZONE, 40), ref(EntityKind.ZONE, 6170), ref(EntityKind.INSTANCE, 3));
 
   private record Timing(EntityRef ref, double p50, double p95, double max, List<Double> samples) {}
   private record Capture(String file, int width, int height, int mapCount, int routes, List<String> failures) {}
@@ -132,9 +132,11 @@ public final class RenderSnapshots {
       onEdt(() -> IconCache.install(cache));
       RailIcons rail = RailIcons.load(repos.assets()::uiIcon);
       List<EntityRef> cases = new ArrayList<>(CASES);
-      // Task18 must appear in the final screenshot set too; resolve the stable client key off the EDT.
-      cases.add(repos.instances().all().stream().filter(instance -> "client:2959".equals(instance.key()))
-          .findFirst().orElseThrow(() -> new IllegalStateException("City of Dalaran client page is missing")).ref());
+      // Every new dungeon and the complete area breadcrumb path must appear in final acceptance.
+      for(String key:List.of("client:2959","client:2998","client:2999","client:3065")) {
+        cases.add(repos.instances().all().stream().filter(instance -> key.equals(instance.key()))
+            .findFirst().orElseThrow(() -> new IllegalStateException("Missing client dungeon "+key)).ref());
+      }
       Map<EntityRef, Object> pages = new LinkedHashMap<>();
       List<Timing> timings = new ArrayList<>();
       for (EntityRef entity : cases) {
@@ -212,6 +214,12 @@ public final class RenderSnapshots {
       if (quest.mapPanel().banner().isVisible() && !inside(quest.mapPanel().banner(), root)) {
         failures.add("Other-zone banner extends outside viewport");
       }
+    }
+    for(var trail:descendants(root,dev.wowforever.app.ui.widgets.BreadcrumbTrail.class)) {
+      if(!inside(trail,root))failures.add("Breadcrumb trail outside viewport");
+      Rectangle bounds=new Rectangle(0,0,trail.getWidth(),trail.getHeight());
+      for(Component part:trail.getComponents())if(!bounds.contains(part.getBounds()))
+        failures.add("Breadcrumb segment clipped: "+part.getBounds());
     }
     List<MapView> maps = descendants(root, MapView.class);
     int routes = maps.stream().mapToInt(map -> map.routes().size()).sum();

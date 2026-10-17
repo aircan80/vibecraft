@@ -10,7 +10,15 @@ import java.util.Optional;
  */
 public record InstanceLoot(
     EntityRef instance, String instanceName, long bossId, String bossName, Long bossNpcId, Integer slot,
-    Double dropPct, boolean disagrees, int sourceCount, String pctSource, boolean observedInGame) {
+    Double dropPct, boolean disagrees, int sourceCount, String pctSource, boolean observedInGame, String presenceOrigin) {
+
+  public InstanceLoot(EntityRef instance, String instanceName, long bossId, String bossName, Long bossNpcId,
+      Integer slot, Double dropPct, boolean disagrees, int sourceCount, String pctSource, boolean observedInGame) {
+    this(instance,instanceName,bossId,bossName,bossNpcId,slot,dropPct,disagrees,sourceCount,pctSource,observedInGame,"atlasloot");
+  }
+
+  public String displayOrigin() { return observedInGame ? "collector" : presenceOrigin; }
+
 
   public InstanceLoot(EntityRef instance, String instanceName, long bossId, String bossName, Long bossNpcId,
       Integer slot, Double dropPct, boolean disagrees, int sourceCount, String pctSource) {

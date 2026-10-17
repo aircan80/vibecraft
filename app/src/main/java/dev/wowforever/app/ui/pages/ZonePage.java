@@ -1,6 +1,8 @@
 package dev.wowforever.app.ui.pages;
 
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.GeographyStep;
+import dev.wowforever.app.ui.widgets.BreadcrumbTrail;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.NpcSummary;
@@ -51,6 +53,10 @@ public final class ZonePage extends SourcesPage {
 
   /** The page with {@code mapPanel}, the zone's map (null: none, and no map area), below the link rows. */
   public ZonePage(ZoneDetail d, ZoneMapPanel mapPanel, Navigator nav) {
+    this(d,mapPanel,List.of(),nav);
+  }
+
+  public ZonePage(ZoneDetail d, ZoneMapPanel mapPanel, List<GeographyStep> breadcrumbs, Navigator nav) {
     super(nav);
     this.mapPanel = mapPanel;
     ZoneSummary s = d.summary();
@@ -59,10 +65,14 @@ public final class ZonePage extends SourcesPage {
     header.setAlignmentX(LEFT_ALIGNMENT);
     header.setPlate(plateIcon(RailTarget.ZONES));
     header.setKindWord(EntityKind.ZONE.label());
-    if (s.parentId() != null) {
+    if (s.parentId() != null && breadcrumbs.isEmpty()) {
       EntityRef parent = new EntityRef(EntityKind.ZONE, s.parentId());
       header.addLink(parent.displayName(s.parentName()), parent, nav);
     }
+    var path=breadcrumbs.isEmpty() ? List.of(new GeographyStep(s.displayName(),s.id(),GeographyStep.Kind.ZONE)) : breadcrumbs;
+    BreadcrumbTrail trail=new BreadcrumbTrail(path,nav);
+    trail.setBorder(BorderFactory.createEmptyBorder(4,12,8,12));
+    content.add(trail);
     content.add(header);
     addLinkRow(DUNGEONS, d.instances(), i -> Labels.instanceTitle(i.displayName(), i.key()),
         InstanceSummary::ref, instanceLinks);

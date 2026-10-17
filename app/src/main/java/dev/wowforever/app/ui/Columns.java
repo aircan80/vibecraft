@@ -248,8 +248,8 @@ public final class Columns {
             r -> r.drop().flatMap(s -> zoneRef(s.zoneId()))),
         rate(DropRow::pct, r -> r.drop().map(DropSource::disagrees).orElse(false)
             || r.loot().map(InstanceLoot::disagrees).orElse(false)),
-        plain("Origin", String.class, r -> r.loot().map(InstanceLoot::observedInGame).orElse(false) ? "collector"
-            : r instanceof DropRow.Loot ? ATLASLOOT : r.drop().map(DropSource::displayOrigin).orElse(null)));
+        plain("Origin", String.class, r -> r.loot().map(InstanceLoot::displayOrigin)
+            .orElseGet(() -> r.drop().map(DropSource::displayOrigin).orElse(null))));
   }
 
   /**

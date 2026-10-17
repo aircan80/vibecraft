@@ -27,8 +27,11 @@ public final class InstanceRepository {
       FROM instance i LEFT JOIN zone z ON z.id = i.zone_id""";
 
   /** The boss loot columns with the item's; append WHERE and ORDER BY. */
-  private static final String BOSS_LOOT = "SELECT bl.item_id, " + NpcRepository.ITEM_COLUMNS
-      + ", bl.drop_pct, bl.pct_source, bl.slot, bl.disagrees, bl.source_count FROM boss_loot bl " + NpcRepository.itemJoin("bl");
+  private static String bossLootSelect(Connection c) throws SQLException {
+    return "SELECT bl.item_id, " + NpcRepository.ITEM_COLUMNS
+        + ", bl.drop_pct, bl.pct_source, bl.slot, bl.disagrees, bl.source_count, "
+        + ForeverLootFacts.origin(c)+" AS presence_origin FROM boss_loot bl " + NpcRepository.itemJoin("bl");
+  }
 
   private final Database db;
 
@@ -95,7 +98,7 @@ public final class InstanceRepository {
     return db.read(c -> {
       List<LootRow> observed = observedLoot(c, bossId);
       var observedIds = observed.stream().map(l -> l.item().id()).collect(java.util.stream.Collectors.toSet());
-      List<LootRow> rows = new ArrayList<>(Sql.list(c, BOSS_LOOT + " " + """
+      List<LootRow> rows = new ArrayList<>(Sql.list(c, bossLootSelect(c) + " " + """
           WHERE bl.boss_id = ?
           ORDER BY bl.slot IS NULL, bl.slot, bl.difficulty, bl.item_id""",
           rs -> bossLootRow(rs).withObservation(observedIds.contains(rs.getLong("item_id"))), bossId));
@@ -108,7 +111,7 @@ public final class InstanceRepository {
   /** The loot table of a boss in one {@code difficulty} (a {@link #difficulties} value), in slot order. */
   public List<LootRow> bossLoot(long bossId, String difficulty) {
     if (OBSERVED_DIFFICULTY.equals(difficulty)) return db.read(c -> observedLoot(c, bossId));
-    return db.read(c -> Sql.list(c, BOSS_LOOT + """
+    return db.read(c -> Sql.list(c, bossLootSelect(c) + """
 
         WHERE bl.boss_id = ? AND bl.difficulty = ?
         ORDER BY bl.slot IS NULL, bl.slot, bl.item_id""",
@@ -137,7 +140,7 @@ public final class InstanceRepository {
   }
 
   private static LootRow bossLootRow(ResultSet rs) throws SQLException {
-    return NpcRepository.ratedLoot(rs, BOSS_LOOT_ORIGIN, Sql.integer(rs, "slot"));
+    return NpcRepository.ratedLoot(rs, rs.getString("presence_origin"), Sql.integer(rs, "slot"));
   }
 
   static InstanceSummary summary(ResultSet rs) throws SQLException {
