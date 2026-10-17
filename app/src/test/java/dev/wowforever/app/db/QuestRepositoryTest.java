@@ -69,6 +69,12 @@ class QuestRepositoryTest {
   }
 
   @Test
+  void unknownQuestHasAnEmptyChain() {
+    // 604 is named by 599's next relation but is not in the fixture
+    assertThat(repos.quests().chain(604)).isEqualTo(QuestChain.EMPTY);
+  }
+
+  @Test
   void questWithoutObjectivesOrRelationsIsEmpty() {
     assertThat(repos.quests().objectives(-1)).isEmpty();
     assertThat(repos.quests().relations(-1)).isEmpty();
@@ -141,7 +147,7 @@ class QuestRepositoryTest {
     assertThat(rows(orb)).containsExactly(
         "4962:REQUIRES_ALL:-1", "4976:REQUIRES_ALL:-1", "4964:-:0", "4963:EXCLUSIVE:0");
     assertThat(orb.currentIndex()).isEqualTo(2);
-    assertThat(orb.current().name()).isEqualTo("The Completed Orb of Dar'Orahil");
+    assertThat(orb.current()).map(Step::name).hasValue("The Completed Orb of Dar'Orahil");
   }
 
   private static List<String> rows(QuestChain chain) {

@@ -39,9 +39,10 @@ class QuestChainTest {
     QuestChain middle = chain(2);
     assertThat(rows(middle)).containsExactly("1:REQUIRES_ONE:-1", "2:-:0", "3:UNLOCKS:1");
     assertThat(middle.currentIndex()).isEqualTo(1);
-    assertThat(middle.current().questId()).isEqualTo(2);
-    assertThat(middle.current().name()).isEqualTo("Second");
-    assertThat(middle.current().level()).isEqualTo(11);
+    assertThat(middle.current()).map(Step::questId).hasValue(2L);
+    assertThat(middle.current()).map(Step::name).hasValue("Second");
+    assertThat(middle.current()).map(Step::level).hasValue(11);
+    assertThat(middle.truncated()).isFalse();
     assertThat(ids(middle.spine())).containsExactly(1L, 2L, 3L);
     assertThat(middle.spineIndex()).isEqualTo(1);
     assertThat(middle.previous()).map(Step::questId).hasValue(1L);
@@ -112,12 +113,21 @@ class QuestChainTest {
   }
 
   @Test
-  void exclusiveOfAPrerequisiteFollowsIt() throws Exception {
-    // 31 requires 30, which is exclusive to 32 (declared on one side only)
-    schema.quest(30, "Pick", 5).quest(31, "Next", 6).quest(32, "Other pick", 5)
-        .relation(31, 30, "pre_single").relation(32, 30, "exclusive");
-    assertThat(rows(chain(31))).containsExactly("30:REQUIRES_ONE:-1", "32:EXCLUSIVE:-1", "31:-:0");
-    assertThat(ids(chain(31).spine())).containsExactly(30L, 31L);
+  void exclusiveDeclaredOnTheOtherSideStillBranches() throws Exception {
+    schema.quest(30, "Pick", 5).quest(32, "Other pick", 5).relation(32, 30, "exclusive");
+    assertThat(rows(chain(30))).containsExactly("30:-:0", "32:EXCLUSIVE:0");
+  }
+
+  @Test
+  void exclusivesOfOtherStepsAreNotPartOfTheChain() throws Exception {
+    // 31 requires 30, which is exclusive to 32; 31 unlocks 33, which is exclusive to 34
+    schema.quest(30, "Pick", 5).quest(31, "Middle", 6).quest(32, "Other pick", 5).quest(33, "Then", 7)
+        .quest(34, "Other then", 7)
+        .relation(31, 30, "pre_single").relation(32, 30, "exclusive").relation(30, 32, "exclusive")
+        .relation(33, 31, "pre_single").relation(33, 34, "exclusive").relation(34, 33, "exclusive");
+    QuestChain middle = chain(31);
+    assertThat(rows(middle)).containsExactly("30:REQUIRES_ONE:-1", "31:-:0", "33:UNLOCKS:1");
+    assertThat(ids(middle.spine())).containsExactly(30L, 31L, 33L);
   }
 
   @Test
@@ -162,6 +172,7 @@ class QuestChainTest {
     assertThat(chicken.currentIndex()).isEqualTo(2);
     assertThat(chicken.steps().getFirst().loop()).isTrue();
     assertThat(chicken.steps().getFirst().name()).isEqualTo("Chicken");
+    assertThat(chicken.truncated()).isFalse();
     assertThat(ids(chicken.spine())).containsExactly(31L, 30L);
 
     QuestChain again = chain(40);
@@ -183,11 +194,21 @@ class QuestChainTest {
   }
 
   @Test
-  void missingCurrentQuestIsAStandaloneUnknownStep() throws Exception {
+  void unknownQuestHasAnEmptyChain() throws Exception {
+    // 99 is not a quest, even though a relation row names it
+    schema.quest(98, "Known", 10).relation(98, 99, "next");
     QuestChain none = chain(99);
-    assertThat(rows(none)).containsExactly("99:-:0");
-    assertThat(none.current().name()).isNull();
-    assertThat(none.standalone()).isTrue();
+    assertThat(none).isEqualTo(QuestChain.EMPTY);
+    assertThat(none.steps()).isEmpty();
+    assertThat(none.currentIndex()).isEqualTo(-1);
+    assertThat(none.spine()).isEmpty();
+    assertThat(none.truncated()).isFalse();
+    assertThat(none.isEmpty()).isTrue();
+    assertThat(none.current()).isEmpty();
+    assertThat(none.standalone()).isFalse();
+    assertThat(none.spineIndex()).isEqualTo(-1);
+    assertThat(none.previous()).isEmpty();
+    assertThat(none.next()).isEmpty();
   }
 
   @Test
@@ -204,11 +225,23 @@ class QuestChainTest {
     assertThat(last.steps().getFirst().depth()).isEqualTo(-QuestChain.MAX_DEPTH);
     assertThat(last.steps()).noneMatch(Step::loop);
     assertThat(last.spine()).hasSize(QuestChain.MAX_DEPTH + 1);
+    assertThat(last.truncated()).isTrue();
 
     QuestChain first = chain(100);
     assertThat(first.steps()).hasSize(QuestChain.MAX_DEPTH + 1);
     assertThat(first.steps().getLast().questId()).isEqualTo(150);
     assertThat(first.steps().getLast().depth()).isEqualTo(QuestChain.MAX_DEPTH);
+    assertThat(first.truncated()).isTrue();
+
+    // 51 steps back from 150 reach 100 exactly: nothing is left beyond the cap
+    QuestChain exact = chain(150);
+    assertThat(exact.steps().getFirst().questId()).isEqualTo(100);
+    assertThat(exact.steps().getFirst().depth()).isEqualTo(-QuestChain.MAX_DEPTH);
+    assertThat(exact.truncated()).isFalse();
+    // from the middle both ends are less than 50 steps away
+    QuestChain middle = chain(130);
+    assertThat(middle.steps()).hasSize(60);
+    assertThat(middle.truncated()).isFalse();
   }
 
   @Test
@@ -217,7 +250,7 @@ class QuestChainTest {
         .sql("UPDATE quest SET zone_or_sort = 12 WHERE id = 60");
     QuestChain alone = chain(60);
     assertThat(rows(alone)).containsExactly("60:-:0");
-    assertThat(alone.current().zoneName()).isEqualTo("Elwynn Forest");
+    assertThat(alone.current()).map(Step::zoneName).hasValue("Elwynn Forest");
     assertThat(alone.standalone()).isTrue();
     assertThat(alone.spineIndex()).isZero();
     assertThat(alone.next()).isEmpty();

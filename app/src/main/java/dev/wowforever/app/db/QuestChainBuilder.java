@@ -24,8 +24,10 @@ import java.util.Set;
  * breadcrumb targets), each edge read from whichever side declares it. nextQuestInChain only ever points forward: it
  * is a hint, never a prerequisite. Every quest is claimed by the first step that reaches it, so it appears once;
  * a step's children are all claimed before any of them is expanded, so each quest hangs off the nearest step. An
- * edge back to a quest on the current path adds a loop step and stops there. Exclusive alternatives are claimed as
- * leaves beside their quest. The walk stops expanding {@link QuestChain#MAX_DEPTH} steps away from the quest.
+ * edge back to a quest on the current path adds a loop step and stops there. The quest's own exclusive alternatives
+ * are claimed as leaves beside it (a prerequisite's or an unlock's alternatives are not part of this quest's chain).
+ * The walk stops expanding {@link QuestChain#MAX_DEPTH} steps away from the quest and then reports the chain as
+ * truncated when a step at the cap still had an unclaimed quest beyond it.
  */
 final class QuestChainBuilder {
   private enum Direction { BACKWARD, FORWARD }
@@ -65,17 +67,21 @@ final class QuestChainBuilder {
   private final Map<Long, List<QuestRelation>> relations = new HashMap<>();
   private final Set<Long> claimed = new HashSet<>();
   private final Set<Long> path = new HashSet<>();
+  private boolean truncated;
 
   private QuestChainBuilder(Connection c) {
     this.c = c;
   }
 
-  /** The chain around quest {@code questId}; a quest the database lacks is a standalone unknown step. */
+  /** The chain around quest {@code questId}; {@link QuestChain#EMPTY} when the database lacks the quest. */
   static QuestChain build(Connection c, long questId) throws SQLException {
     return new QuestChainBuilder(c).build(questId);
   }
 
   private QuestChain build(long questId) throws SQLException {
+    if (!exists(questId)) {
+      return QuestChain.EMPTY;
+    }
     Node root = new Node(questId, head(questId), null, 0, false);
     claimed.add(questId);
     path.add(questId);
@@ -92,10 +98,13 @@ final class QuestChainBuilder {
     for (Node kid : root.after) {
       emitForward(kid, steps);
     }
-    return new QuestChain(steps, currentIndex, spine(root));
+    return new QuestChain(steps, currentIndex, spine(root), truncated);
   }
 
-  /** Claims the node's children in {@code dir} (and its alternatives), then expands each child the same way. */
+  /**
+   * Claims the node's children in {@code dir} (and, with {@code withAlternatives}, its exclusive alternatives), then
+   * expands each child the same way without alternatives.
+   */
   private void expand(Node n, Direction dir, boolean withAlternatives) throws SQLException {
     List<Node> kids = dir == Direction.BACKWARD ? n.before : n.after;
     int depth = n.step.depth();
@@ -110,6 +119,13 @@ final class QuestChainBuilder {
         }
       }
       kids.sort(DISPLAY_ORDER);
+    } else if (!truncated) {
+      for (long target : edges(n.id, dir).keySet()) {
+        if (!claimed.contains(target)) {
+          truncated = true;
+          break;
+        }
+      }
     }
     if (withAlternatives) {
       for (long alt : exclusives(n.id)) {
@@ -122,7 +138,7 @@ final class QuestChainBuilder {
     for (Node kid : kids) {
       if (!kid.loop()) {
         path.add(kid.id);
-        expand(kid, dir, true);
+        expand(kid, dir, false);
         path.remove(kid.id);
       }
     }
@@ -292,6 +308,10 @@ final class QuestChainBuilder {
       relations.put(id, cached);
     }
     return cached;
+  }
+
+  private boolean exists(long id) throws SQLException {
+    return Sql.one(c, "SELECT 1 FROM quest WHERE id = ?", rs -> Boolean.TRUE, id).isPresent();
   }
 
   private Head head(long id) throws SQLException {
