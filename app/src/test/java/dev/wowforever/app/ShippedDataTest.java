@@ -16,6 +16,7 @@ import dev.wowforever.app.ui.MainView;
 import dev.wowforever.app.ui.StatusBar;
 import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.widgets.MasterList;
+import dev.wowforever.app.ui.widgets.RailTarget;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -130,6 +131,7 @@ class ShippedDataTest {
       @Override public void setHistoryState(boolean canBack, boolean canForward) { }
       @Override public StatusBar status() { return status; }
       @Override public void setTitleSuffix(String s) { }
+      @Override public void selectRail(RailTarget target) { }
     };
     new AppController(repos, view, Runnable::run).open(ViewTarget.List.itemClass(4, -1));
     ListPage page = (ListPage) detail[0];

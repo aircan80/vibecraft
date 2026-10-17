@@ -215,6 +215,47 @@ class AppControllerTest {
   }
 
   @Test
+  void theRailFollowsTheTargetOnScreen() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.start();
+    assertThat(view.rail).isEqualTo(RailTarget.HOME);
+    c.open(AppController.target(RailTarget.NPCS));
+    assertThat(view.rail).isEqualTo(RailTarget.NPCS);
+    select(listPage().filterBar().ranks(), 3);
+    assertThat(view.rail).isEqualTo(RailTarget.NPCS);
+    listPage().results().activateRow(0);
+    assertThat(view.rail).as("an entity is no rail section").isNull();
+    c.back();
+    assertThat(view.rail).isEqualTo(RailTarget.NPCS);
+    c.open(new ViewTarget.List(INSTANCE));
+    assertThat(view.rail).isEqualTo(RailTarget.INSTANCES);
+    c.open(new ViewTarget.Search("hogger", Optional.empty()));
+    assertThat(view.rail).isNull();
+    c.back();
+    assertThat(view.rail).isEqualTo(RailTarget.INSTANCES);
+    c.back();
+    assertThat(c.current()).isEqualTo(new ViewTarget.List(NPC, new NpcFilter(null, 3, null, null)));
+    assertThat(view.rail).isEqualTo(RailTarget.NPCS);
+    c.back();
+    assertThat(view.rail).isEqualTo(RailTarget.HOME);
+  }
+
+  @Test
+  void railSectionsOfTargets() {
+    assertThat(AppController.railSection(new ViewTarget.Home())).isEqualTo(RailTarget.HOME);
+    assertThat(AppController.railSection(new ViewTarget.List(ITEM))).isEqualTo(RailTarget.ITEMS);
+    assertThat(AppController.railSection(new ViewTarget.List(NPC))).isEqualTo(RailTarget.NPCS);
+    assertThat(AppController.railSection(new ViewTarget.List(QUEST))).isEqualTo(RailTarget.QUESTS);
+    assertThat(AppController.railSection(new ViewTarget.List(ZONE))).isEqualTo(RailTarget.ZONES);
+    assertThat(AppController.railSection(new ViewTarget.List(INSTANCE))).isEqualTo(RailTarget.INSTANCES);
+    assertThat(AppController.railSection(new ViewTarget.Entity(new EntityRef(ZONE, 12)))).isNull();
+    assertThat(AppController.railSection(new ViewTarget.Search("a", Optional.empty()))).isNull();
+    for (RailTarget t : RailTarget.values()) {
+      assertThat(AppController.railSection(AppController.target(t))).isEqualTo(t);
+    }
+  }
+
+  @Test
   void itemListShowsEveryItemInTheDetail() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(AppController.target(RailTarget.ITEMS));

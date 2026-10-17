@@ -9,6 +9,7 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.util.List;
 import java.util.Objects;
@@ -30,18 +31,29 @@ public final class ListPage extends SourcesPage {
   private final FilterBar filterBar;
   private final LinkTable<?> results;
   private final SourceSection section;
-  private final JLabel emptyNote = PageContent.mutedLabel("Nothing matches these filters.");
+  private final JLabel emptyNote;
   private ViewTarget.List target;
 
-  /** A page showing {@code rows} ({@link ListRows#load} of {@code target}), its filter bar set from {@code options}. */
+  /**
+   * A page showing {@code rows} ({@link ListRows#load} of {@code target}), its filter bar set from {@code options};
+   * level changes reach {@code onFilter} once the spinners rest for {@link FilterBar#LEVEL_DELAY_MILLIS}.
+   */
   public ListPage(ViewTarget.List target, ListOptions options, List<?> rows, Navigator nav,
       Consumer<ListFilter> onFilter) {
+    this(target, options, rows, nav, onFilter, MasterList.timerDelay(FilterBar.LEVEL_DELAY_MILLIS));
+  }
+
+  /** As above, with {@code levelDelay} debouncing the level spinners (a seam for tests). */
+  public ListPage(ViewTarget.List target, ListOptions options, List<?> rows, Navigator nav,
+      Consumer<ListFilter> onFilter, MasterList.Delay levelDelay) {
     super(nav);
     this.target = Objects.requireNonNull(target, "target");
+    emptyNote = PageContent.mutedLabel(target.filter() instanceof NoFilter ? "No entries."
+        : "Nothing matches these filters.");
     header = new HeaderPanel(title(target.kind()), "");
     header.setAlignmentX(LEFT_ALIGNMENT);
     content.add(header);
-    filterBar = target.filter() instanceof NoFilter ? null : new FilterBar(target.filter(), options, onFilter);
+    filterBar = target.filter() instanceof NoFilter ? null : new FilterBar(target.filter(), options, onFilter, levelDelay);
     if (filterBar != null) {
       content.add(filterBar);
     }

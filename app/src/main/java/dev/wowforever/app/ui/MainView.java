@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui;
 
 import dev.wowforever.app.ui.widgets.MasterList;
+import dev.wowforever.app.ui.widgets.RailTarget;
 import javax.swing.JComponent;
 
 /** What {@link AppController} drives: the main window in production, a headless stub in tests. */
@@ -19,4 +20,7 @@ public interface MainView {
 
   /** Shows {@code s} after the application name in the window title; empty for none. */
   void setTitleSuffix(String s);
+
+  /** Highlights the rail section of the page on screen, without opening it; null highlights none. */
+  void selectRail(RailTarget target);
 }

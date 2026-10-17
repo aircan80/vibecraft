@@ -18,6 +18,7 @@ import dev.wowforever.app.model.ListFilter;
 import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.model.QuestFilter;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,9 +37,11 @@ class ListPageTest {
   private final ListOptions options = ListOptions.load(repos);
   private final List<ListFilter> filters = new ArrayList<>();
   private final List<ViewTarget> opened = new ArrayList<>();
+  /** The debounce of the level spinners, elapsed by hand. */
+  private final ManualDelay levels = new ManualDelay();
 
   private ListPage page(ViewTarget.List target) {
-    return new ListPage(target, options, ListRows.load(target, repos), opened::add, filters::add);
+    return new ListPage(target, options, ListRows.load(target, repos), opened::add, filters::add, levels);
   }
 
   /** A page whose filter changes reload it at once, as the controller does (minus the worker thread). */
@@ -48,7 +51,7 @@ class ListPageTest {
       filters.add(f);
       ViewTarget.List next = new ViewTarget.List(target.kind(), f);
       page[0].showRows(next, ListRows.load(next, repos));
-    });
+    }, levels);
     return page[0];
   }
 
@@ -130,12 +133,60 @@ class ListPageTest {
     assertThat(text(bar.minLevel())).isEqualTo("Any");
     assertThat(text(bar.maxLevel())).isEqualTo("Any");
     bar.minLevel().setValue(10);
+    levels.fire();
     assertThat(filters).last().isEqualTo(new ItemFilter(null, null, 10, null, null));
     assertThat(text(bar.minLevel())).isEqualTo("10");
     bar.maxLevel().setValue(20);
+    levels.fire();
     assertThat(filters).last().isEqualTo(new ItemFilter(null, null, 10, 20, null));
     bar.minLevel().setValue(0);
+    levels.fire();
     assertThat(filters).last().isEqualTo(new ItemFilter(null, null, null, 20, null));
+  }
+
+  @Test
+  void levelTicksAreDebouncedButCombosAreNot() {
+    FilterBar bar = page(new ViewTarget.List(NPC)).filterBar();
+    for (int level = 1; level <= 5; level++) {
+      bar.minLevel().setValue(level); // an arrow held down
+    }
+    assertThat(filters).isEmpty();
+    assertThat(levels.pending()).as("each tick replaces the pending reload").isEqualTo(1);
+    levels.fire();
+    assertThat(filters).containsExactly(new NpcFilter(null, null, 5, null));
+    select(bar.ranks(), 3);
+    assertThat(filters).last().isEqualTo(new NpcFilter(null, 3, 5, null));
+    bar.maxLevel().setValue(60);
+    select(bar.ranks(), 1); // a combo change takes the pending level along at once
+    assertThat(filters).last().isEqualTo(new NpcFilter(null, 1, 5, 60));
+    levels.fire();
+    assertThat(filters).hasSize(3);
+  }
+
+  @Test
+  void aMinimumAboveTheMaximumShowsAHint() {
+    FilterBar bar = page(new ViewTarget.List(ITEM)).filterBar();
+    assertThat(bar.rangeHint().isVisible()).isFalse();
+    assertThat(bar.rangeHint().getText()).isEqualTo("Minimum is above maximum");
+    bar.maxLevel().setValue(20);
+    bar.minLevel().setValue(30);
+    assertThat(bar.rangeHint().isVisible()).as("shown at once, before the debounce").isTrue();
+    bar.maxLevel().setValue(0);
+    assertThat(bar.rangeHint().isVisible()).as("no maximum").isFalse();
+    assertThat(page(new ViewTarget.List(QUEST, new QuestFilter(null, 30, 20))).filterBar().rangeHint().isVisible())
+        .isTrue();
+  }
+
+  @Test
+  void theEmptyNoteSpeaksOfFiltersOnlyWhereThereAreSome() {
+    ListPage zones = new ListPage(new ViewTarget.List(ZONE), ListOptions.EMPTY, List.of(), opened::add,
+        filters::add, levels);
+    assertThat(zones.emptyNote().isVisible()).isTrue();
+    assertThat(zones.emptyNote().getText()).isEqualTo("No entries.");
+    ListPage instances = new ListPage(new ViewTarget.List(INSTANCE), ListOptions.EMPTY, List.of(), opened::add,
+        filters::add, levels);
+    assertThat(instances.emptyNote().getText()).isEqualTo("No entries.");
+    assertThat(page(new ViewTarget.List(ITEM)).emptyNote().getText()).isEqualTo("Nothing matches these filters.");
   }
 
   @Test
@@ -170,6 +221,7 @@ class ListPageTest {
     assertThat(p.target()).isEqualTo(new ViewTarget.List(ITEM, new ItemFilter(4, null, null, null, null)));
     assertThat(p.emptyNote().isVisible()).isFalse();
     p.filterBar().minLevel().setValue(90);
+    levels.fire();
     assertThat(p.results().rowCount()).isZero();
     assertThat(p.section().heading().getText()).isEqualTo("Results (0)");
     assertThat(p.emptyNote().isVisible()).isTrue();
@@ -207,6 +259,7 @@ class ListPageTest {
     select(bar.zones(), 2717L);
     assertThat(filters).last().isEqualTo(new NpcFilter(2717L, 3, null, null));
     bar.maxLevel().setValue(63);
+    levels.fire();
     assertThat(filters).last().isEqualTo(new NpcFilter(2717L, 3, null, 63));
     assertThat(column(p.results().table(), 0)).hasSize(15);
     assertThat(columnNames(p.results().table())).containsExactly("Name", "Title", "Level", "Rank", "Zone");
@@ -220,6 +273,7 @@ class ListPageTest {
     assertThat(selected(bar.zones())).isEqualTo(40L);
     assertThat(column(p.results().table(), 0)).containsExactly("Captain Sander's Hidden Treasure");
     bar.minLevel().setValue(5);
+    levels.fire();
     assertThat(filters).containsExactly(new QuestFilter(40L, 5, null));
   }
 

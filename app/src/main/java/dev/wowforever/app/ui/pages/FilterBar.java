@@ -7,6 +7,7 @@ import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.model.QuestFilter;
 import dev.wowforever.app.model.ZoneSummary;
 import dev.wowforever.app.ui.Columns;
+import dev.wowforever.app.ui.widgets.MasterList;
 import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -30,8 +31,12 @@ import javax.swing.text.DefaultFormatterFactory;
  * The filter bar of a list page: combos for the item class and subclass (items), the zone (NPCs, quests) and the
  * rank (NPCs), each starting with an "All …" choice, and two level spinners where 0 reads "Any" (no bound). Every
  * change the user makes reports the new filter once; showing the filter the bar was built with reports nothing.
+ * Combo changes report at once; level changes once the spinners rest (an arrow held down is one reload). A muted
+ * hint shows while the minimum level is above the maximum.
  */
 public final class FilterBar extends JPanel {
+  /** How long the level spinners must rest before a level change is reported. */
+  public static final int LEVEL_DELAY_MILLIS = 250;
   /** The highest level the spinners go to. */
   static final int MAX_LEVEL = 999;
   /** What a level spinner shows at 0, its "no bound" value. */
@@ -49,6 +54,8 @@ public final class FilterBar extends JPanel {
   }
 
   private final Consumer<ListFilter> onChange;
+  private final MasterList.Delay levelDelay;
+  private final JLabel rangeHint = PageContent.mutedLabel("Minimum is above maximum");
   private final List<ItemClassNode> classTree;
   private ListFilter filter;
   /** True while the bar sets its own widgets, whose events are then not user changes. */
@@ -60,11 +67,15 @@ public final class FilterBar extends JPanel {
   private final JSpinner minLevel;
   private final JSpinner maxLevel;
 
-  /** A bar showing {@code initial}, an item, NPC or quest filter; {@code onChange} hears every user change. */
-  FilterBar(ListFilter initial, ListOptions options, Consumer<ListFilter> onChange) {
+  /**
+   * A bar showing {@code initial}, an item, NPC or quest filter; {@code onChange} hears every user change, level
+   * changes after {@code levelDelay}.
+   */
+  FilterBar(ListFilter initial, ListOptions options, Consumer<ListFilter> onChange, MasterList.Delay levelDelay) {
     super(new FlowLayout(FlowLayout.LEADING, GAP, GAP));
     this.filter = Objects.requireNonNull(initial, "initial");
     this.onChange = Objects.requireNonNull(onChange, "onChange");
+    this.levelDelay = Objects.requireNonNull(levelDelay, "levelDelay");
     this.classTree = options.classes();
     setOpaque(false);
     setAlignmentX(LEFT_ALIGNMENT);
@@ -107,6 +118,8 @@ public final class FilterBar extends JPanel {
     maxLevel = levelSpinner(max(initial));
     add(levelLabel, minLevel);
     add("to", maxLevel);
+    add(rangeHint);
+    showRangeHint();
     updating = false;
   }
 
@@ -145,6 +158,11 @@ public final class FilterBar extends JPanel {
     return maxLevel;
   }
 
+  /** The hint shown while the minimum level is above the maximum. */
+  public JLabel rangeHint() {
+    return rangeHint;
+  }
+
   /**
    * One row when it fits the width of the page; otherwise as many rows as the flow layout wraps the widgets into
    * at that width, so a narrow page shows them all.
@@ -164,6 +182,9 @@ public final class FilterBar extends JPanel {
     int rowHeight = 0;
     int height = 0;
     for (Component c : getComponents()) {
+      if (!c.isVisible()) {
+        continue;
+      }
       Dimension d = c.getPreferredSize();
       if (rowWidth > 0 && rowWidth + flow.getHgap() + d.width > room) {
         height += rowHeight;
@@ -190,8 +211,32 @@ public final class FilterBar extends JPanel {
     }
   }
 
-  /** Reads the widgets and reports the filter they show, when it differs from the one shown before. */
+  /** A level spinner moved: the hint follows at once, the report once the spinners rest. */
+  private void levelChange() {
+    if (!updating) {
+      showRangeHint();
+      levelDelay.cancel();
+      levelDelay.schedule(this::changed);
+    }
+  }
+
+  private void showRangeHint() {
+    Integer min = level(minLevel);
+    Integer max = level(maxLevel);
+    boolean show = min != null && max != null && min > max;
+    if (rangeHint.isVisible() != show) {
+      rangeHint.setVisible(show);
+      revalidate();
+      repaint();
+    }
+  }
+
+  /**
+   * Reads the widgets and reports the filter they show, when it differs from the one shown before. A pending level
+   * report is dropped: this one carries the levels too.
+   */
   private void changed() {
+    levelDelay.cancel();
     Integer min = level(minLevel);
     Integer max = level(maxLevel);
     ListFilter next = switch (filter) {
@@ -269,7 +314,7 @@ public final class FilterBar extends JPanel {
     JFormattedTextField field = ((JSpinner.DefaultEditor) spinner.getEditor()).getTextField();
     field.setFormatterFactory(new DefaultFormatterFactory(new LevelFormatter()));
     field.setColumns(3);
-    spinner.addChangeListener(e -> userChange());
+    spinner.addChangeListener(e -> levelChange());
     return spinner;
   }
 

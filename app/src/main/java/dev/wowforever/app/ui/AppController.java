@@ -100,6 +100,25 @@ public final class AppController implements Navigator {
     };
   }
 
+  /**
+   * The rail section {@code t} belongs to: Home, or the list page of a kind; null for entities and searches,
+   * which no rail button opens.
+   */
+  public static RailTarget railSection(ViewTarget t) {
+    return switch (t) {
+      case ViewTarget.Home h -> RailTarget.HOME;
+      case ViewTarget.List l -> switch (l.kind()) {
+        case ITEM -> RailTarget.ITEMS;
+        case NPC -> RailTarget.NPCS;
+        case QUEST -> RailTarget.QUESTS;
+        case ZONE -> RailTarget.ZONES;
+        case INSTANCE -> RailTarget.INSTANCES;
+        default -> null;
+      };
+      default -> null;
+    };
+  }
+
   /** Opens the home page. */
   public void start() {
     open(new ViewTarget.Home());
@@ -196,6 +215,7 @@ public final class AppController implements Navigator {
 
   private void show(ViewTarget t) {
     view.setHistoryState(history.canBack(), history.canForward());
+    view.selectRail(railSection(t));
     switch (t) {
       case ViewTarget.Search s -> loadResults(() -> search(s));
       case ViewTarget.List l -> showList(l);

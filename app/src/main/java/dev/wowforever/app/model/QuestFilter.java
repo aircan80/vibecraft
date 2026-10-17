@@ -2,7 +2,8 @@ package dev.wowforever.app.model;
 
 /**
  * A quest list: quests filed under zone {@code zoneId} whose quest level is at least {@code minLevel} and at most
- * {@code maxLevel}. Null leaves that part open; a quest without a level is left out once either bound is set.
+ * {@code maxLevel}. Null leaves that part open; a quest without a known level (null, or 0 and below) is left out
+ * once either bound is set.
  */
 public record QuestFilter(Long zoneId, Integer minLevel, Integer maxLevel) implements ListFilter {
   /** Every quest. */

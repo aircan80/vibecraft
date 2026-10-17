@@ -77,8 +77,9 @@ public final class QuestRepository {
   }
 
   /**
-   * Every quest {@code filter} lets through, by name. Quests without a level drop out once a level bound is set; a
-   * zone filter matches the zone a quest is filed under.
+   * Every quest {@code filter} lets through, by name. Quests without a known level (null, or 0 and below as for
+   * quests that scale with the player) drop out once a level bound is set; a zone filter matches the zone a quest
+   * is filed under.
    */
   public List<QuestSummary> list(QuestFilter filter) {
     StringBuilder where = new StringBuilder(" WHERE 1 = 1");
@@ -86,6 +87,9 @@ public final class QuestRepository {
     if (filter.zoneId() != null) {
       where.append(" AND q.zone_or_sort = ?");
       params.add(filter.zoneId());
+    }
+    if (filter.minLevel() != null || filter.maxLevel() != null) {
+      where.append(" AND q.quest_level > 0");
     }
     if (filter.minLevel() != null) {
       where.append(" AND q.quest_level >= ?");

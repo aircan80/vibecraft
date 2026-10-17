@@ -3,6 +3,7 @@ package dev.wowforever.app.ui;
 import dev.wowforever.app.ui.widgets.Icons;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.Rail;
+import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.BorderLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
@@ -273,5 +274,10 @@ public final class MainFrame extends JFrame implements MainView {
   @Override
   public void setTitleSuffix(String s) {
     setTitle(s == null || s.isEmpty() ? APP_NAME : APP_NAME + " — " + s);
+  }
+
+  @Override
+  public void selectRail(RailTarget target) {
+    rail.select(target);
   }
 }

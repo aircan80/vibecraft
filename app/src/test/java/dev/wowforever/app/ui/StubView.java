@@ -2,6 +2,7 @@ package dev.wowforever.app.ui;
 
 import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.MasterList;
+import dev.wowforever.app.ui.widgets.RailTarget;
 import javax.swing.JComponent;
 
 /** A headless {@link MainView}: real panels, no frame; list previews wait for {@code delay.fire()}. */
@@ -13,6 +14,8 @@ final class StubView implements MainView {
   boolean canBack;
   boolean canForward;
   String titleSuffix;
+  /** The rail section last selected; null for none. */
+  RailTarget rail;
 
   @Override
   public MasterList masterList() {
@@ -38,5 +41,10 @@ final class StubView implements MainView {
   @Override
   public void setTitleSuffix(String s) {
     titleSuffix = s;
+  }
+
+  @Override
+  public void selectRail(RailTarget target) {
+    rail = target;
   }
 }
