@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.widgets;
 
 import com.formdev.flatlaf.FlatClientProperties;
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Insets;
@@ -42,6 +43,8 @@ public final class KindChips extends JPanel {
   private final Map<Optional<EntityKind>, Integer> counts = new HashMap<>();
   /** The width the chips wrap within; 0 for one row. */
   private int wrapWidth;
+  /** The chip the keyboard is on ({@link #setHighlighted}); -1 for none. */
+  private int highlighted = -1;
 
   public KindChips() {
     super(new FlowLayout(FlowLayout.LEFT, GAP, GAP));
@@ -172,6 +175,32 @@ public final class KindChips extends JPanel {
       return super.getPreferredSize();
     }
     return new Dimension(wrapWidth, heightAt(wrapWidth));
+  }
+
+  /**
+   * Marks chip {@code index} ({@link #KINDS} order) as the one the keyboard is on, with a gold outline, the others
+   * plain; -1 marks none. The chips never take the focus (typing goes on in the search box), so this stands in for a
+   * focus ring.
+   */
+  public void setHighlighted(int index) {
+    if (index < -1 || index >= chips.size()) {
+      throw new IllegalArgumentException("index " + index);
+    }
+    highlighted = index;
+    for (int i = 0; i < chips.size(); i++) {
+      chips.get(i).putClientProperty(FlatClientProperties.OUTLINE, i == index ? Theme.current().accentGold() : null);
+    }
+    repaint();
+  }
+
+  /** The chip the keyboard is on; -1 for none. */
+  public int highlighted() {
+    return highlighted;
+  }
+
+  /** The index of the selected chip in {@link #KINDS} order. */
+  public int selectedIndex() {
+    return KINDS.indexOf(selected);
   }
 
   /** The chips in {@link #KINDS} order. */

@@ -39,6 +39,10 @@ final class ItemCategories {
   static final int NOTABLE_QUALITY = 4;
   /** The item class of quest items ({@code item_class} 12, Quest). */
   static final int QUEST_CLASS = 12;
+  /** The item class Miscellaneous ({@code item_class} 15): junk, but also mounts, pets and tier tokens. */
+  static final int MISCELLANEOUS_CLASS = 15;
+  /** The name of {@link #MISCELLANEOUS_CLASS}. */
+  static final String MISCELLANEOUS = "Miscellaneous";
   /** How many NPCs must drop an item for it to count as a world drop. */
   static final int WORLD_DROP_NPCS = 20;
   /**
@@ -73,8 +77,9 @@ final class ItemCategories {
   /**
    * The NPC page group of a drop: {@link #NOTABLE} for an item of epic quality or better ({@value #NOTABLE_QUALITY}+)
    * and for a quest item (class {@value #QUEST_CLASS}), else {@link #ofDrop} (its class group, or World drops for the
-   * generic pool many NPCs share at an unknown or low rate). Quest items are never world drops, so the World drops
-   * rule is the same.
+   * generic pool many NPCs share at an unknown or low rate). Notable comes first, so an epic of a pool class (an epic
+   * recipe many NPCs drop, such as Pattern: Invulnerable Mail) is Notable rather than a world drop; quest items are
+   * never world drops. Every other drop is grouped as before.
    */
   static String ofNpcDrop(LootRow drop) {
     return isNotable(drop) ? NOTABLE : ofDrop(drop);
@@ -88,19 +93,45 @@ final class ItemCategories {
 
   /**
    * What a Notable drop is, which its group heading does not say: its class group in the singular ("Quest item",
-   * "Gear", "Recipe"); null for any other drop, whose group heading says it.
+   * "Gear", "Recipe", "Trade good", "Consumable"); for a Miscellaneous item its subclass ({@link #miscellaneousType}:
+   * "Mount", "Pet", "Reagent", "Holiday", else "Other"); for any other class its class name ("Container", "Key"); and
+   * "Other" for an unknown class. Never "Junk": a Notable item is an epic or a quest item. Null for a drop that is not
+   * Notable, whose group heading says what it is.
    */
   static String notableType(LootRow drop) {
-    if (!NOTABLE.equals(ofNpcDrop(drop))) {
+    if (!isNotable(drop)) {
       return null;
     }
-    String group = of(drop.className());
-    return switch (group) {
+    if (Integer.valueOf(MISCELLANEOUS_CLASS).equals(drop.classId()) || MISCELLANEOUS.equals(drop.className())) {
+      return miscellaneousType(drop.subclassId());
+    }
+    return switch (of(drop.className())) {
+      case GEAR -> GEAR;
       case RECIPES -> "Recipe";
       case QUEST_ITEMS -> "Quest item";
       case TRADE_GOODS -> "Trade good";
       case CONSUMABLES -> "Consumable";
-      default -> group; // Gear, Junk, Other
+      case JUNK -> drop.className(); // a class the groups do not name: Container, Key, Projectile, ...
+      default -> OTHER;
+    };
+  }
+
+  /**
+   * The subclass name of a Miscellaneous item ({@code item_subclass} of class {@value #MISCELLANEOUS_CLASS}): 1
+   * Reagent, 2 Pet, 3 Holiday, 5 Mount; the Junk subclass (0), Other (4) and an unknown one read "Other", as an epic
+   * of the Junk subclass is a tier token or a legendary's part (Desecrated Breastplate, Bindings of the Windseeker),
+   * never junk.
+   */
+  static String miscellaneousType(Integer subclassId) {
+    if (subclassId == null) {
+      return OTHER;
+    }
+    return switch (subclassId) {
+      case 1 -> "Reagent";
+      case 2 -> "Pet";
+      case 3 -> "Holiday";
+      case 5 -> "Mount";
+      default -> OTHER;
     };
   }
 

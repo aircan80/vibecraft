@@ -429,6 +429,8 @@ class ItemPageTest {
     JTable t = drops.table();
     assertThat(column(t, 0)).containsExactly("Taragaman the Hungerer");
     assertThat(instanceChip(t, 0)).isEqualTo("Ragefire Chasm");
+    assertThat(t.prepareRenderer(t.getCellRenderer(0, 0), 0, 0).getAccessibleContext().getAccessibleName())
+        .as("a screen reader hears the boss and the instance").isEqualTo("Taragaman the Hungerer, Ragefire Chasm");
     assertThat(t.prepareRenderer(t.getCellRenderer(0, 0), 0, 0).getForeground()).as("still a link")
         .isEqualTo(LinkRenderer.linkColor());
     assertThat(drops.model().refAt(0, 0)).contains(new EntityRef(NPC, 11520));
@@ -438,7 +440,7 @@ class ItemPageTest {
   }
 
   @Test
-  void lootListsOfTheSameNameKeepTheirSlotOrder() {
+  void lootListsThatReadTheSameNameTheirSlot() {
     EntityRef sm = new EntityRef(INSTANCE, 9);
     ItemDetail d = new ItemDetail(LETTER, 12, 0, null, List.of(),
         List.of(new InstanceLoot(sm, "Scarlet Monastery", 70, "Armory trash", null, 24, 0.5),
@@ -446,7 +448,8 @@ class ItemPageTest {
             new InstanceLoot(sm, "Scarlet Monastery", 71, "Herod", 3975L, 2, 12.0)),
         List.of(), List.of(), List.of(), List.of(), List.of());
     var drops = new ItemPage(d, t -> {}).droppedBy();
-    assertThat(column(drops.table(), 0)).containsExactly("Herod", "Armory trash", "Armory trash");
+    // one list, two slots: each row names its slot, as the 2B loot lists did
+    assertThat(column(drops.table(), 0)).containsExactly("Herod", "Armory trash · slot 4", "Armory trash · slot 24");
     assertThat(drops.model().rowAt(1).loot().orElseThrow().slot()).isEqualTo(4);
     assertThat(drops.model().rowAt(2).loot().orElseThrow().slot()).isEqualTo(24);
     assertThat(drops.model().refAt(0, 0)).contains(new EntityRef(NPC, 3975));

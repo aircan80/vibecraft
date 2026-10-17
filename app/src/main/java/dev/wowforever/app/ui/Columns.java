@@ -210,14 +210,6 @@ public final class Columns {
   }
 
   /**
-   * The ranked drop table of the item page ({@link DropRow#merged}): {@link #dropSourcesMerged()}, kept for tables of
-   * NPC rows alone.
-   */
-  public static List<Column<DropRow>> dropSourcesRanked() {
-    return dropSourcesMerged();
-  }
-
-  /**
    * The item page's "Dropped by" table ({@link DropRow#merged}): source, level, zone, rate (a {@link Double}, null
    * when unknown) and data origin. An NPC row links its NPC; a loot list reads as its boss (or list, such as
    * "Trash"), linked to the boss's NPC or else the instance, from AtlasLoot, with no level or zone. The page shows
@@ -231,21 +223,10 @@ public final class Columns {
             Labels.positive(s.levelMax()))).orElse(null)),
         link("Zone", r -> r.drop().map(DropSource::zoneName).orElse(null),
             r -> r.drop().flatMap(s -> zoneRef(s.zoneId()))),
-        rate(DropRow::pct, r -> r.drop().map(DropSource::disagrees)
-            .orElseGet(() -> r.loot().map(InstanceLoot::disagrees).orElse(false))),
+        rate(DropRow::pct, r -> r.drop().map(DropSource::disagrees).orElse(false)
+            || r.loot().map(InstanceLoot::disagrees).orElse(false)),
         plain("Origin", String.class, r -> r instanceof DropRow.Loot ? ATLASLOOT
             : r.drop().map(DropSource::origin).orElse(null)));
-  }
-
-  /**
-   * The AtlasLoot loot lists an item is in ({@link LootListRow}): the list linked to its instance, the boss
-   * linked to its NPC if any, and the rate (a {@link Double}, null when unknown).
-   */
-  public static List<Column<LootListRow>> lootLists() {
-    return List.of(
-        link("Loot list", LootListRow::title, r -> Optional.of(r.loot().instance())),
-        link("Boss", r -> r.loot().bossDisplayName(), r -> r.loot().bossNpc()),
-        rate(r -> r.loot().dropPct(), r -> r.loot().disagrees()));
   }
 
   /**

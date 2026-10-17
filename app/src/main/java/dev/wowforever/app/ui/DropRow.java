@@ -5,11 +5,11 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceLoot;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * A row of the item page's "Dropped by" table ({@link Columns#dropSourcesMerged()}): an NPC that drops the item, an
@@ -81,12 +81,19 @@ public sealed interface DropRow {
   }
 
   /**
-   * An AtlasLoot loot list of a dungeon or raid, read as its boss (or list, such as "Trash"), linked to the boss's
-   * NPC when it has one and else to the instance; the instance shows as a chip.
+   * An AtlasLoot loot list of a dungeon or raid, read as {@code title}: its boss (or list, such as "Trash"), with
+   * {@code " · slot n"} after it when another row would read the same ({@link #merged}). It links the boss's NPC when
+   * it has one and else the instance; the instance shows as a chip.
    */
-  record Loot(InstanceLoot list) implements DropRow {
+  record Loot(InstanceLoot list, String title) implements DropRow {
     public Loot {
       Objects.requireNonNull(list, "list");
+      Objects.requireNonNull(title, "title");
+    }
+
+    /** A loot list read as its boss or list name. */
+    public Loot(InstanceLoot list) {
+      this(list, list.bossDisplayName());
     }
 
     @Override
@@ -106,7 +113,7 @@ public sealed interface DropRow {
 
     @Override
     public String name() {
-      return list.bossDisplayName();
+      return title;
     }
 
     @Override
@@ -128,32 +135,37 @@ public sealed interface DropRow {
   }
 
   /**
-   * The NPCs with a known rate, highest first (ties by name), then a {@link Divider} and the NPCs whose rate is
-   * unknown, by name. The divider only separates two groups: there is none when every rate is known or every
-   * rate is unknown.
-   */
-  static List<DropRow> ranked(List<DropSource> sources) {
-    return merged(sources, List.of());
-  }
-
-  /**
-   * The NPC rows and the instance loot lists in one ranking: highest rate first (ties by name, then instance), then a
-   * {@link Divider} and the rows whose rate is unknown, by name. A loot list of a boss whose NPC is among
-   * {@code npcRows} is merged into that NPC's row (the row shows the instance chip); the other lists, such as trash
-   * lists, bosses without an NPC and bosses whose NPC row is not shown, are rows of their own.
+   * The NPC rows and the instance loot lists in one ranking: highest rate first (ties by name, then instance, then
+   * slot), then a {@link Divider} and the rows whose rate is unknown, by name. The divider only separates two groups:
+   * there is none when every rate is known or every rate is unknown.
+   *
+   * <p>A boss's NPC row takes in the first of the boss's loot lists that gives the same rate (the row then shows the
+   * instance chip, and its rate is marked when either the NPC's or the list's sources disagree). Every other list is a
+   * row of its own, so nothing is lost: a second list of the same boss, a list whose rate differs from the NPC's,
+   * trash lists, bosses without an NPC and bosses whose NPC row is not shown. Loot rows that would read the same (one
+   * list, several slots) end in {@code " · slot n"}.
    */
   static List<DropRow> merged(List<DropSource> npcRows, List<InstanceLoot> loot) {
-    Set<Long> npcs = new HashSet<>();
-    npcRows.forEach(s -> npcs.add(s.ref().id()));
+    List<InstanceLoot> left = new ArrayList<>(loot);
     List<DropRow> rows = new ArrayList<>();
     for (DropSource s : npcRows) {
-      InstanceLoot list = loot.stream().filter(l -> Objects.equals(l.bossNpcId(), s.ref().id())).findFirst()
-          .orElse(null);
+      InstanceLoot list = left.stream().filter(l -> Objects.equals(l.bossNpcId(), s.ref().id())
+          && Objects.equals(l.dropPct(), s.dropPct())).findFirst().orElse(null);
+      if (list != null) {
+        left.remove(list); // that one list: the boss's others stay rows of their own
+      }
       rows.add(new Source(s, list));
     }
-    loot.stream().filter(l -> l.bossNpcId() == null || !npcs.contains(l.bossNpcId()))
-        .forEach(l -> rows.add(new Loot(l)));
-    Comparator<DropRow> byName = Comparator.comparing(DropRow::name, String.CASE_INSENSITIVE_ORDER)
+    Map<String, Long> readings = left.stream().collect(Collectors.groupingBy(DropRow::reading,
+        Collectors.counting()));
+    for (InstanceLoot l : left) {
+      rows.add(readings.get(reading(l)) > 1 && l.slot() != null
+          ? new Loot(l, l.bossDisplayName() + " · slot " + l.slot()) : new Loot(l));
+    }
+    // by the boss or list name without any slot, then instance, then slot (slot 3 before slot 24)
+    Comparator<DropRow> byName = Comparator
+        .comparing((DropRow r) -> r instanceof Loot l ? l.list().bossDisplayName() : r.name(),
+            String.CASE_INSENSITIVE_ORDER)
         .thenComparing(r -> r.loot().map(InstanceLoot::instanceDisplayName).orElse(""),
             String.CASE_INSENSITIVE_ORDER)
         .thenComparing(r -> r.loot().map(InstanceLoot::slot).orElse(null),
@@ -166,6 +178,11 @@ public sealed interface DropRow {
     }
     out.addAll(unknown);
     return List.copyOf(out);
+  }
+
+  /** How a loot list reads before any slot: its instance and boss or list. */
+  private static String reading(InstanceLoot l) {
+    return l.instanceDisplayName() + " › " + l.bossDisplayName();
   }
 
   /** Whether {@code row} lists an item source (not the divider). */

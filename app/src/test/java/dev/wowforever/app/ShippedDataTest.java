@@ -224,6 +224,17 @@ class ShippedDataTest extends ShippedDataSupport {
     // World drops (23)
     assertThat(rows).hasSize(4).first().isEqualTo("Notable (2)");
     assertThat(rows).last().isEqualTo("World drops (23) ▸");
+    // High Priest Thekal's Swift Zulian Tiger (Miscellaneous, subclass Mount, epic) is Notable and says "Mount"
+    var thekal = (NpcPage) TestPages.build(new EntityRef(NPC, 14509), repos, t -> {});
+    JTable thekalDrops = thekal.drops().table();
+    int tiger = -1;
+    for (int r = 0; r < thekalDrops.getRowCount(); r++) {
+      if ("Swift Zulian Tiger".equals(thekalDrops.getValueAt(r, 0))) {
+        tiger = r;
+      }
+    }
+    assertThat(tiger).as("the tiger's row").isNotNegative();
+    assertThat(thekalDrops.getValueAt(tiger, thekalDrops.getColumnModel().getColumnIndex("Type"))).isEqualTo("Mount");
     // a high-rate shared drop is what the NPC is farmed for: Murloc Tidehunter (NPC 127) drops Murloc Eye at
     // 50.0 % (questie-wowhead, 36 droppers), so it stays in Trade goods and not in the world drops
     var tidehunter = (NpcPage) TestPages.build(new EntityRef(NPC, 127), repos, t -> {});

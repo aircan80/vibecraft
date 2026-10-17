@@ -259,11 +259,42 @@ public final class MainFrame extends JFrame implements MainView {
     uiState.setSourceFilter(filter);
   }
 
-  /** A result opened: the list collapses unless pinned or the window is wide ({@link ListVisibility}). */
+  /**
+   * A result opened: the list collapses unless pinned or the window is wide ({@link ListVisibility}). When the list
+   * had the focus (Enter on a row), the focus moves to the page, so it does not fall wherever AWT puts it.
+   */
   @Override
   public void onResultOpened() {
     if (!layout.isCompact()) { // the compact layout has no list
+      Component owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
       updateList(content, v -> v.resultOpened(getWidth()));
+      Component target = focusAfterCollapse(owner, list, detailHolder);
+      if (target != null) {
+        target.requestFocusInWindow();
+      }
+    }
+  }
+
+  /**
+   * Where the focus goes once the list may have collapsed: when {@code owner} (the focus owner before) is inside
+   * {@code list} and the list is now hidden, the page in {@code holder} ({@link #focusTargetIn}), or the holder while
+   * it holds none; otherwise null, the focus staying where it is.
+   */
+  static Component focusAfterCollapse(Component owner, JComponent list, JPanel holder) {
+    if (list.isVisible() || !focusStaysInPage(owner, list)) {
+      return null;
+    }
+    return holder.getComponentCount() > 0 && holder.getComponent(0) instanceof JComponent page
+        ? focusTargetIn(page) : holder;
+  }
+
+  /**
+   * Shows the list of {@code content} again when an opened result collapsed it, without pinning it (as a search's
+   * results do, {@link ListVisibility#resultsShown}): Esc's last step focuses the list, which must be on screen.
+   */
+  static void revealList(JPanel content) {
+    if (!listVisibility(content).visible()) {
+      updateList(content, ListVisibility::resultsShown);
     }
   }
 
@@ -334,11 +365,14 @@ public final class MainFrame extends JFrame implements MainView {
   }
 
   /**
-   * Esc: the search box closes its dropdown or clears its text; failing both, the list takes the focus (in the
-   * compact layout, the page's first table or list).
+   * Esc: the search box closes its dropdown or clears its text; failing both, the list takes the focus, shown again
+   * if an opened result collapsed it (in the compact layout, the page's first table or list).
    */
   private void escape() {
     if (!searchBar.escape()) {
+      if (!layout.isCompact()) {
+        revealList(content); // a list collapsed by an opened result comes back for Esc, unpinned
+      }
       Component target = layout.escapeTarget();
       if (target != null) {
         target.requestFocusInWindow();

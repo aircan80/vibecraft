@@ -24,7 +24,7 @@ class TableLinksTest {
   private static final int ZONE_COLUMN = 2; // link column
 
   private final List<ViewTarget> opened = new ArrayList<>();
-  private final LinkTable<DropRow> linkTable = new LinkTable<>(Columns.dropSourcesRanked(), opened::add);
+  private final LinkTable<DropRow> linkTable = new LinkTable<>(Columns.dropSourcesMerged(), opened::add);
   private final JTable table = linkTable.table();
 
   TableLinksTest() {

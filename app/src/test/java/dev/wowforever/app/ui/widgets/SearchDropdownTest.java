@@ -319,6 +319,64 @@ class SearchDropdownTest {
   }
 
   @Test
+  void kindChipsAreReachableByKeyboard() {
+    List<java.util.Optional<EntityKind>> asked = new ArrayList<>();
+    dropdown.onKindSelect(asked::add);
+    dropdown.showHits(List.of(hit(ITEM, 1, "Hogger Tusk"), hit(NPC, 2, "Hogger")), 2);
+    KindChips chips = dropdown.kindChips();
+    assertThat(chips.highlighted()).isEqualTo(-1);
+    press("UP"); // from the box (nothing selected): onto the chips, at the selected one (All)
+    assertThat(chips.highlighted()).isZero();
+    assertThat(chips.chips().get(0).getClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE))
+        .as("a gold outline stands in for focus").isNotNull();
+    assertThat(dropdown.selected()).isEmpty();
+    press("LEFT"); // stops at the end
+    assertThat(chips.highlighted()).isZero();
+    press("RIGHT");
+    press("RIGHT");
+    assertThat(chips.highlighted()).isEqualTo(2);
+    assertThat(chips.chips().get(0).getClientProperty(com.formdev.flatlaf.FlatClientProperties.OUTLINE)).isNull();
+    press("ENTER"); // picks NPCs, as a click does, and opens nothing
+    assertThat(chips.selected()).contains(NPC);
+    assertThat(asked).containsExactly(java.util.Optional.of(NPC));
+    assertThat(rows()).containsExactly("# NPCs", "Hogger", "show all 1");
+    assertThat(listener.calls).isEmpty();
+    assertThat(chips.highlighted()).as("still on the chips").isEqualTo(2);
+    press("DOWN"); // back to the hits
+    assertThat(chips.highlighted()).isEqualTo(-1);
+    assertThat(dropdown.selected()).map(SearchDropdownTest::describe).contains("Hogger");
+    press("UP");
+    press("UP");
+    assertThat(chips.highlighted()).as("up from the first hit, then from the box").isEqualTo(2);
+    field.setText("h"); // typing leaves the chips
+    assertThat(chips.highlighted()).isEqualTo(-1);
+  }
+
+  @Test
+  void leftAndRightStillMoveTheCaretOffTheChips() {
+    // off the chips, Left and Right do exactly what they do in a plain field (headless, where the caret lands is
+    // the look and feel's business)
+    JTextField plain = new JTextField();
+    for (JTextField f : List.of(plain, field)) {
+      f.setText("hogger");
+      f.setCaretPosition(3);
+    }
+    assertThat(Keys.press(plain, "LEFT")).isTrue();
+    assertThat(press("LEFT")).as("the caret's own action runs").isTrue();
+    assertThat(field.getCaretPosition()).isEqualTo(plain.getCaretPosition());
+    assertThat(Keys.press(plain, "RIGHT")).isTrue();
+    assertThat(press("RIGHT")).isTrue();
+    assertThat(field.getCaretPosition()).isEqualTo(plain.getCaretPosition());
+    dropdown.showRecents(List.of("hogger")); // a list without chips: Up does not reach them
+    press("UP");
+    press("UP");
+    assertThat(dropdown.kindChips().highlighted()).isEqualTo(-1);
+    Keys.press(plain, "LEFT");
+    assertThat(press("LEFT")).isTrue();
+    assertThat(field.getCaretPosition()).isEqualTo(plain.getCaretPosition());
+  }
+
+  @Test
   void heightIsCapped() {
     dropdown.showRecents(IntStream.rangeClosed(1, 60).mapToObj(i -> "search " + i).toList());
     assertThat(rowHeights()).isGreaterThan(com.formdev.flatlaf.util.UIScale.scale(SearchDropdown.MAX_HEIGHT));

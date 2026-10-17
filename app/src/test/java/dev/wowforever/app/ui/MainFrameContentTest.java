@@ -131,6 +131,39 @@ class MainFrameContentTest {
   }
 
   @Test
+  void escBringsACollapsedListBackUnpinned() {
+    JPanel content = content();
+    MainFrame.updateList(content, ListVisibility::resultsShown);
+    MainFrame.updateList(content, v -> v.resultOpened(1280));
+    assertThat(list.isVisible()).isFalse();
+    MainFrame.revealList(content); // Esc's last step, before it focuses the list
+    assertThat(list.isVisible()).isTrue();
+    assertThat(list.jlist().isVisible()).as("the escape target is on screen").isTrue();
+    assertThat(MainFrame.listVisibility(content).pinned()).as("not a Ctrl+B pin").isFalse();
+    assertThat(new UiState(node).listVisible()).isFalse();
+    MainFrame.updateList(content, v -> v.resultOpened(1280));
+    assertThat(list.isVisible()).as("the next opened result collapses it again").isFalse();
+  }
+
+  @Test
+  void enterInTheListMovesTheFocusToThePageWhenTheListCollapses() {
+    JPanel holder = new JPanel(new BorderLayout());
+    JPanel page = new JPanel(new BorderLayout());
+    javax.swing.JTable table = new javax.swing.JTable(1, 1);
+    page.add(table);
+    holder.add(page);
+    JPanel content = MainFrame.buildContent(toolbar, rail, list, holder, status, state);
+    MainFrame.updateList(content, ListVisibility::resultsShown);
+    assertThat(MainFrame.focusAfterCollapse(list.jlist(), list, holder)).as("the list still shows").isNull();
+    MainFrame.updateList(content, v -> v.resultOpened(1280));
+    assertThat(MainFrame.focusAfterCollapse(list.jlist(), list, holder)).as("the page's first table")
+        .isSameAs(table);
+    assertThat(MainFrame.focusAfterCollapse(toolbar, list, holder)).as("focus elsewhere stays").isNull();
+    assertThat(MainFrame.focusAfterCollapse(list.jlist(), list, new JPanel())).as("no page yet: the holder")
+        .isNotNull();
+  }
+
+  @Test
   void ctrlBPinsTheListAgainstCollapsing() {
     JPanel content = content();
     toggle(content);

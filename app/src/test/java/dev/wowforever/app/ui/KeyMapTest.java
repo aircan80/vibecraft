@@ -58,7 +58,8 @@ class KeyMapTest {
         "Ctrl+C / Ctrl+Shift+C on a row",
         "Ctrl+B",
         "F10, Ctrl+Shift+T",
-        "Ctrl+= / Ctrl+- / Ctrl+0");
+        "Ctrl+= / Ctrl+- / Ctrl+0",
+        "Up from the search box, Left/Right, Enter");
     assertThat(KeyMap.BINDINGS).extracting(KeyMap.Binding::description).containsExactly(
         "Focus search",
         "Close dropdown, then clear search, then focus list",
@@ -68,7 +69,8 @@ class KeyMapTest {
         "Copy name / copy item:ID or /way",
         "Toggle results list",
         "Compact mode, always on top",
-        "Text size");
+        "Text size",
+        "Pick a kind chip in the dropdown");
   }
 
   @Test
@@ -88,7 +90,8 @@ class KeyMapTest {
   @Test
   void documentedOnlyRowsAreTheOnesBoundElsewhere() {
     assertThat(KeyMap.BINDINGS).filteredOn(b -> b.action().equals(KeyMap.DOCUMENTED_ONLY))
-        .extracting(KeyMap.Binding::keys).containsExactly("Up/Down, Enter", "Ctrl+1…6");
+        .extracting(KeyMap.Binding::keys).containsExactly("Up/Down, Enter", "Ctrl+1…6",
+            "Up from the search box, Left/Right, Enter");
     assertThat(KeyMap.strokes(KeyMap.BINDINGS.get(3))).isEmpty();
   }
 

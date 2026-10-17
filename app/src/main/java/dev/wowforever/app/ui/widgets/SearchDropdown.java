@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import javax.swing.AbstractAction;
+import javax.swing.Action;
 import javax.swing.AbstractListModel;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
@@ -41,6 +42,8 @@ import javax.swing.ScrollPaneConstants;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 import javax.swing.border.Border;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 
 /**
  * The type-ahead list under the search box: the kind chips on top ({@link KindChips}, which wrap to the list's width),
@@ -49,8 +52,10 @@ import javax.swing.border.Border;
  * kind at once and tells {@link #onKindSelect}'s listener, which looks the kind's own hits up. The search box keeps the
  * keyboard focus: {@link #install} binds Up/Down (move the selection, skipping headings), Enter (open the selected row,
  * else the top hit, else the full search), Shift+Enter (the full search) and Esc (close) in its input map. Up, Down and
- * Esc are left alone while the list is closed. Where the list shows is a {@link Host}: a non-focusable {@link JWindow}
- * in the app, a stand-in in tests.
+ * Esc are left alone while the list is closed. With hits shown, Up from the box (nothing selected) goes to the kind
+ * chips' row: Left and Right move along it, Enter picks the chip (as a click does) and Down returns to the hits; the
+ * chip the keyboard is on has a gold outline, as the chips never take the focus. Where the list shows is a
+ * {@link Host}: a non-focusable {@link JWindow} in the app, a stand-in in tests.
  */
 public final class SearchDropdown {
   /** Most hits shown. */
@@ -196,6 +201,24 @@ public final class SearchDropdown {
       this.listener.closed();
     });
     bind(field, "ENTER", "searchDropdown.enter", false, this::enter);
+    bindOverCaret(field, "LEFT", "searchDropdown.chipLeft", () -> moveChip(-1));
+    bindOverCaret(field, "RIGHT", "searchDropdown.chipRight", () -> moveChip(1));
+    field.getDocument().addDocumentListener(new DocumentListener() { // typing leaves the chip row
+      @Override
+      public void insertUpdate(DocumentEvent e) {
+        leaveChips();
+      }
+
+      @Override
+      public void removeUpdate(DocumentEvent e) {
+        leaveChips();
+      }
+
+      @Override
+      public void changedUpdate(DocumentEvent e) {
+        leaveChips();
+      }
+    });
     bind(field, "shift ENTER", "searchDropdown.showAll", false, () -> {
       hide();
       this.listener.showAll();
@@ -252,6 +275,7 @@ public final class SearchDropdown {
       return;
     }
     chips.setVisible(false);
+    leaveChips();
     List<Row> r = new ArrayList<>();
     r.add(new Row.Heading("Recent"));
     recent.forEach(t -> r.add(new Row.Recent(t)));
@@ -261,6 +285,7 @@ public final class SearchDropdown {
   /** Takes the list off screen, its selection dropped. */
   public void hide() {
     list.clearSelection();
+    leaveChips();
     if (showing) {
       showing = false;
       host.hide();
@@ -337,6 +362,10 @@ public final class SearchDropdown {
   }
 
   private void enter() {
+    if (inChips()) {
+      chips.chips().get(chips.highlighted()).doClick(); // as a click: narrows the hits and tells the search box
+      return;
+    }
     Optional<Row> chosen = selected();
     if (showing && chosen.isEmpty() && !stale) {
       chosen = rows.stream().filter(r -> r instanceof Row.Hit).findFirst();
@@ -359,9 +388,25 @@ public final class SearchDropdown {
     }
   }
 
-  /** Moves the selection {@code delta} (±1) selectable rows; up from the first row returns to the search box. */
+  /**
+   * Moves the selection {@code delta} (±1) selectable rows; up from the first row returns to the search box, and up
+   * from the box (nothing selected) goes to the kind chips' row, on the selected chip. Down from the chips comes back
+   * to the first row.
+   */
   private void move(int delta) {
+    if (inChips()) {
+      if (delta > 0) {
+        leaveChips();
+        list.clearSelection();
+        move(1);
+      }
+      return;
+    }
     int i = list.getSelectedIndex();
+    if (delta < 0 && i < 0 && chips.isVisible()) {
+      chips.setHighlighted(chips.selectedIndex());
+      return;
+    }
     for (int j = i + delta; j >= 0 && j < rows.size(); j += delta) {
       if (selectable(rows.get(j))) {
         list.setSelectedIndex(j);
@@ -371,6 +416,23 @@ public final class SearchDropdown {
     }
     if (delta < 0) {
       list.clearSelection();
+    }
+  }
+
+  /** Whether the keyboard is on the kind chips' row (the list open, its hits shown). */
+  boolean inChips() {
+    return showing && chips.isVisible() && chips.highlighted() >= 0;
+  }
+
+  /** Moves the keyboard {@code delta} (±1) chips along the row, stopping at its ends. */
+  private void moveChip(int delta) {
+    chips.setHighlighted(Math.max(0, Math.min(chips.chips().size() - 1, chips.highlighted() + delta)));
+  }
+
+  /** Takes the keyboard off the chips' row. */
+  private void leaveChips() {
+    if (chips.highlighted() >= 0) {
+      chips.setHighlighted(-1);
     }
   }
 
@@ -385,6 +447,32 @@ public final class SearchDropdown {
     }
     Rectangle cell = list.getCellBounds(row, row);
     return cell != null && cell.contains(p) ? row : -1;
+  }
+
+  /**
+   * Binds {@code key} on {@code field} to {@code run} while the keyboard is on the chips' row ({@link #inChips});
+   * otherwise the key does what the field did with it before (Left and Right move the caret).
+   */
+  private void bindOverCaret(JTextField field, String key, String name, Runnable run) {
+    KeyStroke stroke = KeyStroke.getKeyStroke(key);
+    Object old = field.getInputMap(JComponent.WHEN_FOCUSED).get(stroke);
+    Action caret = old == null ? null : field.getActionMap().get(old);
+    field.getInputMap(JComponent.WHEN_FOCUSED).put(stroke, name);
+    field.getActionMap().put(name, new AbstractAction() {
+      @Override
+      public boolean isEnabled() {
+        return inChips() || (caret != null && caret.isEnabled());
+      }
+
+      @Override
+      public void actionPerformed(ActionEvent e) {
+        if (inChips()) {
+          run.run();
+        } else if (caret != null) {
+          caret.actionPerformed(e);
+        }
+      }
+    });
   }
 
   /** Binds {@code key} on {@code field} to {@code run}; when {@code onlyShowing}, only while the list is open. */

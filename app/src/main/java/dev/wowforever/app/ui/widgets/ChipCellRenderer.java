@@ -11,6 +11,7 @@ import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTable;
 import javax.swing.SwingUtilities;
@@ -20,7 +21,8 @@ import javax.swing.table.TableColumn;
 /**
  * A table cell that shows a plain outline {@link Chip} after the column's own cell, such as the instance
  * ({@code "Molten Core"}) after a boss on the item page's "Dropped by". Rows without a chip render as the column
- * renders them; a cell with one reads, and is coloured, as its own text, the chip following it.
+ * renders them; a cell with one is coloured as its own text, and its accessible name is the text then the chip
+ * ({@code "Ragnaros, Molten Core"}).
  */
 public final class ChipCellRenderer implements TableCellRenderer {
   private static final int GAP = 6;
@@ -78,6 +80,10 @@ public final class ChipCellRenderer implements TableCellRenderer {
       add(chip);
       add(Box.createHorizontalGlue());
       setBackground(text.getBackground());
+      // read as one cell: the text, then the instance
+      String own = textCell instanceof JLabel label ? label.getText() : textCell.getAccessibleContext()
+          .getAccessibleName();
+      getAccessibleContext().setAccessibleName(own == null || own.isBlank() ? chipText : own + ", " + chipText);
       setBorder(BorderFactory.createEmptyBorder());
     }
 

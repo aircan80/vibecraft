@@ -21,7 +21,6 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.DropRow;
 import dev.wowforever.app.ui.LinkRenderer;
-import dev.wowforever.app.ui.LootListRow;
 import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Keys;
@@ -67,7 +66,7 @@ class LinkTableTest {
   @Test
   void activateRowOpensLink() {
     List<ViewTarget> opened = new ArrayList<>();
-    var t = new LinkTable<>(Columns.dropSourcesRanked(), opened::add);
+    var t = new LinkTable<>(Columns.dropSourcesMerged(), opened::add);
     t.setRows(List.of(dropSource(11520, "Taragaman the Hungerer")));
     t.activateRow(0);
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 11520)));
@@ -75,7 +74,7 @@ class LinkTableTest {
 
   @Test
   void dropSourceColumnsFormatLevelZoneAndRate() {
-    var t = new LinkTable<>(Columns.dropSourcesRanked(), v -> {});
+    var t = new LinkTable<>(Columns.dropSourcesMerged(), v -> {});
     t.setRows(List.of(dropSource(1, "A", 56.0712), dropSource(2, null, null)));
     assertThat(t.rowCount()).isEqualTo(2);
     assertThat(t.table().getColumnName(0)).isEqualTo("Source");
@@ -103,7 +102,7 @@ class LinkTableTest {
   @Test
   void activationFollowsTheSortedViewAndEnterOpens() {
     List<ViewTarget> opened = new ArrayList<>();
-    var t = new LinkTable<>(Columns.dropSourcesRanked(), opened::add);
+    var t = new LinkTable<>(Columns.dropSourcesMerged(), opened::add);
     t.setRows(List.of(dropSource(2, "Zed"), dropSource(1, "Abe")));
     t.table().getRowSorter().setSortKeys(List.of(new RowSorter.SortKey(0, SortOrder.ASCENDING)));
     t.table().setRowSelectionInterval(0, 0);
@@ -120,14 +119,14 @@ class LinkTableTest {
     assertThat(loot.getColumn(1).getPreferredWidth()).as("Item level").isEqualTo(70);
     assertThat(loot.getColumn(2).getPreferredWidth()).as("Drop %").isEqualTo(70);
     assertThat(loot.getColumn(4).getPreferredWidth()).as("Slot").isEqualTo(70);
-    var drops = new LinkTable<>(Columns.dropSourcesRanked(), v -> {}).table().getColumnModel();
+    var drops = new LinkTable<>(Columns.dropSourcesMerged(), v -> {}).table().getColumnModel();
     assertThat(drops.getColumn(0).getPreferredWidth()).as("Source").isEqualTo(260);
     assertThat(drops.getColumn(1).getPreferredWidth()).as("Level").isEqualTo(70);
   }
 
   @Test
   void linkColumnsUseTheLinkRenderer() {
-    var t = new LinkTable<>(Columns.dropSourcesRanked(), v -> {});
+    var t = new LinkTable<>(Columns.dropSourcesMerged(), v -> {});
     assertThat(t.table().getColumnModel().getColumn(0).getCellRenderer()).isInstanceOf(LinkRenderer.class);
     assertThat(t.table().getColumnModel().getColumn(2).getCellRenderer()).isInstanceOf(LinkRenderer.class);
     assertThat(t.table().getColumnModel().getColumn(1).getCellRenderer()).isNull();
@@ -159,7 +158,7 @@ class LinkTableTest {
   @Test
   void ctrlShiftCCopiesTheRowsEntityOfItsKind() {
     List<String> copied = new ArrayList<>();
-    var t = new LinkTable<>(Columns.dropSourcesRanked(), v -> {});
+    var t = new LinkTable<>(Columns.dropSourcesMerged(), v -> {});
     t.setClipboard(copied::add);
     t.setRows(List.of(dropSource(11520, "Taragaman the Hungerer")));
     t.table().changeSelection(0, 0, false, false);
@@ -214,7 +213,7 @@ class LinkTableTest {
 
   @Test
   void compactTooltipsGiveTextAColonAndNumbersNone() {
-    var t = new LinkTable<>(Columns.dropSourcesRanked(), v -> {});
+    var t = new LinkTable<>(Columns.dropSourcesMerged(), v -> {});
     t.setRows(List.of(dropSource(1, "A", 56.0)));
     t.setCompact(true);
     assertThat(names(t)).containsExactly("Source", "Rate", "Origin");
@@ -303,7 +302,7 @@ class LinkTableTest {
 
   @Test
   void disagreeingRatesAreMarkedInEveryDropTable() {
-    var drops = new LinkTable<>(Columns.dropSourcesRanked(), v -> {});
+    var drops = new LinkTable<>(Columns.dropSourcesMerged(), v -> {});
     drops.setRows(List.of(new DropRow.Source(new DropSource(new EntityRef(NPC, 639), "Edwin VanCleef", 19, 19,
         "The Deadmines", 1581L, 60.0, "questie-correction", "both", true, 4)), dropSource(2, "B", 5.0)));
     assertThat(drops.table().getValueAt(0, 3)).as("the rate stays a number").isEqualTo(60.0);
@@ -318,10 +317,10 @@ class LinkTableTest {
     rated.setRows(List.of(letter, loot(2, 5.0)));
     assertThat(rateText(rated, 0, 3)).isEqualTo("60.00 % ≠");
     assertThat(rateText(rated, 1, 3)).isEqualTo("5.00 %");
-    var lists = new LinkTable<>(Columns.lootLists(), v -> {});
-    lists.setRows(LootListRow.of(List.of(new InstanceLoot(new EntityRef(INSTANCE, 4), "The Deadmines", 10,
+    var lists = new LinkTable<>(Columns.dropSourcesMerged(), v -> {});
+    lists.setRows(List.of(new DropRow.Loot(new InstanceLoot(new EntityRef(INSTANCE, 4), "The Deadmines", 10,
         "Edwin VanCleef", 639L, 5, 60.0, true, 4))));
-    assertThat(rateText(lists, 0, 2)).isEqualTo("60.00 % ≠");
+    assertThat(rateText(lists, 0, 3)).as("a loot list row").isEqualTo("60.00 % ≠");
   }
 
   /** The text a {@link RateBarRenderer} on column {@code col} shows in the cell. */

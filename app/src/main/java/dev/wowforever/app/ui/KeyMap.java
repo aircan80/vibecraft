@@ -69,7 +69,8 @@ public final class KeyMap {
       new Binding("Ctrl+C / Ctrl+Shift+C on a row", ROW_COPY, "Copy name / copy item:ID or /way"),
       new Binding("Ctrl+B", TOGGLE_LIST, "Toggle results list"),
       new Binding("F10, Ctrl+Shift+T", "window", "Compact mode, always on top"),
-      new Binding("Ctrl+= / Ctrl+- / Ctrl+0", "textSize", "Text size"));
+      new Binding("Ctrl+= / Ctrl+- / Ctrl+0", "textSize", "Text size"),
+      new Binding("Up from the search box, Left/Right, Enter", DOCUMENTED_ONLY, "Pick a kind chip in the dropdown"));
 
   /** The keys of each action group; mouse buttons 4/5 are left to {@link MouseNavigation}. */
   private static final Map<String, List<Stroke>> STROKES = Map.of(

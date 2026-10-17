@@ -32,7 +32,7 @@ The window has a rail of section icons on the left, the search box and its resul
 
 ### Search
 
-Type in the search box (Ctrl+F) to find items, NPCs, objects, quests, zones and dungeons as you type. A dropdown shows the top hits in their quality colour and icon, and the kind chips beside the box (All, Items, NPCs and so on) narrow it and count the hits of each kind. Enter opens the selected or the top hit, and the results list fills with that search. Shift+Enter or "Show all" lists every hit instead. In the results list, Up and Down preview a row on the page, and Enter or a click opens it. Clicking into the empty box, Ctrl+F or `/` shows your recent searches.
+Type in the search box (Ctrl+F) to find items, NPCs, objects, quests, zones and dungeons as you type. A dropdown shows the top hits in their quality colour and icon. The kind chips on its top row (All, Items, NPCs and so on) narrow it and count the hits of each kind. From the box, Up reaches the chips, Left and Right move along them and Enter picks one. Enter opens the selected or the top hit, and the results list fills with that search. Shift+Enter or "Show all" lists every hit instead. In the results list, Up and Down preview a row on the page, and Enter or a click opens it. Opening a result collapses the list so the page gets the width, unless the window is at least 1600 px wide. Esc brings the list back, and Ctrl+B keeps it open. Clicking into the empty box, Ctrl+F or `/` shows your recent searches.
 
 Pasting a whole item link, an `item:19019` text, a Wowhead URL or a bare id over the box opens that page. Pasting `[Name]` searches for the name.
 
@@ -74,7 +74,7 @@ Hover a pin to see who or what it is, and click it to open its page; a quest giv
 
 ### Drop sources filter
 
-View › Drop sources hides the NPC drop rows of one source: "Hide AtlasLoot-only rows" or "Hide Questie-only rows". It applies to Dropped by on item pages and Drops on NPC pages, and a note under the section says how many rows it hid. Instance loot is never filtered. The choice is remembered.
+The small control beside the Dropped by heading on item pages and the Drops heading on NPC pages hides the NPC drop rows of one source: "Hide AtlasLoot-only rows" or "Hide Questie-only rows". A note under the section says how many rows it hid. The dungeon and raid loot lists in Dropped by are never filtered. The control's tooltip explains the marks a rate can carry, such as "≠" when the sources disagree. The choice is remembered.
 
 ### Compact mode
 
@@ -98,6 +98,7 @@ Help › Keyboard shortcuts shows the same table in the app.
 | Ctrl+B | Toggle results list |
 | F10, Ctrl+Shift+T | Compact mode, always on top |
 | Ctrl+= / Ctrl+- / Ctrl+0 | Text size |
+| Up from the search box, Left/Right, Enter | Pick a kind chip in the dropdown |
 <!-- keymap:end -->
 
 The window remembers its size, layout, theme (View › Slate theme or Parchment theme), text size and drop source filter between runs.

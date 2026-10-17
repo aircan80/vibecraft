@@ -267,6 +267,32 @@ class NpcPageTest {
     assertThat(columnNames(plain.drops().table())).doesNotContain("Type");
   }
 
+  /** A drop of item class {@code classId} ({@code className}), subclass {@code subclassId} and {@code quality}. */
+  private static LootRow drop(long id, String name, Double pct, int classId, String className, int subclassId,
+      int quality) {
+    return new LootRow(new EntityRef(ITEM, id), name, 60, pct, "both", null, classId, className, subclassId, false, 0,
+        quality, null, null, null, 1);
+  }
+
+  @Test
+  void aNotableItemIsNeverCalledJunk() {
+    // High Priest Thekal's mount, Naxxramas tier tokens and a legendary's part are class Miscellaneous (15), subclass
+    // Mount (5) or Junk (0); a Notable row says Mount or Other, never Junk; another unnamed class reads as itself
+    var p = new NpcPage(npc(HOGGER, List.of(drop(19902, "Swift Zulian Tiger", 2.0, 15, "Miscellaneous", 5, 4),
+        drop(22349, "Desecrated Breastplate", 30.0, 15, "Miscellaneous", 0, 4),
+        drop(18563, "Bindings of the Windseeker", 3.0, 15, "Miscellaneous", 0, 5),
+        drop(1, "Epic Pet", 1.0, 15, "Miscellaneous", 2, 4), drop(2, "Epic Bag", 0.5, 1, "Container", 0, 4),
+        drop(3, "Plain Junk", 9.0, 15, "Miscellaneous", 0, 0)), List.of(), List.of()), t -> {}, text -> {});
+    JTable t = p.drops().table();
+    assertThat(column(t, 0)).containsExactly("Notable (5)", "Desecrated Breastplate", "Bindings of the Windseeker",
+        "Swift Zulian Tiger", "Epic Pet", "Epic Bag", "Junk (1)", "Plain Junk");
+    assertThat(column(t, 1)).containsExactly(null, "Other", "Other", "Mount", "Pet", "Container", null, null);
+    assertThat(ItemCategories.miscellaneousType(1)).isEqualTo("Reagent");
+    assertThat(ItemCategories.miscellaneousType(3)).isEqualTo("Holiday");
+    assertThat(ItemCategories.miscellaneousType(4)).isEqualTo("Other");
+    assertThat(ItemCategories.miscellaneousType(null)).isEqualTo("Other");
+  }
+
   @Test
   void theFilterControlSitsBesideTheDropsHeading() {
     List<SourceFilter> chosen = new ArrayList<>();
