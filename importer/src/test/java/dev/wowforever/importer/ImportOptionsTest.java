@@ -18,6 +18,21 @@ class ImportOptionsTest {
         "--fail-on-unsupported", "--build-id-out", "b/id.txt", "--client-data-dir", "cd", "--coverage-min", "80"});
     assertThat(o).isEqualTo(new ImportOptions(Path.of("x/db.sqlite"), Path.of("c"), Optional.of(Path.of("q")),
         Optional.of(Path.of("a")), true, Path.of("b/id.txt"), ClientDataOptions.of(Path.of("cd")), 80));
+    assertThat(o.serverDbDir()).isEmpty();
+  }
+
+  @Test
+  void parsesTheServerDatabaseDirectory() {
+    ImportOptions o = ImportOptions.parse(new String[] {
+        "--out", "x/db.sqlite", "--skip-client-data", "--server-db-dir", "sdb"});
+    assertThat(o.serverDbDir()).contains(Path.of("sdb"));
+    assertThat(o).isEqualTo(new ImportOptions(Path.of("x/db.sqlite"), SourceFetcher.defaultCacheDir(),
+        Optional.empty(), Optional.empty(), false, ImportOptions.defaultBuildIdOut(Path.of("x/db.sqlite")),
+        ClientDataOptions.skipped(), 85, Optional.of(Path.of("sdb"))));
+    assertThat(ImportOptions.USAGE).contains("--server-db-dir");
+    assertThatThrownBy(() -> ImportOptions.parse(new String[] {"--out", "o", "--skip-client-data", "--server-db-dir"}))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("--server-db-dir needs a value");
   }
 
   @Test
@@ -29,6 +44,7 @@ class ImportOptionsTest {
     assertThat(o.atlasLootDir()).isEmpty();
     assertThat(o.failOnUnsupported()).isFalse();
     assertThat(o.coverageMinPct()).isEqualTo(85);
+    assertThat(o.serverDbDir()).isEmpty();
     assertThat(o.buildIdOut()).isEqualTo(Path.of("x/db.sqlite").toAbsolutePath().getParent().resolve("build-id.txt"));
   }
 

@@ -1,0 +1,14 @@
+{
+  "repo": "vmangos/core",
+  "tag": "db_latest",
+  "commit": "464179081673cfd240f7ffe7f0daf96bca0b5a70",
+  "published_at": "2026-09-28T12:29:04Z",
+  "asset": "db-sqlite-4641790.zip",
+  "sha256": "bb2f1dd69171043a52657574f54948fd30941530fdc6eec12bce62c655428501",
+  "world_db": "sqlite-dump/mangos.sqlite",
+  "license": {
+    "path": "LICENSE",
+    "spdx": "GPL-2.0",
+    "sha256": "b8632c574ee53ddf15ed7dd65b4a36611da50a77dffda62f978a30c076005456"
+  }
+}

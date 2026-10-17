@@ -17,6 +17,7 @@ import dev.wowforever.importer.entity.RawEntityLoader;
 import dev.wowforever.importer.report.ImportReport;
 import dev.wowforever.importer.schema.EntitySchema;
 import dev.wowforever.importer.schema.MetaLoader;
+import dev.wowforever.importer.serverdb.ServerDbStage;
 import dev.wowforever.importer.source.SourceFetcher;
 import dev.wowforever.importer.source.SourceRoots;
 import dev.wowforever.importer.source.SourceSpec;
@@ -54,7 +55,8 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
- * Runs the whole import: sources, entities, corrections, drop rates, zones, AtlasLoot, client data, SQLite, report.
+ * Runs the whole import: sources, entities, corrections, drop rates (VMaNGOS ones included), zones, AtlasLoot, client
+ * data, SQLite, report.
  */
 public final class ImportPipeline {
   public static final String IMPORTER_VERSION = "0.1.0";
@@ -102,6 +104,8 @@ public final class ImportPipeline {
     }
 
     DropRates rates = DropRateLoader.load(roots, stage(problems, "droprates"));
+    Map<String, String> serverMeta =
+        ServerDbStage.run(opts.serverDbDir(), tables.get(EntityKind.NPC)::contains, rates, report);
 
     // AtlasLoot names instances after zones, and raid zones are the maps of AtlasLoot raid instances:
     // a first zone pass supplies the names, a second one (cheap) classifies the raids.
@@ -117,6 +121,7 @@ public final class ImportPipeline {
     ClientDataBundle client = ClientDataStage.run(opts.clientData(), tables, zones, questieDb, report);
 
     Map<String, String> meta = meta(questieSpec.commit(), atlasSpec.commit(), Instant.now());
+    meta.putAll(serverMeta);
     SqliteWriter.write(opts.out(), new ImportModel(tables, rates, zones, instances, meta), report, client);
     countRows(opts.out(), report);
     summariseProblems(problems, report);

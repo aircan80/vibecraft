@@ -55,6 +55,7 @@ The same import runs inside Maven with `./mvnw -B -pl importer -am -Pimport-data
 - **Download cache.** Upstream files are downloaded once into `~/.cache/wowforever-importer` and reused afterwards. Use `--cache <dir>` to put the cache elsewhere, or `--questiedb-dir` and `--atlasloot-dir` to read local checkouts instead.
 - **Client data.** Exactly one of `--client-data-dir <dir>` and `--skip-client-data` is required. With `--skip-client-data` the client tables are created empty, no item is marked as having client data, and the database still opens in the browser without icons, quality colours or tooltips. A directory holding an Era fallback table (`csv/ItemSparse.era.csv`, `csv/ItemEffect.era.csv`) must have a `build.lock` that records the Era fallback (`fallback_product`, `fallback_build` and the table's own sha under `tables`); otherwise the file is left over from an earlier fetch and the import stops. Re-run `fetch.py --fallback-product wow_classic_era` and `convert.py` to fix it.
 - **`--fail-on-unsupported`.** The importer exits with code 2 when a correction could not be applied to a field the browser shows, when a field the importer reads is missing from the upstream schema (`missingField.*` counters), or when a value of a field the browser shows could not be resolved (`unresolved.<kind>.<field>` counters). With client data it also exits with code 2 when fewer than 85 % of the named items have client data. Items without a name do not count on either side of that ratio. `--coverage-min <pct>` changes the threshold to any whole percentage from 0 to 100. The report shows the ratio as `clientdata.coverage.pct`, and its `clientdata.unmatched.ranges` note lists the unmatched item ids. Always pass the flag when refreshing the shipped database.
+- **Community drop rates.** `--server-db-dir <dir>` adds drop rates from the VMaNGOS world database, which `python tools/serverdb/fetch.py` downloads into `~/.cache/wowforever-serverdb/4641790` (pinned by `tools/serverdb/serverdb.lock`). The Maven profile passes that directory, or `-Dserverdb.dir=<dir>`. Without the option, or when the directory has no `mangos.sqlite`, the import leaves the VMaNGOS rates out and reports `serverdb.skipped = 1`. Rate rules and counters are in `tools/serverdb/README.md`.
 - **Outputs.** The importer writes `import-report.txt` and `build-id.txt` beside the database. Commit all three files together.
 
 The committed build has these headline row counts:
@@ -129,6 +130,7 @@ To skip the checks against the shipped database, which extract the 67 MB resourc
 - **lua-table.** The Lua lexer, parser and evaluator, and the table values they produce.
 - **importer.** Source loading, QuestieDB and AtlasLoot parsing, correction layers, drop and zone derivation, and the SQLite schema, mostly against fixtures.
 - **app.** The repositories and database installer against a fixture database, the Swing panels and navigation, and the `shipped-data` sanity tests against the real committed database: row counts, orphan limits, known drops, client data coverage, icons, zone maps, quest objectives and relations, the rail's UI icons, and the importer's known-items oracle (`known-items.csv`) on the stored stats, damage, armour and tooltip lines.
+- **tools.** `tools/clientdata` and `tools/serverdb` have their own pytest suites; their READMEs give the commands.
 
 ## Packaging
 
@@ -138,6 +140,7 @@ Native installers (MSI, DMG, DEB) can be built with `jpackage`; see [packaging/R
 
 - [QuestieDB](https://github.com/Questie/QuestieDB), commit `49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4`. It publishes no license file, so the data is used with attribution.
 - [AtlasLootClassic](https://github.com/Hoizame/AtlasLootClassic), commit `8e99341e4e779328460bf7684c0d5b22ce50ddf1`, licensed under GPL-2.0.
+- [VMaNGOS](https://github.com/vmangos/core) world database, release asset `db-sqlite-4641790.zip` (commit `464179081673cfd240f7ffe7f0daf96bca0b5a70`), licensed under GPL-2.0. Only derived drop percentages are stored.
 - Blizzard client data of `wow_classic_beta` 1.60.1.70425, exported through [wago.tools](https://wago.tools). Icons, UI textures and map art are © Blizzard Entertainment and are included for reference; no affiliation.
 
 This project is licensed under GPL-2.0-or-later, see `LICENSE`. Full credits are in [NOTICE.md](NOTICE.md).
