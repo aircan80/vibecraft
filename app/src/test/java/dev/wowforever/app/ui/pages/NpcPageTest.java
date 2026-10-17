@@ -171,7 +171,7 @@ class NpcPageTest {
         null, skill, null, droppers);
   }
 
-  /** Hogger's kind of drops: his own items, then the generic pool hundreds of NPCs drop at an unknown rate. */
+  /** Hogger's kind of drops: his own items, then the generic pool hundreds of NPCs drop. */
   private static NpcPage hoggerWithWorldDrops() {
     return new NpcPage(npc(HOGGER, List.of(drop(1, "Huge Gnoll Claw", 84.0, "Quest", 1, null),
         drop(2, "Tough Jerky", null, "Consumable", 161, null),
@@ -215,6 +215,18 @@ class NpcPageTest {
     assertThat(rows).contains("Deviate Hide", "Rugged Leather Pants", "Linen Bag", "Cheap Blade")
         .doesNotContain("Linen Cloth", "Broken Fang", "Ice Cold Milk", "Pattern: Thing", "Simple Flour");
     assertThat(rows).last().isEqualTo("World drops (5)" + GroupedRows.COLLAPSED);
+  }
+
+  @Test
+  void aRatedPoolDropManyNpcsShareIsStillAWorldDrop() {
+    // VMaNGOS rates most of the generic pool from its shared reference tables: a rate does not make it Hogger's own
+    int many = ItemCategories.WORLD_DROP_NPCS + 5;
+    var p = new NpcPage(npc(HOGGER, List.of(drop(1, "Huge Gnoll Claw", 84.0, "Quest", 1, null),
+        drop(2, "Tough Jerky", 6.1, "Consumable", 161, null), drop(3, "Tigerseye", 2.96, "Trade Goods", many, null),
+        drop(4, "Malachite", 0.64, "Trade Goods", ItemCategories.WORLD_DROP_NPCS - 1, null)), List.of(), List.of()),
+        t -> {}, text -> {});
+    assertThat(column(p.drops().table(), 0)).containsExactly("Quest items (1)", "Huge Gnoll Claw",
+        "Trade goods (1)", "Malachite", "World drops (2)" + GroupedRows.COLLAPSED);
   }
 
   @Test

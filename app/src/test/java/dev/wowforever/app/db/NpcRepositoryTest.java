@@ -124,7 +124,8 @@ class NpcRepositoryTest {
   @Test
   void npcLevelRangeOverlapsTheNpcLevels() {
     assertThat(repos.npcs().list(new NpcFilter(null, null, 15, 25))).extracting(NpcSummary::name)
-        .containsExactly("Edwin VanCleef", "Gobbler", "Jergosh the Invoker", "Taragaman the Hungerer");
+        .containsExactly("Defias Messenger", "Edwin VanCleef", "Gobbler", "Jergosh the Invoker",
+            "Taragaman the Hungerer");
     assertThat(repos.npcs().list(new NpcFilter(null, null, 60, null))).extracting(NpcSummary::name)
         .containsExactly("Lucifron", "Ragnaros");
     assertThat(repos.npcs().list(new NpcFilter(null, null, null, 11))).extracting(NpcSummary::name)
@@ -134,7 +135,7 @@ class NpcRepositoryTest {
   @Test
   void unfilteredNpcListHasEveryNpcByName() {
     var all = repos.npcs().list(NpcFilter.ALL);
-    assertThat(all).hasSize(15);
+    assertThat(all).hasSize(16);
     assertThat(all).extracting(NpcSummary::name).filteredOn(n -> n != null)
         .isSortedAccordingTo(String.CASE_INSENSITIVE_ORDER);
     assertThat(repos.npcs().list(new NpcFilter(2437L, null, null, null)))

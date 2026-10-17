@@ -52,7 +52,7 @@ A rate bar shows each drop chance. A rate marked "≠" has sources that disagree
 
 ### NPC, dungeon, object and quest pages
 
-An NPC page shows the NPC's rank chip, its drops grouped by kind (Gear, Recipes, Quest items, Trade goods and so on) and its spawn points on the zone map. Recipes show the skill they need. Items of unknown rate that many NPCs drop are folded into a "World drops" group at the end; click its heading, or select it and press Enter, to open it. "Copy /way" copies the selected spawn point as a `/way Westfall 42.3 67.4` command for a waypoint addon.
+An NPC page shows the NPC's rank chip, its drops grouped by kind (Gear, Recipes, Quest items, Trade goods and so on) and its spawn points on the zone map. Recipes show the skill they need. Recipes, trade goods, food and other generic items that many NPCs drop are folded into a "World drops" group at the end, whether or not they have a rate; click its heading, or select it and press Enter, to open it. "Copy /way" copies the selected spawn point as a `/way Westfall 42.3 67.4` command for a waypoint addon.
 
 ![An NPC page with grouped drops](docs/screenshots/npc.png)
 

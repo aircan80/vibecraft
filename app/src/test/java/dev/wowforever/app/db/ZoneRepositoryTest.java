@@ -168,9 +168,9 @@ class ZoneRepositoryTest {
     ZoneRepository zones = SpawnFixtureDb.repositories().zones();
     assertThat(zones.npcSpawnsInZone(40, true)).extracting(SpawnPin::name, SpawnPin::rank)
         .containsExactlyInAnyOrder(tuple("Foe Reaper 4000", 2), tuple("Vultros", 4), tuple("Test Boss", 3));
-    // Thor's points at -1, -1 and 100.5, 50 are off the map
+    // Thor's points at -1, -1 and 100.5, 50 are off the map; the Defias Messenger is a normal NPC
     assertThat(zones.npcSpawnsInZone(40, false)).extracting(SpawnPin::name)
-        .containsExactlyInAnyOrder("Foe Reaper 4000", "Vultros", "Test Boss", "Thor");
+        .containsExactlyInAnyOrder("Defias Messenger", "Foe Reaper 4000", "Vultros", "Test Boss", "Thor");
   }
 
   @Test

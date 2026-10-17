@@ -136,9 +136,9 @@ class QuestRepositoryTest {
     assertThat(repos.quests().list(new QuestFilter(40L, null, null))).extracting(QuestSummary::name)
         .containsExactly("Captain Sander's Hidden Treasure");
     assertThat(repos.quests().list(new QuestFilter(null, 15, 16))).extracting(QuestSummary::id)
-        .containsExactly(5691L, 5692L, 136L);
+        .containsExactly(5691L, 5692L, 136L, 452L);
     assertThat(repos.quests().list(new QuestFilter(40L, 20, null))).isEmpty();
-    assertThat(repos.quests().list(QuestFilter.ALL)).hasSize(10);
+    assertThat(repos.quests().list(QuestFilter.ALL)).hasSize(26);
     assertThat(repos.quests().list(new QuestFilter(40L, null, null))).isEqualTo(repos.quests().byZone(40));
   }
 

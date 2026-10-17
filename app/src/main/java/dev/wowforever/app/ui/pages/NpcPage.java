@@ -22,7 +22,7 @@ import java.util.Set;
  * The NPC page, one scrolling page: the header (name and title, a rank chip, levels and a zone link), then the
  * sections Drops, Sells, Starts quests, Ends quests and Spawns (those without rows are left out). Drops are
  * grouped by {@link ItemCategories} under heading rows, each group ranked by rate with unknown rates last; the
- * world drops (unknown rate, dropped by many NPCs) come last in a collapsed group, and recipes show their skill.
+ * world drops (the generic pool many NPCs drop) come last in a collapsed group, and recipes show their skill.
  * Columns that say nothing for any row are left out ({@link VisibleColumns}). Given the decoded map of a spawn
  * zone, the Spawns section shows it above its table with the NPC's spawn points there.
  *

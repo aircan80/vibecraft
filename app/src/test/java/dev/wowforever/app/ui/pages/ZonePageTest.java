@@ -121,7 +121,7 @@ class ZonePageTest {
         new ZoneSummary(95003, "Brackwell Pumpkin Patch", "subzone", 12L, "Elwynn Forest"))), opened::add);
     assertThat(gloomvale.subzoneLinks()).as("by zone or by name").extracting(JButton::getText)
         .containsExactly("Brackwell Pumpkin Patch");
-    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Quests");
+    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("NPCs", "Quests");
   }
 
   @Test
@@ -214,14 +214,14 @@ class ZonePageTest {
 
     p.mapPanel().allNpcsToggle().doClick();
     assertThat(pins.calls).containsExactly("npcs 40 false");
-    assertThat(status.messages).containsExactly(ZoneMapPanel.LOADING, "4 pins on the map");
+    assertThat(status.messages).containsExactly(ZoneMapPanel.LOADING, "5 pins on the map");
     assertThat(p.mapPanel().bossesToggle().isSelected()).isFalse();
     assertThat(map.bossesAndRaresOnly()).isFalse();
     assertThat(map.visiblePins()).extracting(Pin::name)
-        .containsExactlyInAnyOrder("Foe Reaper 4000", "Vultros", "Test Boss", "Thor");
+        .containsExactlyInAnyOrder("Defias Messenger", "Foe Reaper 4000", "Vultros", "Test Boss", "Thor");
 
     p.mapPanel().bossesToggle().doClick(); // filters the NPCs already loaded
-    assertThat(map.visiblePins()).extracting(Pin::name).doesNotContain("Thor").hasSize(3);
+    assertThat(map.visiblePins()).extracting(Pin::name).doesNotContain("Thor", "Defias Messenger").hasSize(3);
     assertThat(pins.calls).hasSize(1);
 
     p.mapPanel().objectsToggle().doClick();
@@ -258,7 +258,7 @@ class ZonePageTest {
     queued.get(0).run(); // the older one still counts
     assertThat(pins.calls).containsExactly("objects 40", "npcs 40 false");
     assertThat(p.mapPanel().mapView().visiblePins()).extracting(Pin::name).contains("Thor", "Chest");
-    assertThat(status.messages).last().isEqualTo("5 pins on the map");
+    assertThat(status.messages).last().isEqualTo("6 pins on the map");
   }
 
   @Test
