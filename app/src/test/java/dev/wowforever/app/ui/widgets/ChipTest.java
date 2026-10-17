@@ -54,9 +54,9 @@ class ChipTest {
   void chipTextContrast() {
     Theme saved = Theme.current();
     try {
-      for (Theme t : new Theme[] {Tokens.DARK, Tokens.LIGHT}) {
+      for (Theme t : new Theme[] {Tokens.DARK, Tokens.PARCHMENT}) {
         Theme.setCurrent(t);
-        String theme = t.dark() ? "dark" : "light";
+        String theme = t.dark() ? "Slate" : "Parchment";
         for (Chip.Style style : Chip.Style.values()) {
           Chip chip = new Chip(style.name(), style);
           assertThat(chip.getForeground()).isEqualTo(chip.textColor());
@@ -65,6 +65,27 @@ class ChipTest {
           assertThat(Contrast.ratio(chip.textColor(), t.bgSurface())).as(style + " on bg.surface, " + theme)
               .isGreaterThanOrEqualTo(4.5);
         }
+      }
+    } finally {
+      Theme.setCurrent(saved);
+    }
+  }
+
+  @Test
+  void theSilverOutlineDarkensOnParchment() {
+    Theme saved = Theme.current();
+    try {
+      Theme.setCurrent(Tokens.DARK);
+      assertThat(rank(4).outline()).isEqualTo(Chip.SILVER).isEqualTo(new Color(0xC0C6CF));
+      assertThat(rank(2).outline()).isEqualTo(Chip.SILVER);
+      Theme.setCurrent(Tokens.PARCHMENT);
+      assertThat(rank(4).outline()).isEqualTo(Chip.PARCHMENT_SILVER).isEqualTo(new Color(0x767C85));
+      assertThat(rank(2).outline()).isEqualTo(Chip.PARCHMENT_SILVER);
+      assertThat(rank(1).textColor()).as("Elite text on Parchment").isEqualTo(new Color(0x785C12));
+      // the outline is a graphic: at least 3:1 where chips can sit, where #C0C6CF was 1.42:1 on base
+      for (Color bg : new Color[] {Tokens.PARCHMENT.bgBase(), Tokens.PARCHMENT.bgSurface(),
+          Tokens.PARCHMENT.bgRaised()}) {
+        assertThat(Contrast.ratio(Chip.PARCHMENT_SILVER, bg)).as("on %s", bg).isGreaterThanOrEqualTo(3.0);
       }
     } finally {
       Theme.setCurrent(saved);

@@ -149,7 +149,7 @@ class RateBarRendererTest {
   @ValueSource(booleans = {true, false})
   void theDisagreementMarkerAloneIsPaintedInTheWarningColour(boolean dark) {
     Theme saved = Theme.current();
-    Theme.setCurrent(dark ? Tokens.DARK : Tokens.LIGHT);
+    Theme.setCurrent(dark ? Tokens.DARK : Tokens.PARCHMENT);
     try {
       assertMarkerAloneIsAmber();
     } finally {
@@ -188,7 +188,7 @@ class RateBarRendererTest {
   @Test
   void theWarningColourIsAmberInBothThemes() {
     assertThat(Tokens.DARK.warn()).isEqualTo(new Color(0xE0A83A));
-    assertThat(Tokens.LIGHT.warn()).isEqualTo(new Color(0x9A6B00));
+    assertThat(Tokens.PARCHMENT.warn()).isEqualTo(new Color(0x8A5A00));
   }
 
   @Test

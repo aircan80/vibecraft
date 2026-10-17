@@ -24,7 +24,7 @@ class PinLegendTest {
   void eachDotIsPaintedInTheMapsColourOfItsKind() {
     Theme saved = Theme.current();
     try {
-      for (Theme theme : new Theme[] {Tokens.DARK, Tokens.LIGHT}) {
+      for (Theme theme : new Theme[] {Tokens.DARK, Tokens.PARCHMENT}) {
         Theme.setCurrent(theme);
         PinLegend legend = new PinLegend();
         for (int i = 0; i < 4; i++) {

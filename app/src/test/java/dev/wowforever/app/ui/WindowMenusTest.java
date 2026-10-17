@@ -123,18 +123,24 @@ class WindowMenusTest {
     JPopupMenu compact = new JPopupMenu();
     WindowMenus.addViewItems(compact, state, actions);
     WindowMenus.addHelpItems(compact, actions);
-    assertThat(texts(view)).containsExactly("Dark theme", "Drop sources");
+    assertThat(texts(view)).containsExactly("Slate theme", "Parchment theme", "Drop sources");
     assertThat(texts(help)).containsExactly("Keyboard shortcuts", "About");
-    assertThat(texts(compact)).containsExactly("Dark theme", "Drop sources", "---", "Keyboard shortcuts", "About");
+    assertThat(texts(compact)).containsExactly("Slate theme", "Parchment theme", "Drop sources", "---",
+        "Keyboard shortcuts", "About");
 
-    JMenuItem darkItem = (JMenuItem) compact.getComponent(0);
-    assertThat(darkItem.isSelected()).isTrue();
+    JMenuItem slate = (JMenuItem) compact.getComponent(0);
+    JMenuItem parchment = (JMenuItem) compact.getComponent(1);
+    assertThat(slate.isSelected()).isTrue();
+    assertThat(parchment.isSelected()).isFalse();
+    slate.doClick();
+    assertThat(calls).as("choosing the theme already on does nothing").isEmpty();
     dark[0] = false; // the other layout switched the theme
-    assertThat(darkItem.isSelected()).as("read live, no refresh needed").isFalse();
-    darkItem.doClick();
+    assertThat(slate.isSelected()).as("read live, no refresh needed").isFalse();
+    assertThat(parchment.isSelected()).isTrue();
+    slate.doClick();
     item(help, "Keyboard shortcuts").doClick();
     item(help, "About").doClick();
-    item((JMenu) compact.getComponent(1), "Hide Questie-only rows").doClick();
+    item((JMenu) compact.getComponent(2), "Hide Questie-only rows").doClick();
     assertThat(calls).containsExactly("theme", "shortcuts", "about", "rerender");
   }
 

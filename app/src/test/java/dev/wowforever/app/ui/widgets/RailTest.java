@@ -93,9 +93,9 @@ class RailTest {
   void plateStates() {
     Theme saved = Theme.current();
     try {
-      for (Theme theme : new Theme[] {Tokens.DARK, Tokens.LIGHT}) {
+      for (Theme theme : new Theme[] {Tokens.DARK, Tokens.PARCHMENT}) {
         Theme.setCurrent(theme);
-        String mode = theme.dark() ? "Slate" : "light";
+        String mode = theme.dark() ? "Slate" : "Parchment";
         Rail rail = laidOut(redIcons());
         JToggleButton b = rail.button(RailTarget.HOME);
         Rectangle plate = plateBounds(b);
@@ -140,7 +140,7 @@ class RailTest {
   void svgIconsSitOnTheSamePlatesUntilTheArtArrives() {
     Theme saved = Theme.current();
     try {
-      Theme.setCurrent(Tokens.LIGHT);
+      Theme.setCurrent(Tokens.PARCHMENT);
       Rail rail = laidOut(null);
       Rectangle plate = plateBounds(rail.button(RailTarget.QUESTS));
       BufferedImage image = paint(rail);

@@ -5,7 +5,7 @@ import java.awt.Color;
 /**
  * Item quality colours (0 poor, 1 common, 2 uncommon, 3 rare, 4 epic, 5 legendary, 6 artifact, 7 heirloom) and
  * drop-rate band colours, as the UI review's quality table gives them: a text variant readable on the dark theme
- * and one readable on the light theme for tables and titles, and the canonical in-game colour for icon borders and
+ * and one readable on Parchment, the light theme, for tables and titles, and the canonical in-game colour for icon borders and
  * the tooltip card. Qualities outside 0–7 are shown as common.
  */
 public final class QualityColors {
@@ -14,10 +14,10 @@ public final class QualityColors {
     c(0x9D9D9D), c(0xE4E1D8), c(0x3FE23A), c(0x4A9EF0),
     c(0xB864F5), c(0xFF9A33), c(0xE6CC80), c(0x00CCFF)
   };
-  // Heirloom (7) light variant is a darker cyan chosen for contrast on light backgrounds.
+  // Parchment: every one at least 4.5:1 on raised #FBF5E6, the alternate row #F6EEDC and the selection #FDEDB4.
   private static final Color[] LIGHT = {
-    c(0x6B6B6B), c(0x1C1F24), c(0x137A0E), c(0x0058B0),
-    c(0x7E2BC4), c(0xB35A00), c(0x8A6D1E), c(0x0090B8)
+    c(0x6B6B6B), c(0x2B2416), c(0x1A7A00), c(0x0057B0),
+    c(0x7B22B8), c(0xA85300), c(0x7A5E14), c(0x00687F)
   };
   private static final Color[] CANONICAL = {
     c(0x9D9D9D), c(0xFFFFFF), c(0x1EFF00), c(0x0070DD),

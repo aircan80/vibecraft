@@ -73,7 +73,7 @@ class StatusBarTest {
 
   @Test
   void goldTopHairline() {
-    for (Theme t : new Theme[] {Tokens.DARK, Tokens.LIGHT}) {
+    for (Theme t : new Theme[] {Tokens.DARK, Tokens.PARCHMENT}) {
       Theme saved = Theme.current();
       Theme.setCurrent(t);
       try {
@@ -110,7 +110,7 @@ class StatusBarTest {
   @Test
   void theThemeAndLayoutTogglesSitOnTheRight() {
     StatusBar status = new StatusBar();
-    assertThat(status.themeToggle().getText()).isNotBlank();
+    assertThat(status.themeToggle().getText()).isEqualTo("Slate");
     assertThat(status.layoutToggle().getText()).isNotBlank();
     assertThat(status.themeToggle().getToolTipText()).isNotBlank();
     assertThat(status.layoutToggle().getToolTipText()).contains("F10");

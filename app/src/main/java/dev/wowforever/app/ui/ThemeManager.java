@@ -8,12 +8,27 @@ import java.awt.Component;
 import java.util.prefs.Preferences;
 import javax.swing.SwingUtilities;
 
-/** Dark or light theme (dark by default), remembered in the user's preferences (key {@code theme}). */
+/**
+ * The Slate (dark, the default) or Parchment (light) theme, remembered in the user's preferences (key
+ * {@code theme}). The saved values are still {@code dark} and {@code light}, so a choice saved before Parchment
+ * replaced the 2B light theme keeps working.
+ */
 public final class ThemeManager {
   /** The two theme modes. */
   public enum Mode {
-    DARK,
-    LIGHT
+    DARK("Slate"),
+    LIGHT("Parchment");
+
+    private final String label;
+
+    Mode(String label) {
+      this.label = label;
+    }
+
+    /** The theme's name as the menus show it: "Slate" or "Parchment". */
+    public String label() {
+      return label;
+    }
   }
 
   static final String KEY = "theme";
@@ -43,7 +58,7 @@ public final class ThemeManager {
     install(mode);
   }
 
-  /** Switches between light and dark, saves the choice and repaints {@code root}'s component tree. */
+  /** Switches between Parchment and Slate, saves the choice and repaints {@code root}'s component tree. */
   public static void toggle(Component root) {
     apply(isDark() ? Mode.LIGHT : Mode.DARK);
     SwingUtilities.updateComponentTreeUI(root);
@@ -55,7 +70,7 @@ public final class ThemeManager {
       Theme.setCurrent(Tokens.DARK);
     } else {
       WowForeverLightLaf.setup();
-      Theme.setCurrent(Tokens.LIGHT);
+      Theme.setCurrent(Tokens.PARCHMENT);
     }
   }
 

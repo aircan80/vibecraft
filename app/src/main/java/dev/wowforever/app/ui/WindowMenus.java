@@ -6,7 +6,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
 import javax.swing.ButtonGroup;
-import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
@@ -18,7 +17,8 @@ import javax.swing.event.MenuListener;
 
 /**
  * Menus both window layouts offer, built by one helper so the full window's View and Help menus and the compact
- * window's context menu stay the same: {@link #addViewItems} (Dark theme, Drop sources) and {@link #addHelpItems}
+ * window's context menu stay the same: {@link #addViewItems} (Slate theme, Parchment theme, Drop sources) and
+ * {@link #addHelpItems}
  * (Keyboard shortcuts, About).
  */
 final class WindowMenus {
@@ -26,7 +26,7 @@ final class WindowMenus {
   static final String DROP_SOURCES = "Drop sources";
 
   /**
-   * What the shared items do: whether the dark theme is on ({@code dark}, read whenever the Dark theme item is
+   * What the shared items do: whether the dark theme (Slate) is on ({@code dark}, read whenever a theme item is
    * asked, so a switch made in the other layout shows), switching it, showing the current page again after a
    * source filter change, and opening the shortcut list and the About box.
    */
@@ -43,12 +43,22 @@ final class WindowMenus {
 
   private WindowMenus() {}
 
-  /** Adds the View items both layouts share to {@code menu} (a {@link JMenu} or a {@link JPopupMenu}). */
+  /**
+   * Adds the View items both layouts share to {@code menu} (a {@link JMenu} or a {@link JPopupMenu}): a radio item
+   * per theme ("Slate theme", "Parchment theme"), the one on selected, then the drop source filter.
+   */
   static void addViewItems(JComponent menu, UiState state, Actions actions) {
-    JCheckBoxMenuItem dark = new JCheckBoxMenuItem("Dark theme");
-    dark.setModel(new LiveToggle(actions.dark()));
-    dark.addActionListener(e -> actions.toggleTheme().run());
-    menu.add(dark);
+    for (ThemeManager.Mode mode : ThemeManager.Mode.values()) {
+      boolean dark = mode == ThemeManager.Mode.DARK;
+      JRadioButtonMenuItem item = new JRadioButtonMenuItem(mode.label() + " theme");
+      item.setModel(new LiveToggle(() -> actions.dark().getAsBoolean() == dark));
+      item.addActionListener(e -> {
+        if (actions.dark().getAsBoolean() != dark) {
+          actions.toggleTheme().run();
+        }
+      });
+      menu.add(item);
+    }
     menu.add(sourceFilterMenu(state, actions.rerender()));
   }
 
@@ -69,7 +79,7 @@ final class WindowMenus {
   }
 
   /**
-   * A check box model whose selection is {@code selected}'s, read on every query: clicking still fires the item's
+   * A toggle model whose selection is {@code selected}'s, read on every query: clicking still fires the item's
    * action, which changes what {@code selected} reports.
    */
   static final class LiveToggle extends JToggleButton.ToggleButtonModel {

@@ -39,9 +39,9 @@ class SourceSectionTest {
     assertThat(s.heading().text()).isEqualTo("Sold by (3)");
     Theme saved = Theme.current();
     try {
-      Theme.setCurrent(Tokens.LIGHT);
-      assertThat(s.heading().getForeground()).as("the darker text gold on the light theme")
-          .isEqualTo(Tokens.LIGHT.goldText());
+      Theme.setCurrent(Tokens.PARCHMENT);
+      assertThat(s.heading().getForeground()).as("the darker text gold on Parchment")
+          .isEqualTo(Tokens.PARCHMENT.goldText());
       Theme.setCurrent(Tokens.DARK);
       assertThat(s.heading().getForeground()).isEqualTo(Tokens.DARK.goldText());
     } finally {

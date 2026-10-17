@@ -39,7 +39,7 @@ public final class StatusBar extends JPanel {
   private final JLabel provenance = new JLabel(" ");
   private final JLabel message = new JLabel(" ", SwingConstants.CENTER);
   private final JLabel info = new JLabel(" ");
-  private final JToggleButton themeToggle = toggle("Dark", "Dark theme (also in the View menu)", "Dark theme");
+  private final JToggleButton themeToggle = toggle("Slate", "Slate theme; off for Parchment (also in the View menu)", "Slate theme");
   private final JToggleButton layoutToggle = toggle("Compact", "Compact window (F10)", "Compact window");
 
   public StatusBar() {
@@ -141,7 +141,7 @@ public final class StatusBar extends JPanel {
     return info.getText().isBlank() ? "" : info.getText();
   }
 
-  /** The dark theme toggle; {@code MainFrame} gives it its model and action. */
+  /** The Slate theme toggle, selected while Slate is on; {@code MainFrame} gives it its model and action. */
   public AbstractButton themeToggle() {
     return themeToggle;
   }

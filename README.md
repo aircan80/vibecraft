@@ -100,7 +100,7 @@ Help › Keyboard shortcuts shows the same table in the app.
 | Ctrl+= / Ctrl+- / Ctrl+0 | Text size |
 <!-- keymap:end -->
 
-The window remembers its size, layout, theme (View › Dark theme), text size and drop source filter between runs.
+The window remembers its size, layout, theme (View › Slate theme or Parchment theme), text size and drop source filter between runs.
 
 ## Build
 

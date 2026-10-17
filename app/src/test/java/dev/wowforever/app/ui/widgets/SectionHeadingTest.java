@@ -21,8 +21,8 @@ class SectionHeadingTest {
     assertThat(h.label().getForeground()).isEqualTo(Theme.current().goldText());
     Theme saved = Theme.current();
     try {
-      Theme.setCurrent(Tokens.LIGHT);
-      assertThat(h.label().getForeground()).as("looked up per paint").isEqualTo(Tokens.LIGHT.goldText());
+      Theme.setCurrent(Tokens.PARCHMENT);
+      assertThat(h.label().getForeground()).as("looked up per paint").isEqualTo(Tokens.PARCHMENT.goldText());
     } finally {
       Theme.setCurrent(saved);
     }

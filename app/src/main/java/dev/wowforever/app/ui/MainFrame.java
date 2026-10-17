@@ -131,8 +131,8 @@ public final class MainFrame extends JFrame implements MainView {
   }
 
   /**
-   * The status line's toggles: Dark is selected while the dark theme is on and switches it as the View menu's
-   * Dark theme item does; Compact is selected in the compact layout and switches layouts as F10 does.
+   * The status line's toggles: Slate is selected while the Slate theme is on and switches to Parchment and back,
+   * as the View menu's theme items do; Compact is selected in the compact layout and switches layouts as F10 does.
    */
   private void wireStatusToggles() {
     status.themeToggle().setModel(new WindowMenus.LiveToggle(ThemeManager::isDark));

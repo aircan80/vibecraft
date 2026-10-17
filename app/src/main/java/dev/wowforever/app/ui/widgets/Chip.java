@@ -16,14 +16,21 @@ import javax.swing.JLabel;
 
 /**
  * A small outline-only chip, such as an NPC's rank beside its name. Chips are never filled: Elite is a gold outline
- * with gold text, Rare a silver ({@link #SILVER}) outline, Rare Elite a silver outline with gold text and Boss a red
- * ({@link #RED}) outline. The text is the theme's {@code text.primary} unless it is gold ({@code gold.text}, the
- * small-text gold); the red is only ever an outline, as red text reads 3.8:1 on Slate. Every chip's text is at least
- * 4.5:1 on {@code bg.base} and {@code bg.surface}. Colours come from {@link Theme#current()} on every paint.
+ * with gold text, Rare a silver outline, Rare Elite a silver outline with gold text and Boss a red ({@link #RED})
+ * outline. The silver is {@link #SILVER} on Slate and the darker {@link #PARCHMENT_SILVER} on Parchment, where
+ * {@code #C0C6CF} reads only 1.42:1 on base. The text is the theme's {@code text.primary} unless it is gold
+ * ({@code gold.text}, the small-text gold; on Parchment the slightly darker {@link #PARCHMENT_GOLD_TEXT}, because
+ * Parchment's gold text reads 4.49:1 on surface); the red is only ever an outline, as red text reads 3.8:1 on Slate.
+ * Every chip's text is at least 4.5:1 on {@code bg.base} and {@code bg.surface} in both themes. Colours come from
+ * {@link Theme#current()} on every paint.
  */
 public final class Chip extends JLabel {
-  /** The outline of Rare and Rare Elite. */
+  /** The outline of Rare and Rare Elite on Slate. */
   public static final Color SILVER = new Color(0xC0C6CF);
+  /** The outline of Rare and Rare Elite on Parchment: 3.48:1 on base, 3.10:1 on surface, 3.87:1 on raised. */
+  public static final Color PARCHMENT_SILVER = new Color(0x767C85);
+  /** The gold text of Elite and Rare Elite on Parchment: 5.21:1 on base, 4.63:1 on surface. */
+  public static final Color PARCHMENT_GOLD_TEXT = new Color(0x785C12);
   /** The outline of Boss. */
   public static final Color RED = new Color(0xC8463C);
 
@@ -73,7 +80,7 @@ public final class Chip extends JLabel {
     Theme t = Theme.current();
     return switch (style) {
       case ELITE -> t.accentGold();
-      case RARE, RARE_ELITE -> SILVER;
+      case RARE, RARE_ELITE -> t.dark() ? SILVER : PARCHMENT_SILVER;
       case BOSS -> RED;
       case REPEATABLE -> t.link();
       case PLAIN, FACTION -> t.textMuted();
@@ -83,7 +90,10 @@ public final class Chip extends JLabel {
   /** The text colour: the small-text gold for Elite and Rare Elite, {@code text.primary} otherwise. */
   public Color textColor() {
     Theme t = Theme.current();
-    return style == Style.ELITE || style == Style.RARE_ELITE ? t.goldText() : t.textPrimary();
+    if (style == Style.ELITE || style == Style.RARE_ELITE) {
+      return t.dark() ? t.goldText() : PARCHMENT_GOLD_TEXT;
+    }
+    return t.textPrimary();
   }
 
   @Override

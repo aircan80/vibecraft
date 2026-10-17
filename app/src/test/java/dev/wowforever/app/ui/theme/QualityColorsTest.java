@@ -16,7 +16,7 @@ class QualityColorsTest {
       assertNotNull(QualityColors.canonical(q));
     }
     assertEquals(new Color(0x4A9EF0), QualityColors.text(3, true));
-    assertEquals(new Color(0x137A0E), QualityColors.text(2, false));
+    assertEquals(new Color(0x1A7A00), QualityColors.text(2, false));
     assertEquals(new Color(0xA335EE), QualityColors.canonical(4));
     assertEquals(new Color(0x00CCFF), QualityColors.canonical(7));
   }
@@ -50,15 +50,15 @@ class QualityColorsTest {
   }
 
   @Test
-  void lightTextColoursPerQuality() {
-    assertThat(QualityColors.text(0, false)).isEqualTo(new Color(0x6B6B6B));
-    assertThat(QualityColors.text(1, false)).isEqualTo(new Color(0x1C1F24));
-    assertThat(QualityColors.text(2, false)).isEqualTo(new Color(0x137A0E));
-    assertThat(QualityColors.text(3, false)).isEqualTo(new Color(0x0058B0));
-    assertThat(QualityColors.text(4, false)).isEqualTo(new Color(0x7E2BC4));
-    assertThat(QualityColors.text(5, false)).isEqualTo(new Color(0xB35A00));
-    assertThat(QualityColors.text(6, false)).isEqualTo(new Color(0x8A6D1E));
-    assertThat(QualityColors.text(7, false)).isEqualTo(new Color(0x0090B8));
+  void parchmentQualities() {
+    assertThat(QualityColors.text(0, false)).as("poor").isEqualTo(new Color(0x6B6B6B));
+    assertThat(QualityColors.text(1, false)).as("common").isEqualTo(new Color(0x2B2416));
+    assertThat(QualityColors.text(2, false)).as("uncommon").isEqualTo(new Color(0x1A7A00));
+    assertThat(QualityColors.text(3, false)).as("rare").isEqualTo(new Color(0x0057B0));
+    assertThat(QualityColors.text(4, false)).as("epic").isEqualTo(new Color(0x7B22B8));
+    assertThat(QualityColors.text(5, false)).as("legendary").isEqualTo(new Color(0xA85300));
+    assertThat(QualityColors.text(6, false)).as("artifact").isEqualTo(new Color(0x7A5E14));
+    assertThat(QualityColors.text(7, false)).as("heirloom").isEqualTo(new Color(0x00687F));
   }
 
   @Test
