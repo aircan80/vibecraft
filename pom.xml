@@ -20,6 +20,8 @@
     <assertj.version>3.27.3</assertj.version>
     <sqlite.version>3.49.1.0</sqlite.version>
     <flatlaf.version>3.6</flatlaf.version>
+    <!-- Inter for FlatLaf; versioned after the Inter release, works with FlatLaf 3.x -->
+    <flatlaf-fonts-inter.version>4.1</flatlaf-fonts-inter.version>
     <slf4j.version>2.0.17</slf4j.version>
   </properties>
 

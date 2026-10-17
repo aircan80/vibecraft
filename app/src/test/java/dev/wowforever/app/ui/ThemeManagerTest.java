@@ -60,7 +60,7 @@ class ThemeManagerTest {
   void themeCurrentFlipsWithMode() {
     ThemeManager.apply(ThemeManager.Mode.DARK);
     assertEquals(Tokens.DARK, Theme.current());
-    assertEquals(new Color(0x14171C), Theme.current().bgBase());
+    assertEquals(new Color(0x12161D), Theme.current().bgBase());
     ThemeManager.apply(ThemeManager.Mode.LIGHT);
     assertEquals(Tokens.LIGHT, Theme.current());
     assertEquals(new Color(0xF4F5F7), Theme.current().bgBase());
@@ -70,10 +70,13 @@ class ThemeManagerTest {
   @Test
   void lafUsesTokens() {
     ThemeManager.apply(ThemeManager.Mode.DARK);
-    assertEquals(new Color(0x14171C), rgb("Panel.background"));
+    assertEquals(new Color(0x12161D), rgb("Panel.background"));
     assertEquals(new Color(0x1B2027), rgb("Table.background"));
     assertEquals(new Color(0x9CC3E6), rgb("Component.linkColor"));
     assertEquals(2, UIManager.getInt("Component.focusWidth"));
+    assertEquals(Tokens.DARK.altRow(), rgb("Table.alternateRowColor"));
+    assertEquals(Tokens.DARK.selection(), rgb("Table.selectionBackground"));
+    assertEquals(Tokens.DARK.selection(), rgb("Table.selectionInactiveBackground"));
     ThemeManager.apply(ThemeManager.Mode.LIGHT);
     assertEquals(new Color(0xF4F5F7), rgb("Panel.background"));
     assertEquals(new Color(0xFFFFFF), rgb("Table.background"));
@@ -91,7 +94,7 @@ class ThemeManagerTest {
 
   @Test
   void propertiesResourcesContainTokens() throws Exception {
-    assertProps("WowForeverDarkLaf.properties", "#14171C", "#1B2027", "#D6B25E", "#9CC3E6", "#E0A83A");
+    assertProps("WowForeverDarkLaf.properties", "#12161D", "#1B2027", "#D6B25E", "#9CC3E6", "#E0A83A");
     assertProps("WowForeverLightLaf.properties", "#F4F5F7", "#FFFFFF", "#9A7419", "#1F5FA8", "#9A6B00");
   }
 

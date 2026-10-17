@@ -11,8 +11,8 @@ import java.awt.Color;
 public final class QualityColors {
   private static final int COMMON = 1;
   private static final Color[] DARK = {
-    c(0x9D9D9D), c(0xE4E1D8), c(0x3FE23A), c(0x4A9EFF),
-    c(0xB861FF), c(0xFF9A33), c(0xE6CC80), c(0x00CCFF)
+    c(0x9D9D9D), c(0xE4E1D8), c(0x3FE23A), c(0x4A9EF0),
+    c(0xB864F5), c(0xFF9A33), c(0xE6CC80), c(0x00CCFF)
   };
   // Heirloom (7) light variant is a darker cyan chosen for contrast on light backgrounds.
   private static final Color[] LIGHT = {

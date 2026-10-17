@@ -24,6 +24,11 @@
       <version>${flatlaf.version}</version>
     </dependency>
     <dependency>
+      <groupId>com.formdev</groupId>
+      <artifactId>flatlaf-fonts-inter</artifactId>
+      <version>${flatlaf-fonts-inter.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.slf4j</groupId>
       <artifactId>slf4j-api</artifactId>
     </dependency>

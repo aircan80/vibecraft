@@ -9,6 +9,7 @@ import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.Async;
 import dev.wowforever.app.ui.MainFrame;
 import dev.wowforever.app.ui.ThemeManager;
+import dev.wowforever.app.ui.theme.Fonts;
 import dev.wowforever.app.ui.widgets.IconCache;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -74,6 +75,7 @@ public final class Main {
    * of either step is logged and shown, and the application exits with status 1.
    */
   private static void startGui() {
+    Fonts.install();
     ThemeManager.applySaved();
     MainFrame frame = new MainFrame();
     AtomicReference<Database> open = new AtomicReference<>();

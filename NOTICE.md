@@ -15,6 +15,11 @@ Item quality, stats, tooltips, icons, zone maps and the navigation rail's UI ico
 
 World of Warcraft® and Blizzard Entertainment® are trademarks or registered trademarks of Blizzard Entertainment, Inc. Icons, UI textures and map art are © Blizzard Entertainment and are included for reference; no affiliation.
 
+## Fonts
+
+- Marcellus and Marcellus SC by Brian J. Bonislawsky (Astigmatic), from Google Fonts (https://github.com/google/fonts, `ofl/marcellus` at commit 9712ecf0710335ef60aa998f5ee3b3c7e40f5e7c and `ofl/marcellussc` at commit 1e838fdd5dbb8daec48f4de4f76a1cfff4b3d1ed). Licensed under the SIL Open Font License 1.1; the licence ships beside the fonts as `ui/fonts/OFL.txt`. The headings use them.
+- Inter by Rasmus Andersson (https://rsms.me/inter/), bundled through FlatLaf Fonts Inter 4.1 (`com.formdev:flatlaf-fonts-inter`). Licensed under the SIL Open Font License 1.1. Body text, tables and lists use it.
+
 ## Third-party libraries
 
 The application bundles these libraries:

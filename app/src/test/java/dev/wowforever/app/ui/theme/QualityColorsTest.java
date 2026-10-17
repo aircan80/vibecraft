@@ -15,7 +15,7 @@ class QualityColorsTest {
       assertNotNull(QualityColors.text(q, false));
       assertNotNull(QualityColors.canonical(q));
     }
-    assertEquals(new Color(0x4A9EFF), QualityColors.text(3, true));
+    assertEquals(new Color(0x4A9EF0), QualityColors.text(3, true));
     assertEquals(new Color(0x137A0E), QualityColors.text(2, false));
     assertEquals(new Color(0xA335EE), QualityColors.canonical(4));
     assertEquals(new Color(0x00CCFF), QualityColors.canonical(7));
@@ -42,8 +42,8 @@ class QualityColorsTest {
     assertThat(QualityColors.text(0, true)).isEqualTo(new Color(0x9D9D9D));
     assertThat(QualityColors.text(1, true)).isEqualTo(new Color(0xE4E1D8));
     assertThat(QualityColors.text(2, true)).isEqualTo(new Color(0x3FE23A));
-    assertThat(QualityColors.text(3, true)).isEqualTo(new Color(0x4A9EFF));
-    assertThat(QualityColors.text(4, true)).isEqualTo(new Color(0xB861FF));
+    assertThat(QualityColors.text(3, true)).isEqualTo(new Color(0x4A9EF0));
+    assertThat(QualityColors.text(4, true)).isEqualTo(new Color(0xB864F5));
     assertThat(QualityColors.text(5, true)).isEqualTo(new Color(0xFF9A33));
     assertThat(QualityColors.text(6, true)).isEqualTo(new Color(0xE6CC80));
     assertThat(QualityColors.text(7, true)).isEqualTo(new Color(0x00CCFF));
@@ -78,5 +78,11 @@ class QualityColorsTest {
     for (int q = 0; q < inGame.length; q++) {
       assertThat(QualityColors.canonical(q)).as("quality %d", q).isEqualTo(new Color(inGame[q]));
     }
+  }
+
+  @Test
+  void slateRareEpic() {
+    assertThat(QualityColors.text(3, true)).isEqualTo(new Color(0x4A9EF0));
+    assertThat(QualityColors.text(4, true)).isEqualTo(new Color(0xB864F5));
   }
 }

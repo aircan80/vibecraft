@@ -8,6 +8,12 @@ import java.awt.Color;
  * under 18 pt and what frames it (section headings, "Other loot lists", the Elite and Boss chips), at least 4.5:1 on
  * {@code bgBase} and {@code bgSurface}. {@code warn} is the amber of a warning sign, such as the marker of a drop
  * rate whose sources disagree.
+ *
+ * <p>The chrome tokens: {@code plate} is the navy of the tooltip card and the rail plates (the same in both themes);
+ * {@code hairline} is the 1 px border of raised panels and the status bar, gold at 35 % alpha; {@code barStart} and
+ * {@code barEnd} are the two ends of the drop-rate bar's gradient; {@code altRow} is a table's alternate row and
+ * {@code selection} its selected row. Small text of every quality colour is at least 4.5:1 on {@code altRow} and
+ * {@code selection}.
  */
 public record Theme(
     boolean dark,
@@ -21,7 +27,13 @@ public record Theme(
     Color link,
     Color cardBg,
     Color cardBorder,
-    Color warn) {
+    Color warn,
+    Color plate,
+    Color hairline,
+    Color barStart,
+    Color barEnd,
+    Color altRow,
+    Color selection) {
 
   private static volatile Theme current = Tokens.DARK;
 
