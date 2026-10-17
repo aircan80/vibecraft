@@ -215,6 +215,8 @@ public final class MapView extends JComponent {
   private Font badgeFont;
   private Font glyphFont;
   private Font largeGlyphFont;
+  /** Whether the last resize asked for a layout because the map was shorter than its width wants. */
+  private boolean grewLast;
 
   public MapView(BufferedImage image, Navigator nav) {
     this.image = Objects.requireNonNull(image, "image");
@@ -224,7 +226,7 @@ public final class MapView extends JComponent {
     addComponentListener(new ComponentAdapter() {
       @Override
       public void componentResized(ComponentEvent e) {
-        if (getHeight() != heightFor(getWidth())) {
+        if (needsLayout(getWidth(), getHeight())) {
           revalidate(); // the preferred height follows the width
         }
       }
@@ -306,6 +308,24 @@ public final class MapView extends JComponent {
   /** The height the map is drawn at in a component {@code width} pixels wide. */
   public int heightFor(int width) {
     return new Projection(image.getWidth(), image.getHeight(), width).drawnHeight();
+  }
+
+  /**
+   * Whether the map, resized to {@code width} x {@code height}, asks for a new layout so that its height follows its
+   * width. A map shorter than its width wants always asks: the page was measured while it was narrower. A taller one
+   * asks too (say, the window narrowed), except right after a shorter one asked. A map is taller for a wider page, so
+   * that new layout can bring a scrollbar that narrows the map again, and asking once more could take the scrollbar
+   * away and bring it back for ever; the map keeps the spare height under its image instead.
+   */
+  boolean needsLayout(int width, int height) {
+    int wanted = heightFor(width);
+    if (height < wanted) {
+      grewLast = true;
+      return true;
+    }
+    boolean ask = height > wanted && !grewLast;
+    grewLast = false;
+    return ask;
   }
 
   /** Where the map is drawn at the current width. */

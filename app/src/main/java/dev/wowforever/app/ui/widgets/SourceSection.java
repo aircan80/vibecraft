@@ -4,8 +4,12 @@ import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Font;
+import java.awt.Insets;
+import java.awt.LayoutManager;
 import java.util.Locale;
 import java.util.Objects;
 import javax.swing.BorderFactory;
@@ -20,6 +24,8 @@ import javax.swing.JPanel;
  * them tightly.
  */
 public final class SourceSection extends JPanel {
+  /** The gap between a lead and the table under it, in pixels. */
+  static final int LEAD_GAP = 6;
   private final String title;
   private final JLabel heading;
   private final LinkTable<?> table;
@@ -48,14 +54,72 @@ public final class SourceSection extends JPanel {
     add(table, BorderLayout.CENTER);
   }
 
-  /** Puts {@code lead} (say, a map) between the heading and the table, as wide as the table, 6 px above it. */
+  /**
+   * Puts {@code lead} (say, a map) between the heading and the table, as wide as the table, 6 px above it. The table
+   * always keeps its full height; the lead takes the rest ({@link AboveTable}).
+   */
   public void addAboveTable(JComponent lead) {
-    JPanel body = new JPanel(new BorderLayout(0, 6));
+    JPanel body = new JPanel();
+    body.setLayout(new AboveTable(lead, table, LEAD_GAP));
     body.setOpaque(false);
     remove(table);
-    body.add(lead, BorderLayout.NORTH);
-    body.add(table, BorderLayout.CENTER);
+    body.add(lead);
+    body.add(table);
     add(body, BorderLayout.CENTER);
+  }
+
+  /**
+   * A lead over a table, {@code gap} px apart, each as wide as the container. The table gets its preferred height
+   * and the lead whatever height is left. A map's preferred height follows its width, so the section may have been
+   * measured while the map was another width (a page's scrollbar came or went since); then the map, not the table,
+   * takes the difference until the map lays the page out again.
+   */
+  static final class AboveTable implements LayoutManager {
+    private final Component lead;
+    private final Component table;
+    private final int gap;
+
+    AboveTable(Component lead, Component table, int gap) {
+      this.lead = lead;
+      this.table = table;
+      this.gap = gap;
+    }
+
+    @Override
+    public void addLayoutComponent(String name, Component comp) {}
+
+    @Override
+    public void removeLayoutComponent(Component comp) {}
+
+    @Override
+    public Dimension preferredLayoutSize(Container parent) {
+      Dimension l = lead.getPreferredSize();
+      Dimension t = table.getPreferredSize();
+      return withInsets(parent, Math.max(l.width, t.width), l.height + gap + t.height);
+    }
+
+    @Override
+    public Dimension minimumLayoutSize(Container parent) {
+      Dimension l = lead.getMinimumSize();
+      Dimension t = table.getPreferredSize();
+      return withInsets(parent, Math.max(l.width, table.getMinimumSize().width), l.height + gap + t.height);
+    }
+
+    @Override
+    public void layoutContainer(Container parent) {
+      Insets in = parent.getInsets();
+      int width = Math.max(0, parent.getWidth() - in.left - in.right);
+      int height = Math.max(0, parent.getHeight() - in.top - in.bottom);
+      int tableHeight = table.getPreferredSize().height;
+      int leadHeight = Math.max(0, height - gap - tableHeight);
+      lead.setBounds(in.left, in.top, width, leadHeight);
+      table.setBounds(in.left, in.top + Math.max(0, height - tableHeight), width, tableHeight);
+    }
+
+    private static Dimension withInsets(Container parent, int width, int height) {
+      Insets in = parent.getInsets();
+      return new Dimension(width + in.left + in.right, height + in.top + in.bottom);
+    }
   }
 
   /** Puts a muted line of {@code text} under the table, replacing an earlier one; null removes it. */

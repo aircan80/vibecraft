@@ -16,7 +16,9 @@ import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.MainView;
 import dev.wowforever.app.ui.StatusBar;
 import dev.wowforever.app.ui.StatusSink;
+import dev.wowforever.app.ui.detail.CompactColumns;
 import dev.wowforever.app.ui.detail.DetailPanels;
+import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.detail.TestPages;
 import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
@@ -27,6 +29,7 @@ import dev.wowforever.app.ui.pages.QuestPage;
 import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
+import java.awt.BorderLayout;
 import java.awt.Component;
 import java.awt.Container;
 import java.awt.Graphics2D;
@@ -38,15 +41,19 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import javax.swing.JComponent;
+import javax.swing.JPanel;
+import javax.swing.JTable;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -177,6 +184,30 @@ class ShippedDataTest {
         layOut(sub);
       }
     }
+  }
+
+  @Test
+  void theCompactSpawnTableKeepsItsWholeRowUnderTheMap() {
+    Object loaded = DetailPanels.load(new EntityRef(NPC, 448), repos).orElseThrow();
+    JPanel compact = new JPanel(new BorderLayout());
+    compact.putClientProperty(CompactColumns.KEY, Boolean.TRUE); // as the compact window's content does
+    var hogger = (NpcPage) TestPages.render(loaded, repos, t -> {}, Runnable::run, StatusSink.NONE);
+    compact.add(hogger);
+    compact.setSize(420, 900);
+    LinkTable<?> spawns = hogger.section("Spawns").table();
+    JTable table = spawns.table();
+    Set<Integer> mapWidths = new HashSet<>();
+    for (int pass = 1; pass <= 3; pass++) { // as the map's own revalidations lay the window out again
+      layOut(compact);
+      mapWidths.add(hogger.spawnMap().getWidth());
+      assertThat(table.getRowCount()).isEqualTo(1);
+      assertThat(table.getHeight()).as("pass %d", pass).isGreaterThanOrEqualTo(table.getRowHeight());
+      assertThat(spawns.getHeight()).as("pass %d", pass).isEqualTo(spawns.getPreferredSize().height);
+    }
+    // the page's scrollbar went between the first layouts, so the map was laid out at a width the Spawns section
+    // had not been measured at: what cut the coordinates row to half its height
+    assertThat(mapWidths).hasSizeGreaterThan(1);
+    assertThat(table.getValueAt(0, 0)).isEqualTo("25.0, 92.9");
   }
 
   @Test

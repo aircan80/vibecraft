@@ -28,7 +28,6 @@ import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RankChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import dev.wowforever.app.ui.widgets.SourceSection;
-import java.awt.BorderLayout;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.MouseEvent;
@@ -379,7 +378,7 @@ class NpcPageTest {
     // inside the Spawns section, above the spawn table
     SpawnSection spawns = p.spawns();
     assertThat(map.getParent()).isSameAs(spawns.table().getParent());
-    assertThat(((BorderLayout) map.getParent().getLayout()).getConstraints(map)).isEqualTo(BorderLayout.NORTH);
+    assertThat(map.getParent().getComponents()).containsExactly(map, spawns.table());
     assertThat(javax.swing.SwingUtilities.isDescendingFrom(map, p.section("Spawns"))).isTrue();
     assertThat(column(spawns.table().table(), 0)).hasSize(5);
     // the page's own pins open nothing

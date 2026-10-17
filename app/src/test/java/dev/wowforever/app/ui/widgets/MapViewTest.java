@@ -45,6 +45,23 @@ class MapViewTest {
     return v;
   }
 
+  @Test
+  void theMapAsksForALayoutWhenItsHeightNoLongerFollowsItsWidthWithoutBouncingAScrollbar() {
+    var v = new MapView(westfall, opened::add);
+    int narrow = 379; // the page with its vertical scrollbar
+    int wide = 396; // and without
+    assertThat(v.heightFor(wide)).isGreaterThan(v.heightFor(narrow));
+    assertThat(v.needsLayout(narrow, v.heightFor(westfall.getWidth()))).as("first measured at the image's width")
+        .isTrue();
+    assertThat(v.needsLayout(narrow, v.heightFor(narrow))).as("its height follows its width").isFalse();
+    assertThat(v.needsLayout(wide, v.heightFor(narrow))).as("shorter than its width wants").isTrue();
+    // that layout brought the scrollbar back: asking again would take it away and so on for ever
+    assertThat(v.needsLayout(narrow, v.heightFor(wide))).as("the bounce").isFalse();
+    assertThat(v.needsLayout(300, v.heightFor(narrow))).as("then the window narrows").isTrue();
+    assertThat(v.needsLayout(300, v.heightFor(300))).isFalse();
+    assertThat(v.needsLayout(250, v.heightFor(300))).as("and narrows again").isTrue();
+  }
+
   private static MouseEvent mouse(MapView v, int id, int x, int y) {
     return new MouseEvent(v, id, 0L, 0, x, y, 1, false, MouseEvent.BUTTON1);
   }
