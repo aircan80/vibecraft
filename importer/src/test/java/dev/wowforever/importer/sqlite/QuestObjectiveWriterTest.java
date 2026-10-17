@@ -1,45 +1,36 @@
 package dev.wowforever.importer.sqlite;
 
+import static dev.wowforever.importer.sqlite.QuestFixture.bound;
+import static dev.wowforever.importer.sqlite.QuestFixture.column;
+import static dev.wowforever.importer.sqlite.QuestFixture.corrected;
+import static dev.wowforever.importer.sqlite.QuestFixture.scalar;
+import static dev.wowforever.importer.sqlite.QuestFixture.table;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.wowforever.importer.Fixtures;
 import dev.wowforever.importer.corrections.CorrectionApplier;
 import dev.wowforever.importer.corrections.CorrectionLayer;
-import dev.wowforever.importer.corrections.CorrectionLayers;
-import dev.wowforever.importer.corrections.CorrectionScope;
-import dev.wowforever.importer.corrections.EnumLoader;
-import dev.wowforever.importer.drops.DropRates;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
-import dev.wowforever.importer.entity.RawEntityLoader;
 import dev.wowforever.importer.report.ImportReport;
-import dev.wowforever.importer.schema.EntitySchema;
-import dev.wowforever.importer.schema.MetaLoader;
 import dev.wowforever.lua.LuaNil;
 import dev.wowforever.lua.LuaNumber;
 import dev.wowforever.lua.LuaString;
 import dev.wowforever.lua.LuaTable;
 import dev.wowforever.lua.LuaUnresolved;
-import dev.wowforever.lua.LuaValue;
 import dev.wowforever.lua.ProblemCollector;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.EnumMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
  * quest_objective, quest_objective_point and quest_source_item from the fixture quests after every Forever
- * correction layer, as the import runs them. The fixture rows (176, 452, 532, 1136, 5561, 8121, 8485, 9422) and
- * their classicQuestFixes entries are copied from QuestieDB 49e7dbca.
+ * correction layer, as the import runs them. The fixture rows (176, 452, 532, 1136, 5149, 5561, 8121, 8485, 9422)
+ * and their classicQuestFixes entries are copied from QuestieDB 49e7dbca.
  */
 class QuestObjectiveWriterTest {
   @TempDir Path tmp;
@@ -47,7 +38,7 @@ class QuestObjectiveWriterTest {
 
   @Test
   void creatureAndItemObjectivesInOrder() throws Exception {
-    try (Connection c = write(correctedFixture())) {
+    try (Connection c = write(corrected())) {
       // 532 Battle of Hillsbrad: objectives {{{2335},{2387}},{{1761,"Hillsbrad Proclamation destroyed"}},{{3657}}}
       assertThat(objectives(c, 532)).containsExactly(
           "0:creature:2335:null:null", "1:creature:2387:null:null",
@@ -62,7 +53,7 @@ class QuestObjectiveWriterTest {
 
   @Test
   void killCreditGroupSharesOneGroup() throws Exception {
-    try (Connection c = write(correctedFixture())) {
+    try (Connection c = write(corrected())) {
       // 452 Pyrewood Ambush: {nil, nil, nil, nil, {{{2060, ..., 2068}, 2060}}}
       List<String> pyrewood = objectives(c, 452);
       assertThat(pyrewood).hasSize(9).allMatch(r -> r.startsWith("0:creature:") && r.endsWith(":null:0"));
@@ -79,7 +70,7 @@ class QuestObjectiveWriterTest {
 
   @Test
   void killCreditBaseOutsideItsListComesFirstWithTheGroupText() throws Exception {
-    Map<EntityKind, EntityTable> tables = correctedFixture();
+    Map<EntityKind, EntityTable> tables = corrected();
     LuaTable group = table(table(LuaNumber.of(11), LuaNumber.of(12)), LuaNumber.of(10), new LuaString("Kill credit"));
     tables.get(EntityKind.QUEST).set(176, "objectives",
         table(LuaNil.NIL, LuaNil.NIL, table(table(LuaNumber.of(1931))), LuaNil.NIL, table(group)));
@@ -91,7 +82,7 @@ class QuestObjectiveWriterTest {
 
   @Test
   void explorePointsKeepTheirZone() throws Exception {
-    try (Connection c = write(correctedFixture())) {
+    try (Connection c = write(corrected())) {
       // 8121 Take Four Bases: triggerEnd {"Hold Four Bases.", {[1638]=…, [45]=…, [1637]=…, [130]=…}}
       assertThat(objectives(c, 8121)).containsExactly("0:explore:null:Hold Four Bases.:null");
       assertThat(points(c, 8121)).containsExactly(
@@ -108,7 +99,7 @@ class QuestObjectiveWriterTest {
 
   @Test
   void providedAndRequiredItems() throws Exception {
-    try (Connection c = write(correctedFixture())) {
+    try (Connection c = write(corrected())) {
       // 1136 Frostmaw: sourceItemId 5838, requiredSourceItems {5810}
       assertThat(sourceItems(c, 1136)).containsExactly("provided:5838", "required:5810");
       assertThat(sourceItems(c, 2)).containsExactly("provided:16305");
@@ -116,12 +107,13 @@ class QuestObjectiveWriterTest {
       assertThat(sourceItems(c, 176)).isEmpty();
       assertThat(scalar(c, "select count(*) from quest_source_item")).isEqualTo(report.get("quest.sourceItems"));
     }
-    assertThat(report.get("quest.sourceItems")).isEqualTo(5); // 2, 1136 (two), 5561, 8485
+    // 2, 1136 (two), 5561, 8485, and 5149 Pamela's Doll: requiredSourceItems {12886, 12887, 12888}
+    assertThat(report.get("quest.sourceItems")).isEqualTo(8);
   }
 
   @Test
   void reputationObjectiveKeepsFactionAndValue() throws Exception {
-    try (Connection c = write(correctedFixture())) {
+    try (Connection c = write(corrected())) {
       // 8485 The Brokering of Peace: objectives {nil,nil,nil,{576,42000}}
       assertThat(objectives(c, 8485)).containsExactly("0:reputation:576:42000:null");
       assertThat(sourceItems(c, 8485)).containsExactly("provided:21155");
@@ -131,7 +123,7 @@ class QuestObjectiveWriterTest {
 
   @Test
   void spellObjectiveKeepsTheSpellButNotItsItem() throws Exception {
-    Map<EntityKind, EntityTable> tables = correctedFixture();
+    Map<EntityKind, EntityTable> tables = corrected();
     // foreverQuestFixes 97979 The Goddess Provides: {nil,nil,nil,nil,nil,{{1259799},{20580}}}, plus an item
     tables.get(EntityKind.QUEST).set(176, "objectives", table(LuaNil.NIL, LuaNil.NIL, LuaNil.NIL, LuaNil.NIL,
         LuaNil.NIL, table(table(LuaNumber.of(1259799)), table(LuaNumber.of(20580), new LuaString("Cast"), LuaNumber.of(77)))));
@@ -145,7 +137,7 @@ class QuestObjectiveWriterTest {
 
   @Test
   void kindCountersCountRows() throws Exception {
-    try (Connection c = write(correctedFixture())) {
+    try (Connection c = write(corrected())) {
       for (String kind : List.of("creature", "object", "item", "reputation", "spell", "explore")) {
         assertThat(report.get("quest.objective.kinds." + kind)).as(kind)
             .isEqualTo(scalar(c, "select count(*) from quest_objective where kind = '" + kind + "'"));
@@ -158,7 +150,7 @@ class QuestObjectiveWriterTest {
 
   @Test
   void unknownKindsAndMalformedEntriesAreCountedNotWritten() throws Exception {
-    Map<EntityKind, EntityTable> tables = correctedFixture();
+    Map<EntityKind, EntityTable> tables = corrected();
     LuaTable objectives = table(table(table(new LuaString("not an id")), table(LuaNumber.of(5))));
     objectives.put(LuaNumber.of(7), table(table(LuaNumber.of(9))));
     objectives.put(new LuaString("x"), table());
@@ -184,7 +176,7 @@ class QuestObjectiveWriterTest {
 
   @Test
   void aCorrectionAddingAnItemObjectiveLandsInQuestObjective() throws Exception {
-    Map<EntityKind, EntityTable> tables = correctedFixture();
+    Map<EntityKind, EntityTable> tables = corrected();
     Path root = tmp.resolve("layer");
     Files.createDirectories(root);
     Files.writeString(root.resolve("fix.lua"), """
@@ -209,40 +201,8 @@ class QuestObjectiveWriterTest {
 
   // ---------------------------------------------------------------------------------------------
 
-  private static Map<EntityKind, EntitySchema> schemas() {
-    Map<EntityKind, EntitySchema> m = new EnumMap<>(EntityKind.class);
-    for (EntityKind k : EntityKind.values()) {
-      m.put(k, MetaLoader.load(
-          Fixtures.questieDbRoot().resolve("src/meta/" + k.metaEntity().toLowerCase(Locale.ROOT) + "Meta.lua")));
-    }
-    return m;
-  }
-
-  private static CorrectionScope.Bound bound() {
-    return CorrectionScope.build(EnumLoader.load(Fixtures.questieDbRoot(), new ProblemCollector()), schemas());
-  }
-
-  /** The fixture entity tables after every Forever correction layer, as {@code ImportPipeline} builds them. */
-  private Map<EntityKind, EntityTable> correctedFixture() {
-    Map<EntityKind, EntitySchema> schemas = schemas();
-    Map<EntityKind, EntityTable> tables = new EnumMap<>(EntityKind.class);
-    for (EntityKind k : EntityKind.values()) {
-      tables.put(k, RawEntityLoader.load(Fixtures.questieDbRoot().resolve("data/Forever/forever" + k.metaEntity()
-          + "DB.lua"), k, schemas.get(k), new ProblemCollector()));
-    }
-    CorrectionScope.Bound bound = CorrectionScope.build(
-        EnumLoader.load(Fixtures.questieDbRoot(), new ProblemCollector()), schemas);
-    CorrectionApplier applier = new CorrectionApplier(new ImportReport());
-    for (CorrectionLayer layer : CorrectionLayers.forever()) {
-      applier.applyLayer(layer, Fixtures.questieDbRoot(), tables, bound, new ProblemCollector());
-    }
-    return tables;
-  }
-
   private Connection write(Map<EntityKind, EntityTable> tables) throws Exception {
-    Path out = tmp.resolve("t.sqlite");
-    SqliteWriter.write(out, new ImportModel(tables, new DropRates(), Map.of(), List.of(), Map.of()), report);
-    return DriverManager.getConnection("jdbc:sqlite:" + out);
+    return QuestFixture.write(tmp, tables, report);
   }
 
   /** {@code ordinal:kind:entity:text:group} in insertion order. */
@@ -259,32 +219,5 @@ class QuestObjectiveWriterTest {
   private static List<String> sourceItems(Connection c, long quest) throws SQLException {
     return column(c, "select kind || ':' || item_id from quest_source_item where quest_id = " + quest
         + " order by kind, item_id");
-  }
-
-  private static List<String> column(Connection c, String sql) throws SQLException {
-    List<String> out = new ArrayList<>();
-    try (ResultSet rs = c.createStatement().executeQuery(sql)) {
-      while (rs.next()) {
-        out.add(rs.getString(1));
-      }
-    }
-    return out;
-  }
-
-  private static long scalar(Connection c, String sql) throws SQLException {
-    try (ResultSet rs = c.createStatement().executeQuery(sql)) {
-      rs.next();
-      return rs.getLong(1);
-    }
-  }
-
-  private static LuaTable table(LuaValue... values) {
-    LuaTable t = new LuaTable();
-    for (int i = 0; i < values.length; i++) {
-      if (!(values[i] instanceof LuaNil)) {
-        t.put(LuaNumber.of(i + 1), values[i]);
-      }
-    }
-    return t;
   }
 }

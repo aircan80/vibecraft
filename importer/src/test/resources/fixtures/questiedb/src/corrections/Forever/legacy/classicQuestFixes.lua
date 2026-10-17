@@ -54,9 +54,23 @@ function QuestieQuestFixes:Load()
         [1136] = { -- Frostmaw
             [questKeys.extraObjectives] = {{nil, Questie.ICON_TYPE_OBJECT, l10n("Use a Fresh Carcass at the Flame of Uzel"), 0, {{"object", 1770}}}},
         },
+        [3644] = { -- Membership Card Renewal
+            [questKeys.preQuestSingle] = {3639, 3641, 3643},
+            [questKeys.requiredSpecialization] = specKeys.ENGINEERING_GOBLIN,
+        },
+        [5142] = { -- Little Pamela
+            [questKeys.breadcrumbForQuestId] = 5149,
+        },
+        [5149] = { -- Pamela's Doll
+            [questKeys.preQuestSingle] = {},
+            [questKeys.breadcrumbs] = {5142, 5601},
+        },
         [5561] = { -- Kodo Roundup
             [questKeys.objectives] = {nil, nil, nil, nil, {{{4700, 4701, 4702}, 4700, nil, Questie.ICON_TYPE_INTERACT}}},
             [questKeys.extraObjectives] = {{{[zoneIDs.DESOLACE] = {{60.58, 62}}}, Questie.ICON_TYPE_EVENT, l10n("Lure the Kodos to Smeed Scrabblescrew.")}},
+        },
+        [5601] = { -- Sister Pamela
+            [questKeys.breadcrumbForQuestId] = 5149,
         },
         [8121] = { -- Take Four Bases
             [questKeys.requiredMinRep] = {510, 3000},

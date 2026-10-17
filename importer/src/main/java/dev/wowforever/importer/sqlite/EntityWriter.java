@@ -3,6 +3,7 @@ package dev.wowforever.importer.sqlite;
 import dev.wowforever.importer.clientdata.ClientItem;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
+import dev.wowforever.importer.questie.QuestSort;
 import dev.wowforever.importer.report.ImportReport;
 import dev.wowforever.lua.LuaValue;
 import java.sql.Connection;
@@ -97,22 +98,36 @@ final class EntityWriter {
     }
   }
 
-  /** Quests, their objective text, their start/end givers and (see {@link QuestObjectiveWriter}) objectives. */
+  /**
+   * Quests, their objective text, their start/end givers, (see {@link QuestObjectiveWriter}) objectives and (see
+   * {@link QuestRelationWriter}) relations. {@code repeatable} is bit 1 of {@code specialFlags}; a negative
+   * {@code zoneOrSort} names a {@link QuestSort} in {@code sort_label} and stays raw in {@code zone_or_sort}.
+   */
   void quests(EntityTable t) throws SQLException {
     try (Batch quests = new Batch(c, "INSERT INTO quest(id, name, required_level, quest_level, zone_or_sort,"
-            + " required_races, required_classes, objectives_text, quest_flags, special_flags)"
-            + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            + " required_races, required_classes, objectives_text, quest_flags, special_flags, repeatable,"
+            + " required_skill_id, required_skill_value, required_min_rep_faction, required_min_rep_value,"
+            + " sort_label) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         Batch givers = new Batch(c, "INSERT INTO quest_giver(quest_id, kind, entity_id, role) VALUES (?, ?, ?, ?)");
-        QuestObjectiveWriter objectives = new QuestObjectiveWriter(c, columns, report)) {
+        QuestObjectiveWriter objectives = new QuestObjectiveWriter(c, columns, report);
+        QuestRelationWriter relations = new QuestRelationWriter(c, columns, report, t.rows().keySet())) {
       for (Map.Entry<Long, LuaValue[]> e : t.rows().entrySet()) {
         RawEntity r = row(t, e.getValue());
         long id = e.getKey();
-        quests.add(id, r.name(), r.scalar("requiredLevel"), r.scalar("questLevel"), r.scalar("zoneOrSort"),
+        Object zoneOrSort = r.scalar("zoneOrSort");
+        Object specialFlags = r.scalar("specialFlags");
+        long[] skill = r.pair("requiredSkill");
+        long[] minRep = r.pair("requiredMinRep");
+        quests.add(id, r.name(), r.scalar("requiredLevel"), r.scalar("questLevel"), zoneOrSort,
             r.scalar("requiredRaces"), r.scalar("requiredClasses"), r.lines("objectivesText"),
-            r.scalar("questFlags"), r.scalar("specialFlags"));
+            r.scalar("questFlags"), specialFlags, specialFlags instanceof Long f ? f & 1 : 0L,
+            skill == null ? null : skill[0], skill == null ? null : skill[1],
+            minRep == null ? null : minRep[0], minRep == null ? null : minRep[1],
+            zoneOrSort instanceof Long z && z < 0 ? QuestSort.label(-z) : null);
         r.givers(id, "startedBy", "start", givers);
         r.givers(id, "finishedBy", "end", givers);
         objectives.write(id, r);
+        relations.write(id, r);
       }
     }
   }

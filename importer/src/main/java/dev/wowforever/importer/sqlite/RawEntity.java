@@ -131,6 +131,23 @@ final class RawEntity {
     return v;
   }
 
+  /**
+   * A {@code {id, value}} pair of integers such as {@code requiredSkill}; null for nil or an empty table, and
+   * (counted {@code badValue.<kind>.<field>}) for any other shape.
+   */
+  long[] pair(String field) {
+    Optional<LuaTable> t = columns.table(kind, field, raw(field));
+    if (t.isEmpty() || t.get().isEmpty()) {
+      return null;
+    }
+    if (t.get().get(1) instanceof LuaNumber id && id.isInteger()
+        && t.get().get(2) instanceof LuaNumber value && value.isInteger()) {
+      return new long[] {id.asLong(), value.asLong()};
+    }
+    columns.bad(kind, field);
+    return null;
+  }
+
   /** A list of strings joined with newlines; null when there are none. */
   String lines(String field) {
     List<String> lines = new ArrayList<>();
