@@ -17,6 +17,12 @@ function ForeverBaseItem:Load()
             [itemKeys.class] = 0,
             [itemKeys.subClass] = 8,
         },
+        [212347] = { -- Illari's Key : https://wowhead.com/forever/item=212347/illaris-key
+            [itemKeys.name] = "Illari's Key",
+            [itemKeys.itemLevel] = 1,
+            [itemKeys.class] = 12,
+            [itemKeys.subClass] = 0,
+        },
     }
 end
 return ForeverBaseItem

@@ -45,7 +45,7 @@ public final class SearchRepository {
         WHERE search_index MATCH ? AND name IS NOT NULL AND name NOT LIKE 'Zone #%%' %s)
       SELECT s.kind, s.id, s.name,
              sole.id AS sole_id, sole.name AS sole_name,
-             ic.name AS class_name, isc.name AS subclass_name, i.item_level, i.required_level,
+             ic.name AS class_name, isc.name AS subclass_name, i.item_level, i.required_level, i.quality,
              n.rank, n.min_level, n.max_level, nz.name AS npc_zone,
              oz.name AS object_zone,
              q.quest_level, qz.name AS quest_zone,
@@ -208,7 +208,7 @@ public final class SearchRepository {
     List<SearchHit> hits = new ArrayList<>();
     for (int i = 0; i < firsts.size() && hits.size() < limit; i++) {
       SearchHit first = firsts.get(i);
-      hits.add(new SearchHit(first.ref(), first.name(), first.subtitle(), counts.get(i)));
+      hits.add(first.withCount(counts.get(i)));
     }
     return hits;
   }
@@ -236,7 +236,8 @@ public final class SearchRepository {
       case BOSS -> "";
     };
     String name = kind.get() == EntityKind.INSTANCE ? instanceTitle(rs, rs.getString("name")) : rs.getString("name");
-    return new SearchHit(new EntityRef(kind.get(), rs.getLong("id")), name, Labels.withKind(kind.get(), facts));
+    return new SearchHit(new EntityRef(kind.get(), rs.getLong("id")), name, Labels.withKind(kind.get(), facts),
+        Sql.integer(rs, "quality"));
   }
 
   /** {@code name} with the instance's wing when another instance has the same name. */

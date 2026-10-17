@@ -252,7 +252,7 @@ class ListPageTest {
     assertThat(table.getRowSorter()).isNotNull();
     int level = columnNames(table).indexOf("Item level");
     table.getRowSorter().setSortKeys(List.of(new RowSorter.SortKey(level, SortOrder.DESCENDING)));
-    assertThat(column(table, level)).startsWith(80, 66, 24);
+    assertThat(column(table, level)).startsWith(80, 66, 65, 60, 24);
     assertThat(column(table, 0)).first().isEqualTo("Thunderfury, Blessed Blade of the Windseeker");
   }
 

@@ -1,5 +1,17 @@
 package dev.wowforever.importer.sqlite;
 
+import dev.wowforever.importer.clientdata.BuildLock;
+import dev.wowforever.importer.clientdata.ClientDataBundle;
+import dev.wowforever.importer.clientdata.ClientItem;
+import dev.wowforever.importer.clientdata.ItemClassNames;
+import dev.wowforever.importer.clientdata.ItemDamage;
+import dev.wowforever.importer.clientdata.ItemSetInfo;
+import dev.wowforever.importer.clientdata.ItemSpellEffect;
+import dev.wowforever.importer.clientdata.ItemStat;
+import dev.wowforever.importer.clientdata.ItemTooltips;
+import dev.wowforever.importer.clientdata.ItemValues;
+import dev.wowforever.importer.clientdata.ZoneMaps;
+import dev.wowforever.importer.clientdata.TooltipLine;
 import dev.wowforever.importer.entity.EntityKind;
 import dev.wowforever.importer.entity.EntityTable;
 import dev.wowforever.importer.report.ImportReport;
@@ -13,10 +25,12 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -67,18 +81,66 @@ public final class SqliteWriter {
 
   /** Writes the model, counting data oddities (nameless rows, unresolved values, unknown ids) into {@code report}. */
   public static void write(Path out, ImportModel model, ImportReport report) throws IOException, SQLException {
+    write(out, model, report, Map.of(), null);
+  }
+
+  /**
+   * Writes the model with client data: {@code clientItems} (by item id, from
+   * {@link dev.wowforever.importer.clientdata.ItemSparseLoader}) are merged into the item rows, and
+   * {@code classNames}, when not null, replace the static {@link ItemClasses} names. An empty map and null names
+   * write exactly what {@link #write(Path, ImportModel, ImportReport)} writes.
+   */
+  public static void write(Path out, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
+      ItemClassNames classNames) throws IOException, SQLException {
+    write(out, model, report, clientItems, classNames, Map.of());
+  }
+
+  /**
+   * Writes the model with client data and the computed {@code values} (from {@link ItemValues#compute}), which fill
+   * {@code item_stat}, {@code item_damage} and {@code item_armor} for the ids that are item rows; an empty map leaves
+   * those tables empty.
+   */
+  public static void write(Path out, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
+      ItemClassNames classNames, Map<Long, ItemValues> values) throws IOException, SQLException {
+    write(out, model, report, clientItems, classNames, values, ItemTooltips.empty());
+  }
+
+  /**
+   * Writes the model with client data, computed values and {@code tooltips} (from {@link ItemTooltips#build}):
+   * {@code item_effect} and {@code item_tooltip_line} for the ids that are item rows, and every given set to
+   * {@code item_set}, {@code item_set_item} and {@code item_set_bonus}.
+   */
+  public static void write(Path out, ImportModel model, ImportReport report, Map<Long, ClientItem> clientItems,
+      ItemClassNames classNames, Map<Long, ItemValues> values, ItemTooltips tooltips)
+      throws IOException, SQLException {
+    write(out, model, report, new ClientDataBundle(clientItems, classNames, values, tooltips, Map.of(),
+        ZoneMaps.EMPTY, null));
+  }
+
+  /**
+   * Writes the model with everything the client-data stages produced, see {@link ClientDataBundle}. Icons and
+   * zone maps fill {@code icon} and {@code zone_map} and set {@code zone.ui_map_id}; with a build lock the
+   * {@code client_*} meta keys are written too.
+   */
+  public static void write(Path out, ImportModel model, ImportReport report, ClientDataBundle client)
+      throws IOException, SQLException {
     Path file = out.toAbsolutePath();
     Files.deleteIfExists(file);
     Files.createDirectories(file.getParent());
     try {
-      writeFile(file, model, report);
+      writeFile(file, model, report, client);
     } catch (SQLException | RuntimeException e) {
       Files.deleteIfExists(file);
       throw e;
     }
   }
 
-  private static void writeFile(Path file, ImportModel model, ImportReport report) throws SQLException {
+  private static void writeFile(Path file, ImportModel model, ImportReport report, ClientDataBundle client)
+      throws SQLException {
+    Map<Long, ClientItem> clientItems = client.clientItems();
+    ItemClassNames classNames = client.classNames();
+    Map<Long, ItemValues> values = client.values();
+    ItemTooltips tooltips = client.tooltips();
     String schema = schemaSql();
     Matcher m = INDEX_MARKER.matcher(schema);
     if (!m.find()) {
@@ -91,20 +153,27 @@ public final class SqliteWriter {
       c.setAutoCommit(false);
 
       writeMeta(c, model.meta());
-      writeItemClasses(c);
+      writeItemClasses(c, classNames);
       LuaColumns columns = new LuaColumns(report);
       EntityWriter entities = new EntityWriter(c, columns, report);
       NpcDrops drops = new NpcDrops();
+      DropProvenance provenance = new DropProvenance(model.dropRates());
       Map<Long, Long> spawnZones = new HashMap<>();
-      entities.items(table(model, EntityKind.ITEM), drops);
+      entities.items(table(model, EntityKind.ITEM), drops, clientItems);
       entities.npcs(table(model, EntityKind.NPC), spawnZones);
       entities.objects(table(model, EntityKind.OBJECT), spawnZones);
       entities.quests(table(model, EntityKind.QUEST));
       EntityTable items = table(model, EntityKind.ITEM);
+      writeItemValues(c, values, items);
+      writeTooltips(c, tooltips, items);
       new AtlasWriter(c, report).write(model.instances(), model.zones()::containsKey, items::contains,
-          model.dropRates(), drops);
-      drops.write(c, model.dropRates());
-      writeZones(c, model.zones(), spawnZones, report);
+          model.dropRates(), drops, provenance);
+      drops.write(c, model.dropRates(), provenance);
+      provenance.write(c, report);
+      writeZones(c, model.zones(), spawnZones, client.zoneMaps().zoneToMap(), report);
+      writeIcons(c, client.icons());
+      writeZoneMaps(c, client.zoneMaps());
+      writeClientMeta(c, client);
 
       execute(c, List.of(SEARCH_INDEX));
       execute(c, statements(schema.substring(marker)));
@@ -112,6 +181,47 @@ public final class SqliteWriter {
       c.setAutoCommit(true);
       execute(c, List.of("ANALYZE", "VACUUM"));
     }
+  }
+
+  private static void writeIcons(Connection c, Map<Long, byte[]> icons) throws SQLException {
+    try (Batch rows = new Batch(c, "INSERT INTO icon(id, png) VALUES (?, ?)")) {
+      for (Map.Entry<Long, byte[]> e : new TreeMap<>(icons).entrySet()) {
+        rows.add(e.getKey(), e.getValue());
+      }
+    }
+  }
+
+  private static void writeZoneMaps(Connection c, ZoneMaps maps) throws SQLException {
+    try (Batch rows = new Batch(c, "INSERT INTO zone_map(ui_map_id, width, height, jpeg) VALUES (?, ?, ?, ?)")) {
+      for (Map.Entry<Long, ZoneMaps.MapImage> e : new TreeMap<>(maps.maps()).entrySet()) {
+        rows.add(e.getKey(), e.getValue().w(), e.getValue().h(), e.getValue().jpeg());
+      }
+    }
+  }
+
+  /** The client build the data came from and what was embedded; nothing without a build lock. */
+  private static void writeClientMeta(Connection c, ClientDataBundle client) throws SQLException {
+    BuildLock lock = client.lock();
+    if (lock == null) {
+      return;
+    }
+    Map<String, String> meta = new LinkedHashMap<>();
+    meta.put("client_product", lock.product());
+    meta.put("client_build", lock.build());
+    meta.put("client_fetched_at", lock.fetchedAt());
+    if (lock.fallbackProduct() != null) {
+      meta.put("client_fallback_product", lock.fallbackProduct());
+    }
+    if (lock.fallbackBuild() != null) {
+      meta.put("client_fallback_build", lock.fallbackBuild());
+    }
+    try (Statement s = c.createStatement();
+        ResultSet rs = s.executeQuery("SELECT COUNT(*) FROM item WHERE has_client_data = 1")) {
+      meta.put("client_item_count", String.valueOf(rs.next() ? rs.getLong(1) : 0));
+    }
+    meta.put("icon_count", String.valueOf(client.icons().size()));
+    meta.put("zone_map_count", String.valueOf(client.zoneMaps().maps().size()));
+    writeMeta(c, meta);
   }
 
   private static EntityTable table(ImportModel model, EntityKind kind) {
@@ -127,13 +237,80 @@ public final class SqliteWriter {
     }
   }
 
-  private static void writeItemClasses(Connection c) throws SQLException {
+  /** {@code item_stat} (ordinal = tooltip order), {@code item_damage} and {@code item_armor} for the item rows. */
+  private static void writeItemValues(Connection c, Map<Long, ItemValues> values, EntityTable items)
+      throws SQLException {
+    try (Batch stats = new Batch(c, "INSERT INTO item_stat(item_id, ordinal, stat_id, value) VALUES (?, ?, ?, ?)");
+        Batch damage = new Batch(c,
+            "INSERT INTO item_damage(item_id, min, max, school, delay_ms, dps) VALUES (?, ?, ?, ?, ?, ?)");
+        Batch armor = new Batch(c, "INSERT INTO item_armor(item_id, armor, block) VALUES (?, ?, ?)")) {
+      for (Map.Entry<Long, ItemValues> e : new TreeMap<>(values).entrySet()) {
+        long id = e.getKey();
+        if (!items.contains(id)) {
+          continue;
+        }
+        ItemValues v = e.getValue();
+        int ordinal = 0;
+        for (ItemStat s : v.stats()) {
+          stats.add(id, ordinal++, s.statId(), s.value());
+        }
+        if (v.damage() != null) {
+          ItemDamage d = v.damage();
+          damage.add(id, d.min(), d.max(), d.school(), d.delayMs() > 0 ? d.delayMs() : null, d.dps());
+        }
+        if (v.armor() != null) {
+          armor.add(id, v.armor().armor(), v.armor().block());
+        }
+      }
+    }
+  }
+
+  /** {@code item_effect} and {@code item_tooltip_line} for the item rows; every set with its pieces and bonuses. */
+  private static void writeTooltips(Connection c, ItemTooltips tooltips, EntityTable items) throws SQLException {
+    try (Batch effects = new Batch(c,
+            "INSERT INTO item_effect(item_id, ordinal, trigger, spell_id, text) VALUES (?, ?, ?, ?, ?)");
+        Batch sets = new Batch(c, "INSERT INTO item_set(id, name) VALUES (?, ?)");
+        Batch pieces = new Batch(c, "INSERT INTO item_set_item(set_id, item_id) VALUES (?, ?)");
+        Batch bonuses = new Batch(c,
+            "INSERT INTO item_set_bonus(set_id, threshold, spell_id, text) VALUES (?, ?, ?, ?)");
+        Batch lines = new Batch(c,
+            "INSERT INTO item_tooltip_line(item_id, ordinal, kind, text, colour) VALUES (?, ?, ?, ?, ?)")) {
+      for (Map.Entry<Long, List<ItemSpellEffect>> e : tooltips.effects().entrySet()) {
+        if (items.contains(e.getKey())) {
+          for (ItemSpellEffect x : e.getValue()) {
+            effects.add(e.getKey(), x.ordinal(), x.trigger(), x.spellId(), x.text());
+          }
+        }
+      }
+      for (ItemSetInfo s : tooltips.sets().values()) {
+        sets.add(s.id(), s.name());
+        for (long piece : s.itemIds()) {
+          pieces.add(s.id(), piece);
+        }
+        for (ItemSetInfo.Bonus b : s.bonuses()) {
+          bonuses.add(s.id(), b.threshold(), b.spellId(), b.text());
+        }
+      }
+      for (Map.Entry<Long, List<TooltipLine>> e : tooltips.lines().entrySet()) {
+        if (items.contains(e.getKey())) {
+          for (TooltipLine l : e.getValue()) {
+            lines.add(e.getKey(), l.ordinal(), l.kind(), l.text(), l.colour());
+          }
+        }
+      }
+    }
+  }
+
+  /** The client's class names when given, else the static cmangos table. */
+  private static void writeItemClasses(Connection c, ItemClassNames names) throws SQLException {
+    Map<Integer, String> classNames = names != null ? names.classes() : ItemClasses.classes();
+    Map<Integer, Map<Integer, String>> subclassNames = names != null ? names.subclasses() : ItemClasses.subclasses();
     try (Batch classes = new Batch(c, "INSERT INTO item_class(id, name) VALUES (?, ?)");
         Batch subclasses = new Batch(c, "INSERT INTO item_subclass(class_id, id, name) VALUES (?, ?, ?)")) {
-      for (Map.Entry<Integer, String> e : ItemClasses.classes().entrySet()) {
+      for (Map.Entry<Integer, String> e : classNames.entrySet()) {
         classes.add(e.getKey(), e.getValue());
       }
-      for (Map.Entry<Integer, Map<Integer, String>> cls : ItemClasses.subclasses().entrySet()) {
+      for (Map.Entry<Integer, Map<Integer, String>> cls : subclassNames.entrySet()) {
         for (Map.Entry<Integer, String> sub : cls.getValue().entrySet()) {
           subclasses.add(cls.getKey(), sub.getKey(), sub.getValue());
         }
@@ -145,19 +322,20 @@ public final class SqliteWriter {
    * The model's zones plus a {@code Zone #id} placeholder (kind {@code unknown}) for every zone id that
    * only spawns reference, so no spawn row is dropped and every spawn zone resolves.
    */
-  private static void writeZones(Connection c, Map<Long, Zone> zones, Map<Long, Long> spawnZones, ImportReport report)
+  private static void writeZones(Connection c, Map<Long, Zone> zones, Map<Long, Long> spawnZones,
+      Map<Long, Long> zoneMaps, ImportReport report)
       throws SQLException {
     Map<Long, Long> unknown = new TreeMap<>(spawnZones.entrySet().stream()
         .filter(e -> !zones.containsKey(e.getKey()))
         .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
     report.count("spawn.unknownZone", unknown.values().stream().mapToLong(Long::longValue).sum());
     report.count("zone.placeholders", unknown.size());
-    try (Batch rows = new Batch(c, "INSERT INTO zone(id, name, parent_id, kind) VALUES (?, ?, ?, ?)")) {
+    try (Batch rows = new Batch(c, "INSERT INTO zone(id, name, parent_id, kind, ui_map_id) VALUES (?, ?, ?, ?, ?)")) {
       for (Zone z : zones.values()) {
-        rows.add(z.id(), z.name(), z.parentId(), z.kind());
+        rows.add(z.id(), z.name(), z.parentId(), z.kind(), zoneMaps.get(z.id()));
       }
       for (long id : unknown.keySet()) {
-        rows.add(id, "Zone #" + id, null, "unknown");
+        rows.add(id, "Zone #" + id, null, "unknown", zoneMaps.get(id));
       }
     }
   }

@@ -141,4 +141,14 @@ class SearchRepositoryTest {
     }
     assertThat(repos.search().countsByKind(null)).isEmpty();
   }
+
+  @Test
+  void itemHitsCarryQualityOtherHitsDoNot() {
+    assertThat(repos.search().search("Eye of Sulfuras", Optional.of(ITEM), 1)).singleElement()
+        .satisfies(h -> assertThat(h.quality()).isEqualTo(5));
+    assertThat(repos.search().search("Smelling Salts", Optional.of(ITEM), 1)).singleElement()
+        .satisfies(h -> assertThat(h.quality()).isNull());
+    assertThat(repos.search().search("hogger", Optional.of(NPC), 1)).singleElement()
+        .satisfies(h -> assertThat(h.quality()).isNull());
+  }
 }

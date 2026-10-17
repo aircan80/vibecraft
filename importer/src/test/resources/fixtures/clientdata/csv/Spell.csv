@@ -1,0 +1,85 @@
+ID,NameSubtext_lang,Description_lang,AuraDescription_lang
+430,,"Restores ${($s1/5)*$d} mana over $d.  Must remain seated while drinking.","Restores $/5;s1 mana per second."
+433,,"Restores $o1 health over $d.  Must remain seated while eating.","Restores $/5;s1 health per second."
+439,,"Restores $s1 health.",
+1139,,"Increases time between target's attacks by $s2% and reduces their movement speed by $s1% for $d.","Attack speed slowed by $s2%.
+Movement speed slowed by $s1%."
+4975,,"Invokes Winterhoof spirits of cleansing.",
+5024,,"Increase your run speed by $s1% for $d, but deals $s2 damage and drains $s3 mana every 2 seconds.","Increased run speed but periodic health and mana loss."
+7597,,"Improves your chance to get a critical strike with melee attacks by ${$s1}.1%.",
+7617,,"When struck in combat has a $h% chance of inflicting $16783s1 Shadow damage to the attacker.",
+8690,,"Returns you to $z.  Speak to an Innkeeper in a different place to change your home location.",
+9159,,"Puts the enemy target to sleep for up to $d.  Any damage caused will awaken the target.  ",Sleeping.
+9160,,"When struck by a melee attacker, that attacker has a 5% chance of being put to sleep for $9159d.  Only affects enemies level 50 and below.",
+9342,,"Increases damage and healing done by magical spells and effects by up to $s1.",
+9796,,"Diseases a target for $s1 Nature damage and an additional $o2 damage over $d.","Diseased.  $s2 nature damage every $t2 seconds."
+12022,,"Gives $M1 additional stamina to party members within $a1 yards.","Stamina increased by $s1."
+3366,,,
+13439,,"Launches a bolt of frost at the enemy causing $s2 Frost damage and slowing movement speed by $s1% for $d.","Movement slowed by $s1%."
+14134,,"Purifies the friendly target, removing $m1 disease $leffect:effects; and $m2 poison $leffect:effects;.",
+15464,,"Improves your chance to hit by ${$s1}.1%.",
+15279,,"A crystal shield surrounds the friendly target, doing $s1 damage to anyone who hits $ghim:her;.  Lasts $d.","Causes $s1 nature damage to attackers."
+16939,,"Chance on hit to grant nearby party members $s1% increased critical strike chance.","Critical strike chance increased by $w1%."
+17538,,"Increases Agility by $s1 and chance to get a critical hit by $s2%. Lasts for $d.","Agility increased by $w1 and critical hit chance increases by $w2%."
+17559,,"Transmutes Essence of Air into Essence of Fire.",
+17626,,"Increases the player's maximum health by $s1 for $d. You can only have the effect of one flask at a time. This effect persists through death.","Health increased by $s1."
+17746,,"Increases your effective stealth level by ${$s1/5}.",
+17768,,"You gain an additional ${$m1/10} Rage from activating Enrage and an additional $m2 Energy from activating Shifting Power.",
+18364,,"Deals $18374s1 Fire damage every $t1 sec to all nearby enemies for $d.","Deals $18374s1 Fire damage every $t1 sec."
+18382,,"Improves your chance to get a critical strike with spells by ${$s1}.1%.",
+18388,,"Reduces the cooldown of your Fade ability by $/1000;s1 sec.",
+18956,,"Restores $s1 health every $t1 sec for $d.",Healing.
+21160,,"The Eye of Sulfuras can be combined with the Sulfuron Hammer to create Sulfuras, legendary hammer of Ragnaros.",
+21740,,,"Pet's stamina and spell resistances increased."
+21741,,"Your pet gains $21740s1 stamina and $21740s2 spell resistance against all schools of magic.",
+21991,"Rank 1","When struck in combat inflicts $s1 Nature damage to the attacker.","Lightning Shield"
+21992,,"Blasts your enemy with lightning, dealing $s2 Nature damage and then jumping to additional nearby enemies.  Each jump reduces that victim's Nature resistance by $s1. Affects $x1 targets. Your primary target is also consumed by a cyclone, slowing its attack speed by $27648s1% for $d.","Nature resistance reduced by $s1."
+23553,,"Mana cost of Shadow spells reduced by $s1%.",
+23554,,"Health or Mana gained from Drain Life and Drain Mana increased by $s1%.",
+23727,,"Improves your chance to hit with spells by ${$s1}.1%.",
+25695,,,"Restores $/5;s1 health per second."
+25696,,,"Restores $/5;s2 mana per second."
+27648,,,"Increases time between attacks by $s1%."
+430952,,"Improves your chance to get a critical strike with spells by ${$s1}.1%.","Improves your chance to get a critical strike with spells by $s1%."
+435481,,"Permanently enchant a Weapon to cause all spells and attacks to sometimes deal $439164s1 additional damage to mechanical creatures.",
+440212,,"Inflicts $?$pl>=25[$s1][${42+($pl-16)*8} to ${57+($pl-16)*8}] Frost damage in a $a1 yard radius.",
+1226814,,"Restores $25695o1 health and $25696o2 mana over $25695d. $?s446847[Tastes even better inside of Naxxramas, restoring $1226808o1% health and $1226808o2% mana over $1226808d instead.][] Must remain seated while eating.","Restores $/5;s1 health and $/5;s2 mana per second."
+1247426,,"$@spelldesc1308117|cnIQ1:
+- $M3 Peacebloom
+- $M4 Silverleaf
+- $M5 Earthroot
+- $M6 Mageroyal
+- $M7 Briarthorn|r",
+1293670,,"Taking damage while at or below $s1% health grants you a shield, absorbing $1293733s2 damage for $1293733d. This effect can only trigger once every ${$proccooldown/60} min.",
+1293673,,,"Melee attacks deal $1293675s1 Holy damage to enemies. Deals $1293674s1 times as much damage to Undead."
+1293674,,"Taking damage has a $h% chance to grant Enraging Light for $1293673d, causing your melee attacks to deal $1293675s1 Holy damage. Deals $s1 times as much damage to Undead.",
+1293675,,"Deal $s1 Holy damage.",
+1308117,,"Fill the crate with any bundle from the following list:",
+1314143,,$@spelldesc16939,
+2023,,"Restores $s1 mana.",
+9141,,"+$s1 Attack Power.",
+9346,,"Increases damage and healing done by magical spells and effects by up to $s1.",
+9415,,"Increases damage and healing done by magical spells and effects by up to $s1.",
+9416,,"Increases damage and healing done by magical spells and effects by up to $s1.",
+13385,,"Increased Defense +$s1.",
+13676,,"Increases your chance to block attacks with a shield by $s1%.",
+14673,,"+$s1 Shadow Resistance.",
+14798,,"Increases damage and healing done by magical spells and effects by up to $s1.",
+14799,,"Increases damage and healing done by magical spells and effects by up to $s1.",
+16403,,"Wounds the target causing them to bleed for $o1 damage over $d.","Bleeding for $s1 damage every $t1 sec."
+16783,,"Sends a shadowy bolt at the enemy causing $s1 Shadow damage.",
+17534,,"Restores $s1 health.",
+18074,,"+$s1 Attack Power against Undead.",
+18112,,"Blasts a target for $s1 Fire damage.",
+18374,,,
+18381,,"Reduces target enemy's attack power by $s1 for $d.","Attack power lowered by $s1."
+18384,,"Improves your chance to get a critical strike with spells by ${$s1}.1%.",
+402265,,,
+432639,,"Improves your chance to hit by ${$s1}.1%.",
+435467,,,
+439164,,,
+442206,,,
+446847,,,
+1226808,,"Restores $s1% of your health and mana per second for $d.  Must remain seated while eating.","Restores $s1% of your health and mana per second."
+1293654,,"Silences an enemy, preventing it from casting spells for $d.","Cannot cast spells."
+1293733,,,"Absorbs $w1 damage."

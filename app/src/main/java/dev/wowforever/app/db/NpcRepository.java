@@ -41,12 +41,13 @@ public final class NpcRepository {
         return head;
       }
       NpcDetail h = head.get();
-      List<LootRow> drops = Sql.list(c, "SELECT d.item_id, " + ITEM_COLUMNS + ", d.drop_pct, d.origin"
+      List<LootRow> drops = Sql.list(c, "SELECT d.item_id, " + ITEM_COLUMNS
+          + ", d.drop_pct, d.origin, d.disagrees, d.source_count"
           + " FROM item_npc_drop d " + itemJoin("d") + """
 
           WHERE d.npc_id = ?
           ORDER BY d.drop_pct IS NULL, d.drop_pct DESC, i.name IS NULL, i.name COLLATE NOCASE, d.item_id""",
-          rs -> loot(rs, Sql.doubleValue(rs, "drop_pct"), rs.getString("origin"), null),
+          rs -> ratedLoot(rs, rs.getString("origin"), null),
           id);
       List<LootRow> sells = Sql.list(c, "SELECT v.item_id, " + ITEM_COLUMNS
           + " FROM item_vendor v " + itemJoin("v") + """
@@ -113,6 +114,16 @@ public final class NpcRepository {
     return new LootRow(new EntityRef(EntityKind.ITEM, rs.getLong("item_id")), rs.getString("name"),
         Sql.integer(rs, "item_level"), dropPct, origin, slot, Sql.integer(rs, "class_id"),
         rs.getString("class_name"), Sql.integer(rs, "subclass_id"));
+  }
+
+  /**
+   * A drop row of {@code item_id}, the {@link #ITEM_COLUMNS}, {@code drop_pct} and the rate provenance columns
+   * {@code disagrees} and {@code source_count}, with the given origin and slot.
+   */
+  static LootRow ratedLoot(ResultSet rs, String origin, Integer slot) throws SQLException {
+    LootRow row = loot(rs, Sql.doubleValue(rs, "drop_pct"), origin, slot);
+    return new LootRow(row.item(), row.itemName(), row.itemLevel(), row.dropPct(), row.origin(), row.slot(),
+        row.classId(), row.className(), row.subclassId(), rs.getInt("disagrees") != 0, rs.getInt("source_count"));
   }
 
   /** The spawn points of an NPC or object from {@code table} (npc_spawn or object_spawn), in import order. */

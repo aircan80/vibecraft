@@ -329,3 +329,13 @@ branch from `main`, merged when its final review is clean.
    difficulty control only if the data has > 1 value.]
 2. Which ~25 items should the known-items fixture use? [Builder picks a spread; owner can
    replace with favourites.]
+
+### Ruling 17 (2026-10-16, after measuring coverage)
+The Forever beta's `ItemSparse` covers only ~74 % of the named items (phase-gated content such as
+Tier 1 has `Item` rows but no `ItemSparse` row); the newest Classic Era build covers most of the
+rest (union ≈ 96 %). The pipeline therefore fetches the Era build's `ItemSparse` as a fallback
+(`fetch.py --fallback-product wow_classic_era`), uses it only for items absent from Forever's
+table, and records provenance in `item.client_source` (`forever` | `era` | NULL). Forever's
+`Item`, scaling, spell, set and map tables remain the only source for everything else. The
+≥ 85 % coverage gate stands. Era-sourced stats may differ from Forever's final values; the UI
+may show a muted "stats from Classic Era data" note on such items (2B).

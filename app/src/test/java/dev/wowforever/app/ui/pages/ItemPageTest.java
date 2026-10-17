@@ -10,6 +10,7 @@ import static dev.wowforever.app.ui.pages.Tables.boundsIn;
 import static dev.wowforever.app.ui.pages.Tables.layOut;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.FlatLaf;
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.DropSource;
@@ -22,6 +23,7 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.DropRow;
 import dev.wowforever.app.ui.LinkRenderer;
 import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
@@ -34,6 +36,7 @@ import java.awt.event.KeyEvent;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import org.junit.jupiter.api.Test;
@@ -125,7 +128,8 @@ class ItemPageTest {
     assertThat(t.getColumnName(3)).isEqualTo("Rate");
     assertThat(t.getValueAt(0, 0)).isEqualTo("Edwin VanCleef");
     assertThat(t.getCellRenderer(0, 3)).isNotNull();
-    assertThat(rendered(t, 0, 3)).isEqualTo("60.00 %");
+    assertThat(t.getValueAt(0, 3)).isEqualTo(60.0);
+    assertThat(rendered(t, 0, 3)).as("its four rate sources disagree").isEqualTo("60.00 % ≠");
     assertThat(column(t, 0)).noneMatch(v -> String.valueOf(v).startsWith("Rate unknown"));
   }
 
@@ -292,5 +296,19 @@ class ItemPageTest {
     assertThat(q.header().subtitle()).isEqualTo("Item #2874 · Quest · Starts quest: The Unsent Letter");
     q.header().links().get(0).doClick();
     assertThat(opened).containsExactly(new ViewTarget.Entity(quest));
+  }
+
+  @Test
+  void theNameIsInTheItemsQualityColour() {
+    var p = new ItemPage(repos.items().detail(17204).get(), t -> {});
+    assertThat(p.header().title()).isEqualTo("Eye of Sulfuras");
+    assertThat(p.header().titleColor()).isEqualTo(QualityColors.text(5, FlatLaf.isLafDark()));
+  }
+
+  @Test
+  void anItemWithoutClientDataHasAPlainName() {
+    var p = new ItemPage(repos.items().detail(1176).get(), t -> {});
+    assertThat(p.header().title()).isEqualTo("Smelling Salts");
+    assertThat(p.header().titleColor()).isEqualTo(new JLabel().getForeground());
   }
 }

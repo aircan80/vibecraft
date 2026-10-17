@@ -6,3 +6,6 @@ target/
 importer/import-report.txt
 .superpowers/
 packaging/dist/
+tools/clientdata/.venv/
+tools/clientdata/.pytest_cache/
+tools/clientdata/**/__pycache__/

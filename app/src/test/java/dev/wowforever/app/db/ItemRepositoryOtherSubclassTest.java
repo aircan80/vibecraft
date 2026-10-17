@@ -23,8 +23,8 @@ class ItemRepositoryOtherSubclassTest {
     Path copy = dir.resolve("copy.sqlite");
     Files.copy(FixtureDb.path(), copy);
     try (Connection c = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement s = c.createStatement()) {
-      // Weapon (2) has no subclass 9 in the static table
-      s.executeUpdate("INSERT INTO item (id, name, class_id, subclass_id) VALUES (990001, 'Odd Blade', 2, 9)");
+      // Weapon (2) has no subclass 99 in the subclass table (the client table ends at 20, Fishing Pole)
+      s.executeUpdate("INSERT INTO item (id, name, class_id, subclass_id) VALUES (990001, 'Odd Blade', 2, 99)");
       s.executeUpdate("INSERT INTO item (id, name, class_id, subclass_id) VALUES (990002, 'Plain Blade', 2, NULL)");
     }
     try (Database db = Database.open(copy)) {

@@ -1,18 +1,28 @@
 package dev.wowforever.app.ui.detail;
 
+import static dev.wowforever.app.model.EntityKind.INSTANCE;
 import static dev.wowforever.app.model.EntityKind.ITEM;
 import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLaf;
+import com.formdev.flatlaf.FlatLightLaf;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.InstanceLoot;
+import dev.wowforever.app.model.ItemSummary;
 import dev.wowforever.app.model.LootRow;
+import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.DropRow;
 import dev.wowforever.app.ui.LinkRenderer;
+import dev.wowforever.app.ui.LootListRow;
+import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.widgets.Keys;
+import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import java.awt.Component;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
@@ -20,14 +30,17 @@ import java.awt.event.MouseEvent;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JComponent;
+import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
+import javax.swing.LookAndFeel;
 import javax.swing.RowSorter;
 import javax.swing.SortOrder;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import org.junit.jupiter.api.Test;
@@ -273,5 +286,83 @@ class LinkTableTest {
         .isEqualTo("<html>Item level 21 · Slot 7<br>Sword of &lt;Testing&gt;</html>");
     t.setCompact(false);
     assertThat(t.table().getToolTipText(over)).isEqualTo("Sword of <Testing>");
+  }
+
+  @Test
+  void disagreeingRatesAreMarkedInEveryDropTable() {
+    var drops = new LinkTable<>(Columns.dropSourcesRanked(), v -> {});
+    drops.setRows(List.of(new DropRow.Source(new DropSource(new EntityRef(NPC, 639), "Edwin VanCleef", 19, 19,
+        "The Deadmines", 1581L, 60.0, "questie-correction", "both", true, 4)), dropSource(2, "B", 5.0)));
+    assertThat(drops.table().getValueAt(0, 3)).as("the rate stays a number").isEqualTo(60.0);
+    assertThat(rateText(drops, 0, 3)).isEqualTo("60.00 % ≠");
+    assertThat(rateText(drops, 1, 3)).isEqualTo("5.00 %");
+
+    LootRow letter = new LootRow(new EntityRef(ITEM, 2874), "An Unsent Letter", 16, 60.0, "both", 5, true, 4);
+    var loot = new LinkTable<>(Columns.lootRows(), v -> {});
+    loot.setRows(List.of(letter));
+    assertThat(loot.table().getValueAt(0, 2)).isEqualTo("60.00 % ≠");
+    var rated = new LinkTable<>(Columns.lootRated(), v -> {});
+    rated.setRows(List.of(letter, loot(2, 5.0)));
+    assertThat(rateText(rated, 0, 2)).isEqualTo("60.00 % ≠");
+    assertThat(rateText(rated, 1, 2)).isEqualTo("5.00 %");
+    var lists = new LinkTable<>(Columns.lootLists(), v -> {});
+    lists.setRows(LootListRow.of(List.of(new InstanceLoot(new EntityRef(INSTANCE, 4), "The Deadmines", 10,
+        "Edwin VanCleef", 639L, 5, 60.0, true, 4))));
+    assertThat(rateText(lists, 0, 2)).isEqualTo("60.00 % ≠");
+  }
+
+  /** The text a {@link RateBarRenderer} on column {@code col} shows in the cell. */
+  private static String rateText(LinkTable<?> t, int row, int col) {
+    JTable table = t.table();
+    RateBarRenderer.install(table.getColumnModel().getColumn(col));
+    return ((JLabel) table.prepareRenderer(table.getCellRenderer(row, col), row, col)).getText();
+  }
+
+  @Test
+  void markedRatesStillSortByTheirNumber() {
+    assertThat(Columns.NUMERIC_TEXT.compare("60.00 % ≠", "5.00 %")).isPositive();
+    assertThat(Columns.NUMERIC_TEXT.compare("5.00 % ≠", "60.00 %")).isNegative();
+  }
+
+  @Test
+  void itemNamesAreColouredByQuality() {
+    var t = new LinkTable<>(Columns.items(), v -> {});
+    t.setRows(List.of(new ItemSummary(17204, "Eye of Sulfuras", 60, null, "Quest", "Quest", 0, 5, 134124L),
+        new ItemSummary(1176, "Smelling Salts", null, null, null, null, 0)));
+    JTable table = t.table();
+    assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
+        .isEqualTo(QualityColors.text(5, FlatLaf.isLafDark()));
+    assertThat(table.prepareRenderer(table.getCellRenderer(1, 0), 1, 0).getForeground())
+        .as("no quality: plain link colour").isEqualTo(LinkRenderer.linkColor());
+  }
+
+  @Test
+  void qualityColourFollowsTheInstalledTheme() throws Exception {
+    LookAndFeel saved = UIManager.getLookAndFeel();
+    try {
+      var t = new LinkTable<>(Columns.items(), v -> {});
+      t.setRows(List.of(new ItemSummary(17204, "Eye of Sulfuras", 60, null, "Quest", "Quest", 0, 5, 134124L)));
+      JTable table = t.table();
+      UIManager.setLookAndFeel(new FlatDarkLaf());
+      assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
+          .isEqualTo(QualityColors.text(5, true));
+      UIManager.setLookAndFeel(new FlatLightLaf());
+      assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
+          .isEqualTo(QualityColors.text(5, false));
+    } finally {
+      UIManager.setLookAndFeel(saved);
+    }
+  }
+
+  @Test
+  void itemSearchHitsAreColouredByQuality() {
+    var t = new LinkTable<>(Columns.searchHits(), v -> {});
+    t.setRows(List.of(new SearchHit(new EntityRef(ITEM, 19682), "Bloodvine Vest", "Item", 1, 3),
+        new SearchHit(new EntityRef(NPC, 448), "Hogger", "NPC")));
+    JTable table = t.table();
+    assertThat(table.prepareRenderer(table.getCellRenderer(0, 0), 0, 0).getForeground())
+        .isEqualTo(QualityColors.text(3, FlatLaf.isLafDark()));
+    assertThat(table.prepareRenderer(table.getCellRenderer(1, 0), 1, 0).getForeground())
+        .isEqualTo(LinkRenderer.linkColor());
   }
 }

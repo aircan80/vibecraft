@@ -2,8 +2,14 @@ package dev.wowforever.app.ui.theme;
 
 import java.awt.Color;
 
-/** Item quality (0 poor to 7 heirloom) text colours and drop-rate band colours. */
+/**
+ * Item quality colours (0 poor, 1 common, 2 uncommon, 3 rare, 4 epic, 5 legendary, 6 artifact, 7 heirloom) and
+ * drop-rate band colours, as the UI review's quality table gives them: a text variant readable on the dark theme
+ * and one readable on the light theme for tables and titles, and the canonical in-game colour for icon borders and
+ * the tooltip card. Qualities outside 0–7 are shown as common.
+ */
 public final class QualityColors {
+  private static final int COMMON = 1;
   private static final Color[] DARK = {
     c(0x9D9D9D), c(0xE4E1D8), c(0x3FE23A), c(0x4A9EFF),
     c(0xB861FF), c(0xFF9A33), c(0xE6CC80), c(0x00CCFF)
@@ -24,12 +30,12 @@ public final class QualityColors {
 
   private QualityColors() {}
 
-  /** Readable text colour for the quality on the dark or light theme. */
+  /** The text colour of {@code quality} on the dark ({@code dark}) or light theme. */
   public static Color text(int quality, boolean dark) {
     return (dark ? DARK : LIGHT)[clamp(quality)];
   }
 
-  /** The in-game colour. */
+  /** The in-game colour of {@code quality}, for icon borders and the tooltip card (either theme). */
   public static Color canonical(int quality) {
     return CANONICAL[clamp(quality)];
   }
@@ -42,8 +48,8 @@ public final class QualityColors {
     return RED;
   }
 
-  private static int clamp(int q) {
-    return Math.max(0, Math.min(7, q));
+  private static int clamp(int quality) {
+    return quality >= 0 && quality < DARK.length ? quality : COMMON;
   }
 
   private static Color c(int rgb) {

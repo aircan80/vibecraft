@@ -35,6 +35,16 @@ public final class ResultsTableModel<T> extends AbstractTableModel {
     return columns.get(col).refFor(rows.get(row));
   }
 
+  /** The item quality the cell is coloured by; null for the usual colour. */
+  public Integer qualityAt(int row, int col) {
+    return columns.get(col).qualityFor(rows.get(row));
+  }
+
+  /** Whether the cell's drop rate has sources that disagree; false outside rate columns. */
+  public boolean disagreesAt(int row, int col) {
+    return columns.get(col).disagreesFor(rows.get(row));
+  }
+
   /** The model index of the first link column, or -1 when there is none. */
   public int firstLinkColumn() {
     for (int c = 0; c < columns.size(); c++) {

@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.widgets;
 
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.ui.Columns;
+import dev.wowforever.app.ui.ResultsTableModel;
 import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.Color;
@@ -18,7 +19,8 @@ import javax.swing.table.TableColumn;
  * Renders a drop rate (a {@link Number}, in percent) as its number, right-aligned ({@code "60.00 %"}), followed
  * by a {@value #BAR_WIDTH} × {@value #BAR_HEIGHT} px bar filled in proportion and coloured by
  * {@link QualityColors#rateBand}. An unknown (null) rate prints a muted {@code "—"} without a bar; the bar's
- * space is kept so numbers line up.
+ * space is kept so numbers line up. A rate whose sources disagree (a {@link ResultsTableModel} rate column's
+ * {@linkplain ResultsTableModel#disagreesAt flag}) is followed by {@link Columns#DISAGREES}.
  */
 public final class RateBarRenderer extends DefaultTableCellRenderer {
   static final int BAR_WIDTH = 48;
@@ -44,7 +46,8 @@ public final class RateBarRenderer extends DefaultTableCellRenderer {
   public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus,
       int row, int column) {
     pct = value instanceof Number n ? n.doubleValue() : null;
-    super.getTableCellRendererComponent(table, Columns.percentText(pct), isSelected, hasFocus, row, column);
+    super.getTableCellRendererComponent(table, Columns.rateText(pct, disagrees(table, row, column)), isSelected,
+        hasFocus, row, column);
     setHorizontalAlignment(RIGHT);
     setBorder(BorderFactory.createCompoundBorder(getBorder(),
         BorderFactory.createEmptyBorder(0, 0, 0, UIScale.scale(GAP + BAR_WIDTH))));
@@ -52,6 +55,14 @@ public final class RateBarRenderer extends DefaultTableCellRenderer {
       setForeground(Theme.current().textMuted());
     }
     return this;
+  }
+
+  /** Whether the cell's rate has sources that disagree (false outside a {@link ResultsTableModel}). */
+  private static boolean disagrees(JTable table, int viewRow, int viewColumn) {
+    if (table == null || !(table.getModel() instanceof ResultsTableModel<?> model) || viewRow < 0 || viewColumn < 0) {
+      return false;
+    }
+    return model.disagreesAt(table.convertRowIndexToModel(viewRow), table.convertColumnIndexToModel(viewColumn));
   }
 
   /** The bar's colour for the last rendered rate; null when the rate is unknown (no bar). */

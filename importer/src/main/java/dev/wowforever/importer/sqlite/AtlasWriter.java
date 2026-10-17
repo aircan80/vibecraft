@@ -34,7 +34,7 @@ final class AtlasWriter {
    * @param itemExists whether the item table holds an id; others are counted as {@code atlas.unknownItem}
    */
   void write(List<AtlasInstance> instances, LongPredicate zoneExists, LongPredicate itemExists, DropRates rates,
-      NpcDrops drops) throws SQLException {
+      NpcDrops drops, DropProvenance provenance) throws SQLException {
     Set<Long> unknownItems = new HashSet<>();
     long instanceId = 0;
     long bossId = 0;
@@ -42,8 +42,8 @@ final class AtlasWriter {
             + " level_min, level_max, zone_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         Batch bossRows = new Batch(c, "INSERT INTO boss(id, instance_id, name, npc_id, object_id, level, special_type,"
             + " is_extra_list, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        Batch lootRows = new Batch(c, "INSERT INTO boss_loot(boss_id, item_id, difficulty, slot, drop_pct, pct_source)"
-            + " VALUES (?, ?, ?, ?, ?, ?)")) {
+        Batch lootRows = new Batch(c, "INSERT INTO boss_loot(boss_id, item_id, difficulty, slot, drop_pct, pct_source,"
+            + " disagrees, source_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")) {
       for (AtlasInstance inst : instances) {
         instanceId++;
         Long zoneId = inst.mapId() != null && zoneExists.test(inst.mapId()) ? inst.mapId() : null;
@@ -64,8 +64,11 @@ final class AtlasWriter {
               unknownItems.add(loot.itemId());
             }
             Optional<DropRate> rate = boss.npcId() == null ? Optional.empty() : rates.get(boss.npcId(), loot.itemId());
+            DropProvenance.Stat stat = boss.npcId() == null
+                ? new DropProvenance.Stat(0, 0) : provenance.stat(boss.npcId(), loot.itemId());
             lootRows.add(bossId, loot.itemId(), loot.difficulty(), loot.slot(),
-                rate.map(DropRate::percent).orElse(null), rate.map(DropRate::source).orElse(null));
+                rate.map(DropRate::percent).orElse(null), rate.map(DropRate::source).orElse(null),
+                stat.disagrees(), stat.sourceCount());
             if (boss.npcId() != null && !boss.extraList()) {
               drops.add(loot.itemId(), boss.npcId(), NpcDrops.ATLASLOOT);
             }

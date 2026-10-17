@@ -4,11 +4,13 @@ import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.widgets.LinkButton;
+import java.awt.Color;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -19,7 +21,7 @@ import javax.swing.JPanel;
 
 /**
  * The top of a detail page: the entity name in large type, optionally followed by badges such as a rank chip,
- * over a subtitle line that may end in links.
+ * over a subtitle line that may end in links. The title may be coloured (an item's quality colour, say).
  */
 public final class HeaderPanel extends JPanel {
   private static final String SEPARATOR = " · ";
@@ -30,9 +32,16 @@ public final class HeaderPanel extends JPanel {
   private final JPanel subtitleRow = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
   private final List<JButton> links = new ArrayList<>();
   private String subtitle;
+  private Supplier<Color> titleColor;
 
   public HeaderPanel(String title, String subtitle) {
-    this.title = new JLabel(title);
+    this.title = new JLabel(title) {
+      @Override
+      public Color getForeground() { // looked up per paint, so theme changes apply
+        Supplier<Color> colour = titleColor;
+        return colour != null ? colour.get() : super.getForeground();
+      }
+    };
     this.subtitle = Objects.requireNonNull(subtitle, "subtitle");
     setLayout(new BoxLayout(this, BoxLayout.PAGE_AXIS));
     setBorder(BorderFactory.createEmptyBorder(10, 12, 8, 12));
@@ -71,6 +80,17 @@ public final class HeaderPanel extends JPanel {
 
   public String title() {
     return title.getText();
+  }
+
+  /** Colours the title with {@code colour}, asked on every paint; null restores the look-and-feel colour. */
+  public void setTitleColor(Supplier<Color> colour) {
+    titleColor = colour;
+    title.repaint();
+  }
+
+  /** The colour the title is painted in. */
+  public Color titleColor() {
+    return title.getForeground();
   }
 
   /** The subtitle line as read, link texts included. */

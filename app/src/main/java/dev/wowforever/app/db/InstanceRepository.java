@@ -23,7 +23,7 @@ public final class InstanceRepository {
 
   /** The boss loot columns with the item's; append WHERE and ORDER BY. */
   private static final String BOSS_LOOT = "SELECT bl.item_id, " + NpcRepository.ITEM_COLUMNS
-      + ", bl.drop_pct, bl.slot FROM boss_loot bl " + NpcRepository.itemJoin("bl");
+      + ", bl.drop_pct, bl.slot, bl.disagrees, bl.source_count FROM boss_loot bl " + NpcRepository.itemJoin("bl");
 
   private final Database db;
 
@@ -102,7 +102,7 @@ public final class InstanceRepository {
   }
 
   private static LootRow bossLootRow(ResultSet rs) throws SQLException {
-    return NpcRepository.loot(rs, Sql.doubleValue(rs, "drop_pct"), BOSS_LOOT_ORIGIN, Sql.integer(rs, "slot"));
+    return NpcRepository.ratedLoot(rs, BOSS_LOOT_ORIGIN, Sql.integer(rs, "slot"));
   }
 
   static InstanceSummary summary(ResultSet rs) throws SQLException {

@@ -1,5 +1,6 @@
 package dev.wowforever.app.ui.pages;
 
+import com.formdev.flatlaf.FlatLaf;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ItemDetail;
@@ -12,6 +13,7 @@ import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.LootListRow;
 import dev.wowforever.app.ui.detail.HeaderPanel;
 import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.widgets.DividerRows;
 import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
@@ -86,7 +88,8 @@ public final class ItemPage extends SourcesPage {
 
   /**
    * The header: name, then "Item #id" and {@link Labels#itemSubtitle} ("Cloth · iLvl 18 · Req 13", no item or
-   * required level of 1 or below), then a starts-quest link.
+   * required level of 1 or below), then a starts-quest link. The name is in the item's quality colour when the
+   * item has client data.
    */
   private static final class ItemHeader {
     static HeaderPanel of(ItemDetail d, Navigator nav) {
@@ -97,6 +100,10 @@ public final class ItemPage extends SourcesPage {
       if (d.startQuestId() != null) {
         EntityRef quest = new EntityRef(EntityKind.QUEST, d.startQuestId());
         header.addLink("Starts quest: " + questName(d, quest), quest, nav);
+      }
+      Integer quality = d.card().quality();
+      if (quality != null) {
+        header.setTitleColor(() -> QualityColors.text(quality, FlatLaf.isLafDark()));
       }
       return header;
     }

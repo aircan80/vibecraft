@@ -4,11 +4,13 @@ import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceLoot;
+import dev.wowforever.app.model.ItemCard;
 import dev.wowforever.app.model.ItemClassNode;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemFilter;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.TooltipLine;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -24,7 +26,8 @@ import java.util.Set;
 public final class ItemRepository {
   /** Summary columns over an {@code item i} row source joined with {@link #JOINS}. */
   private static final String COLUMNS = """
-      i.id, i.name, i.item_level, i.required_level, i.class_id, i.subclass_id, i.start_quest_id,
+      i.id, i.name, i.item_level, i.required_level, i.class_id, i.subclass_id, i.start_quest_id, i.quality,
+      i.icon_id,
       ic.name AS class_name, isc.name AS subclass_name,
       (SELECT count(*) FROM item_npc_drop WHERE item_id = i.id)
         + (SELECT count(*) FROM item_object_drop WHERE item_id = i.id)
@@ -74,7 +77,8 @@ public final class ItemRepository {
               LEFT JOIN quest q ON q.id = r.quest_id WHERE r.item_id = ?""", id),
           sources(c, ItemSource.RELATED, EntityKind.QUEST, """
               SELECT r.quest_id AS ref_id, q.name FROM item_related_quest r
-              LEFT JOIN quest q ON q.id = r.quest_id WHERE r.item_id = ?""", id)));
+              LEFT JOIN quest q ON q.id = r.quest_id WHERE r.item_id = ?""", id),
+          card(c, id)));
     });
   }
 
@@ -165,7 +169,7 @@ public final class ItemRepository {
   private static List<DropSource> droppedBy(Connection c, long itemId) throws SQLException {
     return Sql.list(c, """
         SELECT d.npc_id, n.name, n.min_level, n.max_level, n.zone_id, z.name AS zone_name,
-               d.drop_pct, d.pct_source, d.origin
+               d.drop_pct, d.pct_source, d.origin, d.disagrees, d.source_count
         FROM item_npc_drop d
         LEFT JOIN npc n ON n.id = d.npc_id
         LEFT JOIN zone z ON z.id = n.zone_id
@@ -174,7 +178,7 @@ public final class ItemRepository {
         rs -> new DropSource(new EntityRef(EntityKind.NPC, rs.getLong("npc_id")), rs.getString("name"),
             Sql.integer(rs, "min_level"), Sql.integer(rs, "max_level"), rs.getString("zone_name"),
             Sql.longValue(rs, "zone_id"), Sql.doubleValue(rs, "drop_pct"), rs.getString("pct_source"),
-            rs.getString("origin")),
+            rs.getString("origin"), rs.getInt("disagrees") != 0, rs.getInt("source_count")),
         itemId);
   }
 
@@ -185,7 +189,7 @@ public final class ItemRepository {
   private static List<InstanceLoot> inInstanceLoot(Connection c, long itemId) throws SQLException {
     return Sql.list(c, """
         SELECT i.id AS instance_id, i.name AS instance_name, b.id AS boss_id, b.name AS boss_name, b.npc_id,
-               bl.slot, bl.drop_pct
+               bl.slot, bl.drop_pct, bl.disagrees, bl.source_count
         FROM boss_loot bl
         JOIN boss b ON b.id = bl.boss_id
         JOIN instance i ON i.id = b.instance_id
@@ -194,8 +198,30 @@ public final class ItemRepository {
                  bl.slot IS NULL, bl.slot""",
         rs -> new InstanceLoot(new EntityRef(EntityKind.INSTANCE, rs.getLong("instance_id")),
             rs.getString("instance_name"), rs.getLong("boss_id"), rs.getString("boss_name"),
-            Sql.longValue(rs, "npc_id"), Sql.integer(rs, "slot"), Sql.doubleValue(rs, "drop_pct")),
+            Sql.longValue(rs, "npc_id"), Sql.integer(rs, "slot"), Sql.doubleValue(rs, "drop_pct"),
+            rs.getInt("disagrees") != 0, rs.getInt("source_count")),
         itemId);
+  }
+
+  /**
+   * The client data of item {@code itemId} with its tooltip lines in {@code ordinal} order, or
+   * {@link ItemCard#none()} when the item has none.
+   */
+  private static ItemCard card(Connection c, long itemId) throws SQLException {
+    Optional<ItemCard> head = Sql.one(c, """
+        SELECT quality, icon_id, inventory_type, bonding, sell_price FROM item
+        WHERE id = ? AND has_client_data = 1""",
+        rs -> new ItemCard(Sql.integer(rs, "quality"), List.of(), Sql.longValue(rs, "icon_id"),
+            Sql.integer(rs, "inventory_type"), Sql.integer(rs, "bonding"), Sql.longValue(rs, "sell_price")),
+        itemId);
+    if (head.isEmpty()) {
+      return ItemCard.none();
+    }
+    List<TooltipLine> lines = Sql.list(c,
+        "SELECT kind, text, colour FROM item_tooltip_line WHERE item_id = ? ORDER BY ordinal",
+        rs -> new TooltipLine(rs.getString("kind"), rs.getString("text"), rs.getString("colour")), itemId);
+    ItemCard h = head.get();
+    return new ItemCard(h.quality(), lines, h.iconId(), h.inventoryType(), h.bonding(), h.sellPrice());
   }
 
   /** Runs {@code sql} (selecting {@code ref_id} and a nullable {@code name}) into sources ordered by name. */
@@ -208,6 +234,6 @@ public final class ItemRepository {
   private static ItemSummary summary(ResultSet rs) throws SQLException {
     return new ItemSummary(rs.getLong("id"), rs.getString("name"), Sql.integer(rs, "item_level"),
         Sql.integer(rs, "required_level"), rs.getString("class_name"), rs.getString("subclass_name"),
-        rs.getInt("source_count"));
+        rs.getInt("source_count"), Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id"));
   }
 }

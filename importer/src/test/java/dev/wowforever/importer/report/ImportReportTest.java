@@ -104,4 +104,23 @@ class ImportReportTest {
     assertThat(UiFields.isUiField(QUEST, "objectives")).isFalse();
     assertThat(UiFields.isUiField(QUEST, "<id>")).isTrue();
   }
+
+  @Test
+  void conflictsSectionLists() {
+    ImportReport r = new ImportReport();
+    for (int i = 1; i <= 60; i++) {
+      r.conflict(new Conflict(i, 100, new java.util.LinkedHashMap<>(java.util.Map.of("a", 10.0, "b", 12.0 + i))));
+    }
+    r.compared("a", "b", true);
+    r.compared("a", "b", false);
+    String text = r.render();
+    int start = text.indexOf("== Conflicts ==");
+    assertThat(start).isPositive();
+    String[] lines = text.substring(start).split("\n");
+    assertThat(lines[1]).startsWith("60 100 ").endsWith("=62.00");
+    assertThat(lines[2]).startsWith("59 100 ");
+    assertThat(lines[50]).startsWith("11 100 ");
+    assertThat(lines[51]).isEqualTo("a vs b: 1 disagreeing of 2 shared");
+    assertThat(lines).hasSize(52);
+  }
 }

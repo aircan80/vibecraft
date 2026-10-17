@@ -28,19 +28,44 @@ public final class Columns {
   /**
    * One table column: its title, value class (drives sorting and alignment), cell value and, for link
    * columns, the entity a cell points at. {@code link} is null for plain columns; {@code order} sorts the cell
-   * values and is null for the sorter's default order of {@code type}.
+   * values and is null for the sorter's default order of {@code type}. {@code quality} gives the item quality
+   * a cell's text is coloured by (null, or a null quality, for the usual colour). {@code disagrees} tells, for a
+   * {@linkplain #RATE rate} column, whether a cell's drop rate sources disagree (null: never).
    */
   public record Column<T>(String title, Class<?> type, Function<T, Object> value,
-      Function<T, Optional<EntityRef>> link, Comparator<?> order) {
+      Function<T, Optional<EntityRef>> link, Comparator<?> order, Function<T, Integer> quality,
+      Function<T, Boolean> disagrees) {
     public Column {
       Objects.requireNonNull(title, "title");
       Objects.requireNonNull(type, "type");
       Objects.requireNonNull(value, "value");
     }
 
+    /** A column without rate provenance. */
+    public Column(String title, Class<?> type, Function<T, Object> value, Function<T, Optional<EntityRef>> link,
+        Comparator<?> order, Function<T, Integer> quality) {
+      this(title, type, value, link, order, quality, null);
+    }
+
+    /** A column without quality colours. */
+    public Column(String title, Class<?> type, Function<T, Object> value, Function<T, Optional<EntityRef>> link,
+        Comparator<?> order) {
+      this(title, type, value, link, order, null);
+    }
+
     /** A column sorted in the default order of {@code type}. */
     public Column(String title, Class<?> type, Function<T, Object> value, Function<T, Optional<EntityRef>> link) {
       this(title, type, value, link, null);
+    }
+
+    /** The item quality the cell of {@code row} is coloured by; null for the usual colour. */
+    public Integer qualityFor(T row) {
+      return quality == null ? null : quality.apply(row);
+    }
+
+    /** Whether the rate in the cell of {@code row} has sources that disagree; false for other columns. */
+    public boolean disagreesFor(T row) {
+      return disagrees != null && Boolean.TRUE.equals(disagrees.apply(row));
     }
 
     /** Whether the cells of this column link to an entity. */
@@ -86,6 +111,8 @@ public final class Columns {
   public static final String NONE = "—";
   /** The title of the drop-rate columns (a {@link Double} percentage, null when unknown). */
   public static final String RATE = "Rate";
+  /** Appended to a drop rate whose sources disagree. */
+  public static final String DISAGREES = " ≠";
 
   /**
    * Orders formatted numbers ({@code "5.00 %"}, {@code "45.3"}) by their leading number; text without one
@@ -96,7 +123,7 @@ public final class Columns {
 
   public static List<Column<ItemSummary>> items() {
     return List.of(
-        link("Name", ItemSummary::displayName, i -> Optional.of(i.ref())),
+        qualityLink("Name", ItemSummary::displayName, i -> Optional.of(i.ref()), ItemSummary::quality),
         plain("Item level", Integer.class, ItemSummary::itemLevel),
         plain("Required level", Integer.class, ItemSummary::requiredLevel),
         plain("Class", String.class, ItemSummary::className),
@@ -145,7 +172,7 @@ public final class Columns {
 
   public static List<Column<SearchHit>> searchHits() {
     return List.of(
-        link("Name", SearchHit::displayName, h -> Optional.of(h.ref())),
+        qualityLink("Name", SearchHit::displayName, h -> Optional.of(h.ref()), SearchHit::quality),
         plain("Details", String.class, SearchHit::subtitle));
   }
 
@@ -161,7 +188,8 @@ public final class Columns {
             Labels.positive(s.levelMax()))).orElse(null)),
         link("Zone", r -> r.drop().map(DropSource::zoneName).orElse(null),
             r -> r.drop().flatMap(s -> zoneRef(s.zoneId()))),
-        plain("Rate", Double.class, r -> r.drop().map(DropSource::dropPct).orElse(null)),
+        rate(r -> r.drop().map(DropSource::dropPct).orElse(null),
+            r -> r.drop().map(DropSource::disagrees).orElse(false)),
         plain("Origin", String.class, r -> r.drop().map(DropSource::origin).orElse(null)));
   }
 
@@ -173,7 +201,7 @@ public final class Columns {
     return List.of(
         link("Loot list", LootListRow::title, r -> Optional.of(r.loot().instance())),
         link("Boss", r -> r.loot().bossDisplayName(), r -> r.loot().bossNpc()),
-        plain("Rate", Double.class, r -> r.loot().dropPct()));
+        rate(r -> r.loot().dropPct(), r -> r.loot().disagrees()));
   }
 
   /** Objects, containers, vendors and quests linked to an item. */
@@ -193,7 +221,7 @@ public final class Columns {
     return List.of(
         link("Item", LootRow::displayName, l -> Optional.of(l.item())),
         plain("Item level", Integer.class, LootRow::itemLevel),
-        numeric("Drop %", l -> percentText(l.dropPct())),
+        numeric("Drop %", l -> rateText(l.dropPct(), l.disagrees())),
         plain("Origin", String.class, LootRow::origin),
         plain("Slot", Integer.class, LootRow::slot));
   }
@@ -206,7 +234,7 @@ public final class Columns {
     return List.of(
         link("Item", LootRow::displayName, l -> Optional.of(l.item())),
         plain("Item level", Integer.class, LootRow::itemLevel),
-        plain(RATE, Double.class, LootRow::dropPct),
+        rate(LootRow::dropPct, LootRow::disagrees),
         plain("Origin", String.class, LootRow::origin),
         plain("Slot", Integer.class, LootRow::slot));
   }
@@ -240,6 +268,11 @@ public final class Columns {
   /** A drop chance as {@code "56.07 %"}, or {@link #NONE} when unknown. */
   public static String percentText(Double pct) {
     return pct == null ? NONE : String.format(Locale.ROOT, "%.2f %%", pct);
+  }
+
+  /** {@link #percentText} followed by {@link #DISAGREES} when the rate's sources disagree. */
+  public static String rateText(Double pct, boolean disagrees) {
+    return disagrees ? percentText(pct) + DISAGREES : percentText(pct);
   }
 
   /** {@link ItemSource} kind for display. */
@@ -311,5 +344,19 @@ public final class Columns {
 
   private static <T> Column<T> link(String title, Function<T, Object> value, Function<T, Optional<EntityRef>> link) {
     return new Column<>(title, String.class, value, link);
+  }
+
+  /**
+   * The {@value #RATE} column: the drop rate as a {@link Double} percentage (null when unknown), flagged where
+   * its sources disagree (shown with {@link #DISAGREES} by the rate renderer).
+   */
+  private static <T> Column<T> rate(Function<T, Double> pct, Function<T, Boolean> disagrees) {
+    return new Column<>(RATE, Double.class, pct::apply, null, null, null, disagrees);
+  }
+
+  /** A link column whose text is coloured by the row's item quality. */
+  private static <T> Column<T> qualityLink(String title, Function<T, Object> value,
+      Function<T, Optional<EntityRef>> link, Function<T, Integer> quality) {
+    return new Column<>(title, String.class, value, link, null, quality);
   }
 }

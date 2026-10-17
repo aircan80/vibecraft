@@ -2,6 +2,7 @@ package dev.wowforever.app.db;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.model.NpcSummary;
@@ -70,5 +71,14 @@ class NpcRepositoryTest {
         .isSortedAccordingTo(String.CASE_INSENSITIVE_ORDER);
     assertThat(repos.npcs().list(new NpcFilter(2437L, null, null, null)))
         .isEqualTo(repos.npcs().byZone(2437));
+  }
+
+  @Test
+  void dropRowsCarryDisagreementAndSourceCount() {
+    NpcDetail d = repos.npcs().detail(639).get();
+    LootRow letter = d.drops().stream().filter(l -> l.item().id() == 2874).findFirst().orElseThrow();
+    assertThat(letter.disagrees()).isTrue();
+    assertThat(letter.sourceCount()).isEqualTo(4);
+    assertThat(d.sells()).allSatisfy(l -> assertThat(l.disagrees()).isFalse());
   }
 }

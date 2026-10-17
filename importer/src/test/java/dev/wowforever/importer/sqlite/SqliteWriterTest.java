@@ -98,6 +98,31 @@ class SqliteWriterTest {
   }
 
   @Test
+  void writesDropRateSourcesAndDisagreement(@TempDir Path tmp) throws Exception {
+    Builder b = new Builder();
+    b.item(14149, "Subterranean Cape").set("npcDrops", ids(11520));
+    b.item(14148, "Crystalline Cuffs");
+    b.rates.put(11520, 14149, new DropRate(17.5, "questie-wowhead"), 3);
+    b.rates.put(11520, 14149, new DropRate(19.0, "atlasloot"), 4);
+    b.rates.put(11520, 14148, new DropRate(10.0, "questie-wowhead"), 3);
+    b.rates.put(11520, 14148, new DropRate(14.0, "atlasloot"), 4);
+    b.instances.add(instance("RagefireChasm", "Ragefire Chasm", 2437L,
+        boss("Taragaman the Hungerer", 11520L, false, 1, loot(1, 14149), loot(2, 14148))));
+    ImportReport report = new ImportReport();
+    SqliteWriter.write(tmp.resolve("t.sqlite"), b.model(), report);
+    try (Connection c = open(tmp.resolve("t.sqlite"))) {
+      assertThat(scalar(c, "select count(*) from drop_rate_source")).isEqualTo(4);
+      assertThat(scalar(c, "select source_count || '/' || disagrees from item_npc_drop where item_id = 14149")).isEqualTo("2/0");
+      assertThat(scalar(c, "select source_count || '/' || disagrees from boss_loot where item_id = 14149")).isEqualTo("2/0");
+      assertThat(scalar(c, "select source_count || '/' || disagrees from item_npc_drop where item_id = 14148")).isEqualTo("2/1");
+      assertThat(scalar(c, "select source_count || '/' || disagrees from boss_loot where item_id = 14148")).isEqualTo("2/1");
+    }
+    assertThat(report.get("provenance.pairs")).isEqualTo(2);
+    assertThat(report.get("provenance.disagreeing")).isEqualTo(1);
+    assertThat(report.render()).contains("questie-wowhead vs atlasloot: 1 disagreeing of 2 shared");
+  }
+
+  @Test
   void ftsIndexFindsPrefix(@TempDir Path tmp) throws Exception {
     Builder b = new Builder();
     b.item(14149, "Subterranean Cape");

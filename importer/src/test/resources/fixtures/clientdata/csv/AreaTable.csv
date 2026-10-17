@@ -1,0 +1,48 @@
+ID,ZoneName,AreaName_lang,ContinentID,ParentAreaID,AreaBit,SoundProviderPref,SoundProviderPrefUnderwater,AmbienceID,UwAmbience,ZoneMusic,UwZoneMusic,ExplorationLevel,IntroSound,UwIntroSound,FactionGroupMask,Ambient_multiplier,MountFlags,PvpCombatWorldStateID,WildBattlePetLevelMin,WildBattlePetLevelMax,WindSettingsID,ContentTuningID,Flags_0,Flags_1,LiquidTypeID_0,LiquidTypeID_1,LiquidTypeID_2,LiquidTypeID_3
+2,Longshore,Longshore,0,40,120,0,11,24,2172,9,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+9,NorthshireValley,"Northshire Valley",0,12,125,0,11,2945,2172,1,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+12,ElwynnForest,"Elwynn Forest",0,0,126,0,11,3051,2172,1,0,0,0,0,2,0,1,-1,0,0,0,0,64,0,0,0,0,0
+18,CrystalLake,"Crystal Lake",0,12,131,0,11,35,2172,1,0,7,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+20,Moonbrook,Moonbrook,0,40,132,0,11,0,2172,9,0,14,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+23,NorthshireRiver,"Northshire River",0,12,134,0,11,35,2172,0,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+24,Northshireabbey,"Northshire Abbey",0,12,135,0,11,3051,2172,1,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+26,Lighthouse,Lighthouse,0,40,602,0,11,0,2172,7,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+34,EchoRidgeMine,"Echo Ridge Mine",0,12,141,0,11,3051,2172,1,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+40,Westfall,Westfall,0,0,146,0,11,47,2172,9,0,0,0,0,2,0,1,-1,0,0,0,0,64,0,0,0,0,0
+53,ThievesCamp,"Thieves Camp",0,12,155,0,11,35,2172,1,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+54,JasperlodeMine,"Jasperlode Mine",0,12,550,0,11,3051,2172,1,0,8,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+55,ValleyofHeroesUNUSED,"Valley of Heroes UNUSED",0,12,156,0,11,35,2172,17,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+56,Heroes'Vigil,"Heroes' Vigil",0,12,157,0,11,3053,2172,1,0,0,303,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+57,FargodeepMine,"Fargodeep Mine",0,12,158,0,11,3051,2172,1,0,5,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+59,NorthshireVineyards,"Northshire Vineyards",0,12,159,0,11,3051,2172,1,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+60,Forest'sEdge,"Forest's Edge",0,12,606,0,11,3051,2172,1,0,8,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+61,ThunderFalls,"Thunder Falls",0,12,160,0,11,35,2172,1,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+62,PumpkinPatch,"Brackwell Pumpkin Patch",0,12,161,0,11,3051,2172,1,0,8,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+63,TheStonefieldFarm,"The Stonefield Farm",0,12,162,0,11,3051,2172,1,0,6,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+64,TheMaclureVineyards,"The Maclure Vineyards",0,12,163,0,11,3051,2172,1,0,6,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+80,StormwindMountains,"Stormwind Mountains",0,12,175,86,11,35,2172,17,0,10,0,0,2,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+86,StoneCircleLake,"Stone Cairn Lake",0,12,180,0,11,3051,2172,1,0,8,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+87,Goldshire,Goldshire,0,12,548,0,11,3051,2172,1,0,5,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+88,EastvaleLoggingCamp,"Eastvale Logging Camp",0,12,181,0,11,3055,2172,1,0,6,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+89,ThunderFallsOrchard,"Mirror Lake Orchard",0,12,182,0,11,3051,2172,1,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+91,TowerofAzora,"Tower of Azora",0,12,183,0,11,3053,2172,1,0,8,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+92,MirrorLake,"Mirror Lake",0,12,558,0,11,3052,2172,1,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+107,Saldean'sFarm,"Saldean's Farm",0,40,195,0,11,0,2172,9,0,14,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+108,SentinelHill,"Sentinel Hill",0,40,196,0,11,0,2172,9,0,15,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+109,Furlbrow'sPumpkinFarm,"Furlbrow's Pumpkin Farm",0,40,197,0,11,0,2172,9,0,15,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+111,JangolodeMine,"Jangolode Mine",0,40,198,0,11,0,2172,9,0,12,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+113,GoldCoastQuarry,"Gold Coast Quarry",0,40,576,0,11,0,2172,9,0,15,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+115,WestfallLighthouse,"Westfall Lighthouse",0,40,199,0,11,24,2172,9,0,17,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+120,WestbrookGarrison,"Westbrook Garrison",0,12,559,0,11,35,2172,0,0,8,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+219,AlexstonFarmstead,"Alexston Farmstead",0,40,273,0,11,0,2172,9,0,15,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+797,Jerod'sLanding,"Jerod's Landing",0,12,647,0,11,3051,2172,0,0,8,301,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+798,RidgepointTower,"Ridgepoint Tower",0,12,648,0,11,3051,2172,0,0,8,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+916,TheJansenStead,"The Jansen Stead",0,40,681,0,11,0,2172,0,0,9,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+917,TheDeadAcre,"The Dead Acre",0,40,682,0,11,0,2172,0,0,18,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+918,TheMolsenFarm,"The Molsen Farm",0,40,683,0,11,0,2172,0,0,14,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+919,Stendel'sPond,"Stendel's Pond",0,40,684,0,11,0,2172,0,0,14,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+920,TheDaggerHills,"The Dagger Hills",0,40,309,0,11,0,2172,0,0,17,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+921,Demont'sPlace,"Demont's Place",0,40,310,0,11,0,2172,0,0,16,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+922,TheDustPlains,"The Dust Plains",0,40,311,0,11,0,2172,0,0,18,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+1518,NotIUsedDeadmines,"Not Used Deadmines",0,40,687,0,0,0,2172,0,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0
+2364,TheGreatSea,"The Great Sea",0,40,894,0,0,3228,2172,0,0,0,0,0,0,0,1,-1,0,0,0,0,1073741888,0,0,0,0,0

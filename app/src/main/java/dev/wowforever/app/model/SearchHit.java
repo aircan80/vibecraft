@@ -4,9 +4,10 @@ import java.util.Objects;
 
 /**
  * One full-text search result; {@code subtitle} is a short line of facts in words. {@code count} is how many
- * hits of the same kind and name this one stands for (1 unless several were collapsed into it).
+ * hits of the same kind and name this one stands for (1 unless several were collapsed into it). {@code quality}
+ * is the item quality of an item hit with client data, null otherwise.
  */
-public record SearchHit(EntityRef ref, String name, String subtitle, int count) {
+public record SearchHit(EntityRef ref, String name, String subtitle, int count, Integer quality) {
   public SearchHit {
     Objects.requireNonNull(ref, "ref");
     if (count < 1) {
@@ -14,9 +15,24 @@ public record SearchHit(EntityRef ref, String name, String subtitle, int count) 
     }
   }
 
-  /** A hit that stands for itself only. */
+  /** A hit that stands for itself only, without an item quality. */
   public SearchHit(EntityRef ref, String name, String subtitle) {
-    this(ref, name, subtitle, 1);
+    this(ref, name, subtitle, 1, null);
+  }
+
+  /** A hit standing for {@code count} hits, without an item quality. */
+  public SearchHit(EntityRef ref, String name, String subtitle, int count) {
+    this(ref, name, subtitle, count, null);
+  }
+
+  /** A hit that stands for itself only, with an item quality (null when unknown). */
+  public SearchHit(EntityRef ref, String name, String subtitle, Integer quality) {
+    this(ref, name, subtitle, 1, quality);
+  }
+
+  /** This hit standing for {@code count} hits. */
+  public SearchHit withCount(int count) {
+    return new SearchHit(ref, name, subtitle, count, quality);
   }
 
   public String displayName() {
