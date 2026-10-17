@@ -418,6 +418,36 @@ class AppControllerTest {
   }
 
   @Test
+  void aFilterChangeDropsTheForwardHistory() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.List(NPC));
+    listPage().results().activateRow(0);
+    c.back();
+    assertThat(view.canForward).isTrue();
+    select(listPage().filterBar().ranks(), 3);
+    assertThat(view.canForward).as("the entity opened off the old filter is not forward of the new one").isFalse();
+    assertThat(c.history().canForward()).isFalse();
+  }
+
+  @Test
+  void aFailedFilterReloadEmptiesTheTableAndSaysSo(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    Database db = Database.open(copy);
+    AppController c = new AppController(Repositories.of(db), view, Runnable::run);
+    c.open(new ViewTarget.List(NPC));
+    ListPage page = listPage();
+    assertThat(page.results().rowCount()).isPositive();
+    db.close();
+    select(page.filterBar().ranks(), 3);
+    assertThat(page.results().rowCount()).as("no old rows under the new filter").isZero();
+    assertThat(page.emptyNote().isVisible()).isTrue();
+    assertThat(page.emptyNote().getText()).startsWith("Could not load these rows: ");
+    assertThat(page.target()).isEqualTo(new ViewTarget.List(NPC, new NpcFilter(null, 3, null, null)));
+    assertThat(view.status().message()).startsWith("Error: ");
+  }
+
+  @Test
   void aStaleFilterReloadIsDropped() {
     List<Runnable> queued = new ArrayList<>();
     AppController c = new AppController(repos, view, queued::add);

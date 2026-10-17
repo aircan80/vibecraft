@@ -36,6 +36,16 @@ public final class NavigationHistory {
     entries.set(cursor, t);
   }
 
+  /**
+   * Puts {@code t} in place of the current target and clears the forward history, as a browser does when the page
+   * on screen changes (a list's filter): what was forward of the old page may not follow from the new one. On an
+   * empty history it is {@link #push}.
+   */
+  public void replaceCurrentDroppingForward(ViewTarget t) {
+    replaceCurrent(t);
+    entries.subList(cursor + 1, entries.size()).clear();
+  }
+
   /** Moves back and returns the new current target, or empty when already at the start. */
   public Optional<ViewTarget> back() {
     if (!canBack()) {

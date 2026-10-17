@@ -167,7 +167,7 @@ public final class DetailPanels {
       if (!role.equals(g.role()) || g.ref().kind() == EntityKind.ITEM) {
         continue;
       }
-      List<Spawn> spawns = repos.zones().spawnsOf(g.ref()).stream()
+      List<Spawn> spawns = repos.spawnsOf(g.ref()).stream()
           .filter(s -> MapCoordinates.onMap(s.x(), s.y())).toList();
       for (long zone : spawns.stream().map(Spawn::zoneId).distinct().toList()) {
         BufferedImage map = zoneMap(zone, repos);

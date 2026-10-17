@@ -367,6 +367,26 @@ class MapViewTest {
   }
 
   @Test
+  void aMarkerOfManyGiversCapsItsTooltipAndItsGiverEntries() {
+    List<Pin> givers = new ArrayList<>();
+    for (int i = 1; i <= 15; i++) {
+      givers.add(Pin.of(new QuestPin(new EntityRef(EntityKind.NPC, 1000 + i), "Giver " + i, 50, 50,
+          List.of(new QuestRef(2000 + i, "Errand " + i, 10, true)))));
+    }
+    var v = natural(givers);
+    String tip = v.getToolTipText(mouse(v, MouseEvent.MOUSE_MOVED, 501, 334));
+    assertThat(tip.split("<br>")).hasSize(1 + QuestPinText.TOOLTIP_LINES + 1);
+    assertThat(tip).startsWith("<html>15 pins<br>Giver 1 — Errand 1 (10)").endsWith("<br>+3 more</html>");
+    List<String> items = new ArrayList<>();
+    for (var item : v.menuFor(v.clusterAt(501, 334)).getComponents()) {
+      items.add(((JMenuItem) item).getText());
+    }
+    assertThat(items).filteredOn(t -> t.startsWith("Errand")).hasSize(15);
+    assertThat(items).filteredOn(t -> t.startsWith("Giver: ")).hasSize(MapView.GIVER_CAP);
+    assertThat(items).last().as("the givers cut off").isEqualTo("…");
+  }
+
+  @Test
   void anEmphasisedGiverPinOpensTheGiverAndIsDrawnLarger() {
     Pin giver = Pin.giver(DUGHAN, "Marshal Dughan", 50, 50, true);
     assertThat(giver.kind()).isEqualTo(PinKind.QUEST_START);

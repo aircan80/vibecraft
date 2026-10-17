@@ -5,8 +5,10 @@ import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
 import java.awt.image.BufferedImage;
+import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -32,7 +34,9 @@ import org.slf4j.LoggerFactory;
  * <p>{@link #icon} reads the database on the calling thread, so it runs on a worker: pages and lists pre-warm the
  * icons they show ({@link #warm}) while they load. Renderers on the EDT only look in the cache: {@link #cached}, or
  * {@link #forRenderer}, which shows the empty icon for a miss and fetches it on the cache's own loader thread,
- * repainting the component once it is in (a list page of thousands of items warms only its first rows).
+ * repainting the component once it is in (a list page of thousands of items warms only its first rows). Misses load
+ * newest first, so after a fast scroll the rows on screen come before those scrolled past, and at most
+ * {@value #QUEUE_LIMIT} wait: older ones are dropped and asked for again when they are painted again.
  *
  * <p>The app {@linkplain #install installs} one cache over its database; until then {@link #shared} is a cache
  * without icons.
@@ -49,6 +53,8 @@ public final class IconCache {
   public static final int CARD = 56;
   /** How many rows of a long list are warmed while it loads; the rest load when they are first painted. */
   public static final int WARM_ROWS = 200;
+  /** Most renderer misses waiting for the loader; the oldest beyond are dropped. */
+  public static final int QUEUE_LIMIT = 256;
 
   private static final Map<Integer, ImageIcon> EMPTY = new ConcurrentHashMap<>();
   private static volatile IconCache shared = new IconCache(id -> Optional.empty(), CAPACITY, null);
@@ -58,8 +64,10 @@ public final class IconCache {
   private final Function<Long, Optional<byte[]>> source;
   private final Executor loader;
   private final Map<Key, ImageIcon> icons;
-  /** The keys the loader is fetching, each with the components to repaint once it is in. */
+  /** The keys the loader is fetching or will fetch, each with the components to repaint once it is in. */
   private final Map<Key, Set<Component>> loading = new HashMap<>();
+  /** The keys waiting for the loader, newest first (guarded by {@link #loading}). */
+  private final Deque<Key> waiting = new ArrayDeque<>();
 
   /** The icons of {@code assets}, misses of renderers fetched on a daemon thread of their own. */
   public IconCache(AssetRepository assets) {
@@ -149,21 +157,40 @@ public final class IconCache {
     if (loader != null) {
       boolean first;
       synchronized (loading) {
-        Set<Component> waiting = loading.get(key);
-        first = waiting == null;
+        Set<Component> asking = loading.get(key);
+        first = asking == null;
         if (first) {
-          waiting = Collections.newSetFromMap(new IdentityHashMap<>());
-          loading.put(key, waiting);
+          asking = Collections.newSetFromMap(new IdentityHashMap<>());
+          loading.put(key, asking);
+          waiting.addFirst(key);
+          while (waiting.size() > QUEUE_LIMIT) {
+            loading.remove(waiting.removeLast()); // scrolled past: asked for again if painted again
+          }
         }
-        waiting.add(repaint);
+        asking.add(repaint);
       }
       if (first) {
-        loader.execute(() -> fetch(key));
+        loader.execute(this::fetchNewest);
       }
     }
     return empty(size);
   }
 
+  /** Fetches the newest waiting key, if any is still waiting (one run per key queued; dropped keys leave none). */
+  private void fetchNewest() {
+    Key key;
+    synchronized (loading) {
+      key = waiting.pollFirst();
+    }
+    if (key != null) {
+      fetch(key);
+    }
+  }
+
+  /**
+   * Loads {@code key} and repaints whoever asked for it. A failure leaves the empty icon in its place (not retried
+   * on every paint); whatever happens, even an {@link Error}, the key stops loading, so it is never stuck.
+   */
   private void fetch(Key key) {
     try {
       icon(key.id(), key.size());
@@ -172,12 +199,15 @@ public final class IconCache {
       synchronized (icons) {
         icons.put(key, empty(key.size()));
       }
+    } finally {
+      Set<Component> asked;
+      synchronized (loading) {
+        asked = loading.remove(key);
+      }
+      if (asked != null) {
+        SwingUtilities.invokeLater(() -> asked.forEach(Component::repaint));
+      }
     }
-    Set<Component> waiting;
-    synchronized (loading) {
-      waiting = loading.remove(key);
-    }
-    SwingUtilities.invokeLater(() -> waiting.forEach(Component::repaint));
   }
 
   private Optional<ImageIcon> cached(Key key) {

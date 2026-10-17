@@ -32,12 +32,13 @@ import javax.swing.JTextArea;
 public final class QuestPage extends SourcesPage {
   /**
    * The zone map of one of the page's sections: the decoded map of zone {@code zoneId} and the spawn points there
-   * of the section's first giver with a point on a zone map.
+   * of the section's first giver with a point on a zone map. Only points {@linkplain MapCoordinates#onMap on the map}
+   * are kept (instance placeholders and points past the edge drop out here, once).
    */
   public record GiverMap(long zoneId, BufferedImage map, List<SpawnPin> points) {
     public GiverMap {
       Objects.requireNonNull(map, "map");
-      points = List.copyOf(points);
+      points = points.stream().filter(p -> MapCoordinates.onMap(p.x(), p.y())).toList();
     }
   }
 
@@ -103,9 +104,9 @@ public final class QuestPage extends SourcesPage {
     bindJumpKeys();
   }
 
-  /** The emphasised pins of {@code m}'s points on the map, each point once; none without a map. */
+  /** The emphasised pins of {@code m}'s points (all on the map), each point once; none without a map. */
   private static List<Pin> giverPins(GiverMap m, boolean starts) {
-    return m == null ? List.of() : m.points().stream().filter(p -> MapCoordinates.onMap(p.x(), p.y()))
+    return m == null ? List.of() : m.points().stream()
         .map(p -> Pin.giver(p.ref(), p.displayName(), p.x(), p.y(), starts)).distinct().toList();
   }
 

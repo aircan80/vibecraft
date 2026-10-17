@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui.widgets;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.wowforever.app.db.AssetRepository;
 import dev.wowforever.app.db.FixtureDb;
@@ -221,6 +222,61 @@ class IconCacheTest {
     queued.remove(0).run();
     assertThat(cache.forRenderer(RED, 18, target)).isSameAs(IconCache.empty(18));
     assertThat(queued).as("no second load").isEmpty();
+  }
+
+  @Test
+  void theNewestMissLoadsFirstSoTheRowsOnScreenAfterAFastScrollComeFirst() {
+    FakeSource source = withFallback().with(3, Color.GREEN);
+    List<Runnable> queued = new ArrayList<>();
+    var cache = new IconCache(source, 10, queued::add);
+    JLabel target = new JLabel();
+    cache.forRenderer(RED, 18, target);
+    cache.forRenderer(BLUE, 18, target);
+    cache.forRenderer(3L, 18, target);
+    queued.remove(0).run();
+    assertThat(source.reads).as("the last asked for").first().isEqualTo(3L);
+    queued.forEach(Runnable::run);
+    assertThat(cache.cached(RED, 18)).isPresent();
+    assertThat(cache.cached(BLUE, 18)).isPresent();
+  }
+
+  @Test
+  void missesBeyondTheQueueLimitAreDroppedOldestFirstAndAskedForAgainLater() {
+    FakeSource source = withFallback();
+    List<Runnable> queued = new ArrayList<>();
+    var cache = new IconCache(source, 1000, queued::add);
+    JLabel target = new JLabel();
+    for (long id = 100; id < 100 + IconCache.QUEUE_LIMIT + 5; id++) {
+      cache.forRenderer(id, 18, target);
+    }
+    queued.forEach(Runnable::run);
+    assertThat(source.reads).as("the five oldest were scrolled past: never read")
+        .doesNotContain(100L, 101L, 102L, 103L, 104L).contains(105L, 100L + IconCache.QUEUE_LIMIT + 4);
+    queued.clear();
+    cache.forRenderer(100L, 18, target); // painted again: asked for again
+    assertThat(queued).hasSize(1);
+  }
+
+  @Test
+  void anErrorWhileLoadingNeverLeavesTheIconStuck() {
+    boolean[] fail = {true};
+    FakeSource ok = withFallback();
+    List<Runnable> queued = new ArrayList<>();
+    var cache = new IconCache(id -> {
+      if (fail[0]) {
+        throw new AssertionError("decoder blew up");
+      }
+      return ok.apply(id);
+    }, 10, queued::add);
+    JLabel target = new JLabel();
+    cache.forRenderer(RED, 18, target);
+    Runnable load = queued.remove(0);
+    assertThatThrownBy(load::run).isInstanceOf(AssertionError.class);
+    fail[0] = false;
+    cache.forRenderer(RED, 18, target);
+    assertThat(queued).as("asked for again, not stuck loading").hasSize(1);
+    queued.remove(0).run();
+    assertThat(cache.cached(RED, 18)).isPresent();
   }
 
   @Test

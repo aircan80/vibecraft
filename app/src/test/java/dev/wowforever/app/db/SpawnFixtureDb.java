@@ -17,8 +17,9 @@ import java.sql.Statement;
  * 56.6, 52.6, plus two points of his off the map (-1, -1 and 100.5, 50). Quest givers there too: Thor starts The
  * People's Militia (900101, level 18) and Patrolling Westfall (900102, level 14) and ends Patrolling Westfall; the
  * fixture's The Last Guardian (object 175740, at 52.4, 53.1 and 52.5, 53.1 in Westfall, plus a second point at
- * 52.4, 53.1) ends The People's Militia; an item (16305) starts Sealed Orders (900105, level 10). Built once per JVM
- * into a copy of the fixture file; {@link #repositories()} reads it.
+ * 52.4, 53.1) ends The People's Militia; two items start Sealed Orders (900105, level 10): 16305, and 900004, whose
+ * id is Thor's NPC id, so a query that forgot the giver kind would pin it at Thor's spot. Built once per JVM into a
+ * copy of the fixture file; {@link #repositories()} reads it.
  */
 public final class SpawnFixtureDb {
   private SpawnFixtureDb() {}
@@ -56,7 +57,7 @@ public final class SpawnFixtureDb {
               INSERT INTO quest_giver(quest_id, kind, entity_id, role) VALUES
                 (900101, 'npc', 900004, 'start'), (900101, 'object', 175740, 'end'),
                 (900102, 'npc', 900004, 'start'), (900102, 'npc', 900004, 'end'),
-                (900105, 'item', 16305, 'start')""");
+                (900105, 'item', 16305, 'start'), (900105, 'item', 900004, 'start')""");
           s.executeUpdate("INSERT INTO object_spawn(object_id, zone_id, x, y) VALUES (175740, 40, 52.4, 53.1)");
         }
         Database db = Database.open(copy);

@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui.detail;
 
 import dev.wowforever.app.ui.Columns;
+import dev.wowforever.app.ui.HtmlText;
 import dev.wowforever.app.ui.ResultsTableModel;
 import java.awt.Component;
 import java.util.ArrayList;
@@ -80,7 +81,8 @@ public final class CompactColumns {
     if (row == null || cell == null || cell.isBlank()) {
       return row != null ? row : cell;
     }
-    return "<html>" + escape(row) + "<br>" + (isHtml(cell) ? body(cell) : escape(cell)) + "</html>";
+    return "<html>" + HtmlText.escape(row) + "<br>" + (isHtml(cell) ? body(cell) : HtmlText.escape(cell))
+        + "</html>";
   }
 
   private static String plain(String text) {
@@ -98,9 +100,5 @@ public final class CompactColumns {
   /** {@code html} without its {@code <html>} wrapper. */
   private static String body(String html) {
     return html.strip().replaceFirst("(?i)^<html>", "").replaceFirst("(?i)</html>$", "");
-  }
-
-  private static String escape(String s) {
-    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }

@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.widgets;
 
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.QuestRef;
+import dev.wowforever.app.ui.HtmlText;
 import dev.wowforever.app.ui.widgets.MapView.Cluster;
 import dev.wowforever.app.ui.widgets.MapView.Pin;
 import java.util.ArrayList;
@@ -12,9 +13,12 @@ import java.util.stream.Collectors;
 
 /**
  * What a {@link MapView} marker of quest givers says: its tooltip, listing each giver's quests, and the quests its
- * menu offers. A tooltip longer than {@value #WRAP_CHARS} characters wraps at {@value #WRAP_PX} px.
+ * menu offers. A tooltip longer than {@value #WRAP_CHARS} characters wraps at {@value #WRAP_PX} px; a marker of
+ * several givers lists at most {@value #TOOLTIP_LINES} of them.
  */
 final class QuestPinText {
+  /** Most giver lines a marker's tooltip lists; the rest are counted ({@code "+3 more"}). */
+  static final int TOOLTIP_LINES = 12;
   /** The longest tooltip line kept on one line. */
   static final int WRAP_CHARS = 80;
   /** The width a longer tooltip wraps at, in logical px. */
@@ -31,26 +35,38 @@ final class QuestPinText {
     Map<Pin, Integer> entities = c.entities();
     if (entities.size() == 1) {
       Pin p = c.pins().get(0);
-      List<QuestRef> quests = c.quests();
-      List<QuestRef> starts = quests.stream().filter(QuestRef::starts).toList();
-      List<QuestRef> ends = quests.stream().filter(q -> !q.starts()).toList();
-      if (starts.isEmpty() || ends.isEmpty()) {
-        String line = p.name() + " — " + labels(quests);
+      Roles roles = Roles.of(c.quests());
+      if (!roles.both()) {
+        String line = p.name() + " — " + labels(c.quests());
         return line.length() > WRAP_CHARS ? html(List.of(line)) : line;
       }
-      return html(List.of(p.name(), "Starts: " + labels(starts), "Ends: " + labels(ends)));
+      return html(List.of(p.name(), "Starts: " + labels(roles.starts()), "Ends: " + labels(roles.ends())));
     }
     List<String> lines = new ArrayList<>();
     lines.add(c.count() + " pins");
     int shown = 0;
     for (Map.Entry<Pin, Integer> e : entities.entrySet()) {
-      if (shown++ == MapView.LIST_CAP) {
-        lines.add("…");
+      if (shown == TOOLTIP_LINES) {
+        lines.add("+" + (entities.size() - shown) + " more");
         break;
       }
       lines.add(entityLine(c, e.getKey(), e.getValue()));
+      shown++;
     }
     return html(lines);
+  }
+
+  /** A giver's quests split into those it starts and those it ends, each in the given order. */
+  record Roles(List<QuestRef> starts, List<QuestRef> ends) {
+    static Roles of(List<QuestRef> quests) {
+      return new Roles(quests.stream().filter(QuestRef::starts).toList(),
+          quests.stream().filter(q -> !q.starts()).toList());
+    }
+
+    /** Whether the giver both starts and ends quests here. */
+    boolean both() {
+      return !starts.isEmpty() && !ends.isEmpty();
+    }
   }
 
   /**
@@ -63,10 +79,9 @@ final class QuestPinText {
     if (quests.isEmpty()) {
       return count > 1 ? giver.name() + " (" + count + ")" : giver.name();
     }
-    List<QuestRef> starts = quests.stream().filter(QuestRef::starts).toList();
-    List<QuestRef> ends = quests.stream().filter(q -> !q.starts()).toList();
-    String list = starts.isEmpty() || ends.isEmpty() ? labels(quests)
-        : "Starts: " + labels(starts) + "; Ends: " + labels(ends);
+    Roles roles = Roles.of(quests);
+    String list = !roles.both() ? labels(quests)
+        : "Starts: " + labels(roles.starts()) + "; Ends: " + labels(roles.ends());
     return giver.name() + " — " + list;
   }
 
@@ -85,13 +100,9 @@ final class QuestPinText {
 
   /** {@code lines} as HTML, one per line, wrapped at {@value #WRAP_PX} px when one is long. */
   private static String html(List<String> lines) {
-    String body = lines.stream().map(QuestPinText::escape).collect(Collectors.joining("<br>"));
+    String body = lines.stream().map(HtmlText::escape).collect(Collectors.joining("<br>"));
     boolean wrap = lines.stream().anyMatch(l -> l.length() > WRAP_CHARS);
     return wrap ? "<html><body style='width: " + UIScale.scale(WRAP_PX) + "px'>" + body + "</body></html>"
         : "<html>" + body + "</html>";
-  }
-
-  static String escape(String s) {
-    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
   }
 }

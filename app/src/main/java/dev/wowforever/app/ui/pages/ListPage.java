@@ -32,6 +32,7 @@ public final class ListPage extends SourcesPage {
   private final LinkTable<?> results;
   private final SourceSection section;
   private final JLabel emptyNote;
+  private final String emptyText;
   private ViewTarget.List target;
 
   /**
@@ -48,8 +49,8 @@ public final class ListPage extends SourcesPage {
       Consumer<ListFilter> onFilter, MasterList.Delay levelDelay) {
     super(nav);
     this.target = Objects.requireNonNull(target, "target");
-    emptyNote = PageContent.mutedLabel(target.filter() instanceof NoFilter ? "No entries."
-        : "Nothing matches these filters.");
+    emptyText = target.filter() instanceof NoFilter ? "No entries." : "Nothing matches these filters.";
+    emptyNote = PageContent.mutedLabel(emptyText);
     header = new HeaderPanel(title(target.kind()), "");
     header.setAlignmentX(LEFT_ALIGNMENT);
     content.add(header);
@@ -99,7 +100,25 @@ public final class ListPage extends SourcesPage {
     target = next;
     setRows(results, rows);
     section.setCount(rows.size());
+    emptyNote.setText(emptyText);
     emptyNote.setVisible(rows.isEmpty());
+    content.revalidate();
+    content.repaint();
+  }
+
+  /**
+   * Shows that the rows of {@code next} could not be loaded ({@code message}): the table empties and the note under
+   * it tells the failure, so the rows of the old filter do not stand under the new one.
+   */
+  public void showFailure(ViewTarget.List next, String message) {
+    if (results == null || next.kind() != target.kind()) {
+      throw new IllegalStateException("A " + title(target.kind()) + " page cannot show " + next);
+    }
+    target = next;
+    setRows(results, List.of());
+    section.setCount(0);
+    emptyNote.setText("Could not load these rows: " + message);
+    emptyNote.setVisible(true);
     content.revalidate();
     content.repaint();
   }

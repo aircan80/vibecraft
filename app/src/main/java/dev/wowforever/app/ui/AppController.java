@@ -449,9 +449,10 @@ public final class AppController implements Navigator {
   }
 
   /**
-   * Reloads the rows of {@code page} under {@code filter}. The list's history entry takes the new filter (when a
-   * search has been opened since, the filtered list is pushed after it instead). Ignored for a page no longer
-   * shown.
+   * Reloads the rows of {@code page} under {@code filter}. The list's history entry takes the new filter and the
+   * forward history goes, as in a browser (when a search has been opened since, the filtered list is pushed after
+   * it instead). A reload that fails empties the table and says so under it, so no old rows stand under the new
+   * filter. Ignored for a page no longer shown.
    */
   private void refilter(ListPage page, ListFilter filter) {
     if (page == null || page != listPage) {
@@ -459,7 +460,7 @@ public final class AppController implements Navigator {
     }
     ViewTarget.List t = new ViewTarget.List(listTarget.kind(), filter);
     if (isCurrent(listTarget)) {
-      history.replaceCurrent(t);
+      history.replaceCurrentDroppingForward(t);
     } else {
       history.push(t);
     }
@@ -476,6 +477,9 @@ public final class AppController implements Navigator {
       }
     }, e -> {
       if (generation == detailGeneration) {
+        if (page == listPage) {
+          page.showFailure(t, message(e));
+        }
         fail(e);
       }
     });
@@ -518,7 +522,11 @@ public final class AppController implements Navigator {
 
   private void fail(Exception e) {
     LOG.warn("Loading failed", e);
-    view.status().setMessage("Error: " + (e.getMessage() != null ? e.getMessage() : e.toString()));
+    view.status().setMessage("Error: " + message(e));
+  }
+
+  private static String message(Exception e) {
+    return e.getMessage() != null ? e.getMessage() : e.toString();
   }
 
   private Listing search(ViewTarget.Search s) {

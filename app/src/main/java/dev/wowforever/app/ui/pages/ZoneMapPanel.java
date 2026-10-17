@@ -27,6 +27,7 @@ import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 import javax.swing.JButton;
 import javax.swing.JCheckBoxMenuItem;
+import javax.swing.JLabel;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
@@ -101,6 +102,8 @@ public final class ZoneMapPanel extends JPanel {
   private final JButton pinsMenuButton = new JButton("Pins ▾");
   private final JPopupMenu pinsMenu = new JPopupMenu();
   private final PinLegend legend = new PinLegend();
+  private final JLabel capNote = PageContent.mutedLabel(String.format(Locale.ROOT,
+      "Showing the first %,d points of a kind: the zone has more.", ZoneRepository.PIN_CAP));
   private final List<Pin> defaultPins;
   private List<Pin> allNpcPins;
   private List<Pin> objectPins;
@@ -171,7 +174,12 @@ public final class ZoneMapPanel extends JPanel {
     setBorder(BorderFactory.createEmptyBorder(8, 12, 2, 12));
     add(controls, BorderLayout.NORTH);
     add(mapView, BorderLayout.CENTER);
-    add(legend, BorderLayout.SOUTH);
+    JPanel below = new JPanel(new BorderLayout());
+    below.setOpaque(false);
+    below.add(legend, BorderLayout.NORTH);
+    capNote.setVisible(false);
+    below.add(capNote, BorderLayout.SOUTH);
+    add(below, BorderLayout.SOUTH);
     addHierarchyListener(e -> {
       if ((e.getChangeFlags() & HierarchyEvent.PARENT_CHANGED) != 0) {
         boolean compact = CompactColumns.within(this);
@@ -279,6 +287,17 @@ public final class ZoneMapPanel extends JPanel {
     }
     mapView.setPins(shown);
     mapView.setFilter(!allNpcsToggle.isSelected());
+    boolean capped = capped(allNpcPins) || (objectsToggle.isSelected() && capped(objectPins))
+        || (questsToggle.isSelected() && capped(questPins));
+    if (capNote.isVisible() != capped) {
+      capNote.setVisible(capped);
+      revalidate();
+    }
+  }
+
+  /** Whether {@code pins} is a spawn query cut at {@link ZoneRepository#PIN_CAP}. */
+  private static boolean capped(List<Pin> pins) {
+    return pins != null && pins.size() >= ZoneRepository.PIN_CAP;
   }
 
   @Override
@@ -307,6 +326,11 @@ public final class ZoneMapPanel extends JPanel {
   /** "Quests": adds the quest givers' pins. */
   public JToggleButton questsToggle() {
     return questsToggle;
+  }
+
+  /** The muted note shown while a pin list was cut at {@link ZoneRepository#PIN_CAP}. */
+  public JLabel capNote() {
+    return capNote;
   }
 
   /** The row under the map that tells what its pins are. */

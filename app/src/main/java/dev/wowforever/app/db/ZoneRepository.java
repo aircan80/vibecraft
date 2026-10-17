@@ -6,7 +6,6 @@ import dev.wowforever.app.model.LevelBand;
 import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.QuestRef;
-import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
@@ -215,15 +214,6 @@ public final class ZoneRepository {
     List<QuestPin> pins = new ArrayList<>(names.size());
     names.forEach((k, name) -> pins.add(new QuestPin(k.giver(), name, k.x(), k.y(), List.copyOf(quests.get(k)))));
     return pins;
-  }
-
-  /** The spawn points of NPC or object {@code ref} with coordinates, in import order; none for other kinds. */
-  public List<Spawn> spawnsOf(EntityRef ref) {
-    return switch (ref.kind()) {
-      case NPC -> db.read(c -> NpcRepository.spawns(c, "npc_spawn", "npc_id", ref.id()));
-      case OBJECT -> db.read(c -> NpcRepository.spawns(c, "object_spawn", "object_id", ref.id()));
-      default -> List.of();
-    };
   }
 
   private static SpawnPin pin(ResultSet rs, EntityKind kind, Integer rank) throws SQLException {

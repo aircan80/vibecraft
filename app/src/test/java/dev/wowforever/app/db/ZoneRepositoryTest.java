@@ -174,7 +174,7 @@ class ZoneRepositoryTest {
         new QuestRef(900102, "Patrolling Westfall", 14, false), new QuestRef(900101, "The People's Militia", 18, true));
     assertThat(pins.get(2).starts()).isTrue();
     assertThat(pins.get(0).starts()).isFalse();
-    // Sealed Orders is started by an item, which has no spawn point
+    // Sealed Orders is started by items, which have no spawn point, one of them with Thor's id (an NPC spawning here)
     assertThat(pins).flatExtracting(QuestPin::quests).extracting(QuestRef::questId).doesNotContain(900105L);
     // an NPC without a name in the plain fixture, in a zone without a map
     assertThat(repos.zones().questGiversInZone(141)).singleElement().satisfies(p -> {
@@ -187,11 +187,13 @@ class ZoneRepositoryTest {
 
   @Test
   void spawnsOfAnNpcOrObject() {
-    ZoneRepository zones = SpawnFixtureDb.repositories().zones();
-    assertThat(zones.spawnsOf(new EntityRef(EntityKind.NPC, 900004))).extracting(Spawn::zoneId, Spawn::x)
+    Repositories spawnRepos = SpawnFixtureDb.repositories();
+    assertThat(spawnRepos.npcs().spawnsOf(900004)).extracting(Spawn::zoneId, Spawn::x)
         .containsExactly(tuple(40L, 56.6), tuple(40L, -1.0), tuple(40L, 100.5));
-    assertThat(zones.spawnsOf(new EntityRef(EntityKind.OBJECT, 175740))).extracting(Spawn::zoneName)
-        .contains("Westfall", "Loch Modan");
-    assertThat(zones.spawnsOf(new EntityRef(EntityKind.ITEM, 16305))).isEmpty();
+    assertThat(spawnRepos.objects().spawnsOf(175740)).extracting(Spawn::zoneName).contains("Westfall", "Loch Modan");
+    assertThat(spawnRepos.spawnsOf(new EntityRef(EntityKind.NPC, 900004)))
+        .isEqualTo(spawnRepos.npcs().spawnsOf(900004));
+    assertThat(spawnRepos.spawnsOf(new EntityRef(EntityKind.ITEM, 900004))).as("items do not spawn")
+        .isEmpty();
   }
 }

@@ -55,6 +55,21 @@ class NavigationHistoryTest {
   }
 
   @Test
+  void replacingTheCurrentPageForGoodDropsTheForwardHistory() {
+    var h = new NavigationHistory();
+    h.push(new Entity(new EntityRef(ITEM, 1)));
+    h.push(new Entity(new EntityRef(ITEM, 2)));
+    h.back();
+    h.replaceCurrentDroppingForward(new Entity(new EntityRef(ITEM, 3)));
+    assertThat(h.current()).contains(new Entity(new EntityRef(ITEM, 3)));
+    assertThat(h.canForward()).isFalse();
+    assertThat(h.size()).isEqualTo(1);
+    var empty = new NavigationHistory();
+    empty.replaceCurrentDroppingForward(new Entity(new EntityRef(ITEM, 4)));
+    assertThat(empty.current()).contains(new Entity(new EntityRef(ITEM, 4)));
+  }
+
+  @Test
   void replaceCurrentKeepsForwardHistory() {
     var h = new NavigationHistory();
     h.push(new Home());

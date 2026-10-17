@@ -2,6 +2,7 @@ package dev.wowforever.app.db;
 
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.ObjectSummary;
+import dev.wowforever.app.model.Spawn;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -37,6 +38,11 @@ public final class ObjectRepository {
           QuestRepository.givenBy(c, "object", id, "start"), QuestRepository.givenBy(c, "object", id, "end"),
           NpcRepository.spawns(c, "object_spawn", "object_id", id)));
     });
+  }
+
+  /** The spawn points of object {@code objectId} with coordinates, in import order. */
+  public List<Spawn> spawnsOf(long objectId) {
+    return db.read(c -> NpcRepository.spawns(c, "object_spawn", "object_id", objectId));
   }
 
   /** Objects whose zone is {@code zoneId}, by name. */

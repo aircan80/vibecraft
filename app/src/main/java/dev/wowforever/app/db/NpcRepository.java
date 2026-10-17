@@ -77,6 +77,11 @@ public final class NpcRepository {
     });
   }
 
+  /** The spawn points of NPC {@code npcId} with coordinates, in import order. */
+  public List<Spawn> spawnsOf(long npcId) {
+    return db.read(c -> spawns(c, "npc_spawn", "npc_id", npcId));
+  }
+
   /** NPCs whose zone is {@code zoneId}, by name. */
   public List<NpcSummary> byZone(long zoneId) {
     return db.read(c -> byZone(c, zoneId, -1));

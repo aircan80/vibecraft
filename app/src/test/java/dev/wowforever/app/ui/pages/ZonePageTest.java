@@ -44,6 +44,7 @@ import javax.swing.JButton;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
 import javax.swing.JToggleButton;
+import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -203,7 +204,7 @@ class ZonePageTest {
         .satisfies(pin -> assertThat(pin.x()).isEqualTo(61.2));
     assertThat(map.bossesAndRaresOnly()).isTrue();
     ZoneMapPanel panel = p.mapPanel();
-    assertThat(panel.legend().getParent()).as("a legend under the map").isSameAs(panel);
+    assertThat(SwingUtilities.isDescendingFrom(panel.legend(), panel)).as("a legend under the map").isTrue();
     assertThat(panel.legend().texts()).startsWith("Boss", "Rare", "NPC", "Object");
     assertThat(List.of(panel.bossesToggle(), panel.allNpcsToggle(), panel.objectsToggle()))
         .extracting(JToggleButton::getText)
@@ -398,6 +399,38 @@ class ZonePageTest {
     assertThat(next.questsToggle().isSelected()).isTrue();
     assertThat(pins.calls).containsExactly("quests 40", "npcs 40 false", "quests 40");
     assertThat(next.mapView().pins()).filteredOn(pin -> pin.kind().quest()).hasSize(3);
+  }
+
+  @Test
+  void aPinListCutAtTheCapSaysSoUnderTheMap() {
+    ZoneMapPanel.PinSource many = new ZoneMapPanel.PinSource() {
+      @Override
+      public List<SpawnPin> npcs(long zoneId, boolean bossesAndRaresOnly) {
+        List<SpawnPin> pins = new ArrayList<>(ZoneRepository.PIN_CAP);
+        for (int i = 0; i < ZoneRepository.PIN_CAP; i++) {
+          pins.add(new SpawnPin(new EntityRef(NPC, 1_000_000 + i), "Mob", 0, 50, 50));
+        }
+        return pins;
+      }
+
+      @Override
+      public List<SpawnPin> objects(long zoneId) {
+        return List.of(new SpawnPin(new EntityRef(OBJECT, 7), "Chest", null, 40, 40));
+      }
+
+      @Override
+      public List<QuestPin> questPins(long zoneId) {
+        return List.of();
+      }
+    };
+    var panel = new ZoneMapPanel(40, westfallMap, spawnZones.npcSpawnsInZone(40, true), many, Runnable::run, status,
+        t -> {});
+    assertThat(panel.capNote().isVisible()).isFalse();
+    panel.objectsToggle().doClick();
+    assertThat(panel.capNote().isVisible()).as("the objects are not cut").isFalse();
+    panel.allNpcsToggle().doClick();
+    assertThat(panel.capNote().isVisible()).isTrue();
+    assertThat(panel.capNote().getText()).isEqualTo("Showing the first 20,000 points of a kind: the zone has more.");
   }
 
   @Test

@@ -8,6 +8,7 @@ import dev.wowforever.app.model.QuestRef;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
+import dev.wowforever.app.ui.HtmlText;
 import dev.wowforever.app.ui.theme.Theme;
 import java.awt.BasicStroke;
 import java.awt.Color;
@@ -29,7 +30,6 @@ import java.awt.geom.Point2D;
 import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -60,6 +60,8 @@ public final class MapView extends JComponent {
   public static final int HIT_PX = 8;
   /** Most entries in a marker's menu or tooltip. */
   static final int LIST_CAP = 25;
+  /** Most givers a quest marker's menu lists after its quests. */
+  static final int GIVER_CAP = 10;
   /** What assistive technology calls the map. */
   public static final String ACCESSIBLE_NAME = "Zone map";
   private static final int RADIUS = 4;
@@ -321,56 +323,11 @@ public final class MapView extends JComponent {
   }
 
   /**
-   * {@code pins} drawn by {@code projection} as markers, the quest givers' layer first (it is drawn on top) and
-   * clustered apart from the other pins: in each layer, taking the pins the most important first ({@link PinKind}
-   * order, emphasised pins first, else in order), each joins the first marker within {@code threshold} px of it,
-   * else starts a marker of its own there.
+   * {@code pins} drawn by {@code projection} as markers ({@link PinClusters#of}): the quest givers' layer first, each
+   * pin joining the first marker within {@code threshold} px of it.
    */
   public static List<Cluster> cluster(List<Pin> pins, Projection projection, double threshold) {
-    List<Cluster> out = new ArrayList<>(
-        clusterLayer(pins.stream().filter(p -> p.kind().quest()).toList(), projection, threshold));
-    out.addAll(clusterLayer(pins.stream().filter(p -> !p.kind().quest()).toList(), projection, threshold));
-    return out;
-  }
-
-  private static List<Cluster> clusterLayer(List<Pin> pins, Projection projection, double threshold) {
-    List<Pin> ordered = pins.stream()
-        .sorted(Comparator.comparing(Pin::kind).thenComparing(p -> !p.emphasised())).toList();
-    List<Point2D.Double> anchors = new ArrayList<>();
-    List<List<Pin>> members = new ArrayList<>();
-    Map<Long, List<Integer>> grid = new HashMap<>(); // cell -> marker indexes, cells threshold px wide
-    double cell = Math.max(threshold, 1);
-    for (Pin p : ordered) {
-      Point2D.Double at = projection.toComponent(p.x(), p.y());
-      long cx = (long) Math.floor(at.x / cell);
-      long cy = (long) Math.floor(at.y / cell);
-      int found = -1;
-      for (long dx = -1; dx <= 1; dx++) {
-        for (long dy = -1; dy <= 1; dy++) {
-          for (int i : grid.getOrDefault(key(cx + dx, cy + dy), List.of())) {
-            if ((found < 0 || i < found) && anchors.get(i).distance(at) <= threshold) {
-              found = i;
-            }
-          }
-        }
-      }
-      if (found >= 0) {
-        members.get(found).add(p);
-      } else {
-        anchors.add(at);
-        members.add(new ArrayList<>(List.of(p)));
-        grid.computeIfAbsent(key(cx, cy), k -> new ArrayList<>()).add(anchors.size() - 1);
-      }
-    }
-    List<Cluster> out = new ArrayList<>(anchors.size());
-    for (int i = 0; i < anchors.size(); i++) {
-      out.add(new Cluster(members.get(i), anchors.get(i)));
-    }
-    return out;
-  }
-
-  private static long key(long cx, long cy) {
-    return (cx << 32) ^ (cy & 0xFFFFFFFFL);
+    return PinClusters.of(pins, projection, threshold);
   }
 
   /**
@@ -423,14 +380,15 @@ public final class MapView extends JComponent {
         html.append("<br>…");
         break;
       }
-      html.append("<br>").append(escape(entryText(e2.getKey(), e2.getValue())));
+      html.append("<br>").append(HtmlText.escape(entryText(e2.getKey(), e2.getValue())));
     }
     return html.append("</html>").toString();
   }
 
   /**
-   * The menu a marker of several entities opens: one entry per entity, opening it. A quest givers' marker lists its
-   * quests instead (each opening its quest), then {@code "Giver: <name>"} for each giver, opening the giver.
+   * The menu a marker of several entities opens: one entry per entity, opening it (at most {@value #LIST_CAP}, then
+   * "…"). A quest givers' marker lists its quests instead (each opening its quest, at most {@value #LIST_CAP}), then
+   * {@code "Giver: <name>"} for each giver, opening the giver (at most {@value #GIVER_CAP}, then "…").
    */
   public JPopupMenu menuFor(Cluster c) {
     JPopupMenu menu = new JPopupMenu();
@@ -446,7 +404,12 @@ public final class MapView extends JComponent {
         item.addActionListener(a -> nav.open(new ViewTarget.Entity(q.ref())));
         menu.add(item);
       }
-      for (Pin giver : c.entities().keySet().stream().limit(LIST_CAP).toList()) {
+      int givers = 0;
+      for (Pin giver : c.entities().keySet()) {
+        if (givers++ == GIVER_CAP) {
+          menu.add(more());
+          break;
+        }
         JMenuItem item = new JMenuItem("Giver: " + giver.name());
         item.addActionListener(a -> nav.open(new ViewTarget.Entity(giver.ref())));
         menu.add(item);
@@ -479,10 +442,6 @@ public final class MapView extends JComponent {
 
   private static String entryText(Pin p, int count) {
     return count > 1 ? p.name() + " (" + count + ")" : p.name();
-  }
-
-  private static String escape(String s) {
-    return QuestPinText.escape(s);
   }
 
   /**
