@@ -84,8 +84,8 @@ Collected 2026-10-17 at the end of the phase 2B UI overhaul.
     zones; an editable combo that filters as you type is more than a small change, so it waits.
 16. **Equipment slot column.** Instance loot shows AtlasLoot's order, not an equipment slot; a real
     Slot column (and slot filters) waits for `inventory_type` in the loot queries (v0.5).
-17. **Pinned pages list.** Ctrl+D pins and unpins entity pages and remembers them, but no view lists the
-    pins yet; Home or the rail should show them.
+17. **Pinned pages.** The settings can remember pinned entity pages (`UiState.pinned`), but no view lists
+    them yet, so Ctrl+D is unbound and not advertised; bind it again with a pinned list on Home or the rail.
 
 ## Suggested order
 

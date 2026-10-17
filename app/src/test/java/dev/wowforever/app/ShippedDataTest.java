@@ -189,6 +189,7 @@ class ShippedDataTest {
     pages.put(new EntityRef(ZONE, 40), ZonePage.class);
     pages.put(new EntityRef(EntityKind.OBJECT, 94), ObjectPage.class);
     pages.put(new EntityRef(EntityKind.QUEST, 176), QuestPage.class);
+    pages.put(new EntityRef(EntityKind.QUEST, 7787), QuestPage.class); // Rise, Thunderfury!
     BufferedImage canvas = new BufferedImage(1100, 900, BufferedImage.TYPE_INT_ARGB);
     pages.forEach((ref, kind) -> {
       Object loaded = DetailPanels.load(ref, repos).orElseThrow(() -> new AssertionError("no page for " + ref));
@@ -223,6 +224,13 @@ class ShippedDataTest {
     }
     assertThat(rows).last().asString().startsWith("World drops (").endsWith(")" + " ▸");
     assertThat(rows).contains("Huge Gnoll Claw").hasSizeLessThan(8);
+    // a quest item 22 NPCs drop at an unknown rate stays in the table, not in the world drops
+    var horror = (NpcPage) DetailPanels.build(new EntityRef(NPC, 3642), repos, t -> {});
+    List<Object> horrorRows = new ArrayList<>();
+    for (int r = 0; r < horror.drops().table().getRowCount(); r++) {
+      horrorRows.add(horror.drops().table().getValueAt(r, 0));
+    }
+    assertThat(horrorRows).contains("Deviate Hide");
     // Edwin VanCleef is a boss, whatever Questie's rank
     assertThat(((NpcPage) DetailPanels.build(new EntityRef(NPC, 639), repos, t -> {})).rankChip().getText())
         .isEqualTo("Boss");

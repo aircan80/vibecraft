@@ -249,10 +249,13 @@ class LinkTableTest {
   void compactKeepsEachColumnsRenderer() {
     var t = new LinkTable<>(Columns.lootRated(), v -> {});
     TableCellRenderer rate = new DefaultTableCellRenderer();
-    t.table().getColumnModel().getColumn(2).setCellRenderer(rate);
+    var columns = t.table().getColumnModel();
+    columns.getColumn(columns.getColumnIndex(Columns.RATE)).setCellRenderer(rate);
     t.setCompact(true);
+    assertThat(columns.getColumn(columns.getColumnIndex(Columns.RATE)).getCellRenderer()).as("compact")
+        .isSameAs(rate);
     t.setCompact(false);
-    assertThat(t.table().getColumnModel().getColumn(2).getCellRenderer()).isSameAs(rate);
+    assertThat(columns.getColumn(columns.getColumnIndex(Columns.RATE)).getCellRenderer()).isSameAs(rate);
   }
 
   @Test

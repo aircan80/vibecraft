@@ -13,8 +13,10 @@ import javax.swing.JLabel;
 
 /**
  * An NPC's rank as a small chip beside its name: Elite in a gold outline, Rare and Rare Elite in a silver (muted
- * grey) outline, Boss as a gold fill with dark text. Normal and unknown ranks show no chip (it is hidden).
- * Colours come from {@link Theme#current()} per paint, so theme changes apply.
+ * grey) outline, Boss as a gold fill with text in the page background colour. Normal and unknown ranks show no chip
+ * (it is hidden). The gold is the theme's text gold ({@link Theme#goldText}): the chip's text is small, and the light
+ * theme's accent gold is too light for it (about 3.9:1); with the text gold both chips read at 4.5:1 or more in both
+ * themes. Colours come from {@link Theme#current()} per paint, so theme changes apply.
  */
 public final class RankChip extends JLabel {
   private static final int PAD_X = 6;
@@ -57,7 +59,7 @@ public final class RankChip extends JLabel {
   /** The outline (and, for {@link Style#GOLD_FILL}, the fill) colour; null for {@link Style#NONE}. */
   public Color outline() {
     return switch (style) {
-      case GOLD_OUTLINE, GOLD_FILL -> Theme.current().accentGold();
+      case GOLD_OUTLINE, GOLD_FILL -> Theme.current().goldText();
       case SILVER_OUTLINE -> Theme.current().textMuted();
       case NONE -> null;
     };

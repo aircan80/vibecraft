@@ -2,7 +2,9 @@ package dev.wowforever.app.ui.widgets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.wowforever.app.ui.theme.Contrast;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.theme.Tokens;
 import org.junit.jupiter.api.Test;
 
 class RankChipTest {
@@ -37,10 +39,33 @@ class RankChipTest {
   @Test
   void coloursComeFromTheThemeTokens() {
     Theme t = Theme.current();
-    assertThat(new RankChip(1).outline()).isEqualTo(t.accentGold());
-    assertThat(new RankChip(1).getForeground()).isEqualTo(t.accentGold());
+    assertThat(new RankChip(1).outline()).isEqualTo(t.goldText());
+    assertThat(new RankChip(1).getForeground()).isEqualTo(t.goldText());
     assertThat(new RankChip(4).outline()).isEqualTo(t.textMuted());
-    assertThat(new RankChip(3).outline()).isEqualTo(t.accentGold());
-    assertThat(new RankChip(3).getForeground()).as("dark text on the gold fill").isEqualTo(t.bgBase());
+    assertThat(new RankChip(3).outline()).isEqualTo(t.goldText());
+    assertThat(new RankChip(3).getForeground()).as("background-coloured text on the gold fill").isEqualTo(t.bgBase());
+  }
+
+  @Test
+  void everyChipsTextReadsAtFourAndAHalfToOneInBothThemes() {
+    Theme saved = Theme.current();
+    try {
+      for (Theme t : new Theme[] {Tokens.DARK, Tokens.LIGHT}) {
+        Theme.setCurrent(t);
+        String theme = t.dark() ? "dark" : "light";
+        for (int rank : new int[] {1, 2, 4}) { // outlines: the text on the page, either background
+          RankChip chip = new RankChip(rank);
+          assertThat(Contrast.ratio(chip.getForeground(), t.bgBase())).as(chip.getText() + " on bg.base, " + theme)
+              .isGreaterThanOrEqualTo(4.5);
+          assertThat(Contrast.ratio(chip.getForeground(), t.bgSurface()))
+              .as(chip.getText() + " on bg.surface, " + theme).isGreaterThanOrEqualTo(4.5);
+        }
+        RankChip boss = new RankChip(3); // the fill is the text's background
+        assertThat(Contrast.ratio(boss.getForeground(), boss.outline())).as("Boss, " + theme)
+            .isGreaterThanOrEqualTo(4.5);
+      }
+    } finally {
+      Theme.setCurrent(saved);
+    }
   }
 }

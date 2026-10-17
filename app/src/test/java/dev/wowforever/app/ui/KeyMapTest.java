@@ -56,7 +56,6 @@ class KeyMapTest {
         "Up/Down, Enter",
         "Ctrl+1…6",
         "Ctrl+C / Ctrl+Shift+C on a row",
-        "Ctrl+D",
         "Ctrl+B",
         "F10, Ctrl+Shift+T",
         "Ctrl+= / Ctrl+- / Ctrl+0");
@@ -67,7 +66,6 @@ class KeyMapTest {
         "Preview, open",
         "Jump to source section",
         "Copy name / copy item:ID or /way",
-        "Pin page",
         "Toggle results list",
         "Compact mode, always on top",
         "Text size");
@@ -119,12 +117,12 @@ class KeyMapTest {
   void eachKeyRunsItsHandler() {
     JRootPane root = installed();
     int when = JComponent.WHEN_IN_FOCUSED_WINDOW;
-    for (String key : List.of("ctrl F", "ctrl L", "ESCAPE", "alt LEFT", "alt RIGHT", "ctrl D", "ctrl B", "F10",
+    for (String key : List.of("ctrl F", "ctrl L", "ESCAPE", "alt LEFT", "alt RIGHT", "ctrl B", "F10",
         "shift ctrl T", "ctrl EQUALS", "ctrl MINUS", "ctrl 0")) {
       assertThat(press(root, when, key)).as(key).isTrue();
     }
     assertThat(ran).containsExactly(KeyMap.FOCUS_SEARCH, KeyMap.FOCUS_SEARCH, KeyMap.ESCAPE, KeyMap.BACK,
-        KeyMap.FORWARD, KeyMap.PIN, KeyMap.TOGGLE_LIST, KeyMap.COMPACT_MODE, KeyMap.ALWAYS_ON_TOP,
+        KeyMap.FORWARD, KeyMap.TOGGLE_LIST, KeyMap.COMPACT_MODE, KeyMap.ALWAYS_ON_TOP,
         KeyMap.TEXT_BIGGER, KeyMap.TEXT_SMALLER, KeyMap.TEXT_RESET);
   }
 
@@ -155,9 +153,15 @@ class KeyMapTest {
   @Test
   void installNeedsAHandlerForEveryRootAction() {
     Map<String, Runnable> missing = handlers();
-    missing.remove(KeyMap.PIN);
+    missing.remove(KeyMap.TOGGLE_LIST);
     assertThatThrownBy(() -> KeyMap.install(new JRootPane(), missing, focusOwner::get))
-        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining(KeyMap.PIN);
+        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining(KeyMap.TOGGLE_LIST);
+  }
+
+  @Test
+  void ctrlDIsNotBoundUntilPinnedPagesHaveAView() {
+    assertThat(press(installed(), JComponent.WHEN_IN_FOCUSED_WINDOW, "ctrl D")).isFalse();
+    assertThat(KeyMap.markdownTable()).doesNotContain("Ctrl+D").doesNotContain("Pin");
   }
 
   @Test

@@ -95,7 +95,6 @@ Help › Keyboard shortcuts shows the same table in the app.
 | Up/Down, Enter | Preview, open |
 | Ctrl+1…6 | Jump to source section |
 | Ctrl+C / Ctrl+Shift+C on a row | Copy name / copy item:ID or /way |
-| Ctrl+D | Pin page |
 | Ctrl+B | Toggle results list |
 | F10, Ctrl+Shift+T | Compact mode, always on top |
 | Ctrl+= / Ctrl+- / Ctrl+0 | Text size |

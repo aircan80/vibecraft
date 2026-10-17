@@ -32,13 +32,14 @@ import javax.swing.JTextArea;
 public final class QuestPage extends SourcesPage {
   /**
    * The zone map of one of the page's sections: the decoded map of zone {@code zoneId} and the spawn points there
-   * of the section's first giver with a point on a zone map. Only points {@linkplain MapCoordinates#onMap on the map}
-   * are kept (instance placeholders and points past the edge drop out here, once).
+   * of the section's first giver with a point on a zone map. The points are all {@linkplain MapCoordinates#onMap on
+   * the map}: {@link dev.wowforever.app.ui.detail.DetailPanels#load}, which picks the zone by them, keeps only those,
+   * and the page does not filter again.
    */
   public record GiverMap(long zoneId, BufferedImage map, List<SpawnPin> points) {
     public GiverMap {
       Objects.requireNonNull(map, "map");
-      points = points.stream().filter(p -> MapCoordinates.onMap(p.x(), p.y())).toList();
+      points = List.copyOf(points);
     }
   }
 

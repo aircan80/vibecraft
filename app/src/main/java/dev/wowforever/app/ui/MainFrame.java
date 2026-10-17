@@ -20,7 +20,6 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.BorderFactory;
@@ -59,8 +58,6 @@ public final class MainFrame extends JFrame implements MainView {
   public static final String APP_NAME = "WoW Forever Item & Drop Browser";
   /** The content's action that hides or shows the master list (Ctrl+B through {@link KeyMap}). */
   static final String TOGGLE_LIST = "toggleList";
-  /** The status message of Ctrl+D on a page that cannot be pinned. */
-  static final String CANNOT_PIN = "Only item, NPC, object, quest, zone and instance pages can be pinned";
   private static final String SHOWN_DIVIDER_SIZE = "wowforever.shownDividerSize";
 
   private final JButton back = HistoryButtons.back();
@@ -190,18 +187,6 @@ public final class MainFrame extends JFrame implements MainView {
     split.repaint();
   }
 
-  /**
-   * Pins {@code current} (Ctrl+D) when it is an entity page, or unpins it when it is pinned; returns the status
-   * message: {@code "Pinned"}, {@code "Unpinned"} or {@link #CANNOT_PIN}.
-   */
-  static String togglePin(UiState state, ViewTarget current) {
-    Optional<String> key = current instanceof ViewTarget.Entity e ? Labels.idText(e.ref()) : Optional.empty();
-    if (key.isEmpty()) {
-      return CANNOT_PIN;
-    }
-    return state.togglePinned(key.get()) ? "Pinned" : "Unpinned";
-  }
-
   /** Shows the current page again (a layout switch, a new drop source filter); nothing before the controller. */
   private void rerender() {
     if (controller != null) {
@@ -252,8 +237,6 @@ public final class MainFrame extends JFrame implements MainView {
         Map.entry(KeyMap.ESCAPE, this::escape),
         Map.entry(KeyMap.BACK, this::back),
         Map.entry(KeyMap.FORWARD, this::forward),
-        Map.entry(KeyMap.PIN, () -> status.setMessage(togglePin(uiState, controller != null ? controller.current()
-            : null))),
         Map.entry(KeyMap.TOGGLE_LIST, () -> {
           if (!layout.isCompact()) { // the compact layout has no list
             toggleList.actionPerformed(new ActionEvent(content, ActionEvent.ACTION_PERFORMED, KeyMap.TOGGLE_LIST));

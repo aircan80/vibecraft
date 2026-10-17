@@ -755,6 +755,24 @@ class AppControllerTest {
   }
 
   @Test
+  void aRerenderWhileAnotherPageLoadsGivesItNoneOfTheOldPagesState() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    c.open(new ViewTarget.Entity(new EntityRef(INSTANCE, 2)));
+    queued.remove(0).run();
+    InstancePage deadmines = (InstancePage) view.detail;
+    deadmines.selectBoss(1); // an encounter Molten Core has too
+    c.open(new ViewTarget.Entity(new EntityRef(INSTANCE, 3))); // Molten Core, still loading
+    c.rerender(); // Deadmines is on screen: its encounter must not reach Molten Core's page
+    while (!queued.isEmpty()) {
+      queued.remove(0).run();
+    }
+    InstancePage moltenCore = (InstancePage) view.detail;
+    assertThat(moltenCore).isNotSameAs(deadmines);
+    assertThat(moltenCore.encounters().getSelectedIndex()).as("its own first encounter").isZero();
+  }
+
+  @Test
   void rerenderingUnderASearchShowsThePageBehindAgainAndLeavesTheResults() {
     List<Runnable> queued = new ArrayList<>();
     AppController c = new AppController(repos, view, queued::add);

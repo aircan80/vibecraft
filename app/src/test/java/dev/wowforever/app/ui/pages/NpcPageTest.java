@@ -204,6 +204,20 @@ class NpcPageTest {
   }
 
   @Test
+  void onlyTheGenericPoolFoldsIntoWorldDropsNeverQuestItemsGearOrBags() {
+    int many = ItemCategories.WORLD_DROP_NPCS + 5;
+    var p = new NpcPage(npc(HOGGER, List.of(drop(1, "Deviate Hide", null, "Quest", many, null),
+        drop(2, "Rugged Leather Pants", null, "Armor", many, null), drop(3, "Linen Bag", null, "Container", many, null),
+        drop(4, "Cheap Blade", null, "Weapon", many, null), drop(5, "Linen Cloth", null, "Trade Goods", many, null),
+        drop(6, "Broken Fang", null, "Miscellaneous", many, null), drop(7, "Ice Cold Milk", null, "Consumable", many,
+            null), drop(8, "Pattern: Thing", null, "Recipe", many, null)), List.of(), List.of()), t -> {}, text -> {});
+    List<Object> rows = column(p.drops().table(), 0);
+    assertThat(rows).contains("Deviate Hide", "Rugged Leather Pants", "Linen Bag", "Cheap Blade")
+        .doesNotContain("Linen Cloth", "Broken Fang", "Ice Cold Milk", "Pattern: Thing");
+    assertThat(rows).last().isEqualTo("World drops (4)" + GroupedRows.COLLAPSED);
+  }
+
+  @Test
   void recipesShowTheirRequiredSkillUnderASkillLabel() {
     var p = new NpcPage(npc(HOGGER, List.of(drop(1, "Sword", 5.0, "Weapon", 1, null),
         drop(2, "Pattern: Fine Leather Boots", 2.0, "Recipe", 3, "Requires Leatherworking (65)"),

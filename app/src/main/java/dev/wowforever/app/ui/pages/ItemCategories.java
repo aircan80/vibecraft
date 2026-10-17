@@ -2,12 +2,13 @@ package dev.wowforever.app.ui.pages;
 
 import dev.wowforever.app.model.LootRow;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The loot group of an item on the NPC page, from its class name ({@code item_class.name}): Weapon and Armor are
  * Gear, Recipe is Recipes, Quest is Quest items, Trade Goods and Reagent are Trade goods, Consumable is
- * Consumables, any other class is Junk, and an unknown class is Other. On the NPC page the drops of unknown rate that
- * many NPCs share go to World drops instead ({@link #ofDrop}).
+ * Consumables, any other class is Junk, and an unknown class is Other. On the NPC page the generic-pool drops of
+ * unknown rate that many NPCs share go to World drops instead ({@link #ofDrop}).
  */
 final class ItemCategories {
   static final String GEAR = "Gear";
@@ -30,11 +31,20 @@ final class ItemCategories {
   private ItemCategories() {}
 
   /**
-   * The NPC page group of a drop: {@link #WORLD_DROPS} for an item of unknown rate that at least
-   * {@value #WORLD_DROP_NPCS} NPCs drop, else the group of its class ({@link #of(String)}).
+   * The item classes of the generic pool many NPCs drop (recipes, trade goods, food and drink, junk). Quest items,
+   * gear and bags are never world drops, however many NPCs drop them: they are what an NPC is looked up for.
+   */
+  static final Set<String> WORLD_POOL_CLASSES = Set.of("Recipe", "Trade Goods", "Consumable", "Miscellaneous");
+
+  /**
+   * The NPC page group of a drop: {@link #WORLD_DROPS} for an item of a {@linkplain #WORLD_POOL_CLASSES generic-pool
+   * class} and unknown rate that at least {@value #WORLD_DROP_NPCS} NPCs drop, else the group of its class
+   * ({@link #of(String)}).
    */
   static String ofDrop(LootRow drop) {
-    return drop.dropPct() == null && drop.dropperCount() >= WORLD_DROP_NPCS ? WORLD_DROPS : of(drop.className());
+    boolean world = drop.dropPct() == null && drop.dropperCount() >= WORLD_DROP_NPCS
+        && WORLD_POOL_CLASSES.contains(drop.className());
+    return world ? WORLD_DROPS : of(drop.className());
   }
 
   /** The group of an item of class {@code className}; {@link #OTHER} for null. */

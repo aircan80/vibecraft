@@ -77,6 +77,8 @@ public final class AppController implements Navigator {
   private String pageMessage;
   /** The component in the detail area. */
   private JComponent page;
+  /** The target {@link #page} shows (a list page's follows its filter); null for compact search results. */
+  private ViewTarget pageTarget;
   /** The entity page record last loaded ({@link DetailPanels#load}), which a rerender builds the page from. */
   private Loaded loaded;
   /** The view state a rerender saved for the page of a target that has to load again. */
@@ -221,20 +223,27 @@ public final class AppController implements Navigator {
     if (t == null) {
       return;
     }
-    Object state = page instanceof PageState p ? p.saveState() : null;
     if (t instanceof ViewTarget.Search && view.showsMasterList()) {
       if (lastPage == null || lastPage instanceof ViewTarget.Home) {
         detailGeneration++; // the welcome page behind the search; the list keeps its results
         leaveListPage();
-        setPage(welcome(meta), null);
+        setPage(new ViewTarget.Home(), welcome(meta), null);
       } else {
-        reshow(lastPage, state);
+        reshow(lastPage, stateOf(lastPage));
       }
       view.setHistoryState(history.canBack(), history.canForward());
       view.selectRail(railSection(t));
       return;
     }
-    reshow(t, state);
+    reshow(t, stateOf(t));
+  }
+
+  /**
+   * The view state of the page on screen when it is the page of {@code t}; null otherwise (say, while the page of
+   * {@code t} is still loading and the old one shows), so one entity's scroll or encounter never lands on another's.
+   */
+  private Object stateOf(ViewTarget t) {
+    return page instanceof PageState p && t.equals(pageTarget) ? p.saveState() : null;
   }
 
   /** Shows {@code t} again, its page restored to {@code state}: an entity page from what it loaded, if it is that. */
@@ -245,8 +254,8 @@ public final class AppController implements Navigator {
       view.selectRail(railSection(t));
       int generation = ++detailGeneration; // a load still in flight for an older page is dropped
       leaveListPage();
-      setPage(DetailPanels.render(loaded.detail(), repos, this, worker, pageStatus(generation), view.sourceFilter(),
-          view.questPins()), state);
+      setPage(t, DetailPanels.render(loaded.detail(), repos, this, worker, pageStatus(generation),
+          view.sourceFilter(), view.questPins()), state);
       view.setTitleSuffix(DetailPanels.name(loaded.detail()));
       return;
     }
@@ -254,9 +263,13 @@ public final class AppController implements Navigator {
     show(t);
   }
 
-  /** Puts {@code p} in the detail area, restored to {@code state} when it keeps one. */
-  private void setPage(JComponent p, Object state) {
+  /**
+   * Puts {@code p}, the page of {@code t} (null for a page of no target, such as compact search results), in the
+   * detail area, restored to {@code state} when it keeps one.
+   */
+  private void setPage(ViewTarget t, JComponent p, Object state) {
     page = p;
+    pageTarget = t;
     view.setDetail(p);
     if (state != null && p instanceof PageState s) {
       s.restoreState(state);
@@ -267,7 +280,7 @@ public final class AppController implements Navigator {
   private void setPage(ViewTarget t, JComponent p) {
     PendingState pending = pendingState;
     pendingState = null;
-    setPage(p, pending != null && pending.target().equals(t) ? pending.state() : null);
+    setPage(t, p, pending != null && pending.target().equals(t) ? pending.state() : null);
   }
 
   /** Re-shows the previous target, if any. */
@@ -346,7 +359,7 @@ public final class AppController implements Navigator {
           view.masterList().selectQuietly(opened);
         } else {
           if (!view.showsMasterList() && detail == detailGeneration) {
-            setPage(resultsPage(listing), null);
+            setPage(null, resultsPage(listing), null);
           }
           view.setTitleSuffix(cappedTitle(listing.title(), listing.entries().size(), listing.page()));
         }
@@ -466,6 +479,7 @@ public final class AppController implements Navigator {
     }
     listTarget = t;
     lastPage = t;
+    pageTarget = t; // the page now shows this filter
     previewSlot = false;
     view.setHistoryState(history.canBack(), history.canForward());
     int generation = ++detailGeneration;
