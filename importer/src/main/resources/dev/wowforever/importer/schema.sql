@@ -20,7 +20,8 @@ CREATE TABLE zone (
 -- name is NULL for stub entities that corrections created without a name.
 -- Client columns (phase 2, from quality on): with an ItemSparse row the client's name, item_level, required_level,
 -- class_id and subclass_id replace Questie's (differing Questie values go to item_alt_value); has_client_data is 1
--- iff that row exists; client_source: forever | era (the Classic Era fallback, ruling 17) | NULL without one.
+-- iff that row exists; client_source: hotfix (a Blizzard hotfix row, 3B Task 19) | forever | era (the Classic Era fallback,
+-- ruling 17) | NULL without one.
 CREATE TABLE item (
   id                  INTEGER PRIMARY KEY,
   name                TEXT,

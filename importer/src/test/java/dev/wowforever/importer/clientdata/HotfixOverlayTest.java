@@ -122,17 +122,37 @@ class HotfixOverlayTest {
   }
 
   @Test
-  void hotfixItemsWithoutForeverEffectsKeepTheirEraEffectsAndHotfixEffectRowsWin() {
+  void hotfixItemsNeverTakeEraEffectsAndHotfixEffectRowsWin() {
     ClientDataSource src = new ClientDataSource(HotfixFixture.standard(tmp).dir());
     ImportReport report = new ImportReport();
     Map<Long, ClientItem> items = ItemSparseLoader.load(src, Set.of(16805L, 16806L, 117L), new ImportReport());
     Map<Long, List<ItemSpellEffect>> effects = ItemEffectLoader.load(src, items,
         new SpellDescriptionFormatter(SpellTables.load(src)), report);
 
-    assertThat(effects.get(16805L)).as("Era effects of a hotfix item without Forever effects").isNotEmpty();
-    assertThat(report.get("clientdata.era.effectsOnHotfixItems")).isEqualTo(1);
+    // a hotfix row is a Forever row: Forever moved the Era Equip bonuses into stats, so Era effects would repeat them
+    assertThat(effects.get(16805L)).as("no Era effects on a hotfix item").isNull();
+    assertThat(effects.get(16806L)).as("an Era item keeps its Era effects").isNotEmpty();
+    assertThat(report.get("clientdata.era.effectsSkippedOnHotfixItems")).isEqualTo(1);
+    assertThat(report.get("clientdata.era.effectRowsSkippedOnHotfixItems")).isPositive();
+    assertThat(report.get("clientdata.era.effectsOnHotfixItems")).as("the old counter is gone").isZero();
     assertThat(effects.get(117L).getFirst().charges()).as("ItemEffect overlay row 98985").isEqualTo(-5);
     assertThat(report.get("hotfix.itemeffect.applied")).isEqualTo(1);
+  }
+
+  @Test
+  void skippedSnapshotsAndRemovalsReachTheReport() {
+    Path dir = HotfixFixture.copy(tmp).row("ItemSparse", 25, Map.of()).snapshotsSkipped(1).removed(3).write().dir();
+    ImportReport report = new ImportReport();
+    ItemSparseLoader.load(new ClientDataSource(dir), Set.of(25L), report);
+    assertThat(report.get("hotfix.snapshotsSkipped")).isEqualTo(1);
+    assertThat(report.get("hotfix.itemsparse.removed")).isEqualTo(3);
+    assertThat(report.notes()).anyMatch(n -> n.startsWith("hotfix.snapshotsSkipped: 1 snapshot(s)")
+        && n.contains("dddddddddddd"));
+
+    ImportReport none = new ImportReport();
+    ItemSparseLoader.load(new ClientDataSource(HotfixFixture.standard(tmp.resolve("b")).dir()), Set.of(25L), none);
+    assertThat(none.get("hotfix.snapshotsSkipped")).isZero();
+    assertThat(none.notes()).noneMatch(n -> n.startsWith("hotfix.snapshotsSkipped"));
   }
 
   @Test

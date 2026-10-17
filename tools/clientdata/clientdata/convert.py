@@ -107,8 +107,10 @@ def convert_hotfix(cache, build, out):
     Without a ``hotfix`` entry in the lock, stale overlay files are removed and ``{}`` is returned. The newest
     snapshot's header build must be ``build``'s (BuildMismatchError otherwise). Every snapshot and definition is
     checked against its recorded SHA-256 (ValueError). Each snapshot is decoded with the layout WoWDBDefs gives its
-    own header build (same major version as ``build``); one whose layout differs from the current build's is skipped and counted in ``snapshots_skipped``. The overlay CSVs carry the base table's header, which must equal
-    the layout's columns.
+    own header build (same major version as ``build``) and its rows are carried over by column name; one without a
+    layout for its build, or whose layout lacks a column the overlay writes, is skipped and counted in
+    ``snapshots_skipped`` (with its SHA-256 in ``skipped``), which the import reports. The overlay CSVs carry the
+    base table's header, which must equal the current layout's columns.
     """
     cache, out = Path(cache).expanduser(), Path(out)
     src = cache / build
@@ -135,8 +137,8 @@ def convert_hotfix(cache, build, out):
         headers[t] = _csv_header(base)
         if dbd.columns(layouts[t]) != headers[t]:
             raise ValueError("WoWDBDefs %s layout for %s does not match the columns of %s" % (t, build, base))
-    snapshots = []  # the bytes of each usable snapshot, oldest first
-    skipped = 0
+    snapshots = []  # (bytes, its own layouts) of each usable snapshot, oldest first
+    skipped = []
     for snap in entry.get("snapshots") or [entry]:
         p = cache / "hotfix" / ("%s.bin" % snap["sha256"])
         if not p.is_file() or _sha256_file(p) != snap["sha256"]:
@@ -145,12 +147,12 @@ def convert_hotfix(cache, build, out):
         try:
             snap_layouts = {t: dbd.layout(texts[t], snap_build) for t in hotfix.OVERLAY_TABLES}
         except dbd.DbdError:
-            skipped += 1
+            skipped.append(snap["sha256"])
             continue
-        if snap_layouts != layouts:
-            skipped += 1
+        if any(not set(headers[t]) <= set(dbd.columns(snap_layouts[t])) for t in hotfix.OVERLAY_TABLES):
+            skipped.append(snap["sha256"])
             continue
-        snapshots.append(p.read_bytes())
+        snapshots.append((p.read_bytes(), snap_layouts))
     overlay = hotfix.build_overlay(snapshots, layouts)
     (out / "csv").mkdir(parents=True, exist_ok=True)
     tables = {}
@@ -159,9 +161,13 @@ def convert_hotfix(cache, build, out):
         hotfix.write_csv(target, headers[t], overlay[t].rows)
         o = overlay[t]
         tables[t] = {"rows": len(o.rows), "valid": o.valid, "invalidated": o.invalidated, "undone": o.undone,
-                     "sha256": _sha256_file(target)}
+                     "removed": o.removed, "sha256": _sha256_file(target)}
     info = {k: entry[k] for k in ("url", "sha256", "header_build", "last_modified", "fetched_at") if k in entry}
-    info.update({"build": build, "snapshots": len(entry.get("snapshots") or [entry]), "snapshots_skipped": skipped,
+    if skipped:
+        print("warning: %d hotfix snapshot(s) skipped, their layout lacks overlay columns: %s"
+              % (len(skipped), ", ".join(s[:12] for s in skipped)), file=sys.stderr)
+    info.update({"build": build, "snapshots": len(entry.get("snapshots") or [entry]),
+                 "snapshots_skipped": len(skipped), "skipped": skipped,
                  "wowdbdefs_commit": commit, "tables": tables})
     (out / HOTFIX_JSON).write_text(json.dumps(info, indent=2) + "\n", encoding="utf-8")
     return {"hotfix_" + t: tables[t]["rows"] for t in hotfix.OVERLAY_TABLES}

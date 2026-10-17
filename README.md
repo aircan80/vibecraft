@@ -192,7 +192,7 @@ Known gaps in the upstream data, as of this build:
 
 The shipped database uses product `wow_classic_beta`, build 1.60.1.70450, with the Classic Era `ItemSparse` and `ItemEffect` of build 1.15.9.70003 as the fallback for items the beta lacks: their stats and their Use, Equip and Chance on hit effects come from Era, the effect texts from the beta's spell tables. `tools/clientdata/build.lock` records the build and the SHA-256 of every table.
 
-**Prerequisites.** Python 3 with the tool's own virtual environment (`tools/clientdata/README.md`, "Setup"), and network access to wago.tools or a local wow.tools.local (the fetch tool's default base URL, `http://localhost:5000`). Set `WOWFOREVER_CONTACT` to a contact URL before fetching from a public server; the User-Agent carries it (see the tools README, "Politeness"). The tool reads the exports only; it never touches a World of Warcraft installation.
+**Prerequisites.** Python 3 with the tool's own virtual environment (`tools/clientdata/README.md`, "Setup"), and network access to wago.tools or a local wow.tools.local (the fetch tool's default base URL, `http://localhost:5000`). Set `WOWFOREVER_CONTACT` to a contact URL before fetching from a public server; the User-Agent to wago.tools carries it, and no other host gets it (see the tools README, "Politeness"). The tool reads the exports only; it never touches a World of Warcraft installation.
 
 **The three commands.** Fetch, convert, then import (the import command is in the previous section). With `B=1.60.1.70450` and `C=~/.cache/wowforever-clientdata`:
 

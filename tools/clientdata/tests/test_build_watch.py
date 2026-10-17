@@ -132,3 +132,11 @@ def test_parse_versions_reads_the_us_row():
     assert bw.parse_versions(versions("1.60.1.70450")) == "1.60.1.70450"
     assert bw.parse_versions("Region!STRING:0|BuildId!DEC:4\nus|1\n") is None
     assert bw.parse_versions("") is None
+
+
+def test_only_wago_gets_the_contact(monkeypatch):
+    monkeypatch.setenv("WOWFOREVER_CONTACT", "https://example.test/contact")
+    assert bw.agent_for(bw.WAGO_BUILDS).endswith("(+https://example.test/contact)")
+    assert bw.agent_for(bw.WAGO_BUILDS, "me@example.test").endswith("(+me@example.test)")
+    for url in (bw.PATCH_SERVICE % "wowf", bw.RAIDBOTS_URL, bw.QUESTIEDB_MASTER % ("Questie", "QuestieDB")):
+        assert bw.agent_for(url, "me@example.test") == "wow-forever-browser-pipeline/0.2"

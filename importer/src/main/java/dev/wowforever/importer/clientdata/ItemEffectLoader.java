@@ -28,11 +28,12 @@ import java.util.stream.Stream;
  * <p>The hotfix overlay's {@code ItemEffect.hotfix} rows replace Forever's {@code ItemEffect} rows of the same id
  * (Task 19), counted as {@value #HOTFIX_APPLIED}; the links stay Forever's {@code ItemXItemEffect}.
  *
- * <p>An item whose ItemSparse row is Era's ({@link ClientItem#ERA}, ruling 17) or the hotfix overlay's
- * ({@link ClientItem#HOTFIX}) and that has no Forever effect takes its effects from the Era fallback's
- * {@code ItemEffect.era} when present, by {@code ParentItemID} (Classic Era has no {@code ItemXItemEffect}):
- * the Era table is used for an item only when neither the overlay nor Forever has an effect row for it. Forever's
- * rows win whenever the item has any. Hotfix items given Era effects are counted as {@value #ERA_ON_HOTFIX}. The spell text still comes from Forever's
+ * <p>An item whose ItemSparse row is Era's ({@link ClientItem#ERA}, ruling 17) and that has no Forever effect takes
+ * its effects from the Era fallback's {@code ItemEffect.era} when present, by {@code ParentItemID} (Classic Era has no
+ * {@code ItemXItemEffect}); Forever's rows win whenever the item has any. A hotfix item ({@link ClientItem#HOTFIX})
+ * is a Forever row and never takes Era effects: Forever moved the Era Equip bonuses into its stats, so they would
+ * show twice (Task 19 review I1). Its skipped Era effects are counted as {@value #ERA_SKIPPED_ON_HOTFIX} (items) and
+ * {@value #ERA_ROWS_SKIPPED_ON_HOTFIX} (rows). The spell text still comes from Forever's
  * spell tables: an Era effect whose spell has neither a Forever {@code Spell} nor {@code SpellName} row is dropped
  * and counted as {@value #ERA_UNRESOLVED}. An {@code ItemEffect.era} without {@code ParentItemID} (or another column
  * read here) is not fatal: it is counted as {@value #ERA_TABLE_UNUSABLE}, noted, and no Era effects are used.
@@ -43,8 +44,10 @@ public final class ItemEffectLoader {
   public static final String EFFECTS = "clientdata.effects";
   public static final String OTHER_TRIGGER = "clientdata.effects.otherTrigger";
   public static final String ERA_UNRESOLVED = "clientdata.era.effectUnresolved";
-  /** Hotfix items whose effects come from the Era fallback (neither the overlay nor Forever links one). */
-  public static final String ERA_ON_HOTFIX = "clientdata.era.effectsOnHotfixItems";
+  /** Hotfix items without Forever effects whose Era fallback effects were left out. */
+  public static final String ERA_SKIPPED_ON_HOTFIX = "clientdata.era.effectsSkippedOnHotfixItems";
+  /** The Era effect rows of those items. */
+  public static final String ERA_ROWS_SKIPPED_ON_HOTFIX = "clientdata.era.effectRowsSkippedOnHotfixItems";
   /** Effects whose {@code ItemEffect} row is the hotfix overlay's. */
   public static final String HOTFIX_APPLIED = "hotfix.itemeffect.applied";
   public static final String HOTFIX_EFFECT = "ItemEffect" + ClientDataSource.HOTFIX_SUFFIX;
@@ -75,7 +78,8 @@ public final class ItemEffectLoader {
     long total = 0;
     long other = 0;
     long eraUnresolved = 0;
-    long eraOnHotfix = 0;
+    long eraSkippedItems = 0;
+    long eraSkippedRows = 0;
     long hotfixApplied = 0;
     for (long id : new TreeSet<>(items.keySet())) {
       List<CsvTable.Row> rows = new ArrayList<>();
@@ -92,10 +96,11 @@ public final class ItemEffectLoader {
         }
       }
       String source = items.get(id).clientSource();
-      if (rows.isEmpty() && (ClientItem.ERA.equals(source) || ClientItem.HOTFIX.equals(source))) {
-        if (ClientItem.HOTFIX.equals(source) && !eraEffects.getOrDefault(id, List.of()).isEmpty()) {
-          eraOnHotfix++;
-        }
+      if (rows.isEmpty() && ClientItem.HOTFIX.equals(source) && eraEffects.containsKey(id)) {
+        eraSkippedItems++;
+        eraSkippedRows += eraEffects.get(id).size();
+      }
+      if (rows.isEmpty() && ClientItem.ERA.equals(source)) {
         for (CsvTable.Row e : eraEffects.getOrDefault(id, List.of())) {
           if (fmt.tables().contains(e.longOr("SpellID", 0))) {
             rows.add(e);
@@ -151,7 +156,8 @@ public final class ItemEffectLoader {
     report.count(EFFECTS, total);
     report.count(OTHER_TRIGGER, other);
     report.count(ERA_UNRESOLVED, eraUnresolved);
-    report.count(ERA_ON_HOTFIX, eraOnHotfix);
+    report.count(ERA_SKIPPED_ON_HOTFIX, eraSkippedItems);
+    report.count(ERA_ROWS_SKIPPED_ON_HOTFIX, eraSkippedRows);
     report.count(HOTFIX_APPLIED, hotfixApplied);
     return Collections.unmodifiableMap(out);
   }

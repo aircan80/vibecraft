@@ -120,7 +120,9 @@ fetches a single small table. Prefer a local wow.tools.local instance for full r
 The User-Agent is `wow-forever-browser-pipeline/<version> (+<contact>)`. The contact is the `--user-agent` value,
 else the `WOWFOREVER_CONTACT` environment variable, else the placeholder `contact: set WOWFOREVER_CONTACT`. Set one
 of them to a URL or address where the operator can be reached before a full run against a public server; the tool
-never fills in personal data by itself.
+never fills in personal data by itself. The contact goes to the table source (`--base-url`, wago.tools) only: the
+hotfix mirror, GitHub and the patch service get the bare `wow-forever-browser-pipeline/<version>`, in `fetch.py`
+and in `tools/build_watch.py` alike.
 
     WOWFOREVER_CONTACT=https://github.com/<owner>/wow-forever-browser python tools/clientdata/fetch.py ...
 
@@ -136,9 +138,12 @@ Forever beta client's cache at
 parses, and keeps it as `{cache}/hotfix/{sha256}.bin`. The file is overwritten upstream, so it is kept by content and
 never re-read by URL: a snapshot whose SHA-256 is already known keeps its first record. The run also fetches the
 WoWDBDefs definitions (`ItemSparse.dbd`, `Item.dbd`, `ItemEffect.dbd`) at the pinned commit from
-raw.githubusercontent.com. `build.lock` records the newest snapshot (header build, SHA-256, Last-Modified, fetch
-time), every snapshot and the definitions' hashes. A header build other than the lock's is fetched with a warning;
-convert and import then stop.
+raw.githubusercontent.com. `build.lock` records the index's newest snapshot (header build, SHA-256, Last-Modified,
+fetch time), what the mirror served at the last fetch (`last_seen_sha256`, `last_seen_modified`, `last_checked_at`),
+every snapshot and the definitions' hashes. A re-upload of known bytes (a newer Last-Modified, the same SHA-256) only
+moves that snapshot's `last_seen_modified`, which the build watch compares with, so it does not read stale again. If
+the mirror serves an older known snapshot, the lock still names the newest one, which the overlay is current to, and
+the fetch warns. A header build other than the lock's is fetched with a warning; convert and import then stop.
 
 **Format.** After a 44-byte header (magic, version, build, 32 bytes) each entry has a 32-byte header (magic, region,
 push id, unique id, table hash, record id, data size, status and 3 bytes of padding) and the record bytes. The table
@@ -150,12 +155,15 @@ decodes; `clientdata/hotfix.py` reads the cache and builds the overlay.
 **Overlay rules** (pm-data-sources.md):
 
 - Only valid rows (status 1) are applied. Status 3 marks a push as invalidated: it removes only the row that push
-  supplied, and an older push's row of the same record applies again. Status 2 (removed) and 4 (not public) rows are
-  ignored.
+  supplied, and an older push's row of the same record applies again. Status 2 (removed) rows are counted
+  (`removed`) and change nothing; status 4 (not public) rows are ignored.
 - Snapshots are read oldest first, each in file order; the newest snapshot, then the later entry, wins. Push ids do
   not order entries: the per-record replies carry 0x1000000 plus the record id, more than real pushes.
 - A record a later snapshot omits keeps its row, so a revealed item is never hidden again.
-- A snapshot whose header build has another WoWDBDefs layout than the lock's build is skipped and counted.
+- Each snapshot is decoded with the WoWDBDefs layout of its own header build, and its rows are carried into the
+  overlay's columns by name. A snapshot without a layout for its build, or whose layout lacks a column the overlay
+  writes, is skipped: `hotfix.json` lists it (`snapshots_skipped`, `skipped`), convert warns and the import reports
+  `hotfix.snapshotsSkipped` with a note, since its revealed rows are then missing.
 
 `convert.py` (full, or `--hotfix-only`, which writes only `build.lock`, the overlay and `hotfix.json`) writes:
 
@@ -163,8 +171,8 @@ decodes; `clientdata/hotfix.py` reads the cache and builds the overlay.
     OUT/csv/Item.hotfix.csv
     OUT/csv/ItemEffect.hotfix.csv
     OUT/hotfix.json                 url, sha256, header_build, last_modified, fetched_at of the newest snapshot;
-                                    build, snapshots, snapshots_skipped, wowdbdefs_commit; per table rows, valid,
-                                    invalidated, undone and the CSV's sha256
+                                    build, snapshots, snapshots_skipped, skipped, wowdbdefs_commit; per table rows,
+                                    valid, invalidated, undone, removed and the CSV's sha256
 
 It stops (exit 2) when the newest snapshot's header build is not the lock build's last number, when a snapshot or
 definition does not match its recorded hash, or when a layout's columns differ from the base CSV's header. Without a
@@ -173,10 +181,12 @@ definition does not match its recorded hash, or when a layout's columns differ f
 The importer checks the overlay against the lock (the same build, the snapshot the lock records, each CSV's hash) and
 applies it: an item's `ItemSparse` row is the overlay's, else Forever's, else Era's (`client_source` `hotfix`,
 `forever`, `era`); its `Item` row the overlay's, else Forever's; an `ItemEffect` row of the overlay replaces Forever's
-row of the same id. A hotfix item without a Forever effect link keeps the Era fallback's effects
-(`clientdata.era.effectsOnHotfixItems`). Report counters: `hotfix.itemsparse.valid`, `.invalidated` (from
-`hotfix.json`), `.applied`, `.notInItemTable`, `hotfix.fromForever`, `hotfix.fromEra`, `hotfix.fromNoClient`,
-`hotfix.item.applied` and `hotfix.itemeffect.applied`. The tooltip footer of a hotfix item reads "Forever stats
+row of the same id. A hotfix row is a Forever row: it never takes the Era fallback's effects, because Forever moved
+the Era Equip bonuses into its stats and they would show twice. The Era effects left out are counted
+(`clientdata.era.effectsSkippedOnHotfixItems` items, `clientdata.era.effectRowsSkippedOnHotfixItems` rows). Report
+counters: `hotfix.itemsparse.valid`, `.invalidated`, `.removed` (from `hotfix.json`), `.applied`,
+`.notInItemTable`, `hotfix.fromForever`, `hotfix.fromEra`, `hotfix.fromNoClient`, `hotfix.item.applied`,
+`hotfix.itemeffect.applied` and `hotfix.snapshotsSkipped`. The tooltip footer of a hotfix item reads "Forever stats
 revealed by a Blizzard hotfix · beta <header build> · cache <Last-Modified date>"; an Era item's "Classic Era values.
 Forever stats are still hidden."
 

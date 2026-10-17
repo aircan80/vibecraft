@@ -20,6 +20,7 @@ import dev.wowforever.importer.report.ImportReport;
 import dev.wowforever.importer.schema.EntitySchema;
 import dev.wowforever.importer.schema.MetaLoader;
 import dev.wowforever.importer.serverdb.ServerDbStage;
+import dev.wowforever.importer.serverdb.ServerDropRates;
 import dev.wowforever.importer.source.SourceFetcher;
 import dev.wowforever.importer.source.SourceRoots;
 import dev.wowforever.importer.source.SourceSpec;
@@ -121,7 +122,7 @@ public final class ImportPipeline {
     if (atlasSpec.baseline() != null) {
       // the AtlasLoot pin replaced an earlier one (the Classic Forever fork, Hoizame's): keep the union (Task 19)
       List<AtlasInstance> baseline = AtlasLootLoader.load(fetcher.resolve(atlasSpec.baseline(), Optional.empty()),
-          areaNames, new ProblemCollector());
+          areaNames, stage(problems, "atlasloot.baseline"));
       EntityTable items = tables.get(EntityKind.ITEM);
       instances = AtlasLootBaseline.merge(instances, baseline,
           (npc, item) -> listedElsewhere(rates, items, npc, item), report);
@@ -163,7 +164,7 @@ public final class ImportPipeline {
   /** Questie's or VMaNGOS' rates, or Questie's {@code npcDrops}, list {@code npc} dropping {@code item}. */
   static boolean listedElsewhere(DropRates rates, EntityTable items, long npc, long item) {
     for (DropRate r : rates.allSources(npc, item)) {
-      if (r.source().startsWith("questie") || r.source().equals(dev.wowforever.importer.serverdb.ServerDropRates.SOURCE)) {
+      if (r.source().startsWith("questie") || r.source().equals(ServerDropRates.SOURCE)) {
         return true;
       }
     }

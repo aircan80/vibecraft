@@ -10,7 +10,9 @@ import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -24,9 +26,11 @@ import java.util.Objects;
  * @param lastModified the snapshot's HTTP Last-Modified (RFC 1123), "" when the mirror sent none
  * @param build        the client build the overlay was converted for (build.lock's)
  * @param tables       per overlay table (ItemSparse, Item, ItemEffect)
+ * @param skipped      the SHA-256 of each snapshot convert.py skipped because its layout lacks an overlay column;
+ *                     their revealed rows are missing from the overlay
  */
 public record HotfixInfo(String url, String sha256, long headerBuild, String lastModified, String fetchedAt,
-    String build, Map<String, Table> tables) {
+    String build, Map<String, Table> tables, List<String> skipped) {
   public static final String FILE = "hotfix.json";
   private static final DateTimeFormatter DATE = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH);
 
@@ -37,19 +41,21 @@ public record HotfixInfo(String url, String sha256, long headerBuild, String las
    * @param valid       distinct records with a valid (status 1) row in some snapshot
    * @param invalidated distinct invalidated pushes (status 3) seen
    * @param undone      invalidations that removed a row a snapshot had supplied
+   * @param removed     distinct removals (status 2) seen; they change nothing
    * @param sha256      the overlay CSV's SHA-256
    */
-  public record Table(long rows, long valid, long invalidated, long undone, String sha256) {}
+  public record Table(long rows, long valid, long invalidated, long undone, long removed, String sha256) {}
 
   public HotfixInfo {
     Objects.requireNonNull(sha256, "sha256");
     Objects.requireNonNull(build, "build");
     tables = Map.copyOf(tables);
+    skipped = List.copyOf(skipped);
   }
 
   /** The overlay of {@code table}, or an empty one. */
   public Table table(String name) {
-    return tables.getOrDefault(name, new Table(0, 0, 0, 0, ""));
+    return tables.getOrDefault(name, new Table(0, 0, 0, 0, 0, ""));
   }
 
   /** The cache's date, {@code 17 Oct 2026}: Last-Modified in UTC, else the fetch date. */
@@ -96,11 +102,23 @@ public record HotfixInfo(String url, String sha256, long headerBuild, String las
             throw new IllegalArgumentException("tables." + e.getKey() + " is not an object");
           }
           tables.put((String) e.getKey(), new Table(num(m, "rows"), num(m, "valid"), num(m, "invalidated"),
-              num(m, "undone"), str(m, "sha256")));
+              num(m, "undone"), m.get("removed") instanceof Long r ? r : 0, str(m, "sha256")));
+        }
+      }
+      List<String> skipped = new ArrayList<>();
+      if (root.get("skipped") instanceof List<?> list) {
+        for (Object o : list) {
+          if (o instanceof String s) {
+            skipped.add(s);
+          }
+        }
+      } else if (root.get("snapshots_skipped") instanceof Long n && n > 0) {
+        for (long i = 0; i < n; i++) {
+          skipped.add("unknown");
         }
       }
       return new HotfixInfo(optional(root, "url"), str(root, "sha256"), num(root, "header_build"),
-          optional(root, "last_modified"), optional(root, "fetched_at"), str(root, "build"), tables);
+          optional(root, "last_modified"), optional(root, "fetched_at"), str(root, "build"), tables, skipped);
     } catch (IllegalArgumentException e) {
       throw new IllegalStateException(file + ": " + e.getMessage(), e);
     }

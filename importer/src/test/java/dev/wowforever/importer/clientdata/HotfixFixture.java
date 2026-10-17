@@ -15,6 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 /**
@@ -34,6 +35,8 @@ public final class HotfixFixture {
   private int lockHeaderBuild = 70425;
   private String lockSha = SHA;
   private long invalidated = 38;
+  private long removed;
+  private int snapshotsSkipped;
 
   private HotfixFixture(Path dir) {
     this.dir = dir;
@@ -100,6 +103,17 @@ public final class HotfixFixture {
     return this;
   }
 
+  HotfixFixture removed(long n) {
+    this.removed = n;
+    return this;
+  }
+
+  /** Records {@code n} skipped snapshots in hotfix.json, their SHA-256s {@code dd..}, {@code ee..}. */
+  HotfixFixture snapshotsSkipped(int n) {
+    this.snapshotsSkipped = n;
+    return this;
+  }
+
   /** Writes the overlay CSVs, {@code hotfix.json} and the lock's {@code hotfix} entry. */
   HotfixFixture write() {
     try {
@@ -116,13 +130,17 @@ public final class HotfixFixture {
         tables.append("\"").append(e.getKey()).append("\": {\"rows\": ").append(e.getValue().size())
             .append(", \"valid\": ").append(e.getValue().size() + (e.getKey().equals("ItemSparse") ? 1 : 0))
             .append(", \"invalidated\": ").append(e.getKey().equals("ItemSparse") ? invalidated : 0)
-            .append(", \"undone\": 0, \"sha256\": \"").append(sha256(Files.readAllBytes(csv))).append("\"}");
+            .append(", \"undone\": 0, \"removed\": ").append(e.getKey().equals("ItemSparse") ? removed : 0)
+            .append(", \"sha256\": \"").append(sha256(Files.readAllBytes(csv))).append("\"}");
       }
       String build = BuildLock.read(dir.resolve("build.lock")).build();
       Files.writeString(dir.resolve("hotfix.json"), "{\"url\": \"https://example.test/DBCache.bin\", \"sha256\": \""
           + SHA + "\", \"header_build\": " + headerBuild + ", \"last_modified\": \"" + LAST_MODIFIED
           + "\", \"fetched_at\": \"2026-10-17T17:00:00Z\", \"build\": \"" + build + "\", \"snapshots\": 1,"
-          + " \"snapshots_skipped\": 0, \"wowdbdefs_commit\": \"" + "c".repeat(40) + "\", \"tables\": {" + tables
+          + " \"snapshots_skipped\": " + snapshotsSkipped + ", \"skipped\": [" + String.join(", ",
+              IntStream.range(0, snapshotsSkipped)
+                  .mapToObj(i -> "\"" + "de".substring(i % 2, i % 2 + 1).repeat(64) + "\"").toList())
+          + "], \"wowdbdefs_commit\": \"" + "c".repeat(40) + "\", \"tables\": {" + tables
           + "}}\n", StandardCharsets.UTF_8);
       String lock = Files.readString(dir.resolve("build.lock"), StandardCharsets.UTF_8).strip();
       lock = lock.substring(0, lock.length() - 1) + ", \"hotfix\": {\"url\": \"https://example.test/DBCache.bin\","

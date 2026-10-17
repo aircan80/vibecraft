@@ -26,7 +26,7 @@ from typing import Callable, Dict, List, NamedTuple, Optional
 _TOOLS = Path(__file__).resolve().parent
 sys.path.insert(0, str(_TOOLS / "clientdata"))  # -I leaves the script directory off sys.path
 
-from clientdata.fetch import _split_url, user_agent  # noqa: E402
+from clientdata.fetch import _split_url, bare_user_agent, user_agent  # noqa: E402
 from clientdata.http import Client  # noqa: E402
 from clientdata.hotfix import HEADER_SIZE, RAIDBOTS_URL  # noqa: E402
 
@@ -57,14 +57,22 @@ class Response(NamedTuple):
 Getter = Callable[[str, Optional[Dict[str, str]]], Response]
 
 
+def agent_for(url: str, contact=None) -> str:
+    """The User-Agent for ``url``: with the contact for wago.tools only, the bare pipeline name for every other host
+    (Raidbots, the patch service, GitHub), which never gets a contact."""
+    host, _ = _split_url(url)
+    return user_agent(contact) if host == _split_url(WAGO_BUILDS)[0] else bare_user_agent()
+
+
 def client_getter(contact=None) -> Getter:
-    """GETs through the pipeline's Client: its User-Agent, throttle and 5xx retries; one client per host."""
+    """GETs through the pipeline's Client: its throttle and 5xx retries, one client per host, the User-Agent of
+    ``agent_for``."""
     clients = {}
 
     def get(url, headers=None):
         host, path = _split_url(url)
         if host not in clients:
-            clients[host] = Client(host, user_agent(contact))
+            clients[host] = Client(host, agent_for(url, contact))
         r = clients[host].get_response(path, headers=headers, ok=(200, 206))
         return Response(r.status_code, dict(r.headers), r.content)
 
@@ -164,16 +172,18 @@ def check_raidbots(get: Getter, lock: dict) -> Line:
     if not entry:
         return Line(name, STALE, "header build %d, Last-Modified %s; build.lock has no snapshot"
                     % (build, modified or "none"))
+    # the latest Last-Modified a fetch saw, so a re-upload of the same bytes is not news
+    seen = entry.get("last_seen_modified") or entry.get("last_modified", "")
     try:
-        newer = parsedate_to_datetime(modified) > parsedate_to_datetime(entry.get("last_modified", ""))
+        newer = parsedate_to_datetime(modified) > parsedate_to_datetime(seen)
     except (TypeError, ValueError):
-        return _unknown(name, "header build %d; cannot compare Last-Modified %r with the snapshot's %r"
-                        % (build, modified, entry.get("last_modified")))
+        return _unknown(name, "header build %d; cannot compare Last-Modified %r with the last one seen, %r"
+                        % (build, modified, seen))
     if newer:
-        return Line(name, STALE, "Last-Modified %s, snapshot %s %s" % (modified, entry["sha256"][:12],
-                                                                      entry["last_modified"]))
-    return Line(name, FRESH, "header build %d, Last-Modified %s = snapshot %s" % (build, modified,
-                                                                                entry["sha256"][:12]))
+        return Line(name, STALE, "Last-Modified %s, last seen %s (snapshot %s)" % (modified, seen,
+                                                                                  entry["sha256"][:12]))
+    return Line(name, FRESH, "header build %d, Last-Modified %s, last seen %s (snapshot %s)"
+                % (build, modified, seen, entry["sha256"][:12]))
 
 
 def check_questiedb(get: Getter, sources: Dict[str, str]) -> Line:
@@ -219,7 +229,9 @@ def main(argv=None, get: Optional[Getter] = None) -> int:
     ap = argparse.ArgumentParser(description="Report which upstreams moved past build.lock and sources.properties.")
     ap.add_argument("--lock", default=str(DEFAULT_LOCK), help="build.lock (default: the committed one)")
     ap.add_argument("--sources", default=str(DEFAULT_SOURCES), help="the importer's sources.properties")
-    ap.add_argument("--user-agent", metavar="CONTACT", help="the contact part of the User-Agent (as fetch.py)")
+    ap.add_argument("--user-agent", metavar="CONTACT",
+                    help="the contact part of the User-Agent sent to wago.tools only (as fetch.py); every other host "
+                         "gets the bare pipeline name")
     args = ap.parse_args(argv)
     lock = json.loads(Path(args.lock).read_text(encoding="utf-8"))
     sources = read_properties(args.sources)

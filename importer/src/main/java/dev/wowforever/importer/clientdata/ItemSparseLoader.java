@@ -39,7 +39,8 @@ import java.util.stream.Stream;
  * {@code hotfix.json}), {@code .applied} (items given their hotfix row), {@code .notInItemTable} (overlay rows of
  * ids that are not among the items), {@code hotfix.fromForever}, {@code hotfix.fromEra} and
  * {@code hotfix.fromNoClient} (what the applied items would have had without the overlay) and
- * {@code hotfix.item.applied} (items whose Item row is the overlay's).
+ * {@code hotfix.item.applied} (items whose Item row is the overlay's), {@code hotfix.itemsparse.removed} (status-2
+ * removals) and {@code hotfix.snapshotsSkipped} (snapshots of another layout, with a note naming them).
  */
 public final class ItemSparseLoader {
   public static final String ITEM = "Item";
@@ -151,9 +152,18 @@ public final class ItemSparseLoader {
     report.count("clientdata.items.iconOnly", iconOnly);
     report.count("clientdata.items.unmatched", unmatched.size());
     report.note("clientdata.unmatched.ranges: " + ranges(unmatched));
-    HotfixInfo.Table sparseInfo = src.hotfix().map(h -> h.table(SPARSE)).orElse(new HotfixInfo.Table(0, 0, 0, 0, ""));
+    Optional<HotfixInfo> info = src.hotfix();
+    HotfixInfo.Table sparseInfo = info.map(h -> h.table(SPARSE)).orElse(new HotfixInfo.Table(0, 0, 0, 0, 0, ""));
     report.count("hotfix.itemsparse.valid", sparseInfo.valid());
     report.count("hotfix.itemsparse.invalidated", sparseInfo.invalidated());
+    report.count("hotfix.itemsparse.removed", sparseInfo.removed());
+    List<String> skipped = info.map(HotfixInfo::skipped).orElse(List.of());
+    report.count("hotfix.snapshotsSkipped", skipped.size());
+    if (!skipped.isEmpty()) {
+      report.note("hotfix.snapshotsSkipped: " + skipped.size() + " snapshot(s) of another layout left out of the"
+          + " overlay, their revealed rows missing: " + skipped.stream()
+              .map(s -> s.length() > 12 ? s.substring(0, 12) : s).collect(Collectors.joining(", ")));
+    }
     report.count("hotfix.itemsparse.applied", matchedHotfix);
     report.count("hotfix.itemsparse.notInItemTable",
         hotfix.keySet().stream().filter(id -> !questieItemIds.contains(id)).count());

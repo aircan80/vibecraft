@@ -113,9 +113,9 @@ class ItemCardPanelTest {
   @Test
   void theMutedSourceNoteIsJustALine() {
     var card = new ItemCardPanel(new ItemCard(2, List.of(new TooltipLine("name", "Blade", "#1eff00"),
-        new TooltipLine("source_note", "Stats from Classic Era data", "#808080")), 1L, null, null, null), "Blade",
+        new TooltipLine("source_note", "Classic Era values. Forever stats are still hidden.", "#808080")), 1L, null, null, null), "Blade",
         ICON);
-    assertThat(card.lines().texts()).containsExactly("Stats from Classic Era data");
+    assertThat(card.lines().texts()).containsExactly("Classic Era values. Forever stats are still hidden.");
     assertThat(card.lines().colours()).containsExactly(new Color(0x808080));
   }
 

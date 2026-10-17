@@ -387,3 +387,94 @@ def test_fetch_warns_when_the_cache_is_of_another_build(server, tmp_path, capsys
     _serve_basics(server, cache_bytes(build=70451))
     assert _run_fetch(server, tmp_path) == 0
     assert "70451 differs from build.lock build 1.60.1.70450" in capsys.readouterr().err
+
+
+# --- fix round 1 -------------------------------------------------------------------------------------------------
+
+def test_removals_are_counted_and_change_nothing():
+    snap = cache_bytes(entry(SPARSE, 10, sparse_row("Kept"), push=1),
+                       entry(SPARSE, 10, push=2, status=hotfix.REMOVED),
+                       entry(SPARSE, 11, push=3, status=hotfix.REMOVED))
+    o = hotfix.build_overlay([snap], layouts())["ItemSparse"]
+    assert o.rows[10]["Display_lang"] == "Kept"
+    assert o.removed == 2
+
+
+# the same table at an earlier build with one more column (superset): its rows carry over by name
+OLD_SPARSE_DBD = SPARSE_DBD.replace("int Old\n", "int Old\nint Extra\n").replace(
+    "BUILD 1.60.1.70100-1.60.1.70425, 1.60.1.70450", "BUILD 1.60.1.70450").replace(
+    "LAYOUT 00000001", "LAYOUT 00000009\nBUILD 1.60.1.70300\n$noninline,id$ID<32>\nExtra<32>\nDisplay_lang\n"
+    "DmgVariance\nItemLevel<u16>\nStatModifier_bonusStat<32>[2]\nAllowableRace<32>\n\nLAYOUT 00000001")
+
+
+def test_a_snapshot_of_an_earlier_layout_keeps_its_rows_by_column_name(tmp_path):
+    old = cache_bytes(entry(SPARSE, 30, struct.pack("<i", 99) + sparse_row("Old layout")), build=70300)
+    lacking = cache_bytes(entry(SPARSE, 1, b"x\0" + b"\0" * 4), build=70003)  # no layout for 1.60.1.70003
+    newer = cache_bytes(entry(SPARSE, 10, sparse_row("New")))
+    cache = make_cache(tmp_path / "cache", [lacking, old, newer])
+    commit = cache / "wowdbdefs" / ("a" * 40)
+    (commit / "ItemSparse.dbd").write_text(OLD_SPARSE_DBD, encoding="utf-8", newline="\n")
+    for t in ("Item", "ItemEffect"):  # give the other tables a 70300 layout too
+        text = DBDS[t].replace("BUILD 1.60.1.70100-1.60.1.70450", "BUILD 1.60.1.70100-1.60.1.70450, 1.60.1.70300")
+        (commit / (t + ".dbd")).write_text(text, encoding="utf-8", newline="\n")
+    lock_path = cache / BUILD / "build.lock"
+    lock = json.loads(lock_path.read_text())
+    lock["hotfix"]["dbd"] = {t: _sha((commit / (t + ".dbd")).read_bytes()) for t in DBDS}
+    lock_path.write_text(json.dumps(lock))
+    out = tmp_path / "out"
+    convert.convert_hotfix(cache, BUILD, out)
+    lines = (out / "csv" / "ItemSparse.hotfix.csv").read_text().splitlines()
+    assert lines[0] == ",".join(SPARSE_COLUMNS)
+    assert [ln.split(",")[:2] for ln in lines[1:]] == [["10", '"New"'], ["30", '"Old layout"']]
+    info = json.loads((out / "hotfix.json").read_text())
+    assert (info["snapshots"], info["snapshots_skipped"]) == (3, 1)
+    assert info["skipped"] == [_sha(lacking)]
+    assert info["tables"]["ItemSparse"]["removed"] == 0
+
+
+def test_a_known_snapshot_reuploaded_moves_its_last_seen_date_and_the_watch_reads_fresh(server, tmp_path):
+    import build_watch as bw
+
+    data = cache_bytes(entry(SPARSE, 1, sparse_row("A")))
+    _serve_basics(server, data)
+    assert _run_fetch(server, tmp_path) == 0
+    server.routes["/raidbots/DBCache.bin"] = (200, data, {"Last-Modified": "Mon, 19 Oct 2026 08:00:00 GMT"})
+    assert _run_fetch(server, tmp_path) == 0
+    lock = json.loads((tmp_path / BUILD / "build.lock").read_text())
+    h = lock["hotfix"]
+    assert len(h["snapshots"]) == 1
+    assert h["last_modified"] == "Sat, 17 Oct 2026 02:57:00 GMT", "the snapshot's own first date stays"
+    assert h["last_seen_modified"] == "Mon, 19 Oct 2026 08:00:00 GMT"
+    assert h["last_seen_sha256"] == _sha(data)
+
+    served = struct.pack("<4sII", b"XFTH", 9, 70450) + b"\0" * 32
+    line = bw.check_raidbots(lambda url, headers=None: bw.Response(
+        206, {"Last-Modified": "Mon, 19 Oct 2026 08:00:00 GMT"}, served), lock)
+    assert line.status == bw.FRESH
+
+
+def test_the_lock_names_the_newest_snapshot_when_the_mirror_reverts(server, tmp_path, capsys):
+    first = cache_bytes(entry(SPARSE, 1, sparse_row("A")))
+    second = cache_bytes(entry(SPARSE, 2, sparse_row("B")))
+    _serve_basics(server, first)
+    assert _run_fetch(server, tmp_path) == 0
+    server.routes["/raidbots/DBCache.bin"] = (200, second, {"Last-Modified": "Sun, 18 Oct 2026 02:57:00 GMT"})
+    assert _run_fetch(server, tmp_path) == 0
+    server.routes["/raidbots/DBCache.bin"] = (200, first, {"Last-Modified": "Mon, 19 Oct 2026 02:57:00 GMT"})
+    assert _run_fetch(server, tmp_path) == 0
+    assert "older than the newest kept" in capsys.readouterr().err
+    h = json.loads((tmp_path / BUILD / "build.lock").read_text())["hotfix"]
+    assert h["sha256"] == _sha(second) and h["last_modified"] == "Sun, 18 Oct 2026 02:57:00 GMT"
+    assert h["last_seen_sha256"] == _sha(first)
+    assert h["last_seen_modified"] == "Mon, 19 Oct 2026 02:57:00 GMT"
+    assert [s["sha256"] for s in h["snapshots"]] == [_sha(first), _sha(second)]
+
+
+def test_the_contact_goes_to_wago_only(server, tmp_path, monkeypatch):
+    monkeypatch.setenv(fetch.CONTACT_ENV, "https://example.test/contact")
+    _serve_basics(server, cache_bytes())
+    assert _run_fetch(server, tmp_path) == 0
+    by_path = dict(zip(server.paths, server.agents))
+    assert by_path["/api/builds"].endswith("(+https://example.test/contact)")
+    assert by_path["/raidbots/DBCache.bin"] == fetch.USER_AGENT_PREFIX
+    assert by_path[dbd.dbd_path("ItemSparse", "b" * 40)] == fetch.USER_AGENT_PREFIX

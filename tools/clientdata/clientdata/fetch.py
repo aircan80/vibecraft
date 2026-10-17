@@ -27,6 +27,12 @@ PLACEHOLDER_CONTACT = "contact: set " + CONTACT_ENV
 BUILD_PATTERN = re.compile(r"\d+(\.\d+){3}")
 
 
+def bare_user_agent() -> str:
+    """The User-Agent for every host but the table source (Raidbots, GitHub, the patch service): the pipeline's name
+    and version only, never a contact, since the contact is a courtesy to wago.tools alone."""
+    return USER_AGENT_PREFIX
+
+
 def user_agent(contact: Optional[str] = None) -> str:
     """``wow-forever-browser-pipeline/<version> (+<contact>)``.
 
@@ -266,13 +272,27 @@ def read_hotfix_index(cache_dir) -> List[dict]:
     return [e for e in data if isinstance(e, dict) and e.get("sha256")] if isinstance(data, list) else []
 
 
+def _later(a, b):
+    """The later of two HTTP dates (RFC 1123); an unparsable or empty one loses."""
+    from email.utils import parsedate_to_datetime
+
+    def key(v):
+        try:
+            return parsedate_to_datetime(v).timestamp()
+        except (TypeError, ValueError, IndexError):
+            return float("-inf")
+    return a if key(a) >= key(b) else b
+
+
 def fetch_hotfix(client, url, cache_dir, now=None):
     """Snapshot the hotfix cache at ``url`` into ``{cache}/hotfix/<sha256>.bin`` and record it in the index.
 
     The file is overwritten upstream, so it is kept by content: a snapshot whose SHA-256 is already known keeps its
-    first record (``new`` False). The header is checked (magic, version) before anything is written. Returns
-    ``(record, new, index)``: the record holds url, sha256, header_build, last_modified (the response's
-    Last-Modified, "" without one), fetched_at and size; the index is every snapshot, oldest first.
+    place and its first record (``new`` False), but its ``last_seen_modified`` (the latest Last-Modified any fetch saw
+    for it) and ``last_checked_at`` move on, since the mirror may re-upload the same bytes. The header is checked
+    (magic, version) before anything is written. Returns ``(seen, new, index)``: ``seen`` is the index entry of the
+    bytes served now (url, sha256, header_build, last_modified, fetched_at, size, last_seen_modified,
+    last_checked_at); the index is every snapshot, oldest first.
     """
     _, path = _split_url(url)
     resp = client.get_response(path)
@@ -285,14 +305,18 @@ def fetch_hotfix(client, url, cache_dir, now=None):
     if not (target.exists() and target.stat().st_size == len(data)):
         _write_atomic(target, data)
     index = read_hotfix_index(cache_dir)
-    for e in index:
-        if e["sha256"] == sha:
-            return e, False, index
-    record = {"url": url, "sha256": sha, "header_build": build,
-              "last_modified": resp.headers.get("Last-Modified", ""), "fetched_at": now or _now(), "size": len(data)}
-    index.append(record)
+    modified = resp.headers.get("Last-Modified", "")
+    checked = now or _now()
+    seen = next((e for e in index if e["sha256"] == sha), None)
+    new = seen is None
+    if new:
+        seen = {"url": url, "sha256": sha, "header_build": build, "last_modified": modified, "fetched_at": checked,
+                "size": len(data)}
+        index.append(seen)
+    seen["last_seen_modified"] = _later(modified, seen.get("last_seen_modified", seen["last_modified"]))
+    seen["last_checked_at"] = checked
     _write_atomic(Path(cache_dir) / HOTFIX_DIR / HOTFIX_INDEX, (json.dumps(index, indent=2) + "\n").encode("utf-8"))
-    return record, True, index
+    return seen, new, index
 
 
 def fetch_dbds(client, cache_dir, commit=dbd.DBD_COMMIT, tables=hf.OVERLAY_TABLES) -> Dict[str, Path]:
@@ -308,9 +332,14 @@ def fetch_dbds(client, cache_dir, commit=dbd.DBD_COMMIT, tables=hf.OVERLAY_TABLE
     return out
 
 
-def hotfix_lock_entry(record, index, commit, dbds: Dict[str, Path]):
-    """The build.lock ``hotfix`` value: the newest snapshot's fields, every snapshot and the pinned definitions."""
-    return {**record, "snapshots": list(index), "wowdbdefs_commit": commit,
+def hotfix_lock_entry(seen, index, commit, dbds: Dict[str, Path]):
+    """The build.lock ``hotfix`` value: the index's newest snapshot's fields (the one the overlay is current to),
+    what the mirror served at the last check (``last_seen_sha256``, ``last_seen_modified``, ``last_checked_at``, which
+    the build watch compares with), every snapshot and the pinned definitions."""
+    newest = index[-1]
+    return {**{k: v for k, v in newest.items() if k not in ("last_seen_modified", "last_checked_at")},
+            "last_seen_sha256": seen["sha256"], "last_seen_modified": seen["last_seen_modified"],
+            "last_checked_at": seen["last_checked_at"], "snapshots": list(index), "wowdbdefs_commit": commit,
             "dbd": {t: _sha256(p) for t, p in sorted(dbds.items())}}
 
 
@@ -436,16 +465,20 @@ def main(argv=None) -> int:
     if args.hotfix_cache:
         try:
             host, _ = _split_url(args.hotfix_cache)
-            record, new, index = fetch_hotfix(Client(host, client.user_agent, rate_per_second=args.rate),
+            # the contact goes to the table source only; Raidbots and GitHub get the bare pipeline name
+            record, new, index = fetch_hotfix(Client(host, bare_user_agent(), rate_per_second=args.rate),
                                               args.hotfix_cache, cache)
-            dbds = fetch_dbds(Client(args.dbd_base_url, client.user_agent, rate_per_second=args.rate), cache,
+            dbds = fetch_dbds(Client(args.dbd_base_url, bare_user_agent(), rate_per_second=args.rate), cache,
                               args.dbd_commit)
         except (ValueError, hf.HotfixError) as e:
             print("error: --hotfix-cache: %s" % e, file=sys.stderr)
             return 2
         print("hotfix: header build %s, sha256 %s, Last-Modified %s (%s snapshot, %d kept)"
-              % (record["header_build"], record["sha256"], record["last_modified"] or "none",
+              % (record["header_build"], record["sha256"], record["last_seen_modified"] or "none",
                  "new" if new else "known", len(index)))
+        if record is not index[-1]:
+            print("warning: the mirror serves snapshot %s, older than the newest kept (%s); the overlay stays "
+                  "current to the newest" % (record["sha256"][:12], index[-1]["sha256"][:12]), file=sys.stderr)
         if str(record["header_build"]) != b.build.rsplit(".", 1)[-1]:
             print("warning: %s" % hf.mismatch_message(record["header_build"], b.build), file=sys.stderr)
         hotfix_entry = hotfix_lock_entry(record, index, args.dbd_commit, dbds)

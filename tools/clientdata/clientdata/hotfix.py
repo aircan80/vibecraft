@@ -13,10 +13,15 @@ The overlay (pm-data-sources.md, Task 19): only valid rows of the overlay tables
 oldest first and each file in its own order, so the newest snapshot, then the later entry, wins (push ids cannot
 order them: the per-record replies carry 0x1000000 + record id, larger than real pushes). An invalidated entry
 removes only the row its push supplied; an older push's row of the same record then applies again. A record a later
-snapshot omits keeps its row: revealed items are never un-revealed.
+snapshot omits keeps its row: revealed items are never un-revealed. Removals (status 2) are counted and change
+nothing (whether one should also undo the record's earlier rows is a PM question, Task 19 report).
+
+Each snapshot's rows are decoded with the layout of its own header build and carried into the overlay by column
+name, so a snapshot of an earlier layout keeps its rows as long as it has every column the overlay writes; one that
+lacks a column is skipped and counted (``convert.py``).
 """
 import struct
-from typing import Dict, Iterable, Iterator, List, NamedTuple, Tuple
+from typing import Dict, Iterable, Iterator, List, NamedTuple, Tuple, Union
 
 from . import dbd
 
@@ -103,40 +108,54 @@ class TableOverlay(NamedTuple):
     valid: int  # distinct records with a valid row in some snapshot
     invalidated: int  # distinct (record, push) invalidations seen
     undone: int  # invalidations that removed a row a snapshot had supplied
+    removed: int = 0  # distinct (record, push) removals (status 2) seen; they change nothing
 
 
-def build_overlay(snapshots: Iterable[bytes], layouts: Dict[str, List[dbd.Field]]) -> Dict[str, TableOverlay]:
-    """The overlay of each table in ``layouts`` from ``snapshots`` (oldest first). See the module docstring."""
+Snapshot = Union[bytes, Tuple[bytes, Dict[str, List[dbd.Field]]]]
+
+
+def build_overlay(snapshots: Iterable[Snapshot], layouts: Dict[str, List[dbd.Field]]) -> Dict[str, TableOverlay]:
+    """The overlay of each table in ``layouts`` from ``snapshots`` (oldest first). See the module docstring.
+
+    A snapshot is its bytes (decoded with ``layouts``) or ``(bytes, its own layouts)``; rows are carried into the
+    overlay's columns (``layouts``) by name, so its own layouts must have every one of those columns.
+    """
     hashes = {table_hash(t): t for t in layouts}
-    # per table, per record: push -> (sequence, data); the highest sequence left wins
-    pushed: Dict[str, Dict[int, Dict[int, Tuple[int, bytes]]]] = {t: {} for t in layouts}
+    # per table, per record: push -> (sequence, data, fields); the highest sequence left wins
+    pushed: Dict[str, Dict[int, Dict[int, Tuple[int, bytes, list]]]] = {t: {} for t in layouts}
     seen_valid: Dict[str, set] = {t: set() for t in layouts}
     invalid: Dict[str, set] = {t: set() for t in layouts}
+    removed: Dict[str, set] = {t: set() for t in layouts}
     undone = {t: 0 for t in layouts}
     seq = 0
     for snapshot in snapshots:
-        for e in entries(snapshot):
+        data, own = snapshot if isinstance(snapshot, tuple) else (snapshot, layouts)
+        for e in entries(data):
             table = hashes.get(e.table_hash)
             if table is None:
                 continue
             seq += 1
             per_record = pushed[table].setdefault(e.record_id, {})
             if e.status == VALID:
-                per_record[e.push] = (seq, e.data)
+                per_record[e.push] = (seq, e.data, own[table])
                 seen_valid[table].add(e.record_id)
+            elif e.status == REMOVED:
+                removed[table].add((e.record_id, e.push))
             elif e.status == INVALID:
                 invalid[table].add((e.record_id, e.push))
                 if per_record.pop(e.push, None) is not None:
                     undone[table] += 1
     out = {}
     for table, fields in layouts.items():
+        names = dbd.columns(fields)
         rows = {}
         for rid, by_push in pushed[table].items():
             if by_push:
-                _, data = max(by_push.values(), key=lambda v: v[0])
-                rows[rid] = dbd.decode(fields, data, rid)
+                _, data, own_fields = max(by_push.values(), key=lambda v: v[0])
+                row = dbd.decode(own_fields, data, rid)
+                rows[rid] = {c: row[c] for c in names}
         out[table] = TableOverlay(dict(sorted(rows.items())), len(seen_valid[table]), len(invalid[table]),
-                                  undone[table])
+                                  undone[table], len(removed[table]))
     return out
 
 
