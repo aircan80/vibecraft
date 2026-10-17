@@ -210,9 +210,8 @@ public final class ItemRepository {
     Set<Long> keep = new HashSet<>(wanted);
     record Row(RateSource.Key key, RateSource source) {}
     List<Row> rows = db.read(c -> Sql.list(c,
-        "SELECT npc_id, item_id, source, pct FROM drop_rate_source WHERE " + column + " = ?",
-        rs -> new Row(new RateSource.Key(rs.getLong("npc_id"), rs.getLong("item_id")),
-            new RateSource(rs.getString("source"), Sql.doubleValue(rs, "pct"))), id));
+        "SELECT npc_id, item_id, source, pct, quest_only FROM drop_rate_source WHERE " + column + " = ?",
+        rs -> new Row(new RateSource.Key(rs.getLong("npc_id"), rs.getLong("item_id")), source(rs)), id));
     Map<RateSource.Key, List<RateSource>> byPair = new LinkedHashMap<>();
     for (Row r : rows) {
       if (keep.contains(otherId.applyAsLong(r.key()))) {
@@ -225,10 +224,15 @@ public final class ItemRepository {
 
   private static List<RateSource> sources(Connection c, long npcId, long itemId) throws SQLException {
     List<RateSource> sources = new ArrayList<>(Sql.list(c,
-        "SELECT source, pct FROM drop_rate_source WHERE npc_id = ? AND item_id = ?",
-        rs -> new RateSource(rs.getString("source"), Sql.doubleValue(rs, "pct")), npcId, itemId));
+        "SELECT source, pct, quest_only FROM drop_rate_source WHERE npc_id = ? AND item_id = ?",
+        ItemRepository::source, npcId, itemId));
     sources.sort(RateSource.ORDER);
     return List.copyOf(sources);
+  }
+
+  /** A {@code drop_rate_source} row's source, rate and quest-only flag. */
+  private static RateSource source(ResultSet rs) throws SQLException {
+    return new RateSource(rs.getString("source"), Sql.doubleValue(rs, "pct"), rs.getInt("quest_only") != 0);
   }
 
   private static List<DropSource> droppedBy(Connection c, long itemId) throws SQLException {
@@ -254,7 +258,7 @@ public final class ItemRepository {
   private static List<InstanceLoot> inInstanceLoot(Connection c, long itemId) throws SQLException {
     return Sql.list(c, """
         SELECT i.id AS instance_id, i.name AS instance_name, b.id AS boss_id, b.name AS boss_name, b.npc_id,
-               bl.slot, bl.drop_pct, bl.disagrees, bl.source_count
+               bl.slot, bl.drop_pct, bl.disagrees, bl.source_count, bl.pct_source
         FROM boss_loot bl
         JOIN boss b ON b.id = bl.boss_id
         JOIN instance i ON i.id = b.instance_id
@@ -264,7 +268,7 @@ public final class ItemRepository {
         rs -> new InstanceLoot(new EntityRef(EntityKind.INSTANCE, rs.getLong("instance_id")),
             rs.getString("instance_name"), rs.getLong("boss_id"), rs.getString("boss_name"),
             Sql.longValue(rs, "npc_id"), Sql.integer(rs, "slot"), Sql.doubleValue(rs, "drop_pct"),
-            rs.getInt("disagrees") != 0, rs.getInt("source_count")),
+            rs.getInt("disagrees") != 0, rs.getInt("source_count"), rs.getString("pct_source")),
         itemId);
   }
 

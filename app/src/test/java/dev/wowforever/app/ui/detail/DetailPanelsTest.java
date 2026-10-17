@@ -196,6 +196,17 @@ class DetailPanelsTest {
     var lucifron = (DetailPanels.LoadedNpc) DetailPanels.load(new EntityRef(NPC, 12118), repos).orElseThrow();
     assertThat(lucifron.detail().drops()).isNotEmpty();
     assertThat(lucifron.rateSources()).as("drops without rates load none").isEmpty();
+    // VanCleef is a boss: his Vanilla rates say Forever reworked the loot; Lucifron's drops have no sources to say it
+    assertThat(vanCleef.bossNpcs()).containsExactly(639L);
+    assertThat(lucifron.bossNpcs()).as("no rated drops: not asked").isEmpty();
+    var hogger = (DetailPanels.LoadedNpc) DetailPanels.load(new EntityRef(NPC, 448), repos).orElseThrow();
+    assertThat(hogger.bossNpcs()).isEmpty();
+  }
+
+  @Test
+  void anItemLoadsWhichOfItsRatedDroppersAreBosses() {
+    var letter = (DetailPanels.LoadedItem) DetailPanels.load(new EntityRef(ITEM, 2874), repos).orElseThrow();
+    assertThat(letter.bossNpcs()).containsExactly(639L);
   }
 
   @Test

@@ -29,4 +29,22 @@ class RateSourceTest {
     assertThat(new RateSource("vmangos", 1.0).label()).isEqualTo("Vanilla rate (VMaNGOS)");
     assertThat(new RateSource("magic", 1.0).label()).isEqualTo("magic");
   }
+
+  @Test
+  void vmangosReadsVanillaRate() {
+    assertThat(new RateSource("vmangos", 12.5).label()).isEqualTo("Vanilla rate (VMaNGOS)");
+    List<RateSource> l = new ArrayList<>(List.of(new RateSource("zeta", 1.0), new RateSource("vmangos", 2.0),
+        new RateSource("atlasloot-override", 3.0), new RateSource("questie-wowhead", 4.0),
+        new RateSource("atlasloot-forever", 5.0)));
+    l.sort(RateSource.ORDER);
+    assertThat(l).extracting(RateSource::source).containsExactly("questie-wowhead", "atlasloot-override",
+        "atlasloot-forever", "vmangos", "zeta");
+    assertThat(RateSource.BOSS_NOTE).isEqualTo("Vanilla rate; Forever loot reworked");
+  }
+
+  @Test
+  void aQuestOnlyRateIsTheChanceWhileOnTheQuest() {
+    assertThat(new RateSource("vmangos", 100.0).questOnly()).isFalse();
+    assertThat(new RateSource("vmangos", 100.0, true).questOnly()).isTrue();
+  }
 }

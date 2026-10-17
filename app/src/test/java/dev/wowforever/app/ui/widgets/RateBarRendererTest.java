@@ -229,4 +229,117 @@ class RateBarRendererTest {
     assertThat(column.getCellRenderer()).isInstanceOf(RateBarRenderer.class);
     assertThat(column.getPreferredWidth()).isEqualTo(UIScale.scale(RateBarRenderer.COLUMN_WIDTH));
   }
+
+  // --- Vanilla rate (VMaNGOS): the headline marker, the quest-only and boss lines (3B Task 7) ---------------------
+
+  /** A loot row whose headline rate came from {@code pctSource}. */
+  private static LootRow headlined(long id, Double pct, boolean disagrees, int sourceCount, String pctSource) {
+    return new LootRow(new EntityRef(EntityKind.ITEM, id), "Item " + id, 10, pct, "both", null, null, null, null,
+        disagrees, sourceCount, null, null, null, null, 0, pctSource);
+  }
+
+  /** A renderer listing {@code sources} for every row, {@code boss} for every row, each row's own headline source. */
+  private static RateBarRenderer vanillaRenderer(List<RateSource> sources, boolean boss) {
+    return new RateBarRenderer(row -> sources, row -> boss, row -> ((LootRow) row).pctSource());
+  }
+
+  /** The lines of a (FlatLaf multi-line) tooltip. */
+  private static List<String> lines(String tooltip) {
+    return List.of(tooltip.split("\n"));
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {true, false})
+  void vmangosHeadlineIsMarked(boolean dark) {
+    Theme saved = Theme.current();
+    Theme.setCurrent(dark ? Tokens.DARK : Tokens.PARCHMENT);
+    try {
+      RateBarRenderer r = vanillaRenderer(List.of(new RateSource("vmangos", 12.5)), false);
+      JTable t = lootTable(headlined(1, 12.5, false, 1, "vmangos"), r);
+      int w = UIScale.scale(200);
+      int h = UIScale.scale(24);
+      BufferedImage img = paintCell(t, r, w, h);
+      assertThat(r.getText()).as("the glyph is printed: colour is never the only sign").isEqualTo("12.50 % V");
+      Rectangle v = r.vanillaBounds();
+      assertThat(v).isNotNull();
+      assertThat(r.markerBounds()).as("no disagreement").isNull();
+      assertThat(v.x + v.width).isLessThanOrEqualTo(r.barTrack().x);
+      Color bg = r.getBackground();
+      Color muted = Theme.current().textMuted();
+      assertThat(pixelsNear(img, v.x, v.x + v.width, muted, bg)).as("a muted V").isPositive();
+      assertThat(pixelsNear(img, v.x, v.x + v.width, r.getForeground(), bg)).as("the V alone is muted").isZero();
+      assertThat(pixelsNear(img, 0, v.x, r.getForeground(), bg)).as("the number keeps its colour").isPositive();
+      assertThat(lines(r.getToolTipText()).get(0)).startsWith("Vanilla rate (VMaNGOS) 12.50 %");
+    } finally {
+      Theme.setCurrent(saved);
+    }
+  }
+
+  @Test
+  void otherHeadlinesAndUnknownRatesCarryNoVanillaMarker() {
+    RateBarRenderer r = vanillaRenderer(List.of(new RateSource("questie-wowhead", 12.5)), false);
+    JTable t = lootTable(headlined(1, 12.5, false, 1, "questie-wowhead"), r);
+    paintCell(t, r, UIScale.scale(200), UIScale.scale(24));
+    assertThat(r.getText()).isEqualTo("12.50 %");
+    assertThat(r.vanillaBounds()).isNull();
+    RateBarRenderer unknown = vanillaRenderer(List.of(), false);
+    JTable u = lootTable(headlined(2, null, false, 0, "vmangos"), unknown);
+    paintCell(u, unknown, UIScale.scale(200), UIScale.scale(24));
+    assertThat(unknown.getText()).as("no rate, nothing to mark").isEqualTo("—");
+  }
+
+  @Test
+  void bossTooltipSaysLootReworked() {
+    RateBarRenderer r = vanillaRenderer(List.of(new RateSource("questie-wowhead", 20.0),
+        new RateSource("vmangos", 30.0)), true);
+    JTable t = lootTable(headlined(1, 30.0, true, 2, "vmangos"), r);
+    r.getTableCellRendererComponent(t, t.getValueAt(0, rateColumn(t)), false, false, 0, rateColumn(t));
+    assertThat(lines(r.getToolTipText())).containsExactly(
+        "Questie 20.00 %  ·  Vanilla rate (VMaNGOS) 30.00 %", "Vanilla rate; Forever loot reworked");
+    assertThat(RateBarRenderer.sourcesText(List.of(new RateSource("vmangos", 30.0)), true))
+        .contains(RateSource.BOSS_NOTE);
+    // no vmangos source: no such line, boss or not
+    RateBarRenderer questie = vanillaRenderer(List.of(new RateSource("questie-wowhead", 20.0)), true);
+    JTable q = lootTable(headlined(1, 20.0, false, 1, "questie-wowhead"), questie);
+    questie.getTableCellRendererComponent(q, q.getValueAt(0, rateColumn(q)), false, false, 0, rateColumn(q));
+    assertThat(questie.getToolTipText()).isEqualTo("Questie 20.00 %").doesNotContain(RateSource.BOSS_NOTE);
+    // not a boss: no such line
+    assertThat(RateBarRenderer.sourcesText(List.of(new RateSource("vmangos", 30.0)), false))
+        .isEqualTo("Vanilla rate (VMaNGOS) 30.00 %");
+  }
+
+  @Test
+  void disagreementStillMarked() {
+    RateBarRenderer r = vanillaRenderer(List.of(new RateSource("questie-wowhead", 2.31),
+        new RateSource("vmangos", 9.0)), false);
+    JTable t = lootTable(headlined(1, 2.31, true, 2, "questie-wowhead"), r);
+    paintCell(t, r, UIScale.scale(200), UIScale.scale(24));
+    assertThat(r.getText()).isEqualTo("2.31 % ≠");
+    assertThat(r.getToolTipText()).contains("Questie 2.31 %").contains("Vanilla rate (VMaNGOS) 9.00 %");
+  }
+
+  @Test
+  void aVanillaHeadlineTheSourcesDisagreeOnCarriesBothMarkers() {
+    RateBarRenderer r = vanillaRenderer(List.of(new RateSource("questie-wowhead", 2.31),
+        new RateSource("vmangos", 9.0)), false);
+    JTable t = lootTable(headlined(1, 9.0, true, 2, "vmangos"), r);
+    int w = UIScale.scale(200);
+    BufferedImage img = paintCell(t, r, w, UIScale.scale(24));
+    assertThat(r.getText()).isEqualTo("9.00 % V ≠");
+    Rectangle v = r.vanillaBounds();
+    Rectangle ne = r.markerBounds();
+    assertThat(v.x + v.width).as("the V, then the disagreement marker").isLessThanOrEqualTo(ne.x);
+    Color bg = r.getBackground();
+    assertThat(pixelsNear(img, v.x, v.x + v.width, Theme.current().textMuted(), bg)).isPositive();
+    assertThat(pixelsNear(img, v.x, v.x + v.width, Theme.current().warn(), bg)).isZero();
+    assertThat(pixelsNear(img, ne.x, ne.x + ne.width, Theme.current().warn(), bg)).isPositive();
+  }
+
+  @Test
+  void aQuestOnlyVanillaRateReadsOnQuest() {
+    // Hogger's claw: Questie's observed 84 % headlines; VMaNGOS's 100 % is the chance while on the quest
+    assertThat(RateBarRenderer.sourcesText(List.of(new RateSource("vmangos", 100.0, true),
+        new RateSource("questie-wowhead", 83.9965)), false))
+        .isEqualTo("Questie 84.00 %  ·  Vanilla rate (VMaNGOS) 100.00 % on quest");
+  }
 }

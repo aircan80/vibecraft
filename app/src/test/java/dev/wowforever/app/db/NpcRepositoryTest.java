@@ -85,6 +85,65 @@ class NpcRepositoryTest {
   }
 
   @Test
+  void rowsCarryTheirHeadlineSourceAndSourcesTheirQuestOnlyFlag(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("update item_npc_drop set pct_source = 'vmangos' where npc_id = 639 and item_id = 2874");
+      st.executeUpdate("update boss_loot set pct_source = 'vmangos' where item_id = 2874");
+      st.executeUpdate("insert or replace into drop_rate_source(npc_id, item_id, source, pct, quest_only)"
+          + " values (639, 2874, 'vmangos', 100.0, 1)");
+    }
+    try (Database db = Database.open(copy)) {
+      Repositories r = Repositories.of(db);
+      assertThat(r.npcs().detail(639).orElseThrow().drops()).filteredOn(l -> l.item().id() == 2874)
+          .singleElement().extracting(LootRow::pctSource).isEqualTo("vmangos");
+      long bossId = r.instances().detail(2).orElseThrow().bosses().stream()
+          .filter(b -> Long.valueOf(639L).equals(b.npcId())).findFirst().orElseThrow().id();
+      assertThat(r.instances().bossLoot(bossId)).filteredOn(l -> l.item().id() == 2874)
+          .allSatisfy(l -> assertThat(l.pctSource()).isEqualTo("vmangos")).isNotEmpty();
+      assertThat(r.items().detail(2874).orElseThrow().inInstanceLoot())
+          .allSatisfy(l -> assertThat(l.pctSource()).isEqualTo("vmangos")).isNotEmpty();
+      assertThat(r.items().detail(2874).orElseThrow().droppedBy()).singleElement()
+          .extracting(s -> s.pctSource()).isEqualTo("vmangos");
+      var vanilla = new dev.wowforever.app.model.RateSource("vmangos", 100.0, true);
+      assertThat(r.items().sources(639, 2874)).last().isEqualTo(vanilla);
+      assertThat(r.items().sourcesOfNpc(639, List.of(2874L)).values()).singleElement().asList().last()
+          .isEqualTo(vanilla);
+      assertThat(r.items().sourcesOfItem(2874, List.of(639L)).values()).singleElement().asList().last()
+          .isEqualTo(vanilla);
+    }
+    // the fixture's own rows: no quest-only source
+    assertThat(repos.items().sources(639, 2874)).noneMatch(dev.wowforever.app.model.RateSource::questOnly);
+  }
+
+  @Test
+  void bossesAreEncountersAndNpcsOfDungeonsAndRaids(@TempDir Path tmp) throws Exception {
+    // VanCleef (639) and Taragaman (11520) are encounters; Hogger (448) is an Elwynn elite; 999999 is no NPC
+    assertThat(repos.npcs().bosses(List.of(639L, 448L, 11520L, 999_999L))).containsExactlyInAnyOrder(639L, 11520L);
+    assertThat(repos.npcs().bosses(List.of())).isEmpty();
+    // more ids than one query asks about: every chunk is asked
+    List<Long> many = new java.util.ArrayList<>(java.util.stream.LongStream.range(1_000_000, 1_001_200).boxed()
+        .toList());
+    many.add(11520L);
+    assertThat(many).hasSizeGreaterThan(2 * NpcRepository.BOSS_CHUNK);
+    assertThat(repos.npcs().bosses(many)).containsExactly(11520L);
+    // without the encounter rows, the zone kind alone tells: an NPC of a dungeon (The Deadmines, 1581) is one
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("delete from boss");
+      st.executeUpdate("update npc set zone_id = 1581 where id = 448");
+      st.executeUpdate("update zone set kind = 'raid' where id = 1581");
+    }
+    try (Database db = Database.open(copy)) {
+      assertThat(Repositories.of(db).npcs().bosses(List.of(639L, 448L, 11520L)))
+          .as("639 and 448 in a raid zone now; Ragefire Chasm's zone kind decides for 11520")
+          .contains(639L, 448L);
+    }
+  }
+
+  @Test
   void byZoneListsSpawnZoneNpcs() {
     assertThat(repos.npcs().byZone(2437)).extracting(n -> n.id()).contains(11520L);
   }

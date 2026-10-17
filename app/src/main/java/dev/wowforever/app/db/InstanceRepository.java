@@ -27,7 +27,7 @@ public final class InstanceRepository {
 
   /** The boss loot columns with the item's; append WHERE and ORDER BY. */
   private static final String BOSS_LOOT = "SELECT bl.item_id, " + NpcRepository.ITEM_COLUMNS
-      + ", bl.drop_pct, bl.slot, bl.disagrees, bl.source_count FROM boss_loot bl " + NpcRepository.itemJoin("bl");
+      + ", bl.drop_pct, bl.pct_source, bl.slot, bl.disagrees, bl.source_count FROM boss_loot bl " + NpcRepository.itemJoin("bl");
 
   private final Database db;
 

@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.Executor;
 import java.util.function.Consumer;
 import javax.swing.BorderFactory;
@@ -53,12 +54,15 @@ public final class DetailPanels {
 
   /**
    * What {@link #load} returns for an item: the item and its icon, decoded and scaled to {@value IconCache#CARD} px
-   * (null when there is none), which the page's tooltip card shows; and the drop rate sources of its drops and loot
-   * lists, which their rate tooltips list.
+   * (null when there is none), which the page's tooltip card shows; the drop rate sources of its drops and loot
+   * lists, which their rate tooltips list; and which of the NPCs with sources are dungeon or raid bosses
+   * ({@link dev.wowforever.app.db.NpcRepository#bosses}), whose VMaNGOS rates say {@value RateSource#BOSS_NOTE}.
    */
-  public record LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources) {
+  public record LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs) {
     public LoadedItem {
       rateSources = Map.copyOf(rateSources);
+      bossNpcs = Set.copyOf(bossNpcs);
     }
   }
 
@@ -74,13 +78,16 @@ public final class DetailPanels {
 
   /**
    * What {@link #load} returns for an NPC: the NPC and the decoded map of the zone of its first spawn point with
-   * coordinates, {@code mapZoneId} (both null without such a point; the map alone null when that zone has none); and
-   * the drop rate sources of its drops, which their rate tooltips list.
+   * coordinates, {@code mapZoneId} (both null without such a point; the map alone null when that zone has none); the
+   * drop rate sources of its drops, which their rate tooltips list; and its id when it is a dungeon or raid boss
+   * ({@link dev.wowforever.app.db.NpcRepository#bosses}; asked only when a drop has sources), whose VMaNGOS rates say
+   * {@value RateSource#BOSS_NOTE}.
    */
   public record LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
-      Map<RateSource.Key, List<RateSource>> rateSources) {
+      Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs) {
     public LoadedNpc {
       rateSources = Map.copyOf(rateSources);
+      bossNpcs = Set.copyOf(bossNpcs);
     }
   }
 
@@ -114,21 +121,25 @@ public final class DetailPanels {
    * an NPC's drops and wares, an object's contents, a quest's item givers, rewards and related items, an item's
    * containers, an instance's first boss's loot. So are the drop rate sources of the rates with any
    * ({@code sourceCount > 0}) of an item's drops and loot lists and an NPC's drops, in one query per page, which the
-   * rate tooltips list (the instance page loads its bosses' as it shows them). An instance also loads the quests
+   * rate tooltips list (the instance page loads its bosses' as it shows them), and which of those NPCs are dungeon or
+   * raid bosses ({@code bossNpcs}: their VMaNGOS rates say {@value RateSource#BOSS_NOTE}). An instance also loads the quests
    * filed under its zone ({@link LoadedInstance}).
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
     Optional<?> detail = switch (ref.kind()) {
-      case ITEM -> repos.items().detail(id).map(d -> warmedSources(d, d.containedInItems()))
-          .map(d -> new LoadedItem(d,
-              repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
-                  .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
-              repos.items().sourcesOfItem(id, ratedNpcs(d))));
+      case ITEM -> repos.items().detail(id).map(d -> warmedSources(d, d.containedInItems())).map(d -> {
+        List<Long> rated = ratedNpcs(d);
+        return new LoadedItem(d,
+            repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
+                .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
+            repos.items().sourcesOfItem(id, rated), repos.npcs().bosses(rated));
+      });
       case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells())).map(d -> {
         Long zone = mapZone(d.spawns());
-        return new LoadedNpc(d, zone, zoneMap(zone, repos),
-            repos.items().sourcesOfNpc(id, RateSource.ratedItems(d.drops())));
+        List<Long> rated = RateSource.ratedItems(d.drops());
+        return new LoadedNpc(d, zone, zoneMap(zone, repos), repos.items().sourcesOfNpc(id, rated),
+            rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)));
       });
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains())).map(d -> {
         Long zone = mapZone(d.spawns());
@@ -252,9 +263,10 @@ public final class DetailPanels {
   public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
       StatusSink status, SourceFilter filter, Consumer<SourceFilter> onFilterChange, BooleanSetting questPins) {
     return switch (detail) {
-      case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), filter, onFilterChange, nav);
-      case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), filter, onFilterChange,
-          nav, ClipboardPort.system());
+      case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), p.bossNpcs(), filter, onFilterChange,
+          nav);
+      case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), p.bossNpcs(), filter,
+          onFilterChange, nav, ClipboardPort.system());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
       case LoadedQuest p -> new QuestPage(p.detail(), p.starts(), p.ends(), nav);
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null

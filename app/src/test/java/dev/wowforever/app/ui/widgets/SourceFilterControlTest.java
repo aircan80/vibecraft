@@ -50,7 +50,8 @@ class SourceFilterControlTest {
   void theTooltipIsTheRateLegendAndTheItemsReadAsTheFilters() {
     var control = new SourceFilterControl(SourceFilter.ALL, f -> {});
     assertThat(control.getToolTipText()).isEqualTo(SourceFilterControl.LEGEND)
-        .isEqualTo("≠ The sources disagree on this rate; hover the rate to see each source.");
+        .isEqualTo("≠ The sources disagree on this rate; hover the rate to see each source.\n"
+            + "V Vanilla rate (VMaNGOS); hover for details.");
     assertThat(control.getAccessibleContext().getAccessibleName()).isEqualTo("Drop sources");
     List<String> labels = new ArrayList<>();
     JList<SourceFilter> list = new JList<>(SourceFilter.values());

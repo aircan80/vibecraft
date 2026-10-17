@@ -9,21 +9,35 @@ import java.util.Map;
  * name for it ({@code questie-wowhead}, {@code questie-correction}, {@code atlasloot}, {@code atlasloot-override},
  * {@code atlasloot-forever}, {@code atlasloot-forever-override}, {@code vmangos}; the AtlasLoot names follow the
  * importer's {@code atlasloot.rateSource} pin, {@code atlasloot-forever} for the AtlasLoot Classic Forever fork)
- * and {@code pct} the rate in percent, null when the source gave none.
+ * and {@code pct} the rate in percent, null when the source gave none. {@code questOnly} ({@code quest_only}) is true
+ * for a VMaNGOS quest-only chance: the chance while the looter is on the quest, not per kill.
  */
-public record RateSource(String source, Double pct) {
-  /** The order sources are listed in: Questie's, then AtlasLoot's, then any other by name. */
+public record RateSource(String source, Double pct, boolean questOnly) {
+  /**
+   * What a VMaNGOS rate says on a dungeon or raid boss (decision 19): the rate is vanilla's, and Forever reworked
+   * that loot.
+   */
+  public static final String BOSS_NOTE = "Vanilla rate; Forever loot reworked";
+  /** The VMaNGOS source, whose rates read "Vanilla rate". */
+  public static final String VMANGOS = "vmangos";
+
+  /** The order sources are listed in: Questie's, then AtlasLoot's, then VMaNGOS's, then any other by name. */
   private static final List<String> KNOWN = List.of("questie", "questie-wowhead", "questie-correction", "atlasloot",
-      "atlasloot-override", "atlasloot-forever", "atlasloot-forever-override");
+      "atlasloot-override", "atlasloot-forever", "atlasloot-forever-override", VMANGOS);
   private static final Map<String, String> LABELS = Map.of("questie", "Questie", "questie-wowhead", "Questie",
       "questie-correction", "Questie correction", "atlasloot", "AtlasLoot", "atlasloot-override",
       "AtlasLoot override", "atlasloot-forever", "AtlasLoot Forever", "atlasloot-forever-override",
       "AtlasLoot Forever override", "vmangos", "Vanilla rate (VMaNGOS)");
 
-  /** Questie's sources first, then AtlasLoot's, then unknown sources by name. */
+  /** Questie's sources first, then AtlasLoot's, then VMaNGOS's, then unknown sources by name. */
   public static final Comparator<RateSource> ORDER = Comparator
       .comparingInt((RateSource s) -> rank(s.source()))
       .thenComparing(RateSource::source);
+
+  /** A rate per kill (not quest-only). */
+  public RateSource(String source, Double pct) {
+    this(source, pct, false);
+  }
 
   /** The NPC and item a drop rate is for. */
   public record Key(long npcId, long itemId) {}
@@ -39,6 +53,11 @@ public record RateSource(String source, Double pct) {
    */
   public String label() {
     return LABELS.getOrDefault(source, source);
+  }
+
+  /** Whether this is the VMaNGOS source ("Vanilla rate"). */
+  public boolean vanilla() {
+    return VMANGOS.equals(source);
   }
 
   private static int rank(String source) {

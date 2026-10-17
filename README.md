@@ -46,7 +46,7 @@ The rail opens Home and the list pages: Items, NPCs, Quests, Zones, and Dungeons
 
 An item with client data opens with its tooltip card as the game shows it: the icon, the name in its quality colour, stats, effects and set bonuses. Set pieces on the card open their own pages. Below the card come the item's sources: Dropped by, ranked by drop rate, then In instance loot, Contained in, Sold by, Quest reward and Related quests. Ctrl+1 to Ctrl+6 jump to the first six sections.
 
-A rate bar shows each drop chance. A rate marked "≠" has sources that disagree, and its tooltip lists them. An origin chip reads "AtlasLoot" on a row only AtlasLoot gives and "Questie + AtlasLoot" on one both give; QuestieDB-only rows have none.
+A rate bar shows each drop chance. A rate marked "≠" has sources that disagree, and its tooltip lists them. A rate marked "V" is a Vanilla rate from VMaNGOS. On dungeon and raid bosses its tooltip adds "Vanilla rate; Forever loot reworked", and a VMaNGOS rate that applies only while on the quest reads "on quest". An origin chip reads "AtlasLoot" on a row only AtlasLoot gives and "Questie + AtlasLoot" on one both give; QuestieDB-only rows have none.
 
 ![An item page with its tooltip card](docs/screenshots/item.png)
 

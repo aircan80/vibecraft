@@ -32,6 +32,7 @@ import java.awt.Insets;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import javax.swing.BorderFactory;
@@ -104,6 +105,15 @@ public final class ItemPage extends SourcesPage {
    */
   public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
       SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav) {
+    this(all, icon, rateSources, Set.of(), filter, onFilterChange, nav);
+  }
+
+  /**
+   * As above; {@code bossNpcs} are the dropping NPCs that are dungeon or raid bosses (loaded off the EDT with the rate
+   * sources), whose VMaNGOS rates' tooltips add {@value RateSource#BOSS_NOTE}, as do a dungeon's loot lists'.
+   */
+  public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav) {
     super(nav);
     SourceFilters.Filtered<DropSource> drops = SourceFilters.apply(all.droppedBy(), DropSource::origin, filter);
     ItemDetail d = new ItemDetail(all.summary(), all.classId(), all.subclassId(), all.startQuestId(), drops.rows(),
@@ -131,7 +141,8 @@ public final class ItemPage extends SourcesPage {
     droppedBy = table;
     if (table != null) {
       RateBarRenderer.install(column(table, Columns.RATE),
-          row -> row instanceof DropRow r ? sourcesOf(r, itemId, rateSources) : null);
+          row -> row instanceof DropRow r ? sourcesOf(r, itemId, rateSources) : null,
+          row -> row instanceof DropRow r && onBoss(r, bossNpcs), ItemPage::headlineSource);
       OriginChip.install(column(table, "Origin"));
       JTable t = table.table();
       ChipCellRenderer.install(column(table, SOURCE), viewRow -> table.model()
@@ -167,6 +178,24 @@ public final class ItemPage extends SourcesPage {
       case DropRow.Loot l -> l.list().sourceCount() > 0 && l.list().bossNpcId() != null
           ? rateSources.get(new RateSource.Key(l.list().bossNpcId(), itemId)) : null;
       case DropRow.Divider v -> null;
+    };
+  }
+
+  /** Whether {@code row}'s rate is a dungeon or raid boss's: an NPC in {@code bossNpcs}, or an instance loot list. */
+  private static boolean onBoss(DropRow row, Set<Long> bossNpcs) {
+    return switch (row) {
+      case DropRow.Source s -> bossNpcs.contains(s.source().ref().id());
+      case DropRow.Loot l -> true;
+      case DropRow.Divider v -> false;
+    };
+  }
+
+  /** The source of the headline rate of a {@link DropRow} ({@code pct_source}); null for others and the divider. */
+  private static String headlineSource(Object row) {
+    return switch (row) {
+      case DropRow.Source s -> s.source().pctSource();
+      case DropRow.Loot l -> l.list().pctSource();
+      case null, default -> null;
     };
   }
 

@@ -13,8 +13,13 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 /** NPCs: detail pages, filtered lists and zone lists. */
 public final class NpcRepository {
@@ -40,6 +45,9 @@ public final class NpcRepository {
       i.allowable_class, (SELECT t.text FROM item_tooltip_line t WHERE t.item_id = i.id AND t.kind = 'req_skill' \
       ORDER BY t.ordinal LIMIT 1) AS skill_line""";
 
+  /** How many NPC ids one {@link #bosses} query asks about. */
+  static final int BOSS_CHUNK = 500;
+
   private final Database db;
 
   public NpcRepository(Database db) {
@@ -59,7 +67,7 @@ public final class NpcRepository {
       NpcDetail h = head.get();
       // dropper_count: how many NPCs drop the item (a primary-key prefix count), which tells the world drops
       List<LootRow> drops = Sql.list(c, "SELECT d.item_id, " + ITEM_COLUMNS
-          + ", d.drop_pct, d.origin, d.disagrees, d.source_count,"
+          + ", d.drop_pct, d.pct_source, d.origin, d.disagrees, d.source_count,"
           + " (SELECT count(*) FROM item_npc_drop x WHERE x.item_id = d.item_id) AS dropper_count"
           + " FROM item_npc_drop d " + itemJoin("d") + """
 
@@ -82,6 +90,35 @@ public final class NpcRepository {
   /** The spawn points of NPC {@code npcId} with coordinates, in import order. */
   public List<Spawn> spawnsOf(long npcId) {
     return db.read(c -> spawns(c, "npc_spawn", "npc_id", npcId));
+  }
+
+  /**
+   * The NPCs among {@code npcIds} whose Vanilla rates read "Forever loot reworked" (decision 19): an instance's
+   * encounter ({@code boss.npc_id}), or an NPC whose zone is a dungeon or raid. One query per
+   * {@value #BOSS_CHUNK} ids (an item's droppers can run to well over a thousand); no ids, no query.
+   */
+  public Set<Long> bosses(Collection<Long> npcIds) {
+    List<Long> ids = List.copyOf(new LinkedHashSet<>(npcIds));
+    if (ids.isEmpty()) {
+      return Set.of();
+    }
+    return db.read(c -> {
+      Set<Long> bosses = new HashSet<>();
+      for (int from = 0; from < ids.size(); from += BOSS_CHUNK) {
+        List<Long> chunk = ids.subList(from, Math.min(ids.size(), from + BOSS_CHUNK));
+        String in = String.join(", ", Collections.nCopies(chunk.size(), "?"));
+        Object[] params = new Object[chunk.size() * 2];
+        for (int i = 0; i < chunk.size(); i++) {
+          params[i] = chunk.get(i);
+          params[chunk.size() + i] = chunk.get(i);
+        }
+        bosses.addAll(Sql.list(c, "SELECT b.npc_id AS id FROM boss b WHERE b.npc_id IN (" + in + ")"
+            + " UNION SELECT n.id FROM npc n JOIN zone z ON z.id = n.zone_id"
+            + " WHERE n.id IN (" + in + ") AND z.kind IN ('dungeon', 'raid')",
+            rs -> rs.getLong("id"), params));
+      }
+      return Set.copyOf(bosses);
+    });
   }
 
   /** NPCs whose zone is {@code zoneId}, by name. */
@@ -202,18 +239,18 @@ public final class NpcRepository {
   private static LootRow withDropperCount(LootRow r, int dropperCount) {
     return new LootRow(r.item(), r.itemName(), r.itemLevel(), r.dropPct(), r.origin(), r.slot(), r.classId(),
         r.className(), r.subclassId(), r.disagrees(), r.sourceCount(), r.quality(), r.iconId(), r.skillLine(),
-        r.allowableClass(), dropperCount);
+        r.allowableClass(), dropperCount, r.pctSource());
   }
 
   /**
    * A drop row of {@code item_id}, the {@link #ITEM_COLUMNS}, {@code drop_pct} and the rate provenance columns
-   * {@code disagrees} and {@code source_count}, with the given origin and slot.
+   * {@code pct_source}, {@code disagrees} and {@code source_count}, with the given origin and slot.
    */
   static LootRow ratedLoot(ResultSet rs, String origin, Integer slot) throws SQLException {
     LootRow row = loot(rs, Sql.doubleValue(rs, "drop_pct"), origin, slot);
     return new LootRow(row.item(), row.itemName(), row.itemLevel(), row.dropPct(), row.origin(), row.slot(),
         row.classId(), row.className(), row.subclassId(), rs.getInt("disagrees") != 0, rs.getInt("source_count"),
-        row.quality(), row.iconId(), row.skillLine(), row.allowableClass(), 0);
+        row.quality(), row.iconId(), row.skillLine(), row.allowableClass(), 0, rs.getString("pct_source"));
   }
 
   /** The spawn points of an NPC or object from {@code table} (npc_spawn or object_spawn), in import order. */

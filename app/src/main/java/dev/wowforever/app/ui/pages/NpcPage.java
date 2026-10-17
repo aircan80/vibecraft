@@ -72,6 +72,16 @@ public final class NpcPage extends SourcesPage {
    */
   public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
       SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav, ClipboardPort clipboard) {
+    this(d, mapZoneId, map, rateSources, Set.of(), filter, onFilterChange, nav, clipboard);
+  }
+
+  /**
+   * As above; the NPC is a dungeon or raid boss when {@code bossNpcs} holds its id (loaded off the EDT with the rate
+   * sources), so its VMaNGOS rates' tooltips add {@value RateSource#BOSS_NOTE}.
+   */
+  public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav,
+      ClipboardPort clipboard) {
     super(nav);
     NpcSummary s = d.summary();
     header = zoneHeader(title(s), Labels.join("NPC #" + s.id(), Labels.levels(s.minLevel(), s.maxLevel())),
@@ -89,7 +99,7 @@ public final class NpcPage extends SourcesPage {
     } else {
       drops = LootTables.grouped(shown.rows(), new LootTables.Grouping(ItemCategories::ofNpcDrop,
           ItemCategories.DROP_ORDER, LootTables.BY_RATE, Set.of(ItemCategories.WORLD_DROPS), Set.of(),
-          ItemCategories::notableType), LootTables.sourcesOf(s.id(), rateSources), nav);
+          ItemCategories::notableType), LootTables.sourcesOf(s.id(), rateSources), bossNpcs.contains(s.id()), nav);
       addFilteredSection(DROPS, shown, drops);
       section(DROPS).heading().setTrailing(new SourceFilterControl(filter, onFilterChange));
     }

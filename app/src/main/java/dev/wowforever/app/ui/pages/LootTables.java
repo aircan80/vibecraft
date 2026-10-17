@@ -90,7 +90,7 @@ final class LootTables {
   static LinkTable<LootRow> plain(List<LootRow> loot, Navigator nav) {
     LinkTable<LootRow> table = LinkTable.inline(VisibleColumns.of(Columns.lootRated(), loot, null), nav);
     table.setRows(loot);
-    decorate(table, NO_SOURCES);
+    decorate(table, NO_SOURCES, false, row -> row instanceof LootRow l ? l.pctSource() : null);
     return table;
   }
 
@@ -116,6 +116,16 @@ final class LootTables {
   /** {@code loot} grouped as {@code grouping} says, its rate tooltips listing what {@code sources} gives. */
   static LinkTable<GroupedRows.Row<LootRow>> grouped(List<LootRow> loot, Grouping grouping,
       Function<? super LootRow, List<RateSource>> sources, Navigator nav) {
+    return grouped(loot, grouping, sources, false, nav);
+  }
+
+  /**
+   * {@link #grouped(List, Grouping, Function, Navigator)} of the loot of one NPC, a dungeon or raid boss when
+   * {@code boss} says so: its VMaNGOS rates' tooltips then add {@value RateSource#BOSS_NOTE}. Rates whose headline
+   * is VMaNGOS's ({@link LootRow#pctSource}) carry {@link Columns#VANILLA}.
+   */
+  static LinkTable<GroupedRows.Row<LootRow>> grouped(List<LootRow> loot, Grouping grouping,
+      Function<? super LootRow, List<RateSource>> sources, boolean boss, Navigator nav) {
     List<Column<LootRow>> all = new ArrayList<>(Columns.lootRated());
     if (grouping.typeOf() != null) {
       Function<LootRow, String> typeOf = grouping.typeOf();
@@ -134,6 +144,9 @@ final class LootTables {
     decorate(table, row -> {
       LootRow entry = GroupedRows.Entry.valueOf(row, LootRow.class);
       return entry == null ? null : sources.apply(entry);
+    }, boss, row -> {
+      LootRow entry = GroupedRows.Entry.valueOf(row, LootRow.class);
+      return entry == null ? null : entry.pctSource();
     });
     DividerRows.install(table, GroupedRows::isHeading, GroupedRows::isCollapsibleHeading);
     if (!grouping.collapsed().isEmpty()) {
@@ -215,14 +228,16 @@ final class LootTables {
   }
 
   /**
-   * Rate bars (tooltips from {@code sources}), origin chips and muted class names on the Rate, Origin and Classes
-   * columns that are shown.
+   * Rate bars (tooltips from {@code sources}, a boss's VMaNGOS rates noted when {@code boss}, headlines from
+   * {@code headline} marked), origin chips and muted class names on the Rate, Origin and Classes columns that are
+   * shown.
    */
-  private static void decorate(LinkTable<?> table, Function<Object, List<RateSource>> sources) {
+  private static void decorate(LinkTable<?> table, Function<Object, List<RateSource>> sources, boolean boss,
+      Function<Object, String> headline) {
     TableColumnModel columns = table.table().getColumnModel();
     for (int i = 0; i < columns.getColumnCount(); i++) {
       switch (String.valueOf(columns.getColumn(i).getHeaderValue())) {
-        case Columns.RATE -> RateBarRenderer.install(columns.getColumn(i), sources);
+        case Columns.RATE -> RateBarRenderer.install(columns.getColumn(i), sources, row -> boss, headline);
         case VisibleColumns.ORIGIN -> OriginChip.install(columns.getColumn(i));
         case Columns.CLASSES, TYPE -> columns.getColumn(i).setCellRenderer(new MutedRenderer());
         default -> { }

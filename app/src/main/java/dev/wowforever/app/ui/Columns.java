@@ -133,6 +133,8 @@ public final class Columns {
   public static final String RATE = "Rate";
   /** Appended to a drop rate whose sources disagree. */
   public static final String DISAGREES = " ≠";
+  /** Appended to a drop rate whose headline is VMaNGOS's ("Vanilla rate"), before {@link #DISAGREES}. */
+  public static final String VANILLA = " V";
   /** The title of the loot tables' class restriction column ({@link Labels#classes}). */
   public static final String CLASSES = "Classes";
   /** The title of the NPC tables' reaction column ({@link #friendlyText}). */
@@ -321,7 +323,15 @@ public final class Columns {
 
   /** {@link #percentText} followed by {@link #DISAGREES} when the rate's sources disagree. */
   public static String rateText(Double pct, boolean disagrees) {
-    return disagrees ? percentText(pct) + DISAGREES : percentText(pct);
+    return rateText(pct, false, disagrees);
+  }
+
+  /**
+   * {@link #percentText}, then {@link #VANILLA} when the known rate is VMaNGOS's ({@code "12.50 % V"}), then
+   * {@link #DISAGREES} when the rate's sources disagree ({@code "9.00 % V ≠"}).
+   */
+  public static String rateText(Double pct, boolean vanilla, boolean disagrees) {
+    return percentText(pct) + (vanilla && pct != null ? VANILLA : "") + (disagrees ? DISAGREES : "");
   }
 
   /** {@link ItemSource} kind for display. */

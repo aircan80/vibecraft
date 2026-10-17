@@ -15,8 +15,12 @@ import javax.swing.JList;
  * marks ({@link #LEGEND}).
  */
 public final class SourceFilterControl extends JComboBox<SourceFilter> {
-  /** The legend of the marks a rate can carry, which the control's tooltip shows. */
-  public static final String LEGEND = "≠ The sources disagree on this rate; hover the rate to see each source.";
+  /**
+   * The legend of the marks a rate can carry, one line each, which the control's tooltip shows (FlatLaf shows a
+   * tooltip with line breaks as several lines).
+   */
+  public static final String LEGEND = "≠ The sources disagree on this rate; hover the rate to see each source.\n"
+      + "V Vanilla rate (VMaNGOS); hover for details.";
   /** The control's accessible name. */
   public static final String NAME = "Drop sources";
 

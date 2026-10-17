@@ -4,9 +4,21 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.within;
 
 import dev.wowforever.app.model.Craft;
+import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.RateSource;
+import dev.wowforever.app.ui.Columns;
+import dev.wowforever.app.ui.detail.TestPages;
+import dev.wowforever.app.ui.pages.InstancePage;
+import dev.wowforever.app.ui.pages.ItemPage;
+import dev.wowforever.app.ui.pages.NpcPage;
+import dev.wowforever.app.ui.widgets.RateBarRenderer;
+import java.awt.Rectangle;
+import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
+import javax.swing.JTable;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -142,5 +154,84 @@ class ShippedProvenanceDataTest extends ShippedDataSupport {
     assertThat(reportCounter(report, "serverdb.unmatched.npcs")).isLessThanOrEqualTo(10);
     assertThat(reportCounter(report, "provenance.sources.vmangos"))
         .isEqualTo(scalar("select count(*) from drop_rate_source where source = 'vmangos'"));
+  }
+
+  // --- Vanilla rate in the rate cells (3B Task 7) ------------------------------------------------------------------
+
+  /** The view row of {@code t} whose first cell reads {@code name}; -1 when none does. */
+  private static int rowOf(JTable t, String name) {
+    for (int r = 0; r < t.getRowCount(); r++) {
+      if (name.equals(String.valueOf(t.getValueAt(r, 0)))) {
+        return r;
+      }
+    }
+    return -1;
+  }
+
+  /** The text and tooltip of the rate cell of view row {@code row} of {@code t}, as rendered. */
+  private static String[] rateCell(JTable t, int row) {
+    int col = t.getColumnModel().getColumnIndex(Columns.RATE);
+    Rectangle cell = t.getCellRect(row, col, false);
+    String tip = t.getToolTipText(new MouseEvent(t, MouseEvent.MOUSE_MOVED, 0L, 0, cell.x + cell.width / 2,
+        cell.y + cell.height / 2, 0, false));
+    var r = (RateBarRenderer) t.prepareRenderer(t.getCellRenderer(row, col), row, col);
+    return new String[] {r.getText(), tip};
+  }
+
+  @Test
+  void hoggerClawHasAVanillaRate() {
+    assertThat(scalar("select count(*) from drop_rate_source where npc_id = 448 and item_id = 1931"
+        + " and source = 'vmangos'")).isEqualTo(1L);
+    // Hogger's page: Questie's 84 % headlines (no V); the tooltip lists VMaNGOS's quest-only 100 %; no boss line
+    var hogger = (NpcPage) TestPages.build(new EntityRef(EntityKind.NPC, 448), repos, t -> {});
+    JTable drops = hogger.drops().table();
+    String[] claw = rateCell(drops, rowOf(drops, "Huge Gnoll Claw"));
+    assertThat(claw[0]).isEqualTo("84.00 % ≠");
+    assertThat(claw[1]).isEqualTo("Questie 84.00 %  ·  Vanilla rate (VMaNGOS) 100.00 % on quest");
+  }
+
+  @Test
+  void aQuestOnlyVanillaHeadlineIsMarkedAndReadsOnQuest() {
+    // Morgan the Collector (473) drops The Collector's Ring (2239) only on the quest; VMaNGOS alone rates it
+    assertThat(rows("select drop_pct, pct_source, source_count from item_npc_drop where npc_id = 473"
+        + " and item_id = 2239")).singleElement().satisfies(r -> {
+          assertThat(((Number) r[0]).doubleValue()).isCloseTo(100.0, within(1e-9));
+          assertThat(r[1]).isEqualTo("vmangos");
+          assertThat(((Number) r[2]).intValue()).isEqualTo(1);
+        });
+    var morgan = (NpcPage) TestPages.build(new EntityRef(EntityKind.NPC, 473), repos, t -> {});
+    JTable drops = morgan.drops().table();
+    String[] ring = rateCell(drops, rowOf(drops, "The Collector's Ring"));
+    assertThat(ring[0]).isEqualTo("100.00 % V");
+    assertThat(ring[1]).isEqualTo("Vanilla rate (VMaNGOS) 100.00 % on quest");
+  }
+
+  @Test
+  void dungeonBossVanillaRatesSayForeverLootIsReworked() {
+    // Edwin VanCleef (639) is a Deadmines boss: VMaNGOS headlines An Unsent Letter (2874) at 100 %
+    var vanCleef = (NpcPage) TestPages.build(new EntityRef(EntityKind.NPC, 639), repos, t -> {});
+    JTable drops = vanCleef.drops().table();
+    String[] letter = rateCell(drops, rowOf(drops, "An Unsent Letter"));
+    assertThat(letter[0]).isEqualTo("100.00 % V ≠");
+    assertThat(letter[1]).contains("Vanilla rate (VMaNGOS) 100.00 %").endsWith("\n" + RateSource.BOSS_NOTE);
+    // the letter's item page: VanCleef's row says so too
+    var item = (ItemPage) TestPages.build(new EntityRef(EntityKind.ITEM, 2874), repos, t -> {});
+    JTable by = item.droppedBy().table();
+    assertThat(rateCell(by, rowOf(by, "Edwin VanCleef"))[1]).endsWith("\n" + RateSource.BOSS_NOTE);
+    // a world NPC's Vanilla rate has no such line: Morgan the Collector's ring
+    var morgan = (NpcPage) TestPages.build(new EntityRef(EntityKind.NPC, 473), repos, t -> {});
+    JTable ring = morgan.drops().table();
+    assertThat(rateCell(ring, rowOf(ring, "The Collector's Ring"))[1]).doesNotContain(RateSource.BOSS_NOTE);
+    // the instance page: VanCleef's encounter in The Deadmines
+    var deadmines = (InstancePage) TestPages.build(new EntityRef(EntityKind.INSTANCE, 3), repos, t -> {});
+    for (int i = 0; i < deadmines.encounters().getModel().getSize(); i++) {
+      if (Long.valueOf(639L).equals(deadmines.encounters().getModel().getElementAt(i).npcId())) {
+        deadmines.selectBoss(i);
+      }
+    }
+    JTable loot = deadmines.lootTable().table();
+    String[] bossLetter = rateCell(loot, rowOf(loot, "An Unsent Letter"));
+    assertThat(bossLetter[0]).startsWith("100.00 % V");
+    assertThat(bossLetter[1]).endsWith("\n" + RateSource.BOSS_NOTE);
   }
 }

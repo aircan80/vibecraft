@@ -371,7 +371,8 @@ public final class InstancePage extends JPanel implements PageState {
     // AtlasLoot's entry order ("#") orders the rows but is no equipment slot: the column is left out
     lootTable = LootTables.grouped(loot, new LootTables.Grouping(SlotGroups::of, SlotGroups.ORDER, null, Set.of(),
         Set.of(Columns.LOOT_ORDER)),
-        boss.npcId() == null ? LootTables.NO_SOURCES : LootTables.sourcesOf(boss.npcId(), sources), nav);
+        boss.npcId() == null ? LootTables.NO_SOURCES : LootTables.sourcesOf(boss.npcId(), sources),
+        true, nav); // an instance's encounter: its Vanilla rates are a boss's
     lootSection = new SourceSection(LOOT, loot.size(), lootTable);
     lootSection.setRowLimited(false); // the page's main content, rebuilt for every encounter: never cut
     lootPane.removeAll();
