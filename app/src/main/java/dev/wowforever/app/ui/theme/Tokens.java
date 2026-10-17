@@ -5,9 +5,9 @@ import java.awt.Color;
 /**
  * Both colour palettes. The dark one is Slate: its alternate row ({@code #1E232B}) and selection ({@code #29230F})
  * are dark enough that epic text ({@code #B864F5}) stays at least 4.5:1 on them; {@code bg.raised} would give 4.25:1.
- * The light palette is the 2B one until Parchment replaces it. The light theme's {@code accent.gold} ({@code #9A7419}) is about 3.9:1 on {@code bg.base},
- * too light for small text, so its {@code gold.text} is darker ({@code #7A5E14}, about 5.6:1); the dark theme uses one
- * gold for both.
+ * The light palette is the 2B one until Parchment replaces it. The light theme's {@code accent.gold}
+ * ({@code #9A7419}) is about 3.9:1 on {@code bg.base}, too light for small text, so its {@code gold.text} is darker
+ * ({@code #7A5E14}, about 5.6:1); the dark theme uses one gold for both.
  */
 public final class Tokens {
   public static final Theme DARK =

@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import dev.wowforever.app.ui.theme.Contrast;
 import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.theme.Tokens;
 import java.awt.Color;
@@ -77,9 +78,22 @@ class ThemeManagerTest {
     assertEquals(Tokens.DARK.altRow(), rgb("Table.alternateRowColor"));
     assertEquals(Tokens.DARK.selection(), rgb("Table.selectionBackground"));
     assertEquals(Tokens.DARK.selection(), rgb("Table.selectionInactiveBackground"));
+    assertEquals(Tokens.DARK.textPrimary(), rgb("Table.selectionForeground"));
+    assertEquals(Tokens.DARK.textPrimary(), rgb("Table.selectionInactiveForeground"));
     ThemeManager.apply(ThemeManager.Mode.LIGHT);
     assertEquals(new Color(0xF4F5F7), rgb("Panel.background"));
     assertEquals(new Color(0xFFFFFF), rgb("Table.background"));
+  }
+
+  /** The pairs FlatLaf paints on a selected row: focused, then unfocused (FlatTableUI swaps them on focus). */
+  @Test
+  void slateTableSelectionTextReadsAtFourAndAHalfToOne() {
+    ThemeManager.apply(ThemeManager.Mode.DARK);
+    assertTrue(Contrast.ratio(rgb("Table.selectionForeground"), rgb("Table.selectionBackground")) >= 4.5,
+        "focused table selection");
+    assertTrue(
+        Contrast.ratio(rgb("Table.selectionInactiveForeground"), rgb("Table.selectionInactiveBackground")) >= 4.5,
+        "unfocused table selection");
   }
 
   @Test

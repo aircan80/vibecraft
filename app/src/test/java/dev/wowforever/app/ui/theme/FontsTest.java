@@ -2,12 +2,20 @@ package dev.wowforever.app.ui.theme;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.formdev.flatlaf.FlatLaf;
 import java.awt.Font;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Test;
 
 class FontsTest {
+  /** {@code install()} makes Inter FlatLaf's preferred family; later tests in this JVM get the default font back. */
+  @AfterAll
+  static void resetPreferredFont() {
+    FlatLaf.setPreferredFontFamily(null);
+  }
+
   @Test
   void marcellusLoadsFromResources() {
     Fonts.install();

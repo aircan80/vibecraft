@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.theme;
 
 import com.formdev.flatlaf.FlatLaf;
 import com.formdev.flatlaf.fonts.inter.FlatInterFont;
+import java.awt.AWTError;
 import java.awt.Font;
 import java.awt.FontFormatException;
 import java.awt.GraphicsEnvironment;
@@ -26,7 +27,7 @@ public final class Fonts {
   /** The heading family when both bundled fonts load. */
   public static final String MARCELLUS = "Marcellus";
 
-  /** Heading families tried in order when Marcellus is missing; {@link Font#SERIF} is a logical font that always exists. */
+  /** Heading families tried in order when Marcellus is missing; {@link Font#SERIF} is a logical font, always there. */
   public static final List<String> FALLBACKS = List.of("Cinzel", "Georgia", Font.SERIF);
 
   private static final String DIR = "/dev/wowforever/app/ui/fonts/";
@@ -34,6 +35,8 @@ public final class Fonts {
   private static volatile Font marcellus;
   private static volatile Font marcellusSc;
   private static volatile String family;
+  /** The fallback family before {@link #install()}, resolved once: enumerating the system fonts is slow. */
+  private static volatile String fallback;
   private static boolean installed;
 
   private Fonts() {}
@@ -53,7 +56,7 @@ public final class Fonts {
     try {
       FlatInterFont.installLazy();
       FlatLaf.setPreferredFontFamily(FlatInterFont.FAMILY);
-    } catch (RuntimeException | LinkageError e) {
+    } catch (RuntimeException | LinkageError | AWTError e) {
       LOG.warn("Inter could not be installed; body text keeps the default font", e);
     }
   }
@@ -71,7 +74,15 @@ public final class Fonts {
   /** The family of {@link #heading}: {@value #MARCELLUS} once installed, otherwise a fallback. */
   public static String headingFamily() {
     String f = family;
-    return f != null ? f : resolve(Fonts::isInstalled, false);
+    if (f != null) {
+      return f;
+    }
+    String fb = fallback;
+    if (fb == null) {
+      fb = resolve(Fonts::isInstalled, false);
+      fallback = fb;
+    }
+    return fb;
   }
 
   /**
@@ -107,7 +118,7 @@ public final class Fonts {
       Font font = Font.createFont(Font.TRUETYPE_FONT, in);
       GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(font);
       return font;
-    } catch (IOException | FontFormatException | RuntimeException e) {
+    } catch (IOException | FontFormatException | RuntimeException | LinkageError | AWTError e) {
       LOG.warn("Font {} could not be loaded; headings fall back to {}", file, FALLBACKS, e);
       return null;
     }
@@ -121,7 +132,7 @@ public final class Fonts {
       Set<String> names = new HashSet<>(
           Arrays.asList(GraphicsEnvironment.getLocalGraphicsEnvironment().getAvailableFontFamilyNames()));
       return names.contains(name);
-    } catch (RuntimeException e) {
+    } catch (RuntimeException | LinkageError | AWTError e) {
       return false;
     }
   }
