@@ -32,7 +32,7 @@ The window has a rail of section icons on the left, the search box and its resul
 
 ### Search
 
-Type in the search box (Ctrl+F) to find items, NPCs, objects, quests, zones and dungeons as you type. A dropdown shows the top hits in their quality colour and icon, and the kind chips beside the box (All, Items, NPCs and so on) narrow it and count the hits of each kind. Enter opens the selected or the top hit, and the results list fills with that search. Shift+Enter or "Show all" lists every hit instead. In the results list, Up and Down preview a row on the page, and Enter or a click opens it. The empty box shows your recent searches.
+Type in the search box (Ctrl+F) to find items, NPCs, objects, quests, zones and dungeons as you type. A dropdown shows the top hits in their quality colour and icon, and the kind chips beside the box (All, Items, NPCs and so on) narrow it and count the hits of each kind. Enter opens the selected or the top hit, and the results list fills with that search. Shift+Enter or "Show all" lists every hit instead. In the results list, Up and Down preview a row on the page, and Enter or a click opens it. Clicking into the empty box, Ctrl+F or `/` shows your recent searches.
 
 Pasting a whole item link, an `item:19019` text, a Wowhead URL or a bare id over the box opens that page. Pasting `[Name]` searches for the name.
 

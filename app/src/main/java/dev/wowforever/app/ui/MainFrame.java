@@ -416,16 +416,14 @@ public final class MainFrame extends JFrame implements MainView {
   public void setDetail(JComponent c) {
     Component owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
     boolean keepFocusInPage = focusStaysInPage(owner, detailHolder);
-    if (keepFocusInPage) {
-      // Park the focus on the holder first: removing a focused page would otherwise hand the focus to the next
-      // component in the window, the search box, which then pops its recent searches open.
-      detailHolder.requestFocusInWindow();
-    }
     detailHolder.removeAll();
     detailHolder.add(c, BorderLayout.CENTER);
     detailHolder.revalidate();
     detailHolder.repaint();
     if (keepFocusInPage) {
+      // Removing the focused page still hands the focus on by traversal (to the search box, as it happens); focus
+      // requests are queued, and this last one wins. SearchBar ignores that transient traversal gain, so the recent
+      // searches never pop open.
       focusTargetIn(c).requestFocusInWindow();
     }
   }

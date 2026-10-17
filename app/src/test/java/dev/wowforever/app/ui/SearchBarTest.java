@@ -314,6 +314,19 @@ class SearchBarTest {
   }
 
   @Test
+  void clickingTheAlreadyFocusedEmptyBoxShowsRecents() {
+    attachInline();
+    state.addRecentSearch("hogger");
+    // Focus came back through window activation: quiet. The click that follows is the deliberate entry.
+    bar.focusChanged(true, FocusEvent.Cause.ACTIVATION);
+    assertThat(dropdown.isShowing()).isFalse();
+    bar.clicked();
+    assertThat(dropdown.isShowing()).isTrue();
+    bar.clicked();
+    assertThat(dropdown.rows()).containsOnlyOnce(new Row.Recent("hogger"));
+  }
+
+  @Test
   void focusShortcutCountsAsADeliberateEntry() {
     attachInline();
     state.addRecentSearch("hogger");

@@ -17,6 +17,8 @@ import java.awt.event.ContainerAdapter;
 import java.awt.event.ContainerEvent;
 import java.awt.event.FocusAdapter;
 import java.awt.event.FocusEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -178,6 +180,12 @@ public final class SearchBar extends JPanel {
         focusChanged(false);
       }
     });
+    text.addMouseListener(new MouseAdapter() {
+      @Override
+      public void mousePressed(MouseEvent e) {
+        clicked();
+      }
+    });
     dropdown.install(text, new SearchDropdown.Listener() {
       @Override
       public void open(ListEntry hit) {
@@ -225,6 +233,16 @@ public final class SearchBar extends JPanel {
   /** Makes the next focus gain count as a deliberate entry into the box (what {@link #focus()} does). */
   void markFocusDeliberate() {
     deliberateFocus = true;
+  }
+
+  /**
+   * A click into the box. When the box already has the focus (it was the window's last focus owner and the window
+   * was just activated, so no mouse-caused focus gain arrives), an empty box with the list closed shows the recents.
+   */
+  void clicked() {
+    if (focused && query().isEmpty() && !dropdown.isShowing()) {
+      dropdown.showRecents(state.recentSearches());
+    }
   }
 
   /**
