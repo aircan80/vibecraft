@@ -46,12 +46,14 @@ public final class SourceCatalogPanel extends JPanel {
         : comparisonPresenter;
     add(new WrappingText(catalog.available()
         ? "Archived datasets and history; archive presence does not establish which source produced an app value."
+            + (catalog.legacySources().isEmpty() ? "" : " Baseline references identify earlier inputs whose original files are not archived; the derived app database is retained.")
         : "Legacy build metadata; original inputs not archived. Links identify recorded revisions or reference sites, not field-level evidence.", "Source archive scope"), BorderLayout.NORTH);
     var rows = new ArrayList<Object[]>();
     for (var s : catalog.snapshots()) rows.add(new Object[] {s.source(), s.version(), s.product(), s.build(),
         s.locale(), s.capturedAt(), String.join(", ", catalog.activeRoles().getOrDefault(s.id(), List.of())), s.id()});
-    if (!catalog.available()) for (var source : catalog.legacySources()) rows.add(new Object[] {
-        source.source(), source.version(), source.linkType()});
+    for (var source : catalog.legacySources()) rows.add(catalog.available()
+        ? new Object[] {source.source()+" (baseline reference)", source.version(), "Original inputs not archived", "", "", "", "", ""}
+        : new Object[] {source.source(), source.version(), source.linkType()});
     snapshots = table(rows.toArray(Object[][]::new), catalog.available()
         ? new String[] {"Source", "Version", "Product", "Build", "Locale", "Captured (UTC)", "App input roles", "Snapshot ID"}
         : new String[] {"Source", "Recorded version/build", "Link type"});
@@ -61,16 +63,17 @@ public final class SourceCatalogPanel extends JPanel {
       if (e.getValueIsAdjusting()) return;
       int row = snapshots.getSelectedRow();
       if (row < 0) selectedFiles = List.of();
-      else if (catalog.available()) selectedFiles = catalog.snapshots().get(snapshots.convertRowIndexToModel(row)).files();
+      else if (catalog.available() && snapshots.convertRowIndexToModel(row) < catalog.snapshots().size())
+        selectedFiles = catalog.snapshots().get(snapshots.convertRowIndexToModel(row)).files();
       else {
-        var source = catalog.legacySources().get(snapshots.convertRowIndexToModel(row));
+        var source = catalog.legacySources().get(snapshots.convertRowIndexToModel(row) - (catalog.available() ? catalog.snapshots().size() : 0));
         selectedFiles = List.of(new SourceFile(source.linkType(), source.url(), "Original inputs not archived"));
       }
       var model = (DefaultTableModel) files.getModel();
       model.setRowCount(0);
       for (var f : selectedFiles) model.addRow(new Object[] {f.path(), f.url(), f.sha256()});
       open.setEnabled(false);
-      selectedSnapshot = row < 0 || !catalog.available() ? null
+      selectedSnapshot = row < 0 || !catalog.available() || snapshots.convertRowIndexToModel(row) >= catalog.snapshots().size() ? null
           : catalog.snapshots().get(snapshots.convertRowIndexToModel(row));
       updateComparison();
     });

@@ -60,6 +60,7 @@ public final class RenderSnapshots {
   private static final double LOAD_TARGET_MS = 300;
   private static final List<EntityRef> CASES = List.of(
       ref(EntityKind.QUEST, 176), ref(EntityKind.QUEST, 166), ref(EntityKind.QUEST, 6502),
+      ref(EntityKind.QUEST, 79976),
       ref(EntityKind.QUEST, 7787), ref(EntityKind.QUEST, 7791), ref(EntityKind.NPC, 550),
       ref(EntityKind.NPC, 412), ref(EntityKind.ZONE, 40));
 

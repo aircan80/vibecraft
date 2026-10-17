@@ -292,8 +292,38 @@ when original inputs were not archived. Dataset attribution does not claim field
 browsing and detailed app-value lineage explanations are planned separately. The desktop app remains offline until a
 source URL is deliberately opened. See [the design](docs/superpowers/specs/2026-10-17-versioned-source-data.md).
 
+### AllTheThings Forever
+
+CLI imports include pinned AllTheThings Forever source files by default. `--att-dir <checkout>` uses a local
+copy (identified by content, without claiming its files match upstream); `--skip-att` explicitly omits it.
+The acquisition retains the full Forever subtree, its MIT license and the prerequisite-semantics files.
+Projection reads the archived path manifest and revision, never a moving upstream branch, and runs offline.
+
+Only representable, explicit prerequisite groups are eligible for projection. Unknown conditions, dynamic Lua,
+unsupported references and conflicting variants are withheld; their originals remain inspectable in the archive.
+Existing Questie prerequisite groups are preserved on disagreement. Matching claims receive supporting attribution;
+missing groups can be filled from ATT. The report records selected links, conflicting groups and unsupported conditions.
+These coverage counts do not establish that every quest requirement is known or verified in-game.
+
+When the original inputs for an existing app database are unavailable, capture a clearly labelled **derived app
+baseline** and ATT without rebuilding its item stats, maps or icons:
+
+```sh
+java -jar importer/target/importer.jar ingest-att --out existing-app.sqlite --skip-client-data
+java -jar importer/target/importer.jar project --database existing-app.sqlite --ingestion INGESTION_ID
+```
+
+`ingest-att` leaves app tables unchanged. The separate projection starts from the retained prearchive database,
+so refreshing ATT cannot keep stale ATT links. Later captures reuse that original baseline instead of recursively
+archiving a database inside itself. This preserves the old derived data; it does **not** recover the missing original
+Questie/client/server inputs or claim that their coverage was freshly validated. Full-source imports remain available.
+The Data sources view distinguishes archived originals, the derived baseline and its earlier provider references.
+Quest-chain attribution identifies each selected ATT relationship and its source snapshot/path; upstream links open
+only after a deliberate click. Local overrides have no fabricated upstream link.
+
 ## Data sources & licensing
 
+- [AllTheThings Forever](https://github.com/ATTWoWAddon/AllTheThings/tree/a8c2fce5e8e52af3925352f5e61cbf7520ae3148/.contrib/.db/forever), commit `a8c2fce5e8e52af3925352f5e61cbf7520ae3148`, licensed under MIT. Authored quest relationships are labelled separately from in-game observations.
 - [QuestieDB](https://github.com/Questie/QuestieDB), commit `49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4`. It publishes no license file, so the data is used with attribution.
 - [AtlasLootClassic](https://github.com/Hoizame/AtlasLootClassic), commit `8e99341e4e779328460bf7684c0d5b22ce50ddf1`, licensed under GPL-2.0.
 - [VMaNGOS](https://github.com/vmangos/core) world database, release asset `db-sqlite-4641790.zip` (commit `464179081673cfd240f7ffe7f0daf96bca0b5a70`), licensed under GPL-2.0. Only derived drop percentages are stored.

@@ -15,7 +15,7 @@ class ImportOptionsTest {
   void parsesEveryFlag() {
     ImportOptions o = ImportOptions.parse(new String[] {
         "--out", "x/db.sqlite", "--cache", "c", "--questiedb-dir", "q", "--atlasloot-dir", "a",
-        "--fail-on-unsupported", "--build-id-out", "b/id.txt", "--client-data-dir", "cd", "--coverage-min", "80"});
+        "--fail-on-unsupported", "--build-id-out", "b/id.txt", "--client-data-dir", "cd", "--coverage-min", "80", "--skip-att"});
     assertThat(o).isEqualTo(new ImportOptions(Path.of("x/db.sqlite"), Path.of("c"), Optional.of(Path.of("q")),
         Optional.of(Path.of("a")), true, Path.of("b/id.txt"), ClientDataOptions.of(Path.of("cd")), 80));
     assertThat(o.serverDbDir()).isEmpty();
@@ -24,7 +24,7 @@ class ImportOptionsTest {
   @Test
   void parsesTheServerDatabaseDirectory() {
     ImportOptions o = ImportOptions.parse(new String[] {
-        "--out", "x/db.sqlite", "--skip-client-data", "--server-db-dir", "sdb"});
+        "--out", "x/db.sqlite", "--skip-client-data", "--server-db-dir", "sdb", "--skip-att"});
     assertThat(o.serverDbDir()).contains(Path.of("sdb"));
     assertThat(o).isEqualTo(new ImportOptions(Path.of("x/db.sqlite"), SourceFetcher.defaultCacheDir(),
         Optional.empty(), Optional.empty(), false, ImportOptions.defaultBuildIdOut(Path.of("x/db.sqlite")),
@@ -33,6 +33,17 @@ class ImportOptionsTest {
     assertThatThrownBy(() -> ImportOptions.parse(new String[] {"--out", "o", "--skip-client-data", "--server-db-dir"}))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("--server-db-dir needs a value");
+  }
+
+  @Test void includesPinnedAttByDefaultAndCanSelectLocalOrOmitItExplicitly() {
+    assertThat(ImportOptions.parse(new String[]{"--out","app.sqlite","--skip-client-data"}).skipAllTheThings()).isFalse();
+    var local=ImportOptions.parse(new String[]{"--out","app.sqlite","--skip-client-data","--att-dir","att"});
+    assertThat(local.allTheThingsDir()).contains(Path.of("att"));
+    assertThat(local.skipAllTheThings()).isFalse();
+    assertThat(ImportOptions.parse(new String[]{"--out","app.sqlite","--skip-client-data","--skip-att"})
+        .skipAllTheThings()).isTrue();
+    assertThatThrownBy(()->ImportOptions.parse(new String[]{"--out","app.sqlite","--skip-client-data","--skip-att","--att-dir","att"}))
+        .hasMessageContaining("mutually exclusive");
   }
 
   @Test

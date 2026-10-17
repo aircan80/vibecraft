@@ -22,14 +22,16 @@ See `docs/superpowers/specs/2026-10-17-versioned-source-data.md` and README's ar
 retains immutable original inputs, structured CSV/Lua/JSON evidence, snapshot comparisons and dataset-level provenance.
 The app has View→Data sources with explicit legacy metadata when the shipped database predates archiving.
 Full raw-record browsing is deferred by the owner; detailed field-level lineage and additional native-format
-extractors remain explicitly separate from dataset attribution. Do not claim archived inputs for the existing
-bundled database merely because the new tooling supports them.
+extractors remain explicitly separate from dataset attribution. The bundled database now archives ATT originals
+and a clearly labelled derived legacy app baseline; its older upstream originals are still unavailable.
 
 Open data gates remain Task 19's AtlasLoot Forever archive/hotfix regeneration and Task 20b's collector import and
 real observation acceptance. Do not tag v0.3.0 or claim the data refresh shipped. BUG-CSB-001 records the missing
 Cozy Sleeping Bag chain relationships. The audit confirmed the selected QuestieDB Forever input omits them;
-the newly authorized AllTheThings native Forever source explicitly supplies them. Integration and actual app-data
-acceptance remain pending; see the source contract below and BUG-CSB-001 for exact evidence.
+the newly authorized AllTheThings native Forever source supplies them. The shipped data now includes all six links,
+source attribution and both faction starts. Full verification passed (1,677 tests, six skipped, no failures/errors),
+with 46 panel captures and targeted source/expanded-chain acceptance. These remain authored source claims, not
+in-game verification; see BUG-CSB-001 for exact evidence.
 
 Public progress dashboard: https://wow-forever-progress.happystoat6.chatgpt.site . Its separate source checkout is
 `../dashboard`; publish updates through Sites. Completed work identifies Claude or Codex accurately.

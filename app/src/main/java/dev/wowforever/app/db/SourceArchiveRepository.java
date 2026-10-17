@@ -104,7 +104,15 @@ public final class SourceArchiveRepository {
             active.computeIfAbsent(input.snapshotId(), ignored -> new java.util.ArrayList<>()).add(input.role());
         } else if (!history.isEmpty()) note = "Completed builds are archived; the active execution was not recorded.";
       }
-      return new Catalog(true, result, active, projection, List.of(), history, note);
+      var baselineReferences = new java.util.ArrayList<LegacySource>();
+      if (result.stream().anyMatch(s -> s.source().equals("legacy-app-database")
+          && active.getOrDefault(s.id(), List.of()).contains("legacy-app")) && Sql.hasTable(c, "meta")) {
+        var metadata = new java.util.LinkedHashMap<String, String>();
+        for (var row : Sql.list(c, "SELECT key,value FROM meta", rs -> new String[]{rs.getString(1),rs.getString(2)}))
+          metadata.put(row[0],row[1]);
+        baselineReferences.addAll(legacy(metadata));
+      }
+      return new Catalog(true, result, active, projection, baselineReferences, history, note);
     });
   }
   private static List<LegacySource> legacy(Map<String, String> meta) {

@@ -85,4 +85,23 @@ class SourceCatalogPanelTest {
       assertThat(panel.openButton().isEnabled()).isFalse();
     });
   }
+  @Test void baselineReferencesRemainUsableAlongsideNewArchivedInputs() throws Exception {
+    SwingUtilities.invokeAndWait(() -> {
+      var snapshot=new Snapshot("base","legacy-app-database","derived baseline","application","old","","now",List.of());
+      var reference=new LegacySource("QuestieDB","oldpin","Pinned repository revision","https://github.com/Questie/QuestieDB");
+      var opened=new ArrayList<URI>();
+      var panel=new SourceCatalogPanel(new Catalog(true,List.of(snapshot),java.util.Map.of(),null,List.of(reference)),opened::add);
+      assertThat(panel.snapshotsTable().getRowCount()).isEqualTo(2);
+      panel.snapshotsTable().setRowSelectionInterval(1,1);
+      assertThat(panel.snapshotsTable().getValueAt(1,0)).isEqualTo("QuestieDB (baseline reference)");
+      assertThat(panel.filesTable().getValueAt(0,2)).isEqualTo("Original inputs not archived");
+      assertThat(panel.useBaselineButton().isEnabled()).isFalse();
+      panel.filesTable().setRowSelectionInterval(0,0);
+      panel.openButton().doClick();
+      assertThat(opened).containsExactly(URI.create("https://github.com/Questie/QuestieDB"));
+      panel.snapshotsTable().setRowSelectionInterval(0,0);
+      assertThat(panel.useBaselineButton().isEnabled()).isTrue();
+    });
+  }
+
 }

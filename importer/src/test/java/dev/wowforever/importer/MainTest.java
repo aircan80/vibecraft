@@ -21,7 +21,7 @@ class MainTest {
   void noArgumentsPrintsUsageAndReturnsOne() {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
-    int code = Main.run(new String[0], print(out), print(err));
+    int code = run(new String[0], print(out), print(err));
     assertThat(code).isEqualTo(1);
     assertThat(err.toString(StandardCharsets.UTF_8)).contains("Usage:").contains("--out");
   }
@@ -30,7 +30,7 @@ class MainTest {
   void successfulImportReturnsZeroAndPrintsReport(@TempDir Path tmp) {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
-    int code = Main.run(new String[] {
+    int code = run(new String[] {
         "--out", tmp.resolve("o.sqlite").toString(), "--fail-on-unsupported",
         "--questiedb-dir", Fixtures.questieDbRoot().toString(), "--atlasloot-dir", Fixtures.atlasLootRoot().toString(),
         "--client-data-dir", Fixtures.clientDataRoot().toString(), "--coverage-min", "75"},
@@ -44,7 +44,7 @@ class MainTest {
   void failureReturnsOneWithStackTrace(@TempDir Path tmp) {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
-    int code = Main.run(new String[] {
+    int code = run(new String[] {
         "--out", tmp.resolve("o.sqlite").toString(),
         "--questiedb-dir", tmp.resolve("missing").toString(), "--atlasloot-dir", tmp.resolve("missing").toString(),
         "--skip-client-data"},
@@ -56,7 +56,7 @@ class MainTest {
   @Test
   void neitherClientDataFlagReturnsOneWithUsage(@TempDir Path tmp) {
     ByteArrayOutputStream err = new ByteArrayOutputStream();
-    int code = Main.run(new String[] {"--out", tmp.resolve("o.sqlite").toString()}, print(new ByteArrayOutputStream()),
+    int code = run(new String[] {"--out", tmp.resolve("o.sqlite").toString()}, print(new ByteArrayOutputStream()),
         print(err));
     assertThat(code).isEqualTo(1);
     assertThat(err.toString(StandardCharsets.UTF_8)).contains("--client-data-dir").contains("--skip-client-data")
@@ -77,14 +77,14 @@ class MainTest {
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
-    int code = Main.run(append(base, "--fail-on-unsupported"), print(out), print(err));
+    int code = run(append(base, "--fail-on-unsupported"), print(out), print(err));
     assertThat(code).isEqualTo(2);
     assertThat(err.toString(StandardCharsets.UTF_8)).contains("named items (0 %), below --coverage-min 85 %")
         .contains("clientdata.unmatched.ranges").doesNotContain("missingField/unresolved");
     assertThat(out.toString(StandardCharsets.UTF_8)).contains("clientdata.coverage.pct = 0")
         .contains("clientdata.unmatched.ranges: ");
 
-    assertThat(Main.run(base, print(new ByteArrayOutputStream()), print(new ByteArrayOutputStream())))
+    assertThat(run(base, print(new ByteArrayOutputStream()), print(new ByteArrayOutputStream())))
         .as("without --fail-on-unsupported").isEqualTo(0);
   }
 
@@ -96,7 +96,7 @@ class MainTest {
   void fixtureFailsTheDefaultCoverageGateOnNamedItems(@TempDir Path tmp) {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     ByteArrayOutputStream err = new ByteArrayOutputStream();
-    int code = Main.run(new String[] {
+    int code = run(new String[] {
         "--out", tmp.resolve("o.sqlite").toString(), "--fail-on-unsupported",
         "--questiedb-dir", Fixtures.questieDbRoot().toString(), "--atlasloot-dir", Fixtures.atlasLootRoot().toString(),
         "--client-data-dir", Fixtures.clientDataRoot().toString()},
@@ -111,7 +111,7 @@ class MainTest {
   @Test
   void skippedClientDataNeverFailsTheCoverageGate(@TempDir Path tmp) {
     ByteArrayOutputStream err = new ByteArrayOutputStream();
-    int code = Main.run(new String[] {
+    int code = run(new String[] {
         "--out", tmp.resolve("o.sqlite").toString(), "--fail-on-unsupported", "--skip-client-data",
         "--questiedb-dir", Fixtures.questieDbRoot().toString(), "--atlasloot-dir", Fixtures.atlasLootRoot().toString()},
         print(new ByteArrayOutputStream()), print(err));
@@ -157,6 +157,10 @@ class MainTest {
     r.count("unresolved.zone.name", 5); // not an entity kind: ignored rather than thrown on
     assertThat(Main.unsupportedCounters(r)).isEqualTo(4);
     assertThat(Main.exitCode(true, 0 + Main.unsupportedCounters(r))).isEqualTo(2);
+  }
+
+  private static int run(String[] args, PrintStream out, PrintStream err) {
+    return Main.run(append(args, "--skip-att"), out, err);
   }
 
   private static String[] append(String[] args, String extra) {

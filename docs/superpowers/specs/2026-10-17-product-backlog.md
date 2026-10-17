@@ -45,7 +45,7 @@ shipped DB; small text ≥ 4.5:1 in both themes; no unexplained new unsupported/
 ## 3. Quality fixes in flight (2B Task 14, not backlog features)
 Each one is a v0.3.0 ship blocker if Task 14 leaves it open.
 
-- **BUG-CSB-001 — Cozy Sleeping Bag quest chain missing (native Forever authored evidence found; integration acceptance pending, 2026-10-17).**
+- **BUG-CSB-001 — Cozy Sleeping Bag quest chain missing (resolved with attributed native Forever evidence, Codex, 2026-10-17).**
   The shipped database has Cozy Sleeping Bag item 211527 and reward quest 79976, but its selected QuestieDB
   Forever input omits the chain relationships. A fresh QuestieDB import reproduced the gap; no importer
   mapping or renderer loss was established. QuestieDB's SoD records and community walkthroughs initially
@@ -72,13 +72,17 @@ Each one is a v0.3.0 ship blocker if Task 14 leaves it open.
   references. The opening rows' explicit opposite faction restrictions establish the two alternative starts.
   This is authored dataset evidence, not direct server verification for every later client build.
 
-  **Acceptance still pending:** integrate the source archive and conservative projection, then verify the actual
-  app database and connected chain in the app, including both faction starts. Retain snapshot, source path,
-  line, revision, evidence status and local-input qualification for each selected relationship. Unsupported
-  conditions remain inspectable and unpromoted; conflicting prerequisite groups must never be unioned.
-  The independently reviewed parser and its 16 regressions are complete; root combined verification, actual
-  data projection and UI acceptance are not asserted complete by this entry. Keep the bug open until those
-  checks pass. Task 19 data refresh and Task 20b remain independent open release gates.
+  **Accepted:** the shipped database contains all six relationships, both faction starts and a six-quest
+  navigation spine. Every selected ATT link retains its snapshot, path, source line, authored evidence status
+  and exact pinned source URL; local overrides have no fabricated upstream URL. All 257 attributed links were
+  checked against their archived quest definition lines. Unsupported conditions remain archived and unpromoted;
+  conflicting prerequisite groups are preserved. The real offline projection added 15 links while retaining
+  all existing relationships and all 47 other original data tables. The archive holds 242 ATT artifacts,
+  three configuration artifacts and one explicitly derived app baseline; old upstream originals were not recovered.
+  Full Maven verification: 1,677 tests, six skipped, zero failures/errors. Visual acceptance: 46 panels with
+  zero geometry failures, plus expanded-chain and source-catalog checks at desktop and compact sizes in both themes.
+  Quest eligibility is still labelled authored and not in-game verified. Task 19 and Task 20b remain independent
+  open release gates.
 - Zone level bands read "1–60" for Elwynn and Westfall; zone header repeats "Zone #12 · Zone".
 - AtlasLoot ordinals shown as "Slot" and "Trash · slot 24" instead of the equip slot.
 - The world-drop pool is buried in Hogger's drops; recipes and trade goods show item level instead of required skill.

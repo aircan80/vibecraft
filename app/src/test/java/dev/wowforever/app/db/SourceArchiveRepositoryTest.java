@@ -132,4 +132,32 @@ class SourceArchiveRepositoryTest {
     }
   }
 
+  @Test void retainedBaselineKeepsEarlierProviderReferencesWithoutInventingArchives() throws Exception {
+    Path file=historyDatabase("1",true);
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+file);var s=c.createStatement()) {
+      s.execute("INSERT INTO source_archive_snapshot VALUES('base','legacy-app-database','derived','application','build','','now')");
+      s.execute("INSERT INTO meta VALUES('questiedb_commit','49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4')");
+      s.execute("INSERT INTO source_ingestion_input VALUES('selected','legacy-app','base')");
+    }
+    try(var db=Database.open(file)) {
+      var catalog=new SourceArchiveRepository(db).catalog();
+      assertThat(catalog.available()).isTrue();
+      assertThat(catalog.legacySources()).hasSize(1);
+      assertThat(catalog.legacySources().getFirst().source()).isEqualTo("QuestieDB");
+      assertThat(catalog.snapshots()).hasSize(3);
+    }
+  }
+
+  @Test void historicalBaselineDoesNotMisattributeNewFullImportMetadata() throws Exception {
+    Path file=historyDatabase("1",true);
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+file);var s=c.createStatement()) {
+      s.execute("INSERT INTO source_archive_snapshot VALUES('base','legacy-app-database','derived','application','build','','now')");
+      s.execute("INSERT INTO meta VALUES('questiedb_commit','49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4')");
+      s.execute("INSERT INTO source_ingestion_input VALUES('historical','legacy-app','base')");
+    }
+    try(var db=Database.open(file)) {
+      assertThat(new SourceArchiveRepository(db).catalog().legacySources()).isEmpty();
+    }
+  }
+
 }

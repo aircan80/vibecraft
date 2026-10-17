@@ -154,3 +154,28 @@ Relationship evidence must retain exact source snapshot/path/line and archived r
 clearly distinguished. A legacy-app overlay archives the prior derived SQLite database and keeps its item,
 client and map data; its old upstream originals must not be falsely described as archived source datasets.
 Task 19 data refresh and Task 20b collector acceptance remain open independent release gates.
+
+
+## AllTheThings integrated and accepted (Codex, 2026-10-17)
+
+The shipped database now retains 242 ATT files at the pinned revision, three configuration files and one derived
+legacy app baseline in the same SQLite file. Structured extraction contains 114,354 records. Offline projection
+selected 257 distinct relationships: 242 support existing rows and 15 fill gaps. One conflicting prerequisite
+group was withheld; the 2,146 unsupported/coverage count includes one missing canonical endpoint beyond the
+parser's 2,145 issues. All original relationships, metadata other than the build ID and 47 other original tables
+were preserved; the table comparison and database integrity check passed.
+
+BUG-CSB-001 is resolved with authored native Forever evidence: six links, seven quest nodes including opposite
+faction starts, six quests on the selected navigation spine. All 257 selected evidence URLs/line anchors were
+checked against retained native quest definitions. The UI labels the evidence as authored and not in-game verified.
+Source history distinguishes archived ATT inputs, a derived legacy app baseline, and earlier provider references
+whose original files are not available. Baseline report counters remain explicitly historical, beside the ATT report.
+
+Full combined `./mvnw -B -q verify` passed: Lua 61 (skip 1), importer 518 (skip 5), app 1,098 (skip 0), total 1,677;
+zero failures/errors. The accepted app jar SHA-256 is
+`c78b67f7f39ca4a923fedb2d51db4723920099978d270214a0424f932f73905e`.
+46 panel captures at 2026-10-17T20:39:58.444133025Z had zero geometry failures; all 10 warm load cases met the
+informational 300 ms p95 target (maximum 96.42 ms). Additional source catalog and expanded Sleeping Bag chain
+captures passed desktop/compact checks in both themes, loading data off the EDT and closing the database before render.
+Local evidence is under `.local/att-acceptance` in the primary checkout. This acceptance does not close Task 19
+or Task 20b and does not authorize a v0.3 release tag.

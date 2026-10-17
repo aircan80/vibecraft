@@ -1,3 +1,6 @@
+== Retained legacy baseline report ==
+Historical validation from the retained prearchive app build; not freshly revalidated by the ATT projection.
+
 == Counters ==
 atlas.unknownItem = 1
 clientdata.alt.class_id = 426
@@ -237,3 +240,13 @@ clientdata.unformatted.tokens: $qN 100, $ecN 18, $<id>u 12, $proccooldown 12, $e
 clientdata.icons.missing: 4559256
 clientdata.crafts.extraCreates: spells with several Create Item rows (1), the DifficultyID 0 row with the lowest EffectIndex is used: 423212 (2 rows)
 clientdata.instances.unmatched: dungeon maps without an LFGDungeons row of their name, not imported: 13 (Test Dungeon), 29 (CashTest), 44 (<unused> Monastery), 269 (Caverns of Time), 429 (Dire Maul), 2720 (The Searing Basin), 2784 (Demon Fall Canyon), 2806 (Shadow Hold), 2807 (Burning of Andorhal), 2817 (Starfall Barrow Den), 2853 (Deadwind Pass), 2875 (Karazhan Crypts), 2902 (The Scarab Dais), 2921 (Naxxramas), 3002 (no Map row), 3109 (Manor Mistmantle)
+
+== AllTheThings overlay projection ==
+== Counters ==
+allthethings.conditionsUnsupported = 2146
+allthethings.questGroupsConflicting = 1
+allthethings.questLinksSelected = 257
+== Skips by layer/field ==
+== First 50 skips ==
+== Notes ==
+Legacy baseline retained; core data was not regenerated or revalidated for client coverage.

@@ -31,14 +31,19 @@ public record ImportOptions(
     Path buildIdOut,
     ClientDataOptions clientData,
     int coverageMinPct,
-    Optional<Path> serverDbDir) {
+    Optional<Path> serverDbDir,
+    Optional<Path> allTheThingsDir,
+    boolean skipAllTheThings) {
 
   public static final String USAGE = """
       Stages: ingest <normal options> captures versioned source data without changing app tables.
+              ingest-att <normal options> captures ATT plus an existing derived app baseline.
               project --database <file.sqlite> --ingestion <id> rebuilds offline from retained inputs.
               Normal options perform ingest followed by project.
       Usage: java -jar importer.jar --out <file.sqlite> (--client-data-dir <dir> | --skip-client-data) [options]
         --out <path>             SQLite file to write (required)
+        --att-dir <dir>         use local AllTheThings sources instead of the pinned download
+        --skip-att              omit AllTheThings explicitly (included in CLI imports by default)
         --cache <dir>            download cache (default: ~/.cache/wowforever-importer)
         --questiedb-dir <dir>    use a local QuestieDB checkout instead of downloading
         --atlasloot-dir <dir>    use a local AtlasLootClassic checkout instead of downloading
@@ -60,9 +65,20 @@ public record ImportOptions(
     Objects.requireNonNull(buildIdOut, "buildIdOut");
     Objects.requireNonNull(clientData, "clientData");
     Objects.requireNonNull(serverDbDir, "serverDbDir");
+    Objects.requireNonNull(allTheThingsDir, "allTheThingsDir");
+    if (skipAllTheThings && allTheThingsDir.isPresent())
+      throw new IllegalArgumentException("--att-dir and --skip-att are mutually exclusive");
     if (coverageMinPct < 0 || coverageMinPct > 100) {
       throw new IllegalArgumentException("--coverage-min must be between 0 and 100, not " + coverageMinPct);
     }
+  }
+
+  /** Legacy programmatic options omit ATT; CLI imports include it unless --skip-att is explicit. */
+  public ImportOptions(Path out, Path cacheDir, Optional<Path> questieDbDir, Optional<Path> atlasLootDir,
+      boolean failOnUnsupported, Path buildIdOut, ClientDataOptions clientData, int coverageMinPct,
+      Optional<Path> serverDbDir) {
+    this(out, cacheDir, questieDbDir, atlasLootDir, failOnUnsupported, buildIdOut, clientData, coverageMinPct,
+        serverDbDir, Optional.empty(), true);
   }
 
   /** Options without {@code --server-db-dir}. */
@@ -111,6 +127,8 @@ public record ImportOptions(
     boolean skipClientData = false;
     int coverageMin = ClientDataStage.DEFAULT_MIN_COVERAGE_PCT;
     Optional<Path> serverDb = Optional.empty();
+    Optional<Path> allTheThings = Optional.empty();
+    boolean skipAtt = false;
     for (int i = 0; i < args.length; i++) {
       String flag = args[i];
       switch (flag) {
@@ -124,6 +142,8 @@ public record ImportOptions(
         case "--skip-client-data" -> skipClientData = true;
         case "--coverage-min" -> coverageMin = percent(value(args, i++));
         case "--server-db-dir" -> serverDb = Optional.of(Path.of(value(args, i++)));
+        case "--att-dir" -> allTheThings = Optional.of(Path.of(value(args, i++)));
+        case "--skip-att" -> skipAtt = true;
         default -> throw usage("unknown option " + flag);
       }
     }
@@ -137,7 +157,7 @@ public record ImportOptions(
       throw usage(e.getMessage());
     }
     return new ImportOptions(out, cache, questieDb, atlasLoot, failOnUnsupported,
-        buildIdOut != null ? buildIdOut : defaultBuildIdOut(out), clientData, coverageMin, serverDb);
+        buildIdOut != null ? buildIdOut : defaultBuildIdOut(out), clientData, coverageMin, serverDb, allTheThings, skipAtt);
   }
 
   private static int percent(String text) {
