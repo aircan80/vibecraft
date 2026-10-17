@@ -1,0 +1,17 @@
+{
+  "database": "app/src/main/resources/data/wowforever.sqlite",
+  "unchanged_archived_blobs": [
+    {
+      "file": "assets/westfall.jpg",
+      "source_key": "zone_map.ui_map_id=1436",
+      "sha256": "4aec47edf9a7aa9d4446f295e186e25d1f249c7f191acd6db5ff60f5b6b75923",
+      "bytes": 209186
+    },
+    {
+      "file": "assets/dalaran.jpg",
+      "source_key": "instance_map.instance_id=34; floor=CF_CityofDalaranA",
+      "sha256": "9c988998dd6768340f5b93aaa77b96c42e8625f45189772993ba53b034e56f26",
+      "bytes": 58484
+    }
+  ]
+}
