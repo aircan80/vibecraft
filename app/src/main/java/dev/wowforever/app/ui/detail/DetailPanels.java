@@ -66,13 +66,32 @@ public final class DetailPanels {
    * ({@link dev.wowforever.app.db.NpcRepository#bosses}), whose VMaNGOS rates say {@value RateSource#BOSS_NOTE}.
    */
   public record LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
-      Set<Long> bossNpcs, QuestInvolvement.Result involvement) {
+      Set<Long> bossNpcs, QuestInvolvement.Result involvement, List<dev.wowforever.app.model.SourceDifference> sourceDifferences,
+      List<dev.wowforever.app.model.FieldKnowledgeView> knowledge, dev.wowforever.app.db.ItemContentRepository.Appearance appearance,
+      dev.wowforever.app.model.ForeverContent.Context foreverContext, dev.wowforever.app.model.NativeItemMetadata nativeMetadata) {
+    public LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+        Set<Long> bossNpcs, QuestInvolvement.Result involvement, List<dev.wowforever.app.model.SourceDifference> sourceDifferences,
+        List<dev.wowforever.app.model.FieldKnowledgeView> knowledge, dev.wowforever.app.db.ItemContentRepository.Appearance appearance,
+        dev.wowforever.app.model.ForeverContent.Context foreverContext) {
+      this(detail,icon,rateSources,bossNpcs,involvement,sourceDifferences,knowledge,appearance,foreverContext,
+          dev.wowforever.app.model.NativeItemMetadata.empty());
+    }
+    public LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+        Set<Long> bossNpcs, QuestInvolvement.Result involvement, List<dev.wowforever.app.model.SourceDifference> sourceDifferences) {
+      this(detail,icon,rateSources,bossNpcs,involvement,sourceDifferences,List.of(),null,dev.wowforever.app.model.ForeverContent.Context.empty(),dev.wowforever.app.model.NativeItemMetadata.empty());
+    }
+    public LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+        Set<Long> bossNpcs, QuestInvolvement.Result involvement) {
+      this(detail,icon,rateSources,bossNpcs,involvement,List.of());
+    }
     public LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
         Set<Long> bossNpcs) {
       this(detail, icon, rateSources, bossNpcs, QuestInvolvement.fromRelated(detail.relatedQuests()));
     }
 
     public LoadedItem {
+      knowledge = List.copyOf(knowledge);
+      sourceDifferences = List.copyOf(sourceDifferences);
       rateSources = Map.copyOf(rateSources);
       bossNpcs = Set.copyOf(bossNpcs);
     }
@@ -83,7 +102,16 @@ public final class DetailPanels {
    * spawn points of its bosses and rares, which the map pins at first (empty without a map).
    */
   public record LoadedZone(ZoneDetail detail, BufferedImage map, List<SpawnPin> pins,
-      List<dev.wowforever.app.model.GeographyStep> breadcrumbs) {
+      List<dev.wowforever.app.model.GeographyStep> breadcrumbs, dev.wowforever.app.model.TravelMapData travel,
+      dev.wowforever.app.model.ForeverContent.Context foreverContext) {
+    public LoadedZone(ZoneDetail detail,BufferedImage map,List<SpawnPin> pins,
+        List<dev.wowforever.app.model.GeographyStep> breadcrumbs,dev.wowforever.app.model.TravelMapData travel) {
+      this(detail,map,pins,breadcrumbs,travel,dev.wowforever.app.model.ForeverContent.Context.empty());
+    }
+    public LoadedZone(ZoneDetail detail, BufferedImage map, List<SpawnPin> pins,
+        List<dev.wowforever.app.model.GeographyStep> breadcrumbs) {
+      this(detail,map,pins,breadcrumbs,dev.wowforever.app.model.TravelMapData.EMPTY);
+    }
     public LoadedZone {
       pins = List.copyOf(pins);
       breadcrumbs = List.copyOf(breadcrumbs);
@@ -129,7 +157,18 @@ public final class DetailPanels {
    * ({@link dev.wowforever.app.db.QuestRepository#byZone}; none without a zone), which its page lists after the loot.
    */
   public record LoadedInstance(InstanceDetail detail, List<QuestSummary> quests, String clientBuild,
-      BossLoot clientLoot, List<dev.wowforever.app.model.GeographyStep> breadcrumbs) {
+      BossLoot clientLoot, List<dev.wowforever.app.model.GeographyStep> breadcrumbs,
+      dev.wowforever.app.ui.pages.InstanceEntrancePanel.Loaded access,
+      dev.wowforever.app.model.ForeverContent.Context foreverContext,
+      List<dev.wowforever.app.model.InstanceFloorMap> floorMaps) {
+    public LoadedInstance(InstanceDetail detail,List<QuestSummary> quests,String clientBuild,BossLoot clientLoot,
+        List<dev.wowforever.app.model.GeographyStep> breadcrumbs,dev.wowforever.app.ui.pages.InstanceEntrancePanel.Loaded access) {
+      this(detail,quests,clientBuild,clientLoot,breadcrumbs,access,dev.wowforever.app.model.ForeverContent.Context.empty(),List.of());
+    }
+    public LoadedInstance(InstanceDetail detail,List<QuestSummary> quests,String clientBuild,BossLoot clientLoot,
+        List<dev.wowforever.app.model.GeographyStep> breadcrumbs) {
+      this(detail,quests,clientBuild,clientLoot,breadcrumbs,dev.wowforever.app.ui.pages.InstanceEntrancePanel.Loaded.EMPTY);
+    }
     public LoadedInstance(InstanceDetail detail, List<QuestSummary> quests, String clientBuild, BossLoot clientLoot) {
       this(detail,quests,clientBuild,clientLoot,List.of());
     }
@@ -142,6 +181,7 @@ public final class DetailPanels {
     }
 
     public LoadedInstance {
+      floorMaps = List.copyOf(floorMaps);
       quests = List.copyOf(quests);
       breadcrumbs = List.copyOf(breadcrumbs);
     }
@@ -193,7 +233,8 @@ public final class DetailPanels {
         return new LoadedItem(d,
             repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
                 .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
-            repos.items().sourcesOfItem(id, rated), repos.npcs().bosses(rated), repos.quests().involvingResult(ref));
+            repos.items().sourcesOfItem(id, rated), repos.npcs().bosses(rated), repos.quests().involvingResult(ref),
+            repos.items().sourceDifferences(id),repos.items().knowledge(id),repos.items().appearance(id),repos.items().foreverContext(id),repos.items().nativeMetadata(id));
       });
       case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells())).map(d -> {
         Long zone = mapZone(d.spawns());
@@ -222,7 +263,10 @@ public final class DetailPanels {
       case INSTANCE -> repos.instances().detail(id)
           .map(d -> new LoadedInstance(d, d.summary().zoneId() == null ? List.of()
               : repos.quests().byZone(d.summary().zoneId()), repos.instances().clientBuild(),
-              BossLoot.preloaded(d, repos), instanceBreadcrumbs(d,repos)));
+              BossLoot.preloaded(d, repos), instanceBreadcrumbs(d,repos),
+              dev.wowforever.app.ui.pages.InstanceEntrancePanel.load(repos.travel(),d.summary().id()),
+              new dev.wowforever.app.db.ForeverContentRepository(repos.database()).instanceContext(d.summary().key()),
+              new dev.wowforever.app.db.InstanceMapRepository(repos.database()).load(d.summary().id())));
       case BOSS -> Optional.empty();
     };
     return detail.map(Object.class::cast);
@@ -250,7 +294,8 @@ public final class DetailPanels {
   private static LoadedZone loadedZone(ZoneDetail d, Repositories repos) {
     BufferedImage map = d.map().flatMap(MapCache.shared()::decoded).orElse(null);
     return new LoadedZone(d, map, map == null ? List.of() : repos.zones().npcSpawnsInZone(d.summary().id(), true),
-        repos.zones().breadcrumbs(d.summary().id()));
+        repos.zones().breadcrumbs(d.summary().id()), repos.travel().inZone(d.summary().id()),
+        new dev.wowforever.app.db.ForeverContentRepository(repos.database()).zoneContext(d.summary().id()));
   }
 
   /** The zone of the first spawn point {@linkplain MapCoordinates#onMap on the map}; null when none is. */
@@ -321,15 +366,21 @@ public final class DetailPanels {
       BooleanSetting routes) {
     return switch (detail) {
       case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), p.bossNpcs(), filter, onFilterChange,
-          p.involvement(), nav);
+          p.involvement(), nav, ClipboardPort.system(), p.sourceDifferences(),p.knowledge(),p.appearance(),p.foreverContext(),p.nativeMetadata());
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), p.bossNpcs(), filter,
           onFilterChange, p.involvement(), nav, ClipboardPort.system(), p.routes());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), p.involvement(), nav, ClipboardPort.system());
       case LoadedQuest p -> new QuestPage(p.data(), p.maps(), p.zoneNames(), nav, ClipboardPort.system());
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
-              worker, status, nav, questPins, routes), p.breadcrumbs(), nav);
-      case LoadedInstance p -> new InstancePage(p.detail(), p.quests(), repos, p.clientBuild(), p.clientLoot(), p.breadcrumbs(), nav);
+              worker, status, nav, questPins, routes, p.travel()), p.breadcrumbs(), p.foreverContext(), nav);
+      case LoadedInstance p -> {
+        var page = new InstancePage(p.detail(),p.quests(),repos,p.clientBuild(),p.clientLoot(),p.breadcrumbs(),nav);
+        page.setEntrance(p.access());
+        page.setForeverContext(p.foreverContext());
+        page.addFloorMaps(p.floorMaps());
+        yield page;
+      }
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
   }

@@ -18,6 +18,8 @@ public interface BossLoot {
   /** The loot of boss {@code bossId} in {@code difficulty} (a {@code boss_loot.difficulty} value), in slot order. */
   List<LootRow> lookup(long bossId, String difficulty);
 
+  default java.util.List<dev.wowforever.app.model.SourceDifference> differences(long bossId) { return List.of(); }
+
   /**
    * The drop rate sources of NPC {@code npcId}'s drops of {@code itemIds}, by pair, in one query
    * ({@link dev.wowforever.app.db.ItemRepository#sourcesOfNpc}); none unless overridden.
@@ -30,8 +32,10 @@ public interface BossLoot {
   static BossLoot preloaded(InstanceDetail detail, Repositories repos) {
     record Key(long boss, String difficulty) {}
     Map<Key, List<LootRow>> rows = new HashMap<>();
+    Map<Long, List<dev.wowforever.app.model.SourceDifference>> comparisons=new HashMap<>();
     Map<RateSource.Key, List<RateSource>> sources = new HashMap<>();
     for (var boss : detail.bosses()) {
+      comparisons.put(boss.id(), List.copyOf(repos.instances().sourceDifferences(boss.id())));
       for (String difficulty : detail.difficulties()) {
         List<LootRow> loot = List.copyOf(repos.instances().bossLoot(boss.id(), difficulty));
         rows.put(new Key(boss.id(), difficulty), loot);
@@ -43,9 +47,11 @@ public interface BossLoot {
         }
       }
     }
+    Map<Long,List<dev.wowforever.app.model.SourceDifference>> differenceSnapshot=Map.copyOf(comparisons);
     Map<Key, List<LootRow>> snapshot = Map.copyOf(rows);
     Map<RateSource.Key, List<RateSource>> rateSnapshot = Map.copyOf(sources);
     return new BossLoot() {
+      @Override public java.util.List<dev.wowforever.app.model.SourceDifference> differences(long bossId) { return differenceSnapshot.getOrDefault(bossId,List.of()); }
       @Override
       public List<LootRow> lookup(long boss, String difficulty) {
         return snapshot.getOrDefault(new Key(boss, difficulty), List.of());

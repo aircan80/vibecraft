@@ -1,0 +1,182 @@
+{
+  "researched_at": "2026-10-17T21:54:45.989754+00:00",
+  "sources": [
+    {
+      "id": "panel-recap",
+      "url": "https://worldofwarcraft.blizzard.com/en-us/news/24303862/world-of-warcraft-forever-whats-next-panel-recap",
+      "published_date": "2026-09-12",
+      "product": "World of Warcraft: Forever",
+      "source": "Blizzard Entertainment",
+      "sha256": "7d00ef90a95e69a26e253809e7134175fa9379e5b056a3c2eae9e668618cf86f"
+    },
+    {
+      "id": "beta-live",
+      "url": "https://worldofwarcraft.blizzard.com/en-us/news/24304160/",
+      "published_date": "2026-09-17",
+      "product": "World of Warcraft: Forever",
+      "source": "Blizzard Entertainment",
+      "sha256": "98ce235de7a31eed4870a7240954c13c8f2813139b34f456119c2869169f77d8"
+    }
+  ],
+  "facts": [
+    {
+      "entity": "product",
+      "field": "launch_date",
+      "value": "2026-11-04",
+      "state": "known",
+      "source": "panel-recap",
+      "scope": "announced game launch",
+      "note": "Game launch date, not an app release deadline."
+    },
+    {
+      "entity": "new_raids",
+      "field": "opening_date",
+      "value": "2026-12-09",
+      "state": "known",
+      "source": "panel-recap",
+      "scope": "announced initial new-raid unlock",
+      "quote": "New raids unlock on December 9",
+      "note": "Article discusses Hyjal Summit and Barrow Deeps in its raid section. Applying the shared date to each named raid is contextual, not a separate per-raid schedule quote. No unlock hour given."
+    },
+    {
+      "entity": "Barrow Deeps",
+      "map_id": 3052,
+      "field": "group_size",
+      "value": 10,
+      "state": "known",
+      "source": "panel-recap",
+      "scope": "announced raid plan",
+      "quote": "maximum-level 10-player challenge"
+    },
+    {
+      "entity": "Hyjal Summit",
+      "map_id": 2981,
+      "field": "group_size",
+      "value": 20,
+      "state": "known",
+      "source": "panel-recap",
+      "scope": "announced raid plan",
+      "quote": "20-player raid encounters"
+    },
+    {
+      "entity": "The Hall of Thanes",
+      "map_id": 3065,
+      "field": "level_band",
+      "value": [
+        13,
+        18
+      ],
+      "state": "known",
+      "source": "beta-live",
+      "scope": "beta week 1",
+      "quote": "Hall of Thanes (Level 13–18)",
+      "note": "Preserve beta label; does not establish a final launch band."
+    },
+    {
+      "entity": "Ruins of Lordaeron",
+      "map_id": 2999,
+      "field": "level_band",
+      "value": [
+        15,
+        20
+      ],
+      "state": "known",
+      "source": "beta-live",
+      "scope": "beta week 1",
+      "quote": "Ruins of Lordaeron (Level 15–20)",
+      "note": "Preserve beta label; does not establish a final launch band."
+    },
+    {
+      "entity": "beta",
+      "field": "last_full_testing_date",
+      "value": "2026-10-21",
+      "state": "known",
+      "source": "beta-live",
+      "scope": "beta availability",
+      "note": "External testing window; does not justify skipping genuine collector acceptance."
+    },
+    {
+      "entity": "v0.4.1 app",
+      "field": "external_release_deadline",
+      "value": null,
+      "state": "unannounced",
+      "source": null,
+      "note": "No external app release deadline exists in these official game announcements. Version completion must follow repository acceptance gates."
+    }
+  ],
+  "unknowns": [
+    {
+      "entity": "City of Dalaran",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "Excavation Site: Wetlands",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "The Hall of Thanes",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "Ruins of Lordaeron",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "Drowned City",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "Krol’dok Stronghold",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "Alcaz Prison",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "Blackmaw Hold",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "The Shaper’s Terrace",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "Hyjal Summit",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    },
+    {
+      "entity": "Barrow Deeps",
+      "field": "announced_launch_level_band",
+      "state": "unannounced",
+      "reason": "No primary band found in researched official pages/searches; retain client tuned minimum separately."
+    }
+  ],
+  "policy": "Reviewed curated announcement evidence. Never merge announcement fields into computed client-table diffs. No per-dungeon opening date inferred from global launch.",
+  "search_queries": [
+    "site:worldofwarcraft.blizzard.com Forever December 9",
+    "site:worldofwarcraft.blizzard.com Forever Dalaran 28",
+    "site:worldofwarcraft.blizzard.com Forever Excavation 26",
+    "site:worldofwarcraft.blizzard.com Hall of Thanes 13"
+  ]
+}

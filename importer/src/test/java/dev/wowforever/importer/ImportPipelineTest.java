@@ -53,7 +53,7 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select count(*) from drop_rate_source where npc_id = 11520 and item_id = 14149")).isEqualTo(1);
       assertThat(scalar(c, "select min(source_count || '/' || disagrees) from boss_loot bl join boss b on b.id = bl.boss_id where b.npc_id = 11520 and bl.item_id = 14149")).isEqualTo("1/0");
       assertThat(scalar(c, "select name from zone where id = 1581")).isEqualTo("The Deadmines");
-      assertThat(scalar(c, "select value from meta where key = 'questiedb_commit'")).isEqualTo("49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4");
+      assertThat(scalar(c, "select value from meta where key = 'questiedb_commit'")).isEqualTo("e9a67d1a2753a0e64c4c96bf7864788fac7b765f");
       assertThat(scalar(c, "select count(*) from quest_giver where quest_id = 2 and role = 'start'")).isEqualTo(1);
       // 5561 Kodo Roundup after classicQuestFixes: a killCredit group, then an explore objective with one point
       assertThat(scalar(c, "select count(*) from quest_objective where quest_id = 5561 and credit_group = 0")).isEqualTo(3);

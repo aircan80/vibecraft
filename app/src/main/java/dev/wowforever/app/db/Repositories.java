@@ -16,13 +16,17 @@ public record Repositories(
     AssetRepository assets,
     QuestLocator questLocator,
     SourceArchiveRepository sourceArchive,
-    WorldMapRepository worldMaps) {
+    WorldMapRepository worldMaps,
+    Database database) {
 
   public static Repositories of(Database db) {
     return new Repositories(new SearchRepository(db), new ItemRepository(db), new NpcRepository(db),
         new ObjectRepository(db), new QuestRepository(db), new ZoneRepository(db), new InstanceRepository(db),
-        new AssetRepository(db), new QuestLocator(db), new SourceArchiveRepository(db), new WorldMapRepository(db));
+        new AssetRepository(db), new QuestLocator(db), new SourceArchiveRepository(db), new WorldMapRepository(db), db);
   }
+
+  /** Travel geography shares this repository set's read-only database. */
+  public TravelMapRepository travel() { return new TravelMapRepository(database); }
 
   /**
    * The spawn points of NPC or object {@code ref} with coordinates, in import order, from its own repository; none

@@ -51,6 +51,27 @@ public final class PinLegend extends JPanel {
     getAccessibleContext().setAccessibleName("Map legend");
   }
 
+  /** The registered controls wrap visibly at compact widths instead of being clipped to one FlowLayout row. */
+  @Override public java.awt.Dimension getPreferredSize() {
+    var natural = super.getPreferredSize();
+    int width = getParent() != null && getParent().getWidth() > 0 ? getParent().getWidth() : getWidth();
+    if (width <= 0) return natural;
+    var insets = getInsets();
+    var layout = (FlowLayout) getLayout();
+    int available = Math.max(1, width - insets.left - insets.right - 2 * layout.getHgap());
+    int rowWidth = 0, rowHeight = 0, height = insets.top + insets.bottom + 2 * layout.getVgap();
+    for (Component component : getComponents()) {
+      if (!component.isVisible()) continue;
+      var size = component.getPreferredSize();
+      int gap = rowWidth == 0 ? 0 : layout.getHgap();
+      if (rowWidth > 0 && rowWidth + gap + size.width > available) {
+        height += rowHeight + layout.getVgap(); rowWidth = 0; rowHeight = 0; gap = 0;
+      }
+      rowWidth += gap + size.width; rowHeight = Math.max(rowHeight, size.height);
+    }
+    return new java.awt.Dimension(natural.width, height + rowHeight);
+  }
+
   /** Keyboard-accessible switches for registered layers with pins on this map. */
   public static PinLegend interactive(MapView map) {
     PinLegend legend = new PinLegend();
@@ -59,7 +80,7 @@ public final class PinLegend extends JPanel {
       legend.entries.clear();
       for (MapLayer layer : MapLayer.REGISTERED) {
         if (!map.layerHasContent(layer)) continue;
-        Icon icon = layer.kinds().isEmpty() ? new RouteIcon() : new PinIcon(layer.kinds().iterator().next());
+        Icon icon = layer.legendIcon();
         JToggleButton toggle = new JToggleButton(layer.label(), icon, map.isLayerVisible(layer));
         toggle.putClientProperty("mapLayer", layer);
         toggle.setFocusable(true);
@@ -72,6 +93,7 @@ public final class PinLegend extends JPanel {
     map.addPropertyChangeListener("pinFilter", e -> rebuild.run());
     map.addPropertyChangeListener("pins", e -> rebuild.run());
     map.addPropertyChangeListener("routes", e -> rebuild.run());
+    map.addPropertyChangeListener("travel", e -> rebuild.run());
     map.addPropertyChangeListener("layerVisibility", e -> rebuild.run());
     map.addPropertyChangeListener("kindVisibility", e -> {
       for (Component component : legend.getComponents()) {
@@ -84,7 +106,7 @@ public final class PinLegend extends JPanel {
     return legend;
   }
 
-  private static final class RouteIcon implements Icon {
+  static final class RouteIcon implements Icon {
     public int getIconWidth() { return UIScale.scale(ICON); }
     public int getIconHeight() { return UIScale.scale(ICON); }
     public void paintIcon(Component component, Graphics graphics, int x, int y) {

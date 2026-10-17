@@ -62,7 +62,10 @@ public final class RenderSnapshots {
       ref(EntityKind.QUEST, 176), ref(EntityKind.QUEST, 166), ref(EntityKind.QUEST, 6502),
       ref(EntityKind.QUEST, 79976),
       ref(EntityKind.QUEST, 7787), ref(EntityKind.QUEST, 7791), ref(EntityKind.NPC, 550),
-      ref(EntityKind.NPC, 412), ref(EntityKind.ZONE, 40), ref(EntityKind.ZONE, 6170), ref(EntityKind.INSTANCE, 3));
+      ref(EntityKind.NPC, 412),
+      ref(EntityKind.ITEM, 287012), ref(EntityKind.ITEM, 278476), ref(EntityKind.ITEM, 286978),
+      ref(EntityKind.ITEM, 869), ref(EntityKind.ITEM, 273643), ref(EntityKind.ITEM, 16806),
+      ref(EntityKind.ITEM, 17783), ref(EntityKind.ZONE, 40), ref(EntityKind.ZONE, 6170), ref(EntityKind.INSTANCE, 3));
 
   private record Timing(EntityRef ref, double p50, double p95, double max, List<Double> samples) {}
   private record Capture(String file, int width, int height, int mapCount, int routes, List<String> failures) {}

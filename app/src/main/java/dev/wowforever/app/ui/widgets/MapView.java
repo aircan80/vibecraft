@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.widgets;
 
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.TravelMapData;
 import dev.wowforever.app.model.Route;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.QuestPin;
@@ -255,6 +256,31 @@ public final class MapView extends JComponent {
     }
   }
 
+  private TravelMapData travel = TravelMapData.EMPTY;
+
+  /** Travel data is projected and loaded before reaching the map; marker layers remain independent of spawns. */
+  public void setTravel(TravelMapData data) {
+    TravelMapData previous = travel;
+    travel = Objects.requireNonNull(data);
+    firePropertyChange("travel", previous, travel);
+    repaint();
+  }
+
+  public TravelMapData travel() { return travel; }
+
+  public int visibleMarkerCount() {
+    return visiblePins().size()
+        + (hiddenLayers.contains(MapLayer.ENTRANCES) ? 0 : travel.entrances().size())
+        + (hiddenLayers.contains(MapLayer.FLIGHTS) ? 0 : travel.flights().size());
+  }
+
+  /** Travel markers precede spawn clusters in hit testing, matching their visual stacking. */
+  public TravelMapPainter.Marker travelAt(int x, int y) {
+    if (coordinatesAt(x, y).isEmpty()) return null;
+    return TravelMapPainter.markerAt(travel, projection(), x, y,
+        !hiddenLayers.contains(MapLayer.ENTRANCES), !hiddenLayers.contains(MapLayer.FLIGHTS));
+  }
+
   private List<RouteLine> routes = List.of();
   private final java.util.Set<String> hiddenLayers = new java.util.HashSet<>();
 
@@ -268,8 +294,13 @@ public final class MapView extends JComponent {
   public List<RouteLine> routes() { return routes; }
 
   public boolean layerHasContent(MapLayer layer) {
-    return layer.kinds().isEmpty() ? "routes".equals(layer.id()) && !routes.isEmpty()
-        : pins.stream().filter(p -> !bossesAndRaresOnly || p.kind() != PinKind.NPC)
+    if (layer.kinds().isEmpty()) return switch (layer.id()) {
+      case MapLayer.ENTRANCES -> !travel.entrances().isEmpty();
+      case MapLayer.FLIGHTS -> !travel.flights().isEmpty();
+      case MapLayer.FLIGHT_ROUTES -> !travel.routes().isEmpty();
+      default -> "routes".equals(layer.id()) && !routes.isEmpty();
+    };
+    return pins.stream().filter(p -> !bossesAndRaresOnly || p.kind() != PinKind.NPC)
             .anyMatch(p -> layer.kinds().contains(p.kind()));
   }
 
@@ -364,7 +395,9 @@ public final class MapView extends JComponent {
             .map(p -> String.format(Locale.ROOT, "%.1f, %.1f", p.x, p.y)).orElse("");
         repaint();
         setHovered(clusterAt(e.getX(), e.getY()));
-        boolean opens = hovered == null ? routeAt(e.getX(), e.getY()) != null
+        TravelMapPainter.Marker travelMarker = travelAt(e.getX(), e.getY());
+        boolean opens = travelMarker != null ? travelMarker.target() != null
+            : hovered == null ? routeAt(e.getX(), e.getY()) != null
             : hovered.entities().size() > 1 || hovered.kind() != PinKind.SELF;
         setCursor(opens ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : null);
       }
@@ -392,6 +425,11 @@ public final class MapView extends JComponent {
 
       @Override
       public void mouseClicked(MouseEvent e) {
+        TravelMapPainter.Marker travelMarker = travelAt(e.getX(), e.getY());
+        if (travelMarker != null && e.getButton() == MouseEvent.BUTTON1) {
+          if (travelMarker.target() != null) nav.open(new ViewTarget.Entity(travelMarker.target()));
+          return;
+        }
         Cluster c = clusterAt(e.getX(), e.getY());
         if (c != null && e.getButton() == MouseEvent.BUTTON1) {
           activate(c);
@@ -457,7 +495,7 @@ public final class MapView extends JComponent {
         @Override
         public String getAccessibleDescription() {
           return (zoneName == null ? "" : zoneName + ", ") +
-              (visiblePins().size() == 1 ? "1 pin" : visiblePins().size() + " pins");
+              (visibleMarkerCount() == 1 ? "1 pin" : visibleMarkerCount() + " pins");
         }
       };
       accessibleContext.setAccessibleName(ACCESSIBLE_NAME);
@@ -574,6 +612,8 @@ public final class MapView extends JComponent {
    */
   @Override
   public String getToolTipText(MouseEvent e) {
+    TravelMapPainter.Marker travelMarker = travelAt(e.getX(), e.getY());
+    if (travelMarker != null) return travelMarker.tooltip();
     Cluster c = clusterAt(e.getX(), e.getY());
     if (c == null) {
       RouteLine route = routeAt(e.getX(), e.getY());
@@ -814,6 +854,7 @@ public final class MapView extends JComponent {
       g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
       g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
       paintRoutes(g2);
+      if (!hiddenLayers.contains(MapLayer.FLIGHT_ROUTES)) TravelMapPainter.paintRoutes(g2, travel.routes(), p);
       Stroke outline = new BasicStroke(UIScale.scale(1f));
       Stroke ring = new BasicStroke(UIScale.scale(1.5f));
       g2.setFont(badgeFont());
@@ -830,6 +871,8 @@ public final class MapView extends JComponent {
       for (int i = all.size() - 1; i >= 0; i--) { // the most important on top
         paintCluster(g2, all.get(i), outline, ring, fm);
       }
+      TravelMapPainter.paintMarkers(g2, travel, p, this,
+          !hiddenLayers.contains(MapLayer.ENTRANCES), !hiddenLayers.contains(MapLayer.FLIGHTS));
     } finally {
       g2.dispose();
     }

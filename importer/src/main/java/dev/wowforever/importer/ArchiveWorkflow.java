@@ -116,6 +116,9 @@ public final class ArchiveWorkflow {
         boolean pinnedAtt=true;
         try (Connection connection = connect(database);
             PreparedStatement statement = connection.prepareStatement("SELECT role,snapshot_id FROM source_ingestion_input WHERE ingestion_id=?")) {
+          try(var guard=connection.prepareStatement("SELECT 1 FROM sqlite_master WHERE type='table' AND name IN ('client_table_dataset','instance_map','map_instance_access','hotfix_item_fact','questie_refresh_change','stat_label_previous') LIMIT 1"); var result=guard.executeQuery()) {
+            if(result.next()) throw new IllegalArgumentException("Core projection refused: additive client, map or hotfix data requires explicit replay; existing database preserved");
+          }
           statement.setString(1,ingestion);
           try (ResultSet rows = statement.executeQuery()) { while(rows.next()) selection.put(rows.getString(1), rows.getString(2)); }
           try(var overlays=connection.createStatement();var present=overlays.executeQuery(

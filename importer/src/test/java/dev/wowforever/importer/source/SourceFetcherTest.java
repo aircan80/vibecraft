@@ -98,7 +98,7 @@ class SourceFetcherTest {
   void specPinsCommitsAndPaths() {
     SourceSpec questie = SourceSpec.load().get(0);
     SourceSpec atlas = SourceSpec.load().get(1);
-    assertThat(questie.commit()).isEqualTo("49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4");
+    assertThat(questie.commit()).isEqualTo("e9a67d1a2753a0e64c4c96bf7864788fac7b765f");
     assertThat(questie.paths()).hasSize(42).doesNotHaveDuplicates()
         .contains("data/Forever/foreverItemDB.lua", "src/meta/questMeta.lua", "support/Forever/Zones/dungeons.lua")
         .noneMatch(p -> p.startsWith("docs/"));

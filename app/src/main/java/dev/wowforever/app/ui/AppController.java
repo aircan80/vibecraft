@@ -155,6 +155,7 @@ public final class AppController implements Navigator {
   public static ViewTarget target(RailTarget t) {
     return switch (t) {
       case HOME -> new ViewTarget.Home();
+      case FOREVER -> new ViewTarget.Forever("hub");
       case ITEMS -> new ViewTarget.List(EntityKind.ITEM);
       case NPCS -> new ViewTarget.List(EntityKind.NPC);
       case QUESTS -> new ViewTarget.List(EntityKind.QUEST);
@@ -181,6 +182,8 @@ public final class AppController implements Navigator {
   public static RailTarget railSection(ViewTarget t) {
     return switch (t) {
       case ViewTarget.Home h -> RailTarget.HOME;
+      case ViewTarget.Forever f -> RailTarget.FOREVER;
+      case ViewTarget.ItemContent c -> RailTarget.ITEMS;
       case ViewTarget.WorldMap w -> RailTarget.ZONES;
       case ViewTarget.List l -> switch (l.kind()) {
         case ITEM -> RailTarget.ITEMS;
@@ -433,6 +436,8 @@ public final class AppController implements Navigator {
       }
       case ViewTarget.List l -> showList(l);
       case ViewTarget.WorldMap w -> showWorldMap(w);
+      case ViewTarget.Forever f -> showCatalog(f);
+      case ViewTarget.ItemContent c -> showCatalog(c);
       case ViewTarget.Entity e -> showEntity(e.ref(), captureSearchEdit);
       case ViewTarget.Home h -> showHome();
     }
@@ -616,6 +621,25 @@ public final class AppController implements Navigator {
   }
 
   private record LoadedWorldMap(dev.wowforever.app.model.WorldMapCatalog catalog, BufferedImage image) {}
+
+  /** Content catalogs follow the same worker/EDT split and stale-load protection as entity pages. */
+  private void showCatalog(ViewTarget target) {
+    int generation = ++detailGeneration;
+    leaveListPage();
+    String title = target instanceof ViewTarget.Forever ? "WoW: Forever" : "Item research";
+    view.setTitleSuffix(title);
+    view.status().setMessage("Loading…");
+    loadingDelay.cancel();
+    loadingDelay.schedule(() -> {
+      if (generation == detailGeneration) setPage(null,new LoadingPage(title,"Loading archived source data…"),null);
+    });
+    Async.run(worker, () -> CatalogPages.load(target, repos.database()), data -> {
+      if (generation != detailGeneration) return;
+      loadingDelay.cancel();
+      setPage(target, CatalogPages.render(target, data, this));
+      view.status().setMessage("Ready");
+    }, failure -> { if (generation == detailGeneration) fail(failure); });
+  }
 
   /** A list page's filter options and rows, loaded together on the worker. */
   private record LoadedList(ListOptions options, List<?> rows) {}

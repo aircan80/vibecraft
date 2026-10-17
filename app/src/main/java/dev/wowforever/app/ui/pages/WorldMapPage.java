@@ -73,7 +73,6 @@ public final class WorldMapPage extends JPanel {
     add(scroll, BorderLayout.CENTER);
     add(new JLabel(catalog.sourceBuild().isBlank() ? "Archived client geography" : "Map hierarchy: client " + catalog.sourceBuild()), BorderLayout.SOUTH);
     bind("BACK_SPACE", "up", up);
-    bind("alt LEFT", "up-alt", up);
     bind("ESCAPE", "clear-region", () -> { focused.accept(null); requestFocusInWindow(); });
     if (target.focusedChildId() != null) {
       for (int i = 0; i < children.size(); i++) {

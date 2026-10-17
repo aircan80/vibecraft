@@ -43,8 +43,8 @@ class StatTextTest {
   }
 
   @Test
-  void idsNoClientTableNamesStayPlaceholders() {
-    assertThat(texts(new ItemStat(7, 8), new ItemStat(92, 1))).containsExactly("stat +8 Stamina", "stat +1 Stat #92");
+  void officialEnumNamesPreviouslyUnknownIds() {
+    assertThat(texts(new ItemStat(7, 8), new ItemStat(92, 1))).containsExactly("stat +8 Stamina", "stat +1 Two-handed Swords");
   }
 
   @Test

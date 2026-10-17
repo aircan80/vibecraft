@@ -206,6 +206,10 @@ class ShippedDataTest extends ShippedDataSupport {
   void loadsAllSixFromTheShippedDatabase() {
     RailIcons icons = RailIcons.load(repos.assets()::uiIcon);
     for (RailTarget t : RailTarget.values()) {
+      if (t == RailTarget.FOREVER) {
+        assertThat(icons.small(t,16)).as("New Forever section has an accessible SVG fallback").isInstanceOf(FlatSVGIcon.class);
+        continue;
+      }
       assertThat(icons.plate(t)).as(t.assetName()).isPresent();
       assertThat(icons.plates().get(t).getWidth() + "x" + icons.plates().get(t).getHeight()).as(t.assetName())
           .isEqualTo("24x24");
@@ -398,9 +402,9 @@ class ShippedDataTest extends ShippedDataSupport {
   }
 
   @Test
-  void clientSourceIsForeverOrEraAndForeverDominates() {
+  void clientSourceDistinguishesNativeHotfixAndEra() {
     assertThat(column("select distinct client_source from item where client_source is not null"))
-        .allMatch(s -> s.equals("forever") || s.equals("era"));
+        .allMatch(s -> s.equals("forever") || s.equals("era") || s.equals("hotfix"));
     assertThat(scalar("select count(*) from item where has_client_data = 0 and client_source is not null")).isZero();
     long era = scalar("select count(*) from item where client_source = 'era'");
     long forever = scalar("select count(*) from item where client_source = 'forever'");
@@ -440,11 +444,14 @@ class ShippedDataTest extends ShippedDataSupport {
 
   @Test
   void iconOnlyItemsCarryTheirEmbeddedIcon() {
-    // Illari's Key has only an Item row: no card, but its own icon
-    assertThat(scalar("select has_client_data from item where id = 212347")).isZero();
+    // Illari's Key is now hotfix-revealed; its previously embedded icon remains available.
+    assertThat(column("select client_source from item where id = 212347")).containsExactly("hotfix");
+    assertThat(scalar("select count(*) from hotfix_item_fact where item_id = 212347")).isPositive();
     assertThat(scalar("select icon_id from item where id = 212347")).isEqualTo(134236L);
     assertThat(scalar("select count(*) from item i where i.has_client_data = 0 and i.icon_id is not null"
-        + " and not exists (select 1 from icon c where c.id = i.icon_id)")).isZero();
+        + " and not exists (select 1 from icon c where c.id = i.icon_id)"
+        + " and not exists (select 1 from native_item_metadata_fact f where f.item_id=i.id and f.source_table='Item')")).isZero();
+    assertThat(scalar("select count(*) from icon where id=0")).as("Unextracted native icons have the existing question-mark fallback").isEqualTo(1);
   }
 
   @Test

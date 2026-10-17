@@ -507,6 +507,7 @@ public final class InstancePage extends JPanel implements PageState {
     lootSection.setRowLimited(false); // the page's main content, rebuilt for every encounter: never cut
     lootPane.removeAll();
     lootPane.add(bossHeader);
+    addSourceDifferences();
     if (difficultyControl != null) {
       lootPane.add(difficultyControl);
     }
@@ -527,10 +528,40 @@ public final class InstancePage extends JPanel implements PageState {
     lootSection.addAboveTable(noLootNote);
     lootPane.removeAll();
     if (bossHeader != null) lootPane.add(bossHeader);
+    addSourceDifferences();
     if (difficultyControl != null) lootPane.add(difficultyControl);
     addSections(lootSection, questsSection);
     lootPane.revalidate();
     lootPane.repaint();
+  }
+
+  private void addSourceDifferences() {
+    if (shown == null) return;
+    var differences=bossLoot.differences(shown.id());
+    if (!differences.isEmpty()) lootPane.add(new dev.wowforever.app.ui.widgets.SourceDifferencesPanel(differences));
+  }
+
+  /** Adds source-backed entrance data without any database access during rendering. */
+  public void setEntrance(InstanceEntrancePanel.Loaded data) {
+    addHeadingBlock(new InstanceEntrancePanel(data,nav));
+  }
+
+  /** Computed diff context, preloaded against the instance's exact client Map ID. */
+  public void setForeverContext(dev.wowforever.app.model.ForeverContent.Context context) {
+    if(!context.changes().isEmpty()) addHeadingBlock(new dev.wowforever.app.ui.widgets.ForeverContextStrip(context));
+  }
+
+  private void addHeadingBlock(javax.swing.JComponent block) {
+    var old=((BorderLayout)getLayout()).getLayoutComponent(BorderLayout.NORTH);
+    JPanel top=new JPanel(new BorderLayout());top.setOpaque(false);
+    if(old!=null){remove(old);top.add(old,BorderLayout.NORTH);}
+    top.add(block,BorderLayout.CENTER);add(top,BorderLayout.NORTH);
+  }
+
+  /** Adds preloaded floor maps to the instance heading. Repository access belongs to the page loader. */
+  public void addFloorMaps(java.util.List<dev.wowforever.app.model.InstanceFloorMap> maps) {
+    if (maps.isEmpty()) return;
+    addHeadingBlock(new dev.wowforever.app.ui.widgets.AtlasMapPanel(maps,nav,true));
   }
 
   public WrappingText coverage() { return coverage; }

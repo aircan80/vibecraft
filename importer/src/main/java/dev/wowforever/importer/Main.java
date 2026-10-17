@@ -36,6 +36,66 @@ public final class Main {
   }
 
   static int run(String[] args, PrintStream out, PrintStream err) {
+    if (args.length > 0 && args[0].equals("complete-native-client-items")) {
+      if (args.length != 7 || !args[1].equals("--database") || !args[3].equals("--support-snapshot")
+          || !args[5].equals("--native-snapshot")) {
+        err.println("Usage: complete-native-client-items --database FILE --support-snapshot ID --native-snapshot ID"); return 1;
+      }
+      try { NativeClientItemCompletionWorkflow.project(java.nio.file.Path.of(args[2]),args[4],args[6]);
+        out.println("Missing native client cards completed from archived native data; existing client selections retained."); return 0; }
+      catch (Exception failure) { err.println(failure.getMessage()); return 1; }
+    }
+    if (args.length > 0 && args[0].equals("ingest-questie-refresh")) {
+      if (args.length != 13 || !args[1].equals("--database") || !args[3].equals("--from-dir")
+          || !args[5].equals("--from") || !args[7].equals("--to-dir") || !args[9].equals("--to")
+          || !args[11].equals("--atlasloot-dir")) {
+        err.println("Usage: ingest-questie-refresh --database FILE --from-dir DIR --from SHA --to-dir DIR --to SHA --atlasloot-dir DIR"); return 1;
+      }
+      try { out.println(QuestieRefreshWorkflow.ingest(java.nio.file.Path.of(args[2]),java.nio.file.Path.of(args[4]),args[6],
+          java.nio.file.Path.of(args[8]),args[10],java.nio.file.Path.of(args[12]))); return 0; }
+      catch (Exception failure) { err.println(failure.getMessage()); return 1; }
+    }
+    if (args.length > 0 && args[0].equals("project-questie-refresh")) {
+      if (args.length != 5 || !args[1].equals("--database") || !args[3].equals("--snapshot")) {
+        err.println("Usage: project-questie-refresh --database FILE --snapshot ID"); return 1;
+      }
+      try { QuestieRefreshWorkflow.project(java.nio.file.Path.of(args[2]),args[4]);
+        out.println("Questie corrections applied by three-way comparison; conflicts retained with archived evidence."); return 0; }
+      catch (Exception failure) { err.println(failure.getMessage()); return 1; }
+    }
+    if (args.length > 0 && (args[0].equals("ingest-client-foundation") || args[0].equals("project-client-foundation"))) {
+      boolean capture = args[0].equals("ingest-client-foundation");
+      if (args.length != 5 || !args[1].equals("--database") || !args[3].equals(capture ? "--input-dir" : "--snapshot")) {
+        err.println("Usage: " + args[0] + " --database <candidate.sqlite> "
+            + (capture ? "--input-dir <acquired-native-tables>" : "--snapshot <id>")); return 1;
+      }
+      try {
+        var database = java.nio.file.Path.of(args[2]);
+        if (capture) out.println(FoundationArchiveWorkflow.ingest(database, java.nio.file.Path.of(args[4])));
+        else { FoundationArchiveWorkflow.project(database,args[4]); out.println("Native client foundation projected offline."); }
+        return 0;
+      } catch (Exception failure) { err.println(failure.getMessage()); return 1; }
+    }
+    if (args.length > 0 && args[0].equals("diff-client-foundation")) {
+      if (args.length != 7 || !args[1].equals("--database") || !args[3].equals("--era") || !args[5].equals("--forever")) {
+        err.println("Usage: diff-client-foundation --database <candidate.sqlite> --era <snapshot> --forever <snapshot>"); return 1;
+      }
+      try { FoundationArchiveWorkflow.diff(java.nio.file.Path.of(args[2]),args[4],args[6]); out.println("Paired client comparison projected offline."); return 0; }
+      catch (Exception failure) { err.println(failure.getMessage()); return 1; }
+    }
+    if (args.length > 0 && (args[0].equals("ingest-hotfix") || args[0].equals("project-hotfix"))) {
+      boolean capture = args[0].equals("ingest-hotfix");
+      if (args.length != 5 || !args[1].equals("--database") || !args[3].equals(capture ? "--input" : "--snapshot")) {
+        err.println("Usage: " + args[0] + " --database <candidate.sqlite> "
+            + (capture ? "--input <pinned-hotfix-directory>" : "--snapshot <id>")); return 1;
+      }
+      try {
+        var database = java.nio.file.Path.of(args[2]);
+        if (capture) out.println(HotfixArchiveWorkflow.ingest(database, java.nio.file.Path.of(args[4])));
+        else { HotfixArchiveWorkflow.project(database, args[4]); out.println("Revealed beta hotfix item stats projected offline; existing unrelated data retained."); }
+        return 0;
+      } catch (Exception failure) { err.println(failure.getMessage()); return 1; }
+    }
     if (args.length > 0 && (args[0].equals("ingest-forever-loot") || args[0].equals("project-forever-loot"))) {
       boolean capture=args[0].equals("ingest-forever-loot");
       if(args.length!=5 || !args[1].equals("--database") || !args[3].equals(capture?"--archive":"--snapshot")) {

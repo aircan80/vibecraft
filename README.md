@@ -6,6 +6,16 @@ A desktop browser for World of Warcraft: Forever items and their sources. You se
 
 ![The home page: the rail, the search box over the results list, and the page](docs/screenshots/home.png)
 
+## v0.4.1 development status
+
+The current development branch adds Forever systems and content alongside the existing item, quest and map browser. The new rail/catalog pages include the Forever hub and New/Changed filters, dungeon ladder and discovery pages, talents, Legacy, races, camping, item sets, situational trinkets, recipes, XP food, Comprehension, stat glossary and shared appearances. Item pages expose field knowledge and source comparisons; hidden and Classic Era fallback values retain distinct labels.
+
+Native item completion has filled 3,566 previously missing cards from the retained Forever ItemSparse evidence; the completion audit reports zero visible native sparse rows without a card. A separate repair corrected 87 selected knowledge assertions. These are candidate audit results, not a claim that every derived stat or formula is verified. Eleven test, monster, deprecated or QA item rows retain explicitly documented unresolved stat/damage details in the [execution ledger](docs/newv041execution.md).
+
+Talent builds are hypothetical and capped at 51 points; Legacy shares a 16-point budget across its three trees. Neither saves character progress. Skyborne race pages use the native five-class allow-lists, and camping lists 36 source-backed camp spells with a party eligibility composer. Zone maps add authentic entrance/exit and flight layers. Instance pages can show seven attributed Atlas floor images, with the original legends and GPL credits.
+
+These are implementation claims for the development branch, not a completed release. Final full verification passed: 1,841 tests, six skipped, zero failures/errors; the separate Python suites passed 122 clientdata and 16 serverdb tests. Final captures passed: 299 images, including five native X11 screenshots and eight interaction checks; standard-page maximum warm-load p95 was 106.968 ms with zero geometry failures. Reviewed examples cover hidden/hotfix/Era items, systems, maps and Reported content. Real collector beta-capture acceptance remains external. See [the execution checklist](docs/newv041execution.md) and [the continuation checkpoint](docs/RESUME.md). Existing screenshots and database counts below describe earlier checkpoints until final candidate publication is recorded.
+
 ## Requirements
 
 Java 21 or newer. Nothing else is needed to run the application.
@@ -118,6 +128,34 @@ The window remembers its size, layout, theme (View › Slate theme or Parchment 
 
 Use `.\mvnw.cmd -B verify` on Windows. The build produces `app/target/wow-forever-browser.jar` (a single runnable jar that contains the database) and `importer/target/importer.jar`.
 
+## Replay the development candidate
+
+Work on an explicit candidate copy; preserve the running application's database and all archived history. Acquisition and offline projection are separate commands. Do not use a broad core rebuild to discard additive overlays. The current continuation uses targeted native-foundation, Questie-correction and hotfix refreshes; the unused `project-composite` CLI has been removed.
+
+```sh
+# Capture each acquired native client directory; retain the printed snapshot IDs.
+java -jar importer/target/importer.jar ingest-client-foundation --database CANDIDATE.sqlite --input-dir FOREVER_NATIVE_DIR
+java -jar importer/target/importer.jar ingest-client-foundation --database CANDIDATE.sqlite --input-dir ERA_NATIVE_DIR
+# Replay retained evidence without downloading it.
+java -jar importer/target/importer.jar project-client-foundation --database CANDIDATE.sqlite --snapshot FOREVER_SNAPSHOT
+java -jar importer/target/importer.jar project-client-foundation --database CANDIDATE.sqlite --snapshot ERA_SNAPSHOT
+java -jar importer/target/importer.jar diff-client-foundation --database CANDIDATE.sqlite --era ERA_SNAPSHOT --forever FOREVER_SNAPSHOT
+
+# Three-way correction refresh preserves canonical groups that conflict with the old source.
+java -jar importer/target/importer.jar ingest-questie-refresh --database CANDIDATE.sqlite --from-dir OLD_QUESTIE_DIR --from OLD_40_HEX_COMMIT --to-dir NEW_QUESTIE_DIR --to NEW_40_HEX_COMMIT --atlasloot-dir PINNED_ATLASLOOT_DIR
+java -jar importer/target/importer.jar project-questie-refresh --database CANDIDATE.sqlite --snapshot QUESTIE_REFRESH_SNAPSHOT
+
+# Preserve and replay the build-matching Blizzard hotfix evidence.
+java -jar importer/target/importer.jar ingest-hotfix --database CANDIDATE.sqlite --input PINNED_HOTFIX_DIR
+java -jar importer/target/importer.jar project-hotfix --database CANDIDATE.sqlite --snapshot HOTFIX_SNAPSHOT
+# Fill missing native cards from matching retained native/support snapshots.
+java -jar importer/target/importer.jar complete-native-client-items --database CANDIDATE.sqlite --support-snapshot HOTFIX_SNAPSHOT --native-snapshot FOREVER_SNAPSHOT
+```
+
+`FOREVER_NATIVE_DIR`, `ERA_NATIVE_DIR` and `PINNED_HOTFIX_DIR` are acquired, manifest-bearing directories, not game-install paths. Keep exact commit and snapshot IDs in the publication record. Hotfix projection follows the targeted Questie refresh so its item name fallback sees the selected Questie state. Capture never makes a fixture into an observed game fact.
+
+Travel-layer capture/replay is documented in [MAP_LAYERS_IMPORT.md](docs/MAP_LAYERS_IMPORT.md); world hierarchy in [WORLD_MAP_IMPORT.md](docs/WORLD_MAP_IMPORT.md); Atlas preparation and its candidate-only import in [tools/atlasmaps/README.md](tools/atlasmaps/README.md). Atlas publication remains the caller's responsibility. Preserve original source archives, derived-artifact ancestry and the full GPL text, validate integrity and ordinary-table preservation, then publish the validated candidate atomically. Record the exact final JAR and candidate identity only after all checks pass.
+
 ## Rebuild the data
 
 **First, the build watch.** It compares every upstream with what the shipped database was built from and changes
@@ -165,7 +203,7 @@ The same import runs inside Maven with `./mvnw -B -pl importer -am -Pimport-data
 - **Community drop rates.** `--server-db-dir <dir>` adds drop rates from the VMaNGOS world database, which `python tools/serverdb/fetch.py` downloads into `~/.cache/wowforever-serverdb/4641790` (pinned by `tools/serverdb/serverdb.lock`). The Maven profile passes that directory, or `-Dserverdb.dir=<dir>`. Without the option, or when the directory has no `mangos.sqlite`, the import leaves the VMaNGOS rates out and reports `serverdb.skipped = 1`. Rate rules and counters are in `tools/serverdb/README.md`.
 - **Outputs.** The importer writes `import-report.txt` and `build-id.txt` beside the database. Commit all three files together.
 
-The committed build has these headline row counts:
+The earlier committed baseline had these headline row counts (not a v0.4.1 candidate inventory):
 
 | Table | Rows |
 |---|---|

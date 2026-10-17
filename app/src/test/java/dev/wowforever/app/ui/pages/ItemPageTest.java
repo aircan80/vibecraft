@@ -670,12 +670,12 @@ class ItemPageTest {
   }
 
   @Test
-  void cardAbsentWithoutClientData() {
+  void absentTooltipDoesNotInventAHiddenByBlizzardAssertion() {
     for (long id : new long[] {1176, 212347}) { // no client data; an Item row (icon) but no tooltip lines
       var p = new ItemPage(repos.items().detail(id).get(), icon(0), t -> {});
       assertThat(p.card()).as("item " + id).isNull();
       assertThat(p.header().isTitleShown()).isTrue();
-      assertThat(p.header().note()).isEqualTo("Stats hidden until this item drops on a realm");
+      assertThat(p.header().note()).isEqualTo("Stats not yet discovered");
     }
     assertThat(new ItemPage(repos.items().detail(17204).get(), icon(0), t -> {}).header().note())
         .as("a card: no note").isNull();

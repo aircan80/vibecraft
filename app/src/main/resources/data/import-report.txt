@@ -1,3 +1,15 @@
+Current composed projection counters (Codex, 2026-10-17; authoritative over the historical baseline below)
+quest.objective.kinds.creature = 1062
+quest.objective.kinds.explore = 244
+quest.objective.kinds.item = 3991
+quest.objective.kinds.object = 119
+quest.objective.kinds.reputation = 144
+quest.objective.kinds.spell = 3
+quest.sourceItems = 1392
+npc.waypoints.npcs = 479
+npc.waypoints.points = 23022
+
+Historical baseline import report and later composition records:
 == Retained legacy baseline report ==
 Historical validation from the retained prearchive app build; not freshly revalidated by the ATT projection.
 
@@ -264,3 +276,65 @@ AtlasLoot Continued 12488: 8eaee376a19b26da4a50f4f7f7304f9f41b3eadfd0bd38c4fd98f
 Canonical NPC IDs and original row values retained; four instance loot states changed from none to reported.
 No matching loot is recorded for Mana Elemental, Mana Wraith, Highland Horror, The Butcher or Infurnus.
 Original source ZIPs and GPLv2 license texts retained. Full-module generic parse diagnostics remain visible; narrow static extraction covers the reviewed four instances.
+
+Codex v0.4.1 candidate composition (2026-10-17)
+Native Forever 1.60.1.70450 + Era 1.15.9.70003 tables retained; coverage-qualified diff, per-field knowledge and metadata-only missing item pages.
+Blizzard hotfix cache SHA256 f6fae4dfd32a6368efcdbe896704a6240db2ee11f5c50a90e1ef850cffc1582b: 4864 valid items, 38 invalidations; raw cache/definitions retained. 16806 remains Classic Era.
+Questie latest corrections e9a67d1a2753a0e64c4c96bf7864788fac7b765f: 96 audited three-way changes, zero conflicts. Original baseline and all source history retained.
+Travel: 76 flight nodes, 295 connections, 41 access pins. Fixed comparison corpus 20/21 within one point; Hogger remains a 1.406-point outlier.
+Atlas: 7 attributed GPL floors and 50 independent legend rows. Original archives retained.
+Seven remaining generated stat placeholders replaced from byte-pinned ItemStatType; zero placeholders remain; numeric values unchanged.
+Counts: {"client_table_row": 544296, "forever_diff": 130755, "hotfix_item_fact": 4864, "instance_map": 7, "item": 32136, "map_flight_node": 76, "source_archive_file": 583, "source_record": 659228}
+Build: 0f469c1f5a4dab64a833e5e71c122c113cf956f6fcf80f1895c878188b9e6de7
+Preservation: 55 original application/archive tables compared, no unexplained loss; SQLite integrity/FK passed. Genuine collector beta acceptance remains external.
+
+Final native item completion: 3566 genuine visible client records now have computed stats and cards. Existing rendered hotfix/Era cards retained.
+Knowledge-source repair: 87 equal-Known selections now use the appropriate authoritative hotfix; original assertions retained.
+Final build: 40ca42c8e8c6442c0e2e633f76bf4f4638ebf23faf4029b568ee1ee038c207b7
+
+Native completion diagnostics (documented source/calculation limits, not invented values):
+== Counters ==
+clientdata.armor.items = 561
+clientdata.damage.items = 262
+clientdata.damage.secondaryDropped = 0
+clientdata.effects = 1765
+clientdata.effects.otherTrigger = 17
+clientdata.era.effectRowsSkippedOnHotfixItems = 0
+clientdata.era.effectUnresolved = 0
+clientdata.era.effectsSkippedOnHotfixItems = 0
+clientdata.items.iconOnly = 0
+clientdata.items.matched = 3566
+clientdata.items.matched.era = 0
+clientdata.items.matched.forever = 3566
+clientdata.items.matched.hotfix = 0
+clientdata.items.unmatched = 0
+clientdata.sets = 2
+clientdata.stats.items = 357
+clientdata.stats.unknownId = 0
+clientdata.tooltip.items = 3566
+clientdata.tooltip.lines = 21076
+clientdata.tooltip.missingKind.durability = 1
+clientdata.unformatted = 9
+clientdata.unverified.armor = 0
+clientdata.unverified.block = 22
+clientdata.unverified.damage = 9
+clientdata.unverified.stats = 2
+hotfix.fromEra = 0
+hotfix.fromForever = 0
+hotfix.fromNoClient = 0
+hotfix.item.applied = 0
+hotfix.itemeffect.applied = 0
+hotfix.itemsparse.applied = 0
+hotfix.itemsparse.invalidated = 0
+hotfix.itemsparse.notInItemTable = 0
+hotfix.itemsparse.removed = 0
+hotfix.itemsparse.valid = 0
+hotfix.snapshotsSkipped = 0
+nativeClientCompletion.items = 3566
+== Skips by layer/field ==
+== First 50 skips ==
+== Notes ==
+clientdata.unmatched.ranges: none
+clientdata.unformatted: 9 spells; first 9: 707 (${$m2*$<mult>}), 905 ($n), 402848 (${($m1+($bh*$bc))*$<mult>}), 402849 (${$<damagepower>*$m1/100} ${$<damagepower>*$M1/100}), 402857 (${$<damagepower>*$m2/100*5}), 425216 (${$<damagepower>*$m1/100*6}), 431663 (${$m1*$<damagepower>/100} ${$M1*$<damagepower>/100} $u), 458821 ($458820u), 1214171 ($1214170u)
+clientdata.unformatted.tokens: ${...} 6, $<id>u 2, $n 1, $u 1
+

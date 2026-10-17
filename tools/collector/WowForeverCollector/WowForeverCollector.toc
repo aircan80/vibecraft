@@ -1,0 +1,8 @@
+## Interface: 16001
+## Title: WoW Forever Collector
+## Notes: Records loot sources, boss encounters, vendors, trainers and quests for the WoW: Forever browser. Account-wide; stores no character name, realm or guild.
+## Author: WoW: Forever browser
+## Version: 1.1.0
+## SavedVariables: WowForeverCollectorDB
+
+Core.lua

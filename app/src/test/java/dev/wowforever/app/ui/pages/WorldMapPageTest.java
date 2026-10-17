@@ -146,6 +146,8 @@ class WorldMapPageTest {
       }
       assertThat(up.get()).isEqualTo(1);
       assertThat(focused).containsExactly((Long) null);
+      assertThat(page.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+          .get(KeyStroke.getKeyStroke("alt LEFT"))).as("Alt+Left belongs to browser history").isNull();
     });
   }
 

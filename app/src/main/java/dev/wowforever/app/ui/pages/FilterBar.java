@@ -67,6 +67,7 @@ public final class FilterBar extends JPanel {
   private JComboBox<Choice<Integer>> classes;
   private JComboBox<Choice<Integer>> subclasses;
   private JComboBox<Choice<Integer>> qualities;
+  private JComboBox<Choice<Integer>> stats;
   private JComboBox<Choice<Long>> zones;
   private JComboBox<Choice<Integer>> ranks;
   private final JSpinner minLevel;
@@ -107,6 +108,9 @@ public final class FilterBar extends JPanel {
         add("Class", classes);
         add("Subclass", subclasses);
         add("Quality", qualities);
+        stats = combo("Any", new java.util.TreeMap<>(dev.wowforever.app.model.StatGlossary.NAMES).entrySet().stream().map(e -> new Choice<>(e.getValue(),e.getKey())).toList(), f.statId());
+        stats.addActionListener(e -> userChange());
+        add("Has stat", stats);
         levelLabel = "Item level";
       }
       case NpcFilter f -> {
@@ -261,7 +265,7 @@ public final class FilterBar extends JPanel {
       case ItemFilter f -> {
         Integer classId = value(classes);
         yield f.withClass(classId, classId == null ? null : value(subclasses)).withQuality(value(qualities))
-            .withLevels(min, max);
+            .withLevels(min, max).withStat(value(stats));
       }
       case NpcFilter f -> f.withZone(value(zones)).withRank(value(ranks)).withLevels(min, max);
       case QuestFilter f -> f.withZone(value(zones)).withLevels(min, max);

@@ -9,6 +9,7 @@ import java.util.Optional;
  */
 public enum RailTarget {
   HOME("Home", "home", "rail.home", false),
+  FOREVER("WoW: Forever", "quests", "rail.forever", false),
   ITEMS("Items", "items", "rail.items", false),
   NPCS("NPCs", "npcs", "rail.npcs", true),
   QUESTS("Quests", "quests", "rail.quests", true),

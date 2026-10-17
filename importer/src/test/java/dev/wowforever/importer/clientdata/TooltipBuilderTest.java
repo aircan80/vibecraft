@@ -263,7 +263,7 @@ class TooltipBuilderTest {
         "stat +40 Armor",
         "stat +9 Block Value",
         "stat +24 Ranged Attack Power",
-        "stat +5 Stat #92",
+        "stat +5 Two-handed Swords",
         "stat +3 Mana",
         "resist +9 Nature Resistance",
         "durability Durability 125 / 125",

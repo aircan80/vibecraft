@@ -27,12 +27,12 @@ import org.junit.jupiter.api.Test;
 class RailTest {
 
   @Test
-  void sixButtonsWithTooltipsAndIcons() {
+  void browseSectionsWithTooltipsAndIcons() {
     Rail rail = new Rail();
     assertThat(rail.getOrientation()).isEqualTo(SwingConstants.VERTICAL);
-    assertThat(rail.getComponentCount()).isEqualTo(6);
+    assertThat(rail.getComponentCount()).isEqualTo(7);
     assertThat(Arrays.stream(RailTarget.values()).map(t -> rail.button(t).getToolTipText()))
-        .containsExactly("Home", "Items", "NPCs", "Quests", "Zones", "Dungeons & Raids");
+        .containsExactly("Home", "WoW: Forever", "Items", "NPCs", "Quests", "Zones", "Dungeons & Raids");
     for (RailTarget t : RailTarget.values()) {
       JToggleButton b = rail.button(t);
       assertThat(rail.getComponentIndex(b)).isEqualTo(t.ordinal());

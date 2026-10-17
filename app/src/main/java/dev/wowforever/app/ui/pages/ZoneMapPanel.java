@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.pages;
 
 import dev.wowforever.app.db.ZoneRepository;
 import dev.wowforever.app.model.QuestPin;
+import dev.wowforever.app.model.TravelMapData;
 import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.NpcRoute;
@@ -155,6 +156,12 @@ public final class ZoneMapPanel extends JPanel {
   /** Zone map with independently remembered quest and patrol layers. */
   public ZoneMapPanel(long zoneId, BufferedImage map, List<SpawnPin> pins, PinSource pinSource, Executor worker,
       StatusSink status, Navigator nav, BooleanSetting questsShown, BooleanSetting routesShown) {
+    this(zoneId, map, pins, pinSource, worker, status, nav, questsShown, routesShown, TravelMapData.EMPTY);
+  }
+
+  /** Travel geography is loaded with the page, so default-on travel layers need no EDT repository queries. */
+  public ZoneMapPanel(long zoneId, BufferedImage map, List<SpawnPin> pins, PinSource pinSource, Executor worker,
+      StatusSink status, Navigator nav, BooleanSetting questsShown, BooleanSetting routesShown, TravelMapData travel) {
     super(new BorderLayout());
     Objects.requireNonNull(routesShown, "routesShown");
     Objects.requireNonNull(questsShown, "questsShown");
@@ -164,6 +171,7 @@ public final class ZoneMapPanel extends JPanel {
     this.status = Objects.requireNonNull(status, "status");
     this.defaultPins = pins(pins);
     mapView = new MapView(map, nav);
+    mapView.setTravel(travel);
     legend = PinLegend.interactive(mapView);
     ButtonGroup npcs = new ButtonGroup();
     npcs.add(bossesToggle);
@@ -179,6 +187,16 @@ public final class ZoneMapPanel extends JPanel {
     pinsMenu.add(sharing(new JCheckBoxMenuItem(objectsToggle.getText()), objectsToggle));
     pinsMenu.add(sharing(new JCheckBoxMenuItem(questsToggle.getText()), questsToggle));
     pinsMenu.add(sharing(new JCheckBoxMenuItem(routesToggle.getText()), routesToggle));
+    for (String preset : MapLayer.presetIds()) {
+      if (preset.equals(MapLayer.BOSSES_AND_RARES)) continue; // the existing Bosses & rares control supplies it
+      boolean present = MapLayer.REGISTERED.stream().anyMatch(layer -> layer.presets().contains(preset)
+          && mapView.layerHasContent(layer));
+      if (!present) continue;
+      JButton button = new JButton(MapLayer.presetLabel(preset));
+      button.addActionListener(e -> mapView.applyPreset(preset));
+      toggleRow.add(button);
+      pinsMenu.add(sharing(new JMenuItem(button.getText()), button));
+    }
     pinsMenuButton.setVisible(false);
     pinsMenuButton.addActionListener(e -> {
       if (pinsMenuButton.isShowing()) {
@@ -240,6 +258,12 @@ public final class ZoneMapPanel extends JPanel {
     JPanel below = new JPanel(new BorderLayout());
     below.setOpaque(false);
     below.add(legend, BorderLayout.NORTH);
+    if (!travel.sourceLabel().isBlank()) {
+      var source = new dev.wowforever.app.ui.widgets.WrappingText(travel.sourceLabel(), "Travel map data sources");
+      source.setBorder(BorderFactory.createEmptyBorder(5, 0, 0, 0));
+      source.setFont(source.getFont().deriveFont(source.getFont().getSize2D() * .9f));
+      below.add(source, BorderLayout.CENTER);
+    }
     capNote.setVisible(false);
     below.add(capNote, BorderLayout.SOUTH);
     add(below, BorderLayout.SOUTH);
@@ -276,7 +300,7 @@ public final class ZoneMapPanel extends JPanel {
           mapView.setRoutes(routeLines);
           mapView.setLayerVisible(ROUTES_LAYER, routesToggle.isSelected());
           status.message(routesToggle.isSelected() ? loaded.size() + " patrol routes on the map"
-              : mapView.visiblePins().size() + " pins on the map");
+              : mapView.visibleMarkerCount() + " pins on the map");
         }, failure -> {
           loadingRoutes = false;
           routesToggle.setSelected(false);
@@ -336,7 +360,7 @@ public final class ZoneMapPanel extends JPanel {
           }
           showPins();
           if (loading.isEmpty()) {
-            int n = mapView.visiblePins().size();
+            int n = mapView.visibleMarkerCount();
             status.message(n == 1 ? "1 pin on the map" : String.format(Locale.ROOT, "%,d pins on the map", n));
           }
         }, e -> {

@@ -97,13 +97,12 @@ Collected 2026-10-17 at the end of the phase 2B UI overhaul.
 20. **Not-found and unknown-entity states with a Search/Back action and muted styling (review
     §P1.8).** A missing entity still shows a plain "Not found" label.
 
-21. **Visible source comparisons and conflicts on entity pages.** *Pending — owner request, 2026-10-17.*
-    Let users inspect each supporting source's value or loot membership, version and archived evidence,
-    including paths/lines when available. Keep original per-source facts alongside the selected display value.
-    Distinguish actual contradictory assertions from “not listed by this source”, missing coverage and unknown
-    values; absence from an addon is not a claim that an item cannot drop. Existing rate disagreement marks and
-    the new provider attribution do not complete this broader comparison UI. Review the implementation before
-    choosing conflict rules, particularly unmatched boss names, claimed NPC IDs, item names/stats and loot lists.
+21. **Visible source comparisons and conflicts on entity pages.** *Implemented in v0.4.1 development, 2026-10-17.*
+    Entity pages retain and display per-source values, loot membership, selected provenance, build/version,
+    archived paths and lines. Comparisons distinguish contradictory assertions from missing coverage,
+    list order, quest scope and temporal changes. Large loot lists disclose evidence in batches; technical
+    JSON remains available on request. Known-value selection uses comparable build and hotfix authority
+    without discarding original assertions. Genuine collector capture acceptance remains separate.
 
 ## Suggested order
 

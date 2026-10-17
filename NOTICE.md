@@ -55,3 +55,25 @@ provides its native Forever module as a separate reported source, licensed under
 Its original ZIP and unmodified AtlasLootContinued/LICENSE are archived. Acquisition was a
 user-provided local file; no upstream download URL is asserted. Both supporting source facts
 remain separate, including source order and claimed NPC IDs; canonical NPC identities are unchanged.
+
+## Atlas dungeon floor maps
+
+Dungeon floor artwork and legends are from Atlas — Kalimdor and Eastern Kingdoms,
+commit `19c74eae268360cabdab7269b161b4f08b7f7426`, with Atlas core
+`7787b5b2adfedf3e3e3c62838b81c0db6bd5d7ec`. Credit: Dan Gilbert, Lothaer,
+Arith Hsu and the Atlas Team. Licensed under GPL-2.0; the original archives,
+selected BLP artwork, authored legends and license are preserved in the source archive.
+The bundled license is `licenses/Atlas-GPL-2.0.txt`. Every floor caption carries this credit.
+Atlas legend numbers retain Atlas ordering and do not establish client encounter identities.
+
+## Supplemental client tables, hotfix cache and source corrections
+
+Pinned native client exports from wago.tools retain Forever build 1.60.1.70450 and
+Classic Era build 1.15.9.70003 separately, with original URLs, bytes, hashes and columns.
+The Blizzard hotfix cache distributed by Raidbots (https://storage.googleapis.com/raidbots-static/wow/classic_beta/enUS/DBCache.bin),
+SHA-256 f6fae4dfd32a6368efcdbe896704a6240db2ee11f5c50a90e1ef850cffc1582b,
+reveals beta item data. Original cache bytes and pinned WoWDBDefs decoding definitions are archived;
+Raidbots is the cache distributor, and these observations are distinct from native CSV exports.
+QuestieDB correction inputs at e9a67d1a2753a0e64c4c96bf7864788fac7b765f are archived
+alongside the earlier baseline; the bounded refresh keeps its three-way audit and conflicts.
+Stat labels and aura identifiers use WoWDBDefs enum originals, retained under data/reference.

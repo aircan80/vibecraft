@@ -30,7 +30,7 @@ class StatNamesTest {
       assertThat(StatNames.isKnown(id)).as("stat %d", id).isTrue();
     }
     for (int id : new int[] {83, 92, 98, 114, 115, 132}) {
-      assertThat(StatNames.isKnown(id)).as("stat %d: no Era item names it", id).isFalse();
+      assertThat(StatNames.isKnown(id)).as("stat %d: official ItemStatType enum", id).isTrue();
     }
   }
 
@@ -45,8 +45,8 @@ class StatNamesTest {
 
   @Test
   void unknownIdsGetAPlaceholder() {
-    assertThat(StatNames.isKnown(92)).isFalse();
-    assertThat(StatNames.name(92)).isEqualTo("Stat #92");
-    assertThat(StatNames.isKnown(2)).as("2 is unused by the client").isFalse();
+    assertThat(StatNames.isKnown(999)).isFalse();
+    assertThat(StatNames.name(999)).isEqualTo("Stat #999");
+    for (int id=31; id<=140; id++) assertThat(StatNames.isKnown(id)).as("official stat %d",id).isTrue();
   }
 }

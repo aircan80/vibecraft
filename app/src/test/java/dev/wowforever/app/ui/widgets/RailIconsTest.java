@@ -30,7 +30,7 @@ class RailIconsTest {
 
   @Test
   void assetNamesAndGossipGlyphs() {
-    assertThat(Arrays.stream(RailTarget.values()).map(RailTarget::assetName)).containsExactly("rail.home",
+    assertThat(Arrays.stream(RailTarget.values()).map(RailTarget::assetName)).containsExactly("rail.home", "rail.forever",
         "rail.items", "rail.npcs", "rail.quests", "rail.zones", "rail.instances");
     assertThat(Arrays.stream(RailTarget.values()).filter(RailTarget::gossip)).containsExactly(NPCS, QUESTS);
   }

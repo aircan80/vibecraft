@@ -1,5 +1,40 @@
 # Resume development — current checkpoint
 
+## Current continuation — authorized v0.4.1 development, acceptance pending
+
+Codex, 2026-10-17. This checkpoint supersedes the older implementation/status summaries below. Historical test counts, build IDs and screenshots remain evidence for their original revisions only.
+
+The owner authorized autonomous completion through v0.4.1 with parallel agents. Work is integrated in the primary checkout on `feature/phase3b-quest-ui`; inspect `git status` and preserve uncommitted implementation. Do not rewrite the product backlog or convert implementation progress into a release claim.
+
+Final automated verification after the Era-bonus provenance correction passed: **1,841 tests, six skipped, zero failures/errors** (Lua 71, importer 582, app 1,188). Log: `.local/v041-final-verify.log`. Separate Python suites passed 122 clientdata and 16 serverdb tests. Frozen review JAR SHA256: `a2c6379e6d67e3b0ff8b44f2e2a0dc4e40628216973b7d710d04ee1b981f7a9f`. Final captures passed as recorded below; genuine collector acceptance remains external.
+
+Final captures passed against the frozen review JAR: **299 images** (294 headless and five native). Standard pages: 94 panels/22 cases, zero geometry failures, maximum warm-load p95 106.968 ms. Catalogs: 76 panels/19 targets, zero geometry failures; cached repository load maximum 0.005715 ms (this is not a separate catalog render benchmark). World maps: 12 panels, query/decode/construct/render p95 31.03 ms. Travel: 16 panels, p95 48.95/27.92 ms. Source evidence: 96 captures without horizontal overflow; database unchanged. Five real JFrame/Robot screenshots under X11 accompany eight passing interaction checks covering focus, Tab, Enter, hover, coordinates, click, Alt+Left twice and Alt+Right. No Wayland interaction claim is made.
+
+The coordinator visually reviewed hidden 287012, hotfix 286978, Era 16806 comparison, hub, race 95 and race grid, compact camping, full talents, compact Legacy, Reported Hyjal and light-theme set 2133. Genuine owner collector beta-capture acceptance remains the external open gate. Unresolved source formulas and the eleven native test/monster/QA stat/damage rows remain documented data limits, not invented facts.
+
+Implemented development features:
+
+- Native client foundation and paired Era comparison; latest candidate inventory reported 69 Forever and 27 Era tables. F4 metadata projection seeds 10,593 source-backed native item IDs. These are interim candidate figures, not final shipped counts.
+- Six-state per-field knowledge and assertion history, source comparisons on item/boss surfaces, original addon claims separate from canonical identities, real rate alternatives and source coverage distinctions.
+- Talent browser/calculator with nine real class-linked trees, 51-point cap, visible 11/16/21/31 milestones, rank/cost/prerequisite details and copy/paste hypothetical builds. Legacy shares 16 points across trees1187–1189. Native spell descriptions retain unresolved formulas with a qualification, and beta content above level30 remains explicitly unconfirmed. Classic comparisons use exact spell IDs and name both builds.
+- Skyborne95/96 native five-class lists, race/racial pages, class-spells comparison, camping's36 source-backed camps, campfire/Blueprint lists and a hypothetical eligibility composer; no character progress or recipe ownership inferred.
+- Forever hub, New/Changed filters/context, dungeon/raid ladder, discovery and PvP/faction pages, item sets and Classic comparison, situational trinkets, new recipes by skill band, XP food, Comprehension, stat glossary/filter and appearance sharing. Achievement-only Wild King evidence remains Reported.
+- Travel layers have a reported candidate76 flight nodes/295 connections, authentic entrances/exits and nested-instance context. Atlas has seven maps and fifty legend rows with GPL attribution. These candidate counts still need final publication evidence.
+
+Native completion checkpoint: 3,566 missing Forever cards have been filled; `.local/v041-hotfix-acquisition/native-completion-summary.json` reports `native_sparse_still_without_card=0`, zero foreign-key violations, and controls869/273643/286978 hotfix with16806 Era. `.local/v041-integration/knowledge-repair.log` records87 Known selections repaired. Eleven test/monster/deprecated/QA rows retain unresolved stat/damage details in `.local/v041-hotfix-acquisition/native-unverified-details.txt`; their derivations are not silently called verified.
+
+Continuation work and publication boundary:
+
+1. The targeted Questie correction refresh and replay of 4,864 retained hotfix item rows are included in the verified candidate. The unused composite CLI has been removed; preserve overlays with targeted workflows rather than resetting ordinary tables through a broad rebuild.
+2. Follow README's capture/project commands and `MAP_LAYERS_IMPORT.md`, `WORLD_MAP_IMPORT.md`, `tools/atlasmaps/README.md`. Acquisition retains exact sources; replay must stay offline, preserve history and existing unrelated data, and publish a validated candidate atomically.
+3. Use `newv041execution.md` for the detailed acceptance ledger. Final source revision and selected snapshot/publication record remain to be recorded; current coordinator-supplied automated results and review JAR hash appear above.
+4. Layout fixes were revalidated in the final capture run with zero standard/catalog geometry failures. The Era-bonus provenance correction, repeat automated verification and final captures are complete for the candidate/JAR recorded above. Genuine collector acceptance remains external.
+5. Keep the fixed21-NPC corpus intact:20 agreements within one point fulfill the exact twenty-NPC criterion; the additional Hogger1.406-point outlier remains a documented exception. Do not substitute a waypoint for a spawn or silently omit failed evidence.
+6. Genuine collector beta-capture acceptance remains external. No synthetic observations may be shipped as real evidence. Addon reports, hotfix beta evidence and observed presence remain separate semantics; observations never overwrite rates or turn a last-kill encounter hint into boss attribution.
+
+The automated results above identify the current reviewed build; release completion and live-client availability are not claimed. Development verification is complete for this checkpoint; genuine external collector acceptance remains open.
+
+
 
 ## Latest continuation — full geography breadcrumbs and reported Forever loot
 

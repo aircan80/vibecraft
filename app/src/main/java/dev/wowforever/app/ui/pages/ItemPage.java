@@ -132,6 +132,32 @@ public final class ItemPage extends SourcesPage {
   public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
       Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
       QuestInvolvement.Result involvement, Navigator nav, ClipboardPort clipboard) {
+    this(all,icon,rateSources,bossNpcs,filter,onFilterChange,involvement,nav,clipboard,List.of());
+  }
+
+  public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
+      QuestInvolvement.Result involvement, Navigator nav, ClipboardPort clipboard,
+      List<dev.wowforever.app.model.SourceDifference> sourceDifferences) {
+    this(all,icon,rateSources,bossNpcs,filter,onFilterChange,involvement,nav,clipboard,sourceDifferences,List.of(),null,dev.wowforever.app.model.ForeverContent.Context.empty());
+  }
+
+  public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
+      QuestInvolvement.Result involvement, Navigator nav, ClipboardPort clipboard,
+      List<dev.wowforever.app.model.SourceDifference> sourceDifferences,
+      List<dev.wowforever.app.model.FieldKnowledgeView> knowledge, dev.wowforever.app.db.ItemContentRepository.Appearance appearance,
+      dev.wowforever.app.model.ForeverContent.Context foreverContext) {
+    this(all,icon,rateSources,bossNpcs,filter,onFilterChange,involvement,nav,clipboard,sourceDifferences,knowledge,appearance,foreverContext,
+        dev.wowforever.app.model.NativeItemMetadata.empty());
+  }
+
+  public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
+      QuestInvolvement.Result involvement, Navigator nav, ClipboardPort clipboard,
+      List<dev.wowforever.app.model.SourceDifference> sourceDifferences,
+      List<dev.wowforever.app.model.FieldKnowledgeView> knowledge, dev.wowforever.app.db.ItemContentRepository.Appearance appearance,
+      dev.wowforever.app.model.ForeverContent.Context foreverContext, dev.wowforever.app.model.NativeItemMetadata nativeMetadata) {
     super(nav);
     SourceFilters.Filtered<DropSource> drops = SourceFilters.apply(all.droppedBy(), DropSource::displayOrigin, filter);
     ItemDetail d = new ItemDetail(all.summary(), all.classId(), all.subclassId(), all.startQuestId(), drops.rows(),
@@ -145,7 +171,9 @@ public final class ItemPage extends SourcesPage {
     header.add(copyInGameLink);
     if (d.card().lines().isEmpty()) {
       card = null;
-      header.setNote(STATS_HIDDEN);
+      var stats=knowledge.stream().filter(k->k.field().equals("stats")).findFirst();
+      header.setNote(stats.map(k->k.state()==dev.wowforever.app.model.FieldKnowledgeView.State.KNOWN
+          ? "Stats recorded; tooltip text unavailable" : "Stats: "+k.state().label()).orElse("Stats not yet discovered"));
     } else {
       card = new ItemCardPanel(d.card(), d.summary().displayName(), icon == null ? IconCache.empty(IconCache.CARD)
           : new ImageIcon(icon), nav);
@@ -153,7 +181,15 @@ public final class ItemPage extends SourcesPage {
       header.setTitleShown(false); // the card has the name
       header.setBorder(BorderFactory.createEmptyBorder(2, 12, 6, 12));
     }
+    knowledge.stream().filter(k->k.field().equals("stats")
+        && k.state()==dev.wowforever.app.model.FieldKnowledgeView.State.HIDDEN_BY_BLIZZARD)
+        .findFirst().ifPresent(k->header.setNote(STATS_HIDDEN));
     content.add(header);
+    if(!foreverContext.changes().isEmpty())content.add(new dev.wowforever.app.ui.widgets.ForeverContextStrip(foreverContext));
+    if(!knowledge.isEmpty())content.add(new dev.wowforever.app.ui.widgets.FieldKnowledgePanel(knowledge));
+    if(d.card().lines().isEmpty() && nativeMetadata.available())content.add(new dev.wowforever.app.ui.widgets.NativeItemMetadataPanel(nativeMetadata,nav));
+    if(appearance!=null)content.add(new AppearancePanel(appearance,nav));
+    if(!sourceDifferences.isEmpty()) content.add(new dev.wowforever.app.ui.widgets.SourceDifferencesPanel(sourceDifferences));
     List<DropRow> merged = DropRow.merged(d.droppedBy(), d.inInstanceLoot());
     // the heading counts the rows shown; the note counts the NPC rows the filter hid (loot lists are never hidden)
     SourceFilters.Filtered<DropRow> shown =

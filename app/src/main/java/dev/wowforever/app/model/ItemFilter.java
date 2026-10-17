@@ -7,8 +7,11 @@ package dev.wowforever.app.model;
  * once either bound is set) and whose quality is {@code quality} (0 poor … 6 artifact; null: any quality, an item
  * without client data has none and is left out once a quality is set).
  */
-public record ItemFilter(Integer classId, Integer subclassId, Integer minLevel, Integer maxLevel, Integer quality)
+public record ItemFilter(Integer classId, Integer subclassId, Integer minLevel, Integer maxLevel, Integer quality, Integer statId)
     implements ListFilter {
+  public ItemFilter(Integer classId,Integer subclassId,Integer minLevel,Integer maxLevel,Integer quality) {
+    this(classId,subclassId,minLevel,maxLevel,quality,null);
+  }
   /** Every item. */
   public static final ItemFilter ALL = new ItemFilter(null, null, null, null, null);
   /** The class id v0.1 item class links use for every item, whatever its class. */
@@ -31,18 +34,20 @@ public record ItemFilter(Integer classId, Integer subclassId, Integer minLevel, 
     return new ItemFilter(classId, subclassId == ItemClassNode.CLASS_NODE ? null : subclassId, null, null, null);
   }
 
+  public ItemFilter withStat(Integer statId) { return new ItemFilter(classId,subclassId,minLevel,maxLevel,quality,statId); }
+
   /** This filter with another class and subclass. */
   public ItemFilter withClass(Integer classId, Integer subclassId) {
-    return new ItemFilter(classId, subclassId, minLevel, maxLevel, quality);
+    return new ItemFilter(classId, subclassId, minLevel, maxLevel, quality, statId);
   }
 
   /** This filter with another quality (null: any). */
   public ItemFilter withQuality(Integer quality) {
-    return new ItemFilter(classId, subclassId, minLevel, maxLevel, quality);
+    return new ItemFilter(classId, subclassId, minLevel, maxLevel, quality, statId);
   }
 
   /** This filter with other item level bounds. */
   public ItemFilter withLevels(Integer minLevel, Integer maxLevel) {
-    return new ItemFilter(classId, subclassId, minLevel, maxLevel, quality);
+    return new ItemFilter(classId, subclassId, minLevel, maxLevel, quality, statId);
   }
 }

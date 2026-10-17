@@ -1,0 +1,134 @@
+{
+  "version": "0.4.1-SNAPSHOT",
+  "status": "development verified; genuine collector acceptance open",
+  "completedAt": "2026-10-17T22:36:02.164019+00:00",
+  "appJarSha256": "a2c6379e6d67e3b0ff8b44f2e2a0dc4e40628216973b7d710d04ee1b981f7a9f",
+  "appJarBytes": 392867593,
+  "databaseBuild": "40ca42c8e8c6442c0e2e633f76bf4f4638ebf23faf4029b568ee1ee038c207b7",
+  "databaseSha256": "f527ff9ea91b6dba8a8a710d33a187d864afe4ee37454b4e4e1b5610fbd2c772",
+  "databaseBytes": 2283749376,
+  "modules": [
+    {
+      "name": "lua-table",
+      "tests": 71,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 1
+    },
+    {
+      "name": "importer",
+      "tests": 582,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 5
+    },
+    {
+      "name": "app",
+      "tests": 1188,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    }
+  ],
+  "pythonTests": {
+    "clientdata": 122,
+    "serverdb": 16,
+    "failures": 0
+  },
+  "sources": {
+    "source_base_snapshot_id": "068bda11092cd1829397e9262c07eb2d4ed8b2a94e51a418e376cf1213fd30e6",
+    "world_map_snapshot_id": "bdd5368e1f7bf6a1c7b710c6677ff1f2f71c758f02f2df69f6fe09032de57295",
+    "source_overlay_transform_world_map": "world-map-v1",
+    "source_overlay_transform_forever_loot": "forever-loot-v1",
+    "forever_loot_snapshot_id": "088858164008994daa9f55ce2d5112227593883916a28d2211260ac6bc1c91ed,d84003607e38e99a4b6e52650c63dc936e06976942ac9b02ac62a7ef6bd30490",
+    "source_overlay_transform_forever_diff": "forever-diff-v1",
+    "forever_diff_era_snapshot_id": "9daf4c96a7577daae6df10b8044a39ca734fdbd955e701c20161e07f10fe10fc",
+    "forever_diff_forever_snapshot_id": "ee3737e3432d72b9709d9496d8e40ac8ddbaeda9aaef04449d7341b0ed01f5b0",
+    "source_overlay_transform_client_foundation": "client-foundation-v2",
+    "client_foundation_snapshot_id": "ee3737e3432d72b9709d9496d8e40ac8ddbaeda9aaef04449d7341b0ed01f5b0",
+    "hotfix_snapshot_id": "021d677e4484f0dc53f16851cf69e8effae6a9d4b27180844606a3bfb85a8d8b",
+    "source_overlay_transform_hotfix": "blizzard-hotfix-items-v1",
+    "source_overlay_transform_questie_refresh": "questie-corrections-three-way-v1",
+    "questiedb_refresh_commit": "e9a67d1a2753a0e64c4c96bf7864788fac7b765f",
+    "source_overlay_transform_map_layers": "map-layers-v1",
+    "map_layers_snapshot_id": "e650c0ea242dd575e603c6d2c5fe32191ae65a09b54a8d246e929521cabe5c8c",
+    "source_overlay_transform_atlas_maps": "atlas-maps-v1",
+    "source_overlay_transform_stat_type_labels": "stat-type-labels-v1",
+    "source_overlay_transform_native_client_completion": "native-client-item-completion-v1",
+    "source_overlay_transform_knowledge_selection": "knowledge-selection-v2"
+  },
+  "visual": {
+    "standard": {
+      "captures": 94,
+      "cases": 22,
+      "geometryFailures": 0,
+      "maxWarmLoadP95Ms": 106.968
+    },
+    "catalog": {
+      "captures": 76,
+      "targets": 19,
+      "geometryFailures": 0,
+      "measurement": "cached worker load and EDT page construction, 30 samples after three warmups",
+      "maxCombinedWarmP95Ms": 98.526207,
+      "maxColdMs": 10396.662367,
+      "coldNote": "Cold loading runs off the EDT with a loading page; cold results are outside the warm 300ms gate."
+    },
+    "world": {
+      "captures": 12,
+      "geometryFailures": 0,
+      "warmQueryDecodeRenderP95Ms": 31.03
+    },
+    "travel": {
+      "captures": 16,
+      "geometryFailures": 0,
+      "maxWarmQueryDecodeRenderP95Ms": 48.95
+    },
+    "sourceEvidence": {
+      "captures": 96,
+      "horizontalScrollFailures": 0,
+      "databaseUnchanged": true
+    },
+    "native": {
+      "captures": 5,
+      "checks": 8,
+      "status": "PASS",
+      "scope": "isolated X11 JFrame/Robot; no Wayland desktop claim"
+    }
+  },
+  "preservation": {
+    "tables": 55,
+    "unexplainedChanges": 0,
+    "integrity": "ok",
+    "foreignKeyErrors": 0
+  },
+  "data": {
+    "nativeRows": 544296,
+    "foreverTables": 69,
+    "eraTables": 27,
+    "hotfixItems": 4864,
+    "completedNativeCards": 3566,
+    "nativeSparseMissingCards": 0,
+    "knowledgeSelectionRepairs": 87,
+    "statPlaceholders": 0,
+    "questieOperations": 96,
+    "questieConflicts": 0,
+    "atlasFloors": 7,
+    "atlasLegends": 50,
+    "atlasNpcLinks": 36,
+    "flightNodes": 76,
+    "flightConnections": 295,
+    "routePoints": 44468,
+    "accessPins": 41
+  },
+  "limits": [
+    "Genuine beta collector observation/API-failure capture unavailable; release acceptance remains open.",
+    "20 of 21 declared spawn comparisons within one percentage point; additional Hogger outlier 1.406035462 retained.",
+    "Unsupported native item formulas/budgets remain explicit; see execution ledger.",
+    "Beta content above level30 and absent source coverage remain qualified."
+  ],
+  "appLaunch": {
+    "status": "running",
+    "service": "wowforever-browser.service",
+    "installedDatabaseBuild": "40ca42c8e8c6442c0e2e633f76bf4f4638ebf23faf4029b568ee1ee038c207b7"
+  }
+}

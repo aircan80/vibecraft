@@ -49,6 +49,34 @@ public final class ItemRepository {
 
   private final Database db;
 
+  /** Supplemental source comparisons, loaded with the detail off the EDT. */
+  public java.util.List<dev.wowforever.app.model.SourceDifference> sourceDifferences(long id) {
+    return new SourceDifferenceRepository(db).item(id);
+  }
+
+  public java.util.List<dev.wowforever.app.model.FieldKnowledgeView> knowledge(long id) {
+    return new FieldKnowledgeRepository(db).item(id);
+  }
+  public ItemContentRepository.Appearance appearance(long id) {
+    return new ItemContentRepository(db).appearance(id);
+  }
+
+  public dev.wowforever.app.model.ForeverContent.Context foreverContext(long id) {
+    return db.read(c -> {
+      if(!Sql.hasTable(c,"forever_diff"))return dev.wowforever.app.model.ForeverContent.Context.empty();
+      String build=db.meta().getOrDefault("client_build","unknown");
+      String era=Sql.one(c,"SELECT era_build FROM forever_diff WHERE forever_build=? ORDER BY era_build DESC LIMIT 1",
+          r->r.getString(1),build).orElse("unknown");
+      return new dev.wowforever.app.model.ForeverContent.Context(build,era,
+          Sql.list(c,"SELECT kind,id,status,fields FROM forever_diff WHERE forever_build=? AND kind IN ('Item','ItemSparse') AND id=? ORDER BY kind",
+              r->new dev.wowforever.app.model.ForeverContent.Change(r.getString(1),r.getString(2),r.getString(3),r.getString(4)),build,Long.toString(id)));
+    });
+  }
+
+  public dev.wowforever.app.model.NativeItemMetadata nativeMetadata(long id) {
+    return new NativeItemMetadataRepository(db).item(id);
+  }
+
   public ItemRepository(Database db) {
     this.db = db;
   }
@@ -96,7 +124,7 @@ public final class ItemRepository {
    * missing from the subclass table.
    */
   public List<ItemSummary> list(Integer classId, Integer subclassId, Integer limit, int offset) {
-    return query(classId, subclassId, null, null, null, limit, offset);
+    return query(classId, subclassId, null, null, null, null, limit, offset);
   }
 
   /**
@@ -105,7 +133,7 @@ public final class ItemRepository {
    */
   public List<ItemSummary> list(ItemFilter filter) {
     return query(filter.classId(), filter.subclassId(), filter.minLevel(), filter.maxLevel(), filter.quality(),
-        null, 0);
+        filter.statId(), null, 0);
   }
 
   /**
@@ -113,7 +141,7 @@ public final class ItemRepository {
    * quality (null: any).
    */
   private List<ItemSummary> query(Integer classId, Integer subclassId, Integer minLevel, Integer maxLevel,
-      Integer quality, Integer limit, int offset) {
+      Integer quality, Integer statId, Integer limit, int offset) {
     StringBuilder where = new StringBuilder(" WHERE 1 = 1");
     List<Object> params = new ArrayList<>();
     if (classId != null) {
@@ -137,6 +165,10 @@ public final class ItemRepository {
     if (quality != null) {
       where.append(" AND quality = ?");
       params.add(quality);
+    }
+    if (statId != null) {
+      where.append(" AND EXISTS (SELECT 1 FROM item_stat s WHERE s.item_id=item.id AND s.stat_id=?)");
+      params.add(statId);
     }
     params.add(limit == null ? -1 : limit); // a negative LIMIT is no limit in SQLite
     params.add(offset);

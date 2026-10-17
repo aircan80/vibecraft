@@ -57,6 +57,11 @@ public final class ZonePage extends SourcesPage {
   }
 
   public ZonePage(ZoneDetail d, ZoneMapPanel mapPanel, List<GeographyStep> breadcrumbs, Navigator nav) {
+    this(d,mapPanel,breadcrumbs,dev.wowforever.app.model.ForeverContent.Context.empty(),nav);
+  }
+
+  public ZonePage(ZoneDetail d, ZoneMapPanel mapPanel, List<GeographyStep> breadcrumbs,
+      dev.wowforever.app.model.ForeverContent.Context foreverContext, Navigator nav) {
     super(nav);
     this.mapPanel = mapPanel;
     ZoneSummary s = d.summary();
@@ -74,6 +79,7 @@ public final class ZonePage extends SourcesPage {
     trail.setBorder(BorderFactory.createEmptyBorder(4,12,8,12));
     content.add(trail);
     content.add(header);
+    if (!foreverContext.changes().isEmpty()) content.add(new dev.wowforever.app.ui.widgets.ForeverContextStrip(foreverContext));
     addLinkRow(DUNGEONS, d.instances(), i -> Labels.instanceTitle(i.displayName(), i.key()),
         InstanceSummary::ref, instanceLinks);
     addLinkRow(SUBZONES, d.subzones().stream().filter(z -> !isInstance(z, d.instances())).toList(),

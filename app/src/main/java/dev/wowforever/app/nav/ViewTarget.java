@@ -54,6 +54,18 @@ public sealed interface ViewTarget {
     public WorldMap(long uiMapId) { this(uiMapId, null); }
   }
 
+  /** An offline Forever system or content page; its identifier is scoped to the named section. */
+  record Forever(String section, long id) implements ViewTarget {
+    public Forever { Objects.requireNonNull(section, "section"); }
+    public Forever(String section) { this(section, 0); }
+  }
+
+  /** An item research catalog or one set, loaded from the bundled data. */
+  record ItemContent(String section, long id) implements ViewTarget {
+    public ItemContent { Objects.requireNonNull(section, "section"); }
+    public ItemContent(String section) { this(section, 0); }
+  }
+
   /** The landing page. */
   record Home() implements ViewTarget {}
 }

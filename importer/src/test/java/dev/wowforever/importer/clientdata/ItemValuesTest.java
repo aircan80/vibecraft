@@ -31,12 +31,12 @@ class ItemValuesTest {
 
   @Test
   void unknownStatIdsAreCountedAndNoted() {
-    // 87 (Frost spell damage) is rendered as an Equip line, so only 92 is unknown
+    // 87 (Frost spell damage) is rendered as an Equip line, so only unsupported id 999 is unknown
     ClientItem item = ClientItems.forever(4, 1, 5, 3, 65, null, 0.0, null, ClientItems.share(87, 5000),
-        ClientItems.share(92, 2000), ClientItems.share(7, 3000));
+        ClientItems.share(999, 2000), ClientItems.share(7, 3000));
     ImportReport report = new ImportReport();
     ItemValues.compute(Map.of(1L, item), ClientItems.fixtureTables(), report);
     assertThat(report.get("clientdata.stats.unknownId")).isEqualTo(1);
-    assertThat(report.notes()).contains("clientdata.stats.unknownIds: 92");
+    assertThat(report.notes()).contains("clientdata.stats.unknownIds: 999");
   }
 }

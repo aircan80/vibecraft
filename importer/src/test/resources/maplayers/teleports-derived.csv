@@ -1,0 +1,4 @@
+id,name,target_map,target_x,target_y,target_z,map_id,x,y,z,build,patch
+78,Deadmines - Entrance,36,-14.5732,-385.475,62.4561,0,-11208.5,1685.34,25.7612,4222,0
+119,Deadmines - Exit,0,-11208.7,1675.9,24.5733,36,-14.3628,-393.38,64.5605,4222,0
+121,Deadmines - Back Exit,0,-11339.9,1572.45,94.3916,36,-110.76,-1009.19,34.8044,4222,0

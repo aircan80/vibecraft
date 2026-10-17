@@ -39,6 +39,11 @@ public final class InstanceRepository {
     this.db = db;
   }
 
+  /** Source assertions are loaded with the boss snapshot, before Swing rendering. */
+  public java.util.List<dev.wowforever.app.model.SourceDifference> sourceDifferences(long bossId) {
+    return new SourceDifferenceRepository(db).boss(bossId);
+  }
+
   /** Build of the shipped client snapshot; load before rendering a page on the EDT. */
   public String clientBuild() {
     return db.meta().getOrDefault("client_build", "unknown");

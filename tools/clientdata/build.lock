@@ -56,7 +56,47 @@
     "UiMapAssignment": "79267e8be8034e47daab14350411b3acc0b1f64e86efc9d821a217497254ca0a",
     "UiMapXMapArt": "81092d619701f0b31a3537129ec5667b38630b5291e211034971a1dde05678dc",
     "WorldMapOverlay": "d8c884864504ab54d7dc1e048fd4e49e41177bee5cce3d43d8ee3c339e284d85",
-    "WorldMapOverlayTile": "31d8b8c4cae7a1afd312f13a74ba75a461042e00b6e69e2b63809ce9809df02f"
+    "WorldMapOverlayTile": "31d8b8c4cae7a1afd312f13a74ba75a461042e00b6e69e2b63809ce9809df02f",
+    "Achievement": "1c34df2b6978749018e403fc841d0a5be343020da1eaedf2ba05bd0c99c34a1c",
+    "Achievement_Category": "b0499710a4e9d2e2cacff416ccc1f3eebb04aaef58774b813c0b03993ddd7836",
+    "AreaTrigger": "c42305d819d250a0003159458f458c17f0720ae1561194fdc1283d7e530f8a8e",
+    "BattlemasterList": "83125406d2c17ec1ac7c03a7d6bc3ed2b2ab590716740454b1b7bb471db5215d",
+    "CharBaseInfo": "6894b5d04495e875c3f08085630b951abeda6b798b5ed47de4f3405dd346cbc2",
+    "ChrRaceRacialAbility": "84030d7177bcee6d8e105c93067ce9c0f3336a4999d78366e5ff553c980f198b",
+    "Criteria": "694f524ef4a21c4d138812e5f5205b73318fcddf305fcb1bd5bc1fc62ea7be76",
+    "CriteriaTree": "b0c0efc2a0d6c77206bcd300b5aa2134b6ea47151f19b6ba26e7d8c5edbea857",
+    "CurrencyTypes": "7ab6a29658a4e5344582eed582030b07bf9773699c8ce8b26966a147da832199",
+    "FactionTemplate": "2b5c5cb8dad953bb6000d64057bb60539518505062ac09af81ff1d46398b17df",
+    "ItemExtendedCost": "f1df8929cdc2ddd347abe8d8b7061dea93d39d440b1756271f9fc38b24c721e0",
+    "ItemModifiedAppearance": "95dfca327d20264039135c6da60a7be661accc9f2e64c0fc1201adbd53bd9b1f",
+    "QuestSort": "9cc9cbe418ab27ecc218e4699180520471eb3521514fe0b6b25e591e86a94a3f",
+    "RenownRewards": "eecad1aeb5b7499d12a8cab10f06ef882efad1e8905c442291c98df120a56992",
+    "SkillLineXTraitTree": "e6774240ba1fda84bef060fda0d0b23e42d5ae9b4d8ae3323f7ccb31f38c5760",
+    "SpellLevels": "4df662bc20c327dd5562071389264a830d6e800b1db967b4334b7ce1f6080045",
+    "SuperDistrictSet": "331eadb1305098c09b73a4be8a5385cc93e79266eac8afb13e438c44217568b6",
+    "Talent": "ef5518c5a3aaa7458e074a7e41e87837f8a1c74da00938244019e2e8c0428b4a",
+    "TalentTab": "9539a388c0e697381f7574247488da528f2647099db4c39096bdb2a8695139b9",
+    "TaxiNodes": "e3d4833dcb395214c0366d241fdaa4b7d7e2330133bb6db03ed5bfd01f974bea",
+    "TaxiPath": "07222b184a692c0b275ad713bbb30e1a88e8da14e3f2e26d9afb6d6b59e41404",
+    "TaxiPathNode": "1b8a5942bc307c18d7c7fa1540b074b3d1bc162972b6d980ac6349117648c453",
+    "TraitCond": "08b6e59a3e49faa5fac554774494f5feb860c6c750981be46762bfc0e939e276",
+    "TraitCost": "70b9242720e4e848f0d9191c6532b602898975adb1ebb673e7e305f157215141",
+    "TraitCurrency": "b2d6ef2dd53501743263af16368e3b2808f917a2356fd9ada6d0870b15c90ef5",
+    "TraitCurrencySource": "36b59851eb8a3feb2aa25521811b05337d68ce5854a451ac5b7af22e225e8dc4",
+    "TraitDefinition": "72a94874e399a6e64691599e1ac7db0c1568f648d8fa84a3b4962aa54fdf6aa3",
+    "TraitEdge": "70aed081f8de56b26ecf98c59a0016eb632a72c99a58a7610580f3f7c3fd42be",
+    "TraitNode": "91cfe5c15581a798e694c71f50fcad6f8e16a3a009b3ceca281d1f075d9426e3",
+    "TraitNodeEntry": "7df2f5497532ae57dbfe0c0d0efd94a04db52aee2c3bfadefc11dd0af4ccb264",
+    "TraitNodeGroupXTraitCond": "14e3713a9108330a52cb03c2780a465cc4fa4f1c5787dc8299a3f2804c46b9c9",
+    "TraitNodeGroupXTraitNode": "45cb6732385cbb683eba67953f0f6571209800c7b72e8e5aead40017f433666a",
+    "TraitNodeXTraitCond": "de507858bdc7ba06de776390baae45b04b1b8eadabfb1ab5e98e43b505c915de",
+    "TraitNodeXTraitNodeEntry": "03a24b38fcf86b7b4409ec0460567529b8b67a8f6e36bea80f257b2d401619c3",
+    "TraitSystem": "bf768a2589b2064dfbccbbd25e36bc4cc0aa74302545789f4b7d407a2958bd85",
+    "TraitTree": "6f63def42b6b42b7524e36aef48f7afd9a399b6968b5a979e8c3f349f163f3a6",
+    "TraitTreeXTraitCost": "ee6ebdc2d3d384435b05e9873e598df476497af0274e97774d8bca70aee1beae",
+    "TraitTreeXTraitCurrency": "3cca15d8258f04b7b6b4608e8ac3d1f9f0252a200bca188034877bcf9ca329f1",
+    "TransmogSet": "cc970f29f88105d59019a746a4975c7bf8db7dad19101941c3d9a2b14a991e59",
+    "TransmogSetItem": "93ad31ccd10a9934991c809cdb32e3fb2fe7a088bbda828f1b876f62b73a6721"
   },
   "file_count": 6313,
   "missing_count": 0,
@@ -99,5 +139,41 @@
       "fdid": 134153,
       "choice": "first"
     }
-  ]
+  ],
+  "hotfix": {
+    "url": "https://storage.googleapis.com/raidbots-static/wow/classic_beta/enUS/DBCache.bin",
+    "sha256": "f6fae4dfd32a6368efcdbe896704a6240db2ee11f5c50a90e1ef850cffc1582b",
+    "header_build": 70450,
+    "last_modified": "Sat, 17 Oct 2026 19:58:35 GMT",
+    "fetched_at": "2026-10-17T21:52:15Z",
+    "size": 3827112,
+    "last_seen_sha256": "f6fae4dfd32a6368efcdbe896704a6240db2ee11f5c50a90e1ef850cffc1582b",
+    "last_seen_modified": "Sat, 17 Oct 2026 19:58:35 GMT",
+    "last_checked_at": "2026-10-17T21:52:15Z",
+    "snapshots": [
+      {
+        "url": "https://storage.googleapis.com/raidbots-static/wow/classic_beta/enUS/DBCache.bin",
+        "sha256": "f6fae4dfd32a6368efcdbe896704a6240db2ee11f5c50a90e1ef850cffc1582b",
+        "header_build": 70450,
+        "last_modified": "Sat, 17 Oct 2026 19:58:35 GMT",
+        "fetched_at": "2026-10-17T21:52:15Z",
+        "size": 3827112,
+        "last_seen_modified": "Sat, 17 Oct 2026 19:58:35 GMT",
+        "last_checked_at": "2026-10-17T21:52:15Z"
+      }
+    ],
+    "wowdbdefs_commit": "b9a63096cdd99b26967f17f9515377ae62cadfd7",
+    "dbd": {
+      "Item": "076ea4c7e80c891b399cc77f285c807071080c0fed95701e447f7c98024ae120",
+      "ItemEffect": "7276994228541b94e821a3b7834497c7aa0c8e8f3d1cea83ac17a40f13c4148c",
+      "ItemSparse": "8664c3b5862dfe4c3a4322941b48b032c57b90412c070deb2028f3e448cf674a"
+    }
+  },
+  "context_refreshed_at": "2026-10-17T21:58:24Z",
+  "canonical_refresh": {
+    "strategy": "Targeted hotfix item projection and three-way Questie corrections; canonical baseline and assets retained",
+    "questiedb_from": "49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4",
+    "questiedb_to": "e9a67d1a2753a0e64c4c96bf7864788fac7b765f",
+    "hotfix_sha256": "f6fae4dfd32a6368efcdbe896704a6240db2ee11f5c50a90e1ef850cffc1582b"
+  }
 }
