@@ -7,6 +7,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.wowforever.app.db.Database;
 import dev.wowforever.app.db.DatabaseInstaller;
 import dev.wowforever.app.db.Repositories;
+import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.SearchHit;
@@ -14,9 +15,21 @@ import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.MainView;
 import dev.wowforever.app.ui.StatusBar;
+import dev.wowforever.app.ui.StatusSink;
+import dev.wowforever.app.ui.detail.DetailPanels;
+import dev.wowforever.app.ui.pages.InstancePage;
+import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.ListPage;
+import dev.wowforever.app.ui.pages.NpcPage;
+import dev.wowforever.app.ui.pages.ObjectPage;
+import dev.wowforever.app.ui.pages.QuestPage;
+import dev.wowforever.app.ui.pages.ZonePage;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
+import java.awt.Component;
+import java.awt.Container;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
@@ -24,6 +37,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -152,6 +166,69 @@ class ShippedDataTest {
       long item = ((Number) id).longValue();
       assertThat(repos.items().detail(item).get().inInstanceLoot()).as("item %d", item).isNotEmpty();
     }
+  }
+
+  /** Lays {@code c} and everything in it out at its size, as a shown window would. */
+  private static void layOut(Container c) {
+    c.doLayout();
+    for (Component child : c.getComponents()) {
+      if (child instanceof Container sub) {
+        layOut(sub);
+      }
+    }
+  }
+
+  @Test
+  void everyPageKindRendersFromTheShippedDatabase() {
+    long moltenCore = repos.instances().all().stream().filter(i -> "Molten Core".equals(i.name())).findFirst()
+        .orElseThrow().id();
+    Map<EntityRef, Class<?>> pages = new LinkedHashMap<>();
+    pages.put(new EntityRef(EntityKind.ITEM, 19019), ItemPage.class);
+    pages.put(new EntityRef(NPC, 448), NpcPage.class);
+    pages.put(new EntityRef(EntityKind.INSTANCE, moltenCore), InstancePage.class);
+    pages.put(new EntityRef(ZONE, 40), ZonePage.class);
+    pages.put(new EntityRef(EntityKind.OBJECT, 94), ObjectPage.class);
+    pages.put(new EntityRef(EntityKind.QUEST, 176), QuestPage.class);
+    BufferedImage canvas = new BufferedImage(1100, 900, BufferedImage.TYPE_INT_ARGB);
+    pages.forEach((ref, kind) -> {
+      Object loaded = DetailPanels.load(ref, repos).orElseThrow(() -> new AssertionError("no page for " + ref));
+      JComponent page = DetailPanels.render(loaded, repos, t -> {}, Runnable::run, StatusSink.NONE);
+      assertThat(page).as(ref.toString()).isInstanceOf(kind);
+      for (int width : new int[] {1100, 420}) { // the full window and the compact one
+        page.setSize(width, 900);
+        layOut(page);
+        Graphics2D g = canvas.createGraphics();
+        try {
+          page.paint(g);
+        } finally {
+          g.dispose();
+        }
+      }
+    });
+  }
+
+  @Test
+  void theShippedPagesReadAsReviewed() {
+    var thunderfury = (ItemPage) DetailPanels.build(new EntityRef(EntityKind.ITEM, 19019), repos, t -> {});
+    assertThat(thunderfury.card().name().getText()).isEqualTo("Thunderfury, Blessed Blade of the Windseeker");
+    assertThat(((ZonePage) DetailPanels.build(new EntityRef(ZONE, 12), repos, t -> {})).header().subtitle())
+        .isEqualTo("Zone #12 · Level 1–10");
+    assertThat(((ZonePage) DetailPanels.build(new EntityRef(ZONE, 40), repos, t -> {})).header().subtitle())
+        .startsWith("Zone #40 · Level 10–20");
+    // Hogger's drops: his claw and the quest note, then the generic pool hundreds of NPCs drop, collapsed
+    var hogger = (NpcPage) DetailPanels.build(new EntityRef(NPC, 448), repos, t -> {});
+    List<Object> rows = new ArrayList<>();
+    for (int r = 0; r < hogger.drops().table().getRowCount(); r++) {
+      rows.add(hogger.drops().table().getValueAt(r, 0));
+    }
+    assertThat(rows).last().asString().startsWith("World drops (").endsWith(")" + " ▸");
+    assertThat(rows).contains("Huge Gnoll Claw").hasSizeLessThan(8);
+    // Edwin VanCleef is a boss, whatever Questie's rank
+    assertThat(((NpcPage) DetailPanels.build(new EntityRef(NPC, 639), repos, t -> {})).rankChip().getText())
+        .isEqualTo("Boss");
+    // the Dire Maul floors (sub-zones named like their zone) are one zone hit
+    assertThat(repos.search().search("Dire Maul", Optional.of(ZONE), 50)).extracting(SearchHit::name)
+        .filteredOn("Dire Maul"::equals).hasSize(1);
   }
 
   @Test
