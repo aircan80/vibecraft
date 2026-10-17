@@ -188,6 +188,15 @@ def test_crafts_join_the_spell_closure_and_keep_their_reagents_and_skill_rows(tm
     assert counts["SpellReagents"] == 2 and counts["SkillLineAbility"] == 2
 
 
+def test_skill_race_class_info_is_written_header_only(tmp_path):
+    # the importer does not read it, so the cut keeps no rows (the committed fixture CSV is header-only)
+    csv_dir = _craft_cache(tmp_path)
+    (csv_dir / "SkillRaceClassInfo.csv").write_bytes(b"ID,SkillID,ClassMask\n1,165,0\n")
+    counts = fixture.build_subset(csv_dir, items=[1], crafts=[700]).write(tmp_path / "out" / "csv")
+    assert _out(tmp_path, "SkillRaceClassInfo") == "ID,SkillID,ClassMask\n"
+    assert counts["SkillRaceClassInfo"] == 0
+
+
 def test_a_large_skill_line_table_keeps_the_kept_crafts_skill_lines(tmp_path, monkeypatch):
     csv_dir = _craft_cache(tmp_path)
     monkeypatch.setattr(fixture, "WHOLE_TABLE_LIMIT", 0)

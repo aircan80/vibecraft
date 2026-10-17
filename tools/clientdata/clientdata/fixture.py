@@ -47,7 +47,7 @@ OPTIONAL_TABLES = FALLBACK_NAMES
 
 # Copied whole: small lookup tables (all well under WHOLE_TABLE_LIMIT in 1.60.1.70425).
 WHOLE_TABLES = ("ArmorLocation", "ItemClass", "ItemSubClass", "ItemNameDescription",
-                "ChrRaces", "ChrClasses", "SkillLine", "Faction", "SkillRaceClassInfo")
+                "ChrRaces", "ChrClasses", "SkillLine", "Faction")
 WHOLE_TABLE_LIMIT = 200 * 1024
 
 LEVEL_TABLES_BY_ID = ("RandPropPoints", "ItemArmorQuality")

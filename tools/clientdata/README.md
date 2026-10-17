@@ -157,11 +157,15 @@ each other.
 The crafting tables (`SpellReagents`, `SkillLineAbility` and `SkillRaceClassInfo`, 3A Task 8) joined
 `REQUIRED_TABLES` after the full run and were fetched and converted alone:
 
-    python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C         --tables SpellReagents,SkillLineAbility,SkillRaceClassInfo
-    python tools/clientdata/convert.py --cache $C --build $B --out $C/out/current         --tables SpellReagents,SkillLineAbility,SkillRaceClassInfo
+    python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C \
+        --tables SpellReagents,SkillLineAbility,SkillRaceClassInfo
+    python tools/clientdata/convert.py --cache $C --build $B --out $C/out/current \
+        --tables SpellReagents,SkillLineAbility,SkillRaceClassInfo
 
 The importer reads `SpellReagents` and `SkillLineAbility`; `SkillRaceClassInfo` (which races and classes may learn a
-skill) is fetched for completeness and not read yet.
+skill) is fetched for completeness and not read yet. Both tables the importer reads are optional: a converted
+directory without them (one made before Task 8) imports without crafts, counted as `clientdata.crafts.skipped` with a
+note naming the missing tables.
 
 ## UI icons
 
@@ -249,9 +253,10 @@ Leatherworking), Sulfuron Hammer (21161, Blacksmithing) and Coarse Dynamite (393
 3): `ARGS` above plus `--items ...,238645,250394 --crafts 20649,21161,3931`. Spells already in the fixture became
 crafts too: Eye of Sulfuras (21160, no SkillLineAbility row), Transmute: Air to Fire (17559, taught by 13482) and
 Prowler Steak (1225758, Cooking); Enchant Weapon - Dismantle (435481) has reagents and a skill row but creates
-nothing. The cut reproduces every other committed CSV byte for byte except the hand-extended `UiMapAssignment.csv`,
-which was left alone, and `SkillRaceClassInfo.csv` was not added (the importer does not read it). The fixture
-`build.lock` was not changed.
+nothing. `SkillRaceClassInfo.csv` is header-only: the importer does not read it, so the cutter keeps no rows of it.
+The cut reproduces every committed CSV byte for byte except the hand-extended `UiMapAssignment.csv`, which was left
+alone; it also writes a header-only `ManifestInterfaceData.csv` that the fixture lacks (the importer does not read
+that table either). The fixture `build.lock` was not changed.
 
 The fixture tree is `-text` in `.gitattributes`: one quoted ItemSparse cell holds a real CRLF.
 

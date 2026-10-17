@@ -21,7 +21,8 @@ import java.util.stream.Stream;
  * <ul>
  *   <li>A craft is a spell with a {@code SpellEffect} row of {@code Effect} {@value #CREATE_ITEM} (Create Item) whose
  *       {@code EffectItemType} (the created item) is positive; a spell without one creates nothing and is skipped. When
- *       a spell has several, the row of {@code DifficultyID} 0 with the lowest {@code EffectIndex} is used.
+ *       a spell has several, the row of {@code DifficultyID} 0 with the lowest {@code EffectIndex} is used and the
+ *       others are counted as {@value #EXTRA_CREATES} and noted (build 1.60.1.70425: one spell, 423212).
  *   <li>Quantity: build 1.60.1.70425 stores the yield itself in {@code EffectBasePointsF} (Heavy Leather 1, Crafted
  *       Heavy Shot 200; there is no {@code EffectDieSides} column), spread by {@code Variance} like every effect value:
  *       {@code basePoints * (1 -/+ variance / 2)}, rounded (Coarse Dynamite: 2 and 1, so 1 to 3). A Create Item
@@ -41,8 +42,16 @@ import java.util.stream.Stream;
  *       later reissue); {@link Craft#recipeItemId()} is the lowest of them, for convenience.
  * </ul>
  *
+ * <p>{@code SkillLineAbility} and {@code SpellReagents} joined the fetched tables with this loader, so they are optional
+ * client data, like {@code SpellRadius} in {@link SpellTables}: a directory converted before them lacks them, and
+ * then crafting is skipped entirely (crafts without skill ranks and reagents would read as complete), counted as
+ * {@value #SKIPPED} and noted with the missing tables; the rest of the import goes on. A table that is present must
+ * have every column read here.
+ *
  * <p>Counts {@value #CRAFTS}, {@value #NO_SKILL}, {@value #REAGENTS} (reagent rows), {@value #RECIPES} (crafts with
- * at least one recipe item) and {@value #RECIPE_ITEMS} (craft and recipe item pairs).
+ * at least one recipe item), {@value #RECIPE_ITEMS} (craft and recipe item pairs), {@value #EXTRA_CREATES} and
+ * {@value #ROWS_WITHOUT_SPELL} (rows of {@code SpellEffect}, {@code SkillLineAbility} or {@code SpellReagents} with an
+ * empty spell id, skipped; noted per table).
  */
 public final class CraftLoader {
   public static final String CRAFTS = "clientdata.crafts";
@@ -50,6 +59,14 @@ public final class CraftLoader {
   public static final String REAGENTS = "clientdata.crafts.reagents";
   public static final String RECIPES = "clientdata.crafts.recipes";
   public static final String RECIPE_ITEMS = "clientdata.crafts.recipeItems";
+  /** 1, with a note naming the missing tables, when crafting is skipped; absent otherwise. */
+  public static final String SKIPPED = "clientdata.crafts.skipped";
+  public static final String EXTRA_CREATES = "clientdata.crafts.extraCreates";
+  public static final String ROWS_WITHOUT_SPELL = "clientdata.crafts.rowsWithoutSpell";
+  /** The optional tables crafting needs. */
+  static final List<String> CRAFT_TABLES = List.of("SkillLineAbility", "SpellReagents");
+  /** How many spells a note names. */
+  private static final int NOTE_EXAMPLES = 10;
   /** {@code SpellEffect.Effect}: Create Item. */
   static final int CREATE_ITEM = 24;
   /** {@code SpellEffect.Effect}: Learn Spell ({@code EffectTriggerSpell} is the taught spell). */
@@ -70,22 +87,37 @@ public final class CraftLoader {
   private CraftLoader() {}
 
   /**
-   * The crafts of {@code src}.
+   * The crafts of {@code src}; {@link Crafts#EMPTY} (counted as {@value #SKIPPED}) when it lacks a table of
+   * {@link #CRAFT_TABLES}.
    *
-   * @throws IllegalStateException when a table read here is missing or lacks a column, naming both
+   * @throws IllegalStateException when a required table (SpellEffect, SpellName, SkillLine, ItemEffect,
+   *     ItemXItemEffect) is missing, or a table read here lacks a column, naming both
    */
   public static Crafts load(ClientDataSource src, ImportReport report) {
+    List<String> missing = CRAFT_TABLES.stream().filter(t -> !src.hasTable(t)).toList();
+    if (!missing.isEmpty()) {
+      report.count(SKIPPED, 1);
+      report.count(CRAFTS, 0);
+      report.note(SKIPPED + ": the client data has no " + String.join(", ", missing)
+          + " (converted before crafting was fetched); no crafts imported. Fetch and convert them with --tables "
+          + String.join(",", missing));
+      return Crafts.EMPTY;
+    }
     CsvTable effects = require(src.table("SpellEffect"), EFFECT_COLUMNS);
     Map<Long, CsvTable.Row> creates = new TreeMap<>();
+    Map<Long, Integer> createRows = new TreeMap<>();
     Map<Long, List<Long>> learns = new HashMap<>();
+    Map<String, Long> withoutSpell = new LinkedHashMap<>();
     for (CsvTable.Row r : effects.rows()) {
       OptionalLong spell = r.getLong("SpellID");
       if (spell.isEmpty()) {
+        withoutSpell.merge("SpellEffect", 1L, Long::sum);
         continue;
       }
       int effect = r.intOr("Effect", 0);
       if (effect == CREATE_ITEM && r.longOr("EffectItemType", 0) > 0) {
         creates.merge(spell.getAsLong(), r, (a, b) -> rank(b) < rank(a) ? b : a);
+        createRows.merge(spell.getAsLong(), 1, Integer::sum);
       } else if (effect == LEARN_SPELL && r.longOr("EffectTriggerSpell", 0) > 0) {
         learns.computeIfAbsent(spell.getAsLong(), k -> new ArrayList<>()).add(r.longOr("EffectTriggerSpell", 0));
       }
@@ -94,11 +126,20 @@ public final class CraftLoader {
     Map<Long, String> spellNames = names(require(src.table("SpellName"), NAME_COLUMNS), "Name_lang");
     Map<Long, String> skillNames = names(require(src.table("SkillLine"), SKILL_LINE_COLUMNS), "DisplayName_lang");
     Map<Long, CsvTable.Row> abilities = new HashMap<>();
-    for (CsvTable.Row r : require(src.table("SkillLineAbility"), ABILITY_COLUMNS).rows()) {
-      r.getLong("Spell").ifPresent(spell -> abilities.putIfAbsent(spell, r));
+    for (CsvTable.Row r : require(src.optionalTable("SkillLineAbility").orElseThrow(), ABILITY_COLUMNS).rows()) {
+      OptionalLong spell = r.getLong("Spell");
+      if (spell.isEmpty()) {
+        withoutSpell.merge("SkillLineAbility", 1L, Long::sum);
+      } else {
+        abilities.putIfAbsent(spell.getAsLong(), r);
+      }
     }
-    Map<Long, List<CsvTable.Row>> reagentRows =
-        require(src.table("SpellReagents"), REAGENT_COLUMNS).groupByLong("SpellID");
+    CsvTable reagentTable = require(src.optionalTable("SpellReagents").orElseThrow(), REAGENT_COLUMNS);
+    Map<Long, List<CsvTable.Row>> reagentRows = reagentTable.groupByLong("SpellID");
+    long reagentRowsWithoutSpell = reagentTable.size() - reagentRows.values().stream().mapToLong(List::size).sum();
+    if (reagentRowsWithoutSpell > 0) {
+      withoutSpell.merge("SpellReagents", reagentRowsWithoutSpell, Long::sum);
+    }
     Map<Long, TreeSet<Long>> teachers = teachers(src, creates.keySet(), learns);
 
     List<Craft> crafts = new ArrayList<>();
@@ -134,10 +175,40 @@ public final class CraftLoader {
     report.count(REAGENTS, reagents.size());
     report.count(RECIPES, recipes);
     report.count(RECIPE_ITEMS, recipeItems.size());
+    noteExtraCreates(createRows, report);
+    noteRowsWithoutSpell(withoutSpell, report);
     return new Crafts(crafts, reagents, recipeItems);
   }
 
-  /** The items teaching each craft spell, by spell. */
+  /** Counts {@value #EXTRA_CREATES}, the Create Item rows beyond the one used per spell, noting the spells. */
+  private static void noteExtraCreates(Map<Long, Integer> createRows, ImportReport report) {
+    List<Long> spells = createRows.entrySet().stream().filter(e -> e.getValue() > 1).map(Map.Entry::getKey).toList();
+    report.count(EXTRA_CREATES, createRows.values().stream().mapToLong(n -> n - 1).sum());
+    if (!spells.isEmpty()) {
+      report.note(EXTRA_CREATES + ": spells with several Create Item rows (" + spells.size() + "), the DifficultyID 0"
+          + " row with the lowest EffectIndex is used: " + String.join(", ", spells.stream().limit(NOTE_EXAMPLES)
+              .map(s -> s + " (" + createRows.get(s) + " rows)").toList())
+          + (spells.size() > NOTE_EXAMPLES ? ", ..." : ""));
+    }
+  }
+
+  /** Counts {@value #ROWS_WITHOUT_SPELL} and notes the rows per table. */
+  private static void noteRowsWithoutSpell(Map<String, Long> withoutSpell, ImportReport report) {
+    report.count(ROWS_WITHOUT_SPELL, withoutSpell.values().stream().mapToLong(Long::longValue).sum());
+    if (!withoutSpell.isEmpty()) {
+      report.note(ROWS_WITHOUT_SPELL + ": rows with an empty spell id, skipped: " + String.join(", ",
+          withoutSpell.entrySet().stream().map(e -> e.getKey() + " " + e.getValue()).toList()));
+    }
+  }
+
+  /**
+   * The items teaching each craft spell, by spell.
+   *
+   * <p>This joins {@code ItemXItemEffect} to {@code ItemEffect} itself instead of using {@link ItemEffectLoader}: that
+   * loader reads the effects of the imported items only (those in the item table), while a recipe item need not be
+   * one (347 of the recipe items of build 1.60.1.70425 are not in the item table), and it needs the raw trigger 6
+   * and learn-spell rows, which ItemEffectLoader folds into one Use effect.
+   */
   private static Map<Long, TreeSet<Long>> teachers(ClientDataSource src, Set<Long> crafts,
       Map<Long, List<Long>> learns) {
     Map<Long, List<Long>> itemsByEffect = new HashMap<>();
