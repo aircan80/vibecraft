@@ -116,3 +116,15 @@ Questie records no despawn points, so the UI will mark the route's END as "route
 **Files:** `tools/serverdb/fetch.py` (downloads the pinned `db-sqlite-<hash>.zip` into `~/.cache/wowforever-serverdb/<hash>/`, verifies sha256, unzips the SQLite file; keeps the GPL-2.0 licence text beside it), `tools/serverdb/extract.py` (reads the SQLite world DB with the stdlib `sqlite3` module and writes `creature_loot_template`, `reference_loot_template`, `gameobject_loot_template`, `npc_vendor` as CSV; the importer could also attach the SQLite file directly — builder's choice, say which), importer `serverdb/ServerDbSource` + `ServerDropRates` (resolves reference loot groups; converts ChanceOrQuestChance to a percentage, negative = quest-only drop; adds `drop_rate_source(source='vmangos')` rows; feeds `DropRates` with precedence after questie corrections and before atlasloot, per the spec ruling); `--server-db-dir` option (optional; skipped when absent); NOTICE (VMaNGOS data licence); report counters `serverdb.loot.rows`, `serverdb.unmatched.npcs`.
 **Tests:** Python tests on a tiny dump fixture; `ServerDropRatesTest` (reference loot resolution, negative chance, precedence, disagreement flagging), shipped-data check that `drop_rate_source` has `vmangos` rows for Hogger's Huge Gnoll Claw.
 - [ ] Commit `feat(importer): community drop rates from the VMaNGOS world database`.
+
+### Task 10: Regenerate the shipped database once for Tasks 7–9 (controller addition, 2026-10-17)
+
+Ruling: Tasks 7 (waypoints), 8 (crafting) and 9 (VMaNGOS rates) each add tables but do NOT regenerate the shipped
+database — every regeneration commits a ~67 MB blob, so one regeneration covers all three. Until then the committed
+database lacks those tables; the new readers are not called by any UI (plan 3B) and the shipped-data assertions those
+tasks name move here.
+
+**Files:**
+- Modify: `app/src/main/resources/data/*` (regenerated as in Task 5), `ShippedDataTest` (+ 550 has ≥ 30 waypoints in
+  zone 40 and `npc.waypoints.npcs` reported; the crafting and VMaNGOS assertions from Tasks 8–9), README rebuild notes.
+- [ ] Run, test, commit `data: NPC waypoints, crafting and community drop rates` + `docs: …`.
