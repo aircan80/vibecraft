@@ -60,7 +60,7 @@ public final class AllTheThingsParser {
         issues.add(new Issue(q.sourcePath(), q.sourceLine(), "Unrepresentable or conditional prerequisite group for " + q.id())); continue;
       }
       for (long id : q.sourceQuests()) links.add(new QuestLink(q.id(), id, kind, q.sourcePath(), q.sourceLine(),
-          "AllTheThings Forever " + AllTheThingsSource.PIN + "; " + q.detail() + "; " + kind));
+          "AllTheThings Forever; " + q.detail() + "; " + kind));
     }
     return new Result(links, quests, issues);
   }

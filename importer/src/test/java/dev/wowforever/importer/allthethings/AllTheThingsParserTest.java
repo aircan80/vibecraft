@@ -19,7 +19,7 @@ class AllTheThingsParserTest {
     assertThat(result.links()).extracting(l -> l.questId()+":"+l.relatedId()+":"+l.kind()).containsExactlyInAnyOrder(
         "79192:79008:pre_single", "79192:79007:pre_single", "79980:79192:pre_single", "79974:79980:pre_single",
         "79975:79974:pre_single", "79976:79975:pre_single");
-    assertThat(result.links()).allSatisfy(l -> { assertThat(l.evidence()).contains(AllTheThingsSource.PIN); assertThat(l.sourceLine()).isPositive(); });
+    assertThat(result.links()).allSatisfy(l -> { assertThat(l.evidence()).contains("AllTheThings Forever;", "sourceQuests=").doesNotContain(AllTheThingsSource.PIN); assertThat(l.sourceLine()).isPositive(); });
   }
   @Test void pluralThresholdDistinguishesAllAnyAndUnsupportedKOfN() {
     var result = parse("q(1,{});q(2,{});q(3,{});q(4,{sourceQuests={1,2}});"
