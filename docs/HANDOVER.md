@@ -14,12 +14,12 @@ run `./mvnw -B -q verify` before code commits. Python tools use `tools/clientdat
 Tasks 8–15 and18 are implemented and independently reviewed: objective map layers, patrols, quest page/loading,
 objective locations, chain display, merged quest involvement, keyboard/copy links and Forever dungeon presentation.
 Task 16 layout/search audit fixes and reusable 42-panel visual/performance tooling are integrated; final combined
-verification is tracked in the continuation ledger. Search completion preserves newer user edits. Layout checks
+verification and the accepted 42-panel capture are tracked in the continuation ledger. Search completion preserves newer user edits. Layout checks
 cover actual giver rows and objective links, including compact fallback text and dungeon source-note wrapping.
 
 The owner additionally approved **one-database versioned source ingestion and separate offline projection**.
 See `docs/superpowers/specs/2026-10-17-versioned-source-data.md` and README's archive section. The implementation
-retains immutable original inputs, structured CSV/Lua evidence, snapshot comparisons and dataset-level provenance.
+retains immutable original inputs, structured CSV/Lua/JSON evidence, snapshot comparisons and dataset-level provenance.
 The app has View→Data sources with explicit legacy metadata when the shipped database predates archiving.
 Full raw-record browsing is deferred by the owner; detailed field-level lineage and additional native-format
 extractors remain explicitly separate from dataset attribution. Do not claim archived inputs for the existing

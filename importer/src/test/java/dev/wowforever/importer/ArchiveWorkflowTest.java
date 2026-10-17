@@ -50,6 +50,12 @@ class ArchiveWorkflowTest {
     assertThat(ArchiveWorkflow.project(db,first,quiet())).isZero();
     assertThat(scalar(db,"SELECT count(*) FROM source_ingestion")).isEqualTo("2");
     assertThat(scalar(db,"SELECT count(*) FROM source_projection")).isEqualTo("3");
+    assertThat(scalar(db,"SELECT value FROM meta WHERE key='source_projection_id'")).isEqualTo("3");
+    assertThat(scalar(db,"SELECT schema_version FROM source_projection WHERE id=3")).isEqualTo("4");
+    assertThat(scalar(db,"SELECT build_id FROM source_projection WHERE id=3"))
+        .isEqualTo(scalar(db,"SELECT value FROM meta WHERE key='build_id'"));
+    assertThat(scalar(db,"SELECT validation_summary FROM source_projection WHERE id=3"))
+        .contains("UI skips=", "unsupported fields=", "client data skipped=");
     assertThat(scalar(db,"SELECT value FROM meta WHERE key='source_ingestion_id'")).isEqualTo(first);
     assertThat(scalar(db,"SELECT count(*) FROM quest")).isEqualTo(count);
     String beforeSnapshot=scalar(db,"SELECT snapshot_id FROM source_ingestion_input WHERE role='questiedb' AND ingestion_id='"+first+"'");
@@ -84,9 +90,32 @@ class ArchiveWorkflowTest {
     Path db=tmp.resolve("app.sqlite");
     var opts=new ImportOptions(db,tmp.resolve("cache"),Optional.of(Fixtures.questieDbRoot()),
         Optional.of(Fixtures.atlasLootRoot()),false,ClientDataOptions.of(client));
-    ArchiveWorkflow.ingest(opts);
+    String first=ArchiveWorkflow.ingest(opts);
     assertThat(scalar(db,"SELECT build FROM source_archive_snapshot WHERE source='blizzard-client'")).isEqualTo("1.60.1.70450");
     assertThat(scalar(db,"SELECT count(*) FROM source_archive_file WHERE path='not-used.csv'")).isEqualTo("1");
+    Files.writeString(client.resolve("build.lock"),"{\"product\":\"wow_classic_beta\",\"build\":\"1.60.1.70451\",\"locale\":\"enUS\"}");
+    String second=ArchiveWorkflow.ingest(opts);
+    String beforeSnapshot=scalar(db,"SELECT snapshot_id FROM source_ingestion_input WHERE role='client' AND ingestion_id='"+first+"'");
+    String afterSnapshot=scalar(db,"SELECT snapshot_id FROM source_ingestion_input WHERE role='client' AND ingestion_id='"+second+"'");
+    var output=new ByteArrayOutputStream();
+    assertThat(Main.run(new String[]{"diff","--database",db.toString(),"--before",beforeSnapshot,"--after",afterSnapshot},
+        new PrintStream(output),quiet())).isZero();
+    assertThat(output.toString(java.nio.charset.StandardCharsets.UTF_8)).contains("field\tchanged\tbuild.lock\t@json\t/build\t\"1.60.1.70450\"\t\"1.60.1.70451\"");
+  }
+
+  @Test void legacyProjectionHistoryIsPreservedWhenNewMetadataColumnsAreAdded() throws Exception {
+    Path db=tmp.resolve("app.sqlite");String id=ArchiveWorkflow.ingest(options(db,Fixtures.questieDbRoot()));
+    assertThat(ArchiveWorkflow.project(db,id,quiet())).isZero();
+    try(Connection c=DriverManager.getConnection("jdbc:sqlite:"+db);Statement statement=c.createStatement()) {
+      for(String column:List.of("schema_version","build_id","validation_summary"))
+        statement.execute("ALTER TABLE source_projection DROP COLUMN "+column);
+      statement.execute("DELETE FROM meta WHERE key='source_projection_id'");
+    }
+    assertThat(ArchiveWorkflow.project(db,id,quiet())).isZero();
+    assertThat(scalar(db,"SELECT count(*) FROM source_projection")).isEqualTo("2");
+    assertThat(scalar(db,"SELECT schema_version FROM source_projection WHERE id=1")).isNull();
+    assertThat(scalar(db,"SELECT schema_version FROM source_projection WHERE id=2")).isEqualTo("4");
+    assertThat(scalar(db,"SELECT value FROM meta WHERE key='source_projection_id'")).isEqualTo("2");
   }
 
   @Test void sidecarExportFailureDoesNotReportThePublishedDatabaseAsFailed() throws Exception {

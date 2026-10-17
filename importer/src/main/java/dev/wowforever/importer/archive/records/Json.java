@@ -36,7 +36,7 @@ final class Json {
         case '\n' -> out.append("\\n");
         case '\r' -> out.append("\\r");
         case '\t' -> out.append("\\t");
-        default -> { if (c < 32) out.append(String.format("\\u%04x", (int) c)); else out.append(c); }
+        default -> { if (c < 32 || Character.isSurrogate(c)) out.append(String.format("\\u%04x", (int) c)); else out.append(c); }
       }
     }
     return out.append('"').toString();

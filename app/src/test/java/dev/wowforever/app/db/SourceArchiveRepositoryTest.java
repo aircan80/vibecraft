@@ -52,7 +52,7 @@ class SourceArchiveRepositoryTest {
       sql.execute("CREATE TABLE meta(key TEXT,value TEXT)");
       sql.execute("CREATE TABLE source_ingestion_input(ingestion_id TEXT,role TEXT,snapshot_id TEXT)");
       sql.execute("CREATE TABLE source_projection(id INTEGER,ingestion_id TEXT,projected_at TEXT,transform_version TEXT)");
-      sql.execute("INSERT INTO meta VALUES('source_ingestion_id','selected')");
+      sql.execute("INSERT INTO meta VALUES('source_ingestion_id','selected'),('source_projection_id','1')");
       sql.execute("INSERT INTO source_ingestion_input VALUES('selected','quests','old'),('other','quests','new')");
       sql.execute("INSERT INTO source_projection VALUES(1,'selected','2026-03-01','rules1'),(2,'other','2026-04-01','rules2')");
       sql.execute("INSERT INTO source_archive_file VALUES('new','quest.lua','https://example.org/quest.lua','abc')");
@@ -70,4 +70,66 @@ class SourceArchiveRepositoryTest {
       assertThat(result.projection().transformVersion()).isEqualTo("rules1");
     }
   }
+  private Path historyDatabase(String execution, boolean metadataColumns) throws Exception {
+    var file = dir.resolve("history.sqlite");
+    try (var c = DriverManager.getConnection("jdbc:sqlite:" + file); var sql = c.createStatement()) {
+      sql.execute("CREATE TABLE source_archive_snapshot(id TEXT,source TEXT,version TEXT,product TEXT,build TEXT,locale TEXT,captured_at TEXT)");
+      sql.execute("CREATE TABLE source_archive_file(snapshot_id TEXT,path TEXT,url TEXT,sha256 TEXT)");
+      sql.execute("INSERT INTO source_archive_snapshot VALUES('old','questiedb','v1','forever','70450','enUS','2026-01-01'),('new','questiedb','v2','forever','70451','enUS','2026-02-01')");
+      sql.execute("CREATE TABLE meta(key TEXT,value TEXT)");
+      sql.execute("INSERT INTO meta VALUES('source_ingestion_id','selected')");
+      if (execution != null) try (var insert = c.prepareStatement("INSERT INTO meta VALUES('source_projection_id',?)")) {
+        insert.setString(1, execution); insert.executeUpdate();
+      }
+      sql.execute("CREATE TABLE source_ingestion_input(ingestion_id TEXT,role TEXT,snapshot_id TEXT)");
+      sql.execute("INSERT INTO source_ingestion_input VALUES('selected','quests','old'),('other','quests','new')");
+      sql.execute("CREATE TABLE source_projection(id INTEGER,ingestion_id TEXT,projected_at TEXT,transform_version TEXT)");
+      sql.execute("INSERT INTO source_projection VALUES(1,'selected','2026-03-01','rules1'),(2,'selected','2026-04-01','rules2'),(3,'other','2026-05-01','rules3')");
+      if (metadataColumns) {
+        sql.execute("ALTER TABLE source_projection ADD COLUMN schema_version INTEGER");
+        sql.execute("ALTER TABLE source_projection ADD COLUMN build_id TEXT");
+        sql.execute("ALTER TABLE source_projection ADD COLUMN validation_summary TEXT");
+        sql.execute("UPDATE source_projection SET schema_version=4,build_id='app-build-1',validation_summary='integrity ok' WHERE id=1");
+      }
+    }
+    return file;
+  }
+
+  @Test void identifiesExactOlderExecutionAndKeepsAllRunsAndTheirInputVersions() throws Exception {
+    try (var db = Database.open(historyDatabase("1", true))) {
+      var catalog = new SourceArchiveRepository(db).catalog();
+      assertThat(catalog.history()).extracting(SourceArchiveRepository.ProjectionRun::id).containsExactly("3", "2", "1");
+      assertThat(catalog.history().stream().filter(SourceArchiveRepository.ProjectionRun::active))
+          .extracting(SourceArchiveRepository.ProjectionRun::id).containsExactly("1");
+      assertThat(catalog.projection().transformVersion()).isEqualTo("rules1");
+      var run = catalog.history().get(2);
+      assertThat(run.schemaVersion()).isEqualTo("4");
+      assertThat(run.buildId()).isEqualTo("app-build-1");
+      assertThat(run.validationSummary()).isEqualTo("integrity ok");
+      assertThat(run.inputs().getFirst().snapshot().version()).isEqualTo("v1");
+      assertThat(catalog.history().getFirst().inputs().getFirst().snapshot().build()).isEqualTo("70451");
+    }
+  }
+
+  @Test void olderIngestionOnlyMetadataNeverGuessesLatestRunAndOptionalColumnsRemainUnknown() throws Exception {
+    try (var db = Database.open(historyDatabase(null, false))) {
+      var catalog = new SourceArchiveRepository(db).catalog();
+      assertThat(catalog.history()).hasSize(3).noneMatch(SourceArchiveRepository.ProjectionRun::active);
+      assertThat(catalog.projection()).isNull();
+      assertThat(catalog.activeRoles()).containsOnlyKeys("old");
+      assertThat(catalog.historyNote()).contains("execution ID was not recorded");
+      assertThat(catalog.history()).allSatisfy(run -> assertThat(run.schemaVersion()).isNull());
+    }
+  }
+
+  @Test void inconsistentRunAndIngestionCannotClaimActiveBuildOrInputs() throws Exception {
+    try (var db = Database.open(historyDatabase("3", true))) {
+      var catalog = new SourceArchiveRepository(db).catalog();
+      assertThat(catalog.history()).noneMatch(SourceArchiveRepository.ProjectionRun::active);
+      assertThat(catalog.projection()).isNull();
+      assertThat(catalog.activeRoles()).isEmpty();
+      assertThat(catalog.historyNote()).contains("does not match");
+    }
+  }
+
 }

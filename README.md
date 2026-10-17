@@ -279,16 +279,17 @@ survive unknown fields and parser failures. Converted client inputs are preserve
 files outside those input directories are not automatically acquired or archived.
 
 `source_archive_*` stores immutable snapshots, exact files, source URLs and hashes. `source_record` preserves generic
-CSV headers/cells and Lua syntax records before application corrections; `source_record_parse` records complete,
+CSV headers/cells, Lua syntax and JSON/lock-file records before application corrections; `source_record_parse` records complete,
 partial, unsupported or failed extraction. Extraction generations are separate from source snapshot identity.
+JSON numeric values retain decimal precision, including large IDs; field comparisons distinguish absent, null and empty values. Extraction history remains readable across parser generations.
 Other formats, including the VMaNGOS SQLite file and binary assets, remain exact archived artifacts rather than
 fully expanded structured rows. Record comparisons avoid claiming removal after incomplete extraction. Lua
 syntax-record identities can change when earlier statements are inserted; they are not stable game-entity IDs.
 
 **View → Data sources** shows archived versions, files, source links, and the exact inputs of the current app
 projection. Existing bundled databases show their recorded legacy build metadata and links, explicitly labelled
-when original inputs were not archived. Dataset attribution does not claim field-level lineage. Full source-record
-browsing and detailed field-level explanations are planned separately. The desktop app remains offline until a
+when original inputs were not archived. Dataset attribution does not claim field-level lineage. The Build history tab shows completed executions, exact active execution IDs, validation summaries and original input selections. Full source-record
+browsing and detailed app-value lineage explanations are planned separately. The desktop app remains offline until a
 source URL is deliberately opened. See [the design](docs/superpowers/specs/2026-10-17-versioned-source-data.md).
 
 ## Data sources & licensing

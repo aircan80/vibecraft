@@ -155,10 +155,21 @@ public final class ArchiveWorkflow {
             String name="\""+table[0].replace("\"","\"\"")+"\"";
             statement.executeUpdate("INSERT INTO main."+name+" SELECT * FROM archive."+name);
           }
+          ensureProjectionColumns(connection);
           try (PreparedStatement statement=connection.prepareStatement(
-              "INSERT INTO source_projection(ingestion_id,projected_at,transform_version) VALUES (?,?,?)")) {
+              "INSERT INTO source_projection(ingestion_id,projected_at,transform_version,schema_version,build_id,validation_summary) VALUES (?,?,?,?,?,?)")) {
             statement.setString(1,ingestion);statement.setString(2,Instant.now().toString());
-            statement.setString(3,transformationVersion());statement.executeUpdate();
+            statement.setString(3,transformationVersion());statement.setInt(4,dev.wowforever.importer.sqlite.SqliteWriter.SCHEMA_VERSION);
+            try (Statement query=connection.createStatement();ResultSet value=query.executeQuery("SELECT value FROM meta WHERE key='build_id'")) {
+              if (!value.next()) throw new SQLException("Candidate build ID missing");
+              statement.setString(5,value.getString(1));
+            }
+            statement.setString(6,"UI skips="+report.skipsOnUiFields()+"; unsupported fields="+Main.unsupportedCounters(report)
+                +"; client coverage="+report.get(ClientDataStage.COVERAGE_PCT)+"%; client data skipped="+report.get(ClientDataStage.SKIPPED));
+            statement.executeUpdate();
+          }
+          try (Statement statement=connection.createStatement()) {
+            statement.executeUpdate("INSERT OR REPLACE INTO meta(key,value) SELECT 'source_projection_id',CAST(max(id) AS TEXT) FROM source_projection");
           }
           try (PreparedStatement statement=connection.prepareStatement("INSERT OR REPLACE INTO meta(key,value) VALUES ('source_ingestion_id',?)")) {
             statement.setString(1,ingestion);statement.executeUpdate();
@@ -185,6 +196,17 @@ public final class ArchiveWorkflow {
       s.execute("CREATE TABLE IF NOT EXISTS source_ingestion_input(ingestion_id TEXT NOT NULL,role TEXT NOT NULL,snapshot_id TEXT NOT NULL,PRIMARY KEY(ingestion_id,role))");
       s.execute("CREATE TABLE IF NOT EXISTS source_projection(id INTEGER PRIMARY KEY,ingestion_id TEXT NOT NULL,projected_at TEXT NOT NULL,transform_version TEXT NOT NULL)");
     }
+    ensureProjectionColumns(c);
+  }
+  private static void ensureProjectionColumns(Connection c) throws SQLException {
+    Set<String> columns=new HashSet<>();
+    try (Statement s=c.createStatement();ResultSet r=s.executeQuery("PRAGMA table_info(source_projection)")) {
+      while(r.next()) columns.add(r.getString("name"));
+    }
+    for(var column:Map.of("schema_version","INTEGER","build_id","TEXT","validation_summary","TEXT").entrySet())
+      if(!columns.contains(column.getKey())) try(Statement s=c.createStatement()) {
+        s.execute("ALTER TABLE source_projection ADD COLUMN "+column.getKey()+" "+column.getValue());
+      }
   }
   private static void captureSpec(Map<String,List<Artifact>> inputs, Map<String,Snapshot> descriptions,
       String role, SourceSpec spec, Path root, boolean local) throws IOException {

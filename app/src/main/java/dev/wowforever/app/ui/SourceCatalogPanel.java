@@ -32,6 +32,7 @@ public final class SourceCatalogPanel extends JPanel {
   private final WrappingText baselineLabel = new WrappingText("Choose a snapshot baseline to compare archived files.", "Comparison baseline");
   private Snapshot baseline;
   private Snapshot selectedSnapshot;
+  private final javax.swing.JTabbedPane tabs = new javax.swing.JTabbedPane();
 
   public SourceCatalogPanel(Catalog catalog, Consumer<URI> opener) {
     this(catalog, opener, null);
@@ -84,7 +85,8 @@ public final class SourceCatalogPanel extends JPanel {
     });
     var split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, new JScrollPane(snapshots), new JScrollPane(files));
     split.setResizeWeight(0.5);
-    add(split, BorderLayout.CENTER);
+    var sourceContent = new JPanel(new BorderLayout(8, 8));
+    sourceContent.add(split, BorderLayout.CENTER);
     var footer = new JPanel(new BorderLayout());
     var comparison = new JPanel(new BorderLayout(4, 4));
     var buttons = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEADING, 4, 0));
@@ -113,7 +115,18 @@ public final class SourceCatalogPanel extends JPanel {
           + projection.transformVersion() + " · ingestion " + projection.ingestionId(), "App projection provenance"), BorderLayout.NORTH);
     }
     footer.add(open, BorderLayout.SOUTH);
-    add(footer, BorderLayout.SOUTH);
+    sourceContent.add(footer, BorderLayout.SOUTH);
+    tabs.addTab("Sources", sourceContent);
+    tabs.addTab("Build history", new SourceProjectionHistoryPanel(catalog, snapshotId -> {
+      for (int i = 0; i < catalog.snapshots().size(); i++) if (catalog.snapshots().get(i).id().equals(snapshotId)) {
+        int row = snapshots.convertRowIndexToView(i);
+        snapshots.setRowSelectionInterval(row, row);
+        snapshots.scrollRectToVisible(snapshots.getCellRect(row, 0, true));
+        tabs.setSelectedIndex(0);
+        break;
+      }
+    }));
+    add(tabs, BorderLayout.CENTER);
     setPreferredSize(new Dimension(900, 450));
   }
 
@@ -155,7 +168,7 @@ public final class SourceCatalogPanel extends JPanel {
     } catch (IllegalArgumentException failure) { return null; }
   }
 
-  private static JTable table(Object[][] rows, String[] columns) {
+  static JTable table(Object[][] rows, String[] columns) {
     JTable table = new JTable(new DefaultTableModel(rows, columns) {
       @Override public boolean isCellEditable(int row, int column) { return false; }
     }) {
@@ -188,6 +201,7 @@ public final class SourceCatalogPanel extends JPanel {
     return table;
   }
 
+  javax.swing.JTabbedPane tabs() { return tabs; }
   JTable snapshotsTable() { return snapshots; }
   JTable filesTable() { return files; }
   JButton openButton() { return open; }

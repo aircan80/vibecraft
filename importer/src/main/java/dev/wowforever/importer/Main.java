@@ -59,6 +59,9 @@ public final class Main {
           out.println("file\t"+change.kind()+"\t"+change.path());
         for (var change : dev.wowforever.importer.archive.records.SourceRecords.diff(c,args[4],args[6]))
           out.println("record\t"+change.kind()+"\t"+change.path()+"\t"+change.key());
+        for (var change : dev.wowforever.importer.archive.records.SourceRecords.fieldDiff(c,args[4],args[6]))
+          out.println("field\t"+change.kind()+"\t"+change.path()+"\t"+change.key()+"\t"+change.fieldPath()+"\t"
+              +java.util.Objects.toString(change.beforePayload(),"<absent>")+"\t"+java.util.Objects.toString(change.afterPayload(),"<absent>"));
         return 0;
       } catch (Exception e) { e.printStackTrace(err); return 1; }
     }

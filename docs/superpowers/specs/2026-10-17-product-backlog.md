@@ -44,15 +44,42 @@ shipped DB; small text ≥ 4.5:1 in both themes; no unexplained new unsupported/
 
 ## 3. Quality fixes in flight (2B Task 14, not backlog features)
 Each one is a v0.3.0 ship blocker if Task 14 leaves it open.
-- **BUG-CSB-001 — Cozy Sleeping Bag quest chain missing (open, user-reported 2026-10-17).**
-  The shipped database contains item 211527 and its reward quest 79976, "This Must Be The Place",
-  plus quests 79192 ("Stepping Stones"), 79980 ("Scramble"), 79974 ("Wet Job") and 79975
-  ("Eagle's Fist"), but contains no `quest_relation` rows referencing any of those quests.
-  The chain renderer therefore has no recorded links to display. Confirm the full chain and ordering
-  against the pinned Forever quest source, then trace whether relationships are missing upstream or lost
-  during import; do not infer order from quest IDs or names. Add importer/shipped-data and chain-rendering
-  regression coverage once verified. Acceptance: the reward quest exposes the verified connected chain,
-  with every available step navigable and any genuinely unavailable steps identified honestly.
+- **BUG-CSB-001 — Cozy Sleeping Bag quest chain missing (needs Forever prerequisite verification; source audit 2026-10-17).**
+  The shipped database contains item 211527 and reward quest 79976, "This Must Be The Place", but no
+  `quest_relation` rows for its related quests. A fresh import of the pinned sources also has no links:
+  this is missing relationship evidence in the selected Forever source, rather than a confirmed importer
+  mapping or chain-rendering defect. No production relationships or database contents were changed.
+
+  **Primary evidence:** QuestieDB pin `49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4` has entries for
+  79007/79008 (the faction-specific opening quests), 79192 (Stepping Stones), 79980 (Scramble),
+  79974 (Wet Job), 79975 (Eagle's Fist), and 79976 (This Must Be The Place) in its
+  [Forever generated quest corrections](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Forever/generated/foreverBaseQuest.lua#L341).
+  Neither those entries nor their [Forever trace corrections](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Forever/traces/foreverQuestTraces.lua#L215)
+  record prerequisites/next/parent/breadcrumb relationships. The selected raw quest data and later Forever
+  corrections add none. `QuestRelationWriter` already imports the explicit prerequisite fields.
+
+  The same pin's **Season of Discovery** corrections explicitly record the candidate sequence
+  `(79007 OR 79008) → 79192 → 79980 → 79974 → 79975 → 79976` through `preQuestSingle`:
+  [opening alternatives](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Sod/sodQuestFixes.lua#L749),
+  [later steps](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Sod/sodQuestFixes.lua#L1038).
+  Forever's [object starter/finisher records](https://github.com/Questie/QuestieDB/blob/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4/src/corrections/Forever/generated/foreverBaseObject.lua#L64)
+  corroborate the handoff locations, including object 406918 ending 79975 and starting 79976;
+  sharing a starter/finisher does not prove a prerequisite. SoD eligibility must not be silently promoted
+  to Forever eligibility. The source comments' `assumptions/sleeping_bag.toml` is absent from the pinned
+  repository tree and cannot serve as independently inspectable evidence.
+
+  A bounded check of newer upstream commit `e9a67d1a2753a0e64c4c96bf7864788fac7b765f`
+  found the same omissions in the [Forever generated quests](https://github.com/Questie/QuestieDB/blob/e9a67d1a2753a0e64c4c96bf7864788fac7b765f/src/corrections/Forever/generated/foreverBaseQuest.lua#L525)
+  and no replacement entries in its manual Forever quest corrections. This check does not advance our pin
+  or establish applicability to every Forever client build. Community walkthroughs are corroboration,
+  not the sole evidence for a hardcoded prerequisite.
+
+  **Next acceptance:** obtain direct Forever quest-availability observations or a reviewed, attributable
+  upstream Forever correction confirming the candidate relationships and faction alternatives. Preserve
+  that evidence as a versioned source input; rebuild app tables through projection, without modifying
+  archived originals or silently inferring links from names, IDs, or shared objects. Then add importer,
+  shipped-data and connected-chain rendering regressions. Until that evidence exists, the bug remains
+  open and the candidate SoD chain is research evidence, not a production correction.
 - Zone level bands read "1–60" for Elwynn and Westfall; zone header repeats "Zone #12 · Zone".
 - AtlasLoot ordinals shown as "Slot" and "Trash · slot 24" instead of the equip slot.
 - The world-drop pool is buried in Hogger's drops; recipes and trade goods show item level instead of required skill.

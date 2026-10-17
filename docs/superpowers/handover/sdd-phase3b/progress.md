@@ -108,12 +108,12 @@ and a running app for review. This supersedes the historical Windows stop instru
 - Tasks 8–15 and18: implemented, reviewed and integrated. Quest map/patrol/chain/objective and involvement views,
   shortcuts/copy links, Forever dungeon metadata and honest missing-loot presentation are available.
 - Task 16: reviewed natural-height layout and search-edit preservation fixes integrated. Reusable headless
-  snapshot/performance tooling captures 42 panels and checks clipping. Final combined verification is pending.
+  snapshot/performance tooling captures 42 panels and checks clipping. Final combined clean verification passed 1,615 tests (6 skipped),42 geometry captures passed and warm load p95 max 98.36 ms; subsequent source extensions have their own verification.
 - Task 19 data and 20b remain open; no release tag/main merge. AtlasLoot Forever ZIP and real collector evidence
   are not present on Linux. Current shipped DB stays unchanged pending the agreed data refresh/review.
 - BUG-CSB-001: Cozy Sleeping Bag reward quest 79976 and preceding quests exist but have no recorded relationships.
-  User deferred the data investigation. No guessed chain links were added.
-- New owner-approved architecture: one database with immutable versioned source archives, generic CSV/Lua source
+  User subsequently authorized the audit: selected Forever source omissions confirmed, candidate SoD prerequisites require Forever verification. No guessed chain links were added.
+- New owner-approved architecture: one database with immutable versioned source archives, generic CSV/Lua/JSON source
   records and extraction coverage, separate offline projection, retained history, source URLs and main-app
   dataset provenance. Full source-record explorer UI deferred; detailed fact lineage and native-format adapters
   remain follow-ups. Design: docs/superpowers/specs/2026-10-17-versioned-source-data.md.
