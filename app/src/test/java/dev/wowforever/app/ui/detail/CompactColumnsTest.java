@@ -36,4 +36,11 @@ class CompactColumnsTest {
     assertThat(CompactColumns.join("Level 21", "<html><b>Full</b> name</html>"))
         .isEqualTo("<html>Level 21<br><b>Full</b> name</html>");
   }
+
+  @Test
+  void joinKeepsTheLineBreaksOfPlainParts() {
+    // a boss's Vanilla rate: the note keeps its own line in a compact table's tooltip
+    assertThat(CompactColumns.join("Item level 23", "a\nb")).isEqualTo("<html>Item level 23<br>a<br>b</html>");
+    assertThat(CompactColumns.join("x\ny", "a & b")).isEqualTo("<html>x<br>y<br>a &amp; b</html>");
+  }
 }

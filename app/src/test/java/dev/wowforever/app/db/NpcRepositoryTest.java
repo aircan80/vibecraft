@@ -122,24 +122,41 @@ class NpcRepositoryTest {
     // VanCleef (639) and Taragaman (11520) are encounters; Hogger (448) is an Elwynn elite; 999999 is no NPC
     assertThat(repos.npcs().bosses(List.of(639L, 448L, 11520L, 999_999L))).containsExactlyInAnyOrder(639L, 11520L);
     assertThat(repos.npcs().bosses(List.of())).isEmpty();
-    // more ids than one query asks about: every chunk is asked
-    List<Long> many = new java.util.ArrayList<>(java.util.stream.LongStream.range(1_000_000, 1_001_200).boxed()
-        .toList());
+    // more ids than one query asks about (each bound once, under SQLite's classic 999): every chunk is asked
+    assertThat(NpcRepository.BOSS_CHUNK).isLessThan(999);
+    List<Long> many = new java.util.ArrayList<>(java.util.stream.LongStream
+        .range(1_000_000, 1_000_000 + 2L * NpcRepository.BOSS_CHUNK + 1).boxed().toList());
     many.add(11520L);
     assertThat(many).hasSizeGreaterThan(2 * NpcRepository.BOSS_CHUNK);
     assertThat(repos.npcs().bosses(many)).containsExactly(11520L);
-    // without the encounter rows, the zone kind alone tells: an NPC of a dungeon (The Deadmines, 1581) is one
+    // without the encounter rows, the zone kind alone tells: NPCs of a raid zone are, of an open-world zone are not
     Path copy = tmp.resolve("db.sqlite");
     Files.copy(FixtureDb.path(), copy);
     try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
       st.executeUpdate("delete from boss");
       st.executeUpdate("update npc set zone_id = 1581 where id = 448");
       st.executeUpdate("update zone set kind = 'raid' where id = 1581");
+      st.executeUpdate("update zone set kind = 'zone' where id = (select zone_id from npc where id = 11520)");
     }
     try (Database db = Database.open(copy)) {
       assertThat(Repositories.of(db).npcs().bosses(List.of(639L, 448L, 11520L)))
-          .as("639 and 448 in a raid zone now; Ragefire Chasm's zone kind decides for 11520")
-          .contains(639L, 448L);
+          .as("639 and 448 in a raid zone now; 11520's zone made an open-world one, and no encounter rows")
+          .containsExactlyInAnyOrder(639L, 448L);
+    }
+  }
+
+  @Test
+  void worldBossesAreNoDungeonBosses(@TempDir Path tmp) throws Exception {
+    // AtlasLoot's "World Bosses" list has no zone, and its bosses roam open-world zones: VanCleef made one of them
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("update instance set zone_id = null"
+          + " where id = (select instance_id from boss where npc_id = 639)");
+      st.executeUpdate("update npc set zone_id = (select zone_id from npc where id = 448) where id = 639");
+    }
+    try (Database db = Database.open(copy)) {
+      assertThat(Repositories.of(db).npcs().bosses(List.of(639L, 448L, 11520L))).containsExactly(11520L);
     }
   }
 

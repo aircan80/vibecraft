@@ -45,8 +45,8 @@ public final class NpcRepository {
       i.allowable_class, (SELECT t.text FROM item_tooltip_line t WHERE t.item_id = i.id AND t.kind = 'req_skill' \
       ORDER BY t.ordinal LIMIT 1) AS skill_line""";
 
-  /** How many NPC ids one {@link #bosses} query asks about. */
-  static final int BOSS_CHUNK = 500;
+  /** How many NPC ids one {@link #bosses} query asks about, each bound once: under SQLite's classic 999 limit. */
+  static final int BOSS_CHUNK = 900;
 
   private final Database db;
 
@@ -94,8 +94,10 @@ public final class NpcRepository {
 
   /**
    * The NPCs among {@code npcIds} whose Vanilla rates read "Forever loot reworked" (decision 19): an instance's
-   * encounter ({@code boss.npc_id}), or an NPC whose zone is a dungeon or raid. One query per
-   * {@value #BOSS_CHUNK} ids (an item's droppers can run to well over a thousand); no ids, no query.
+   * encounter of a dungeon or raid ({@code boss.npc_id} of an instance with a zone: AtlasLoot's "World Bosses" list
+   * has none, and open-world bosses keep their rates unnoted), or an NPC whose zone is a dungeon or raid. Each id is
+   * bound once, at most {@value #BOSS_CHUNK} per query (SQLite's classic limit is 999 parameters; an item's droppers
+   * can run to well over a thousand); no ids, no query.
    */
   public Set<Long> bosses(Collection<Long> npcIds) {
     List<Long> ids = List.copyOf(new LinkedHashSet<>(npcIds));
@@ -106,16 +108,13 @@ public final class NpcRepository {
       Set<Long> bosses = new HashSet<>();
       for (int from = 0; from < ids.size(); from += BOSS_CHUNK) {
         List<Long> chunk = ids.subList(from, Math.min(ids.size(), from + BOSS_CHUNK));
-        String in = String.join(", ", Collections.nCopies(chunk.size(), "?"));
-        Object[] params = new Object[chunk.size() * 2];
-        for (int i = 0; i < chunk.size(); i++) {
-          params[i] = chunk.get(i);
-          params[chunk.size() + i] = chunk.get(i);
-        }
-        bosses.addAll(Sql.list(c, "SELECT b.npc_id AS id FROM boss b WHERE b.npc_id IN (" + in + ")"
-            + " UNION SELECT n.id FROM npc n JOIN zone z ON z.id = n.zone_id"
-            + " WHERE n.id IN (" + in + ") AND z.kind IN ('dungeon', 'raid')",
-            rs -> rs.getLong("id"), params));
+        String values = String.join(", ", Collections.nCopies(chunk.size(), "(?)"));
+        bosses.addAll(Sql.list(c, "WITH ids(id) AS (VALUES " + values + ")"
+            + " SELECT b.npc_id AS id FROM boss b JOIN ids ON ids.id = b.npc_id"
+            + " JOIN instance i ON i.id = b.instance_id WHERE i.zone_id IS NOT NULL"
+            + " UNION SELECT n.id FROM npc n JOIN ids ON ids.id = n.id JOIN zone z ON z.id = n.zone_id"
+            + " WHERE z.kind IN ('dungeon', 'raid')",
+            rs -> rs.getLong("id"), chunk.toArray()));
       }
       return Set.copyOf(bosses);
     });

@@ -256,19 +256,25 @@ class RateBarRendererTest {
     try {
       RateBarRenderer r = vanillaRenderer(List.of(new RateSource("vmangos", 12.5)), false);
       JTable t = lootTable(headlined(1, 12.5, false, 1, "vmangos"), r);
+      // the table in the theme's colours, as the installed theme draws it: text.primary on bg.raised
+      Color primary = Theme.current().textPrimary();
+      t.setForeground(primary);
+      t.setBackground(Theme.current().bgRaised());
       int w = UIScale.scale(200);
       int h = UIScale.scale(24);
       BufferedImage img = paintCell(t, r, w, h);
       assertThat(r.getText()).as("the glyph is printed: colour is never the only sign").isEqualTo("12.50 % V");
+      assertThat(r.getForeground()).isEqualTo(primary);
       Rectangle v = r.vanillaBounds();
       assertThat(v).isNotNull();
       assertThat(r.markerBounds()).as("no disagreement").isNull();
       assertThat(v.x + v.width).isLessThanOrEqualTo(r.barTrack().x);
       Color bg = r.getBackground();
+      assertThat(bg).isEqualTo(Theme.current().bgRaised());
       Color muted = Theme.current().textMuted();
       assertThat(pixelsNear(img, v.x, v.x + v.width, muted, bg)).as("a muted V").isPositive();
-      assertThat(pixelsNear(img, v.x, v.x + v.width, r.getForeground(), bg)).as("the V alone is muted").isZero();
-      assertThat(pixelsNear(img, 0, v.x, r.getForeground(), bg)).as("the number keeps its colour").isPositive();
+      assertThat(pixelsNear(img, v.x, v.x + v.width, primary, bg)).as("the V alone is muted").isZero();
+      assertThat(pixelsNear(img, 0, v.x, primary, bg)).as("the number is text.primary").isPositive();
       assertThat(lines(r.getToolTipText()).get(0)).startsWith("Vanilla rate (VMaNGOS) 12.50 %");
     } finally {
       Theme.setCurrent(saved);

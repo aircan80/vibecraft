@@ -109,8 +109,8 @@ public final class ItemPage extends SourcesPage {
   }
 
   /**
-   * As above; {@code bossNpcs} are the dropping NPCs that are dungeon or raid bosses (loaded off the EDT with the rate
-   * sources), whose VMaNGOS rates' tooltips add {@value RateSource#BOSS_NOTE}, as do a dungeon's loot lists'.
+   * As above; {@code bossNpcs} are the dropping NPCs and loot-list boss NPCs that are dungeon or raid bosses (loaded
+   * off the EDT with the rate sources), whose VMaNGOS rates' tooltips add {@value RateSource#BOSS_NOTE}.
    */
   public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
       Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav) {
@@ -181,11 +181,15 @@ public final class ItemPage extends SourcesPage {
     };
   }
 
-  /** Whether {@code row}'s rate is a dungeon or raid boss's: an NPC in {@code bossNpcs}, or an instance loot list. */
+  /**
+   * Whether {@code row}'s rate is a dungeon or raid boss's: its NPC, or its loot list's boss NPC, is in
+   * {@code bossNpcs} (a list without a boss NPC has no rate sources, so no note to add; a World Bosses list's NPCs are
+   * not in the set).
+   */
   private static boolean onBoss(DropRow row, Set<Long> bossNpcs) {
     return switch (row) {
       case DropRow.Source s -> bossNpcs.contains(s.source().ref().id());
-      case DropRow.Loot l -> true;
+      case DropRow.Loot l -> l.list().bossNpcId() != null && bossNpcs.contains(l.list().bossNpcId());
       case DropRow.Divider v -> false;
     };
   }

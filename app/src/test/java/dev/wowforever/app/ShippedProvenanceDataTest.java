@@ -171,11 +171,16 @@ class ShippedProvenanceDataTest extends ShippedDataSupport {
   /** The text and tooltip of the rate cell of view row {@code row} of {@code t}, as rendered. */
   private static String[] rateCell(JTable t, int row) {
     int col = t.getColumnModel().getColumnIndex(Columns.RATE);
-    Rectangle cell = t.getCellRect(row, col, false);
-    String tip = t.getToolTipText(new MouseEvent(t, MouseEvent.MOUSE_MOVED, 0L, 0, cell.x + cell.width / 2,
-        cell.y + cell.height / 2, 0, false));
+    String tip = rateTooltip(t, row);
     var r = (RateBarRenderer) t.prepareRenderer(t.getCellRenderer(row, col), row, col);
     return new String[] {r.getText(), tip};
+  }
+
+  /** The tooltip a pointer resting on the rate cell of view row {@code row} of {@code t} shows. */
+  private static String rateTooltip(JTable t, int row) {
+    Rectangle cell = t.getCellRect(row, t.getColumnModel().getColumnIndex(Columns.RATE), false);
+    return t.getToolTipText(new MouseEvent(t, MouseEvent.MOUSE_MOVED, 0L, 0, cell.x + cell.width / 2,
+        cell.y + cell.height / 2, 0, false));
   }
 
   @Test
@@ -204,6 +209,48 @@ class ShippedProvenanceDataTest extends ShippedDataSupport {
     String[] ring = rateCell(drops, rowOf(drops, "The Collector's Ring"));
     assertThat(ring[0]).isEqualTo("100.00 % V");
     assertThat(ring[1]).isEqualTo("Vanilla rate (VMaNGOS) 100.00 % on quest");
+  }
+
+  @Test
+  void worldBossVanillaRatesSayNothingOfForever() {
+    // AtlasLoot's World Bosses list (26) is the only instance without a zone; every other one is a dungeon or raid
+    assertThat(rows("select id, key from instance where zone_id is null")).singleElement()
+        .satisfies(r -> assertThat(r[1]).isEqualTo("WorldBosses"));
+    assertThat(scalar("select count(*) from instance i join zone z on z.id = i.zone_id"
+        + " where z.kind not in ('dungeon', 'raid')")).isZero();
+    // Azuregos, Lord Kazzak and the four Dragons of Nightmare roam open-world zones: no dungeon or raid bosses
+    List<Long> worldBosses = List.of(6109L, 12397L, 14887L, 14888L, 14889L, 14890L);
+    assertThat(scalar("select count(distinct b.npc_id) from boss b where b.instance_id = 26 and b.npc_id in"
+        + " (6109, 12397, 14887, 14888, 14889, 14890)")).isEqualTo(6L);
+    assertThat(repos.npcs().bosses(worldBosses)).isEmpty();
+    assertThat(repos.npcs().bosses(List.of(639L, 6109L))).containsExactly(639L);
+    // Azuregos's page: Vanilla rates, and none says Forever reworked the loot
+    var azuregos = (NpcPage) TestPages.build(new EntityRef(EntityKind.NPC, 6109), repos, t -> {});
+    assertVanillaWithoutBossNote(azuregos.drops().table());
+    // the World Bosses page: Azuregos's encounter likewise
+    var page = (InstancePage) TestPages.build(new EntityRef(EntityKind.INSTANCE, 26), repos, t -> {});
+    for (int i = 0; i < page.encounters().getModel().getSize(); i++) {
+      if (Long.valueOf(6109L).equals(page.encounters().getModel().getElementAt(i).npcId())) {
+        page.selectBoss(i);
+      }
+    }
+    assertVanillaWithoutBossNote(page.lootTable().table());
+  }
+
+  /** Some rate of {@code t} is a Vanilla rate, and no rate tooltip carries the boss note. */
+  private static void assertVanillaWithoutBossNote(JTable t) {
+    int vanilla = 0;
+    for (int r = 0; r < t.getRowCount(); r++) {
+      String tip = rateTooltip(t, r); // group headings render otherwise: the tooltip alone
+      if (tip == null) {
+        continue; // a heading, or a rate without sources
+      }
+      if (tip.contains("Vanilla rate (VMaNGOS)")) {
+        vanilla++;
+      }
+      assertThat(tip).as("row %d", r).doesNotContain(RateSource.BOSS_NOTE);
+    }
+    assertThat(vanilla).isPositive();
   }
 
   @Test

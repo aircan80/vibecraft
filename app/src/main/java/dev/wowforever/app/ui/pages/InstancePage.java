@@ -66,6 +66,11 @@ public final class InstancePage extends JPanel implements PageState {
   private static final double STACKED_LIST_SHARE = 0.4;
 
   private final BossLoot bossLoot;
+  /**
+   * Whether the encounters are dungeon or raid bosses, whose Vanilla rates read "Forever loot reworked": the
+   * instance has a zone (AtlasLoot's "World Bosses" list has none; its bosses roam the open world).
+   */
+  private final boolean dungeonBosses;
   private final Navigator nav;
   private final HeaderPanel header;
   private final List<BossSummary> mainBosses;
@@ -106,6 +111,7 @@ public final class InstancePage extends JPanel implements PageState {
   public InstancePage(InstanceDetail d, List<QuestSummary> quests, BossLoot bossLoot, Navigator nav) {
     super(new BorderLayout());
     this.bossLoot = bossLoot;
+    this.dungeonBosses = d.summary().zoneId() != null;
     this.nav = nav;
     InstanceSummary s = d.summary();
     header = header(s, nav);
@@ -372,7 +378,7 @@ public final class InstancePage extends JPanel implements PageState {
     lootTable = LootTables.grouped(loot, new LootTables.Grouping(SlotGroups::of, SlotGroups.ORDER, null, Set.of(),
         Set.of(Columns.LOOT_ORDER)),
         boss.npcId() == null ? LootTables.NO_SOURCES : LootTables.sourcesOf(boss.npcId(), sources),
-        true, nav); // an instance's encounter: its Vanilla rates are a boss's
+        dungeonBosses, nav);
     lootSection = new SourceSection(LOOT, loot.size(), lootTable);
     lootSection.setRowLimited(false); // the page's main content, rebuilt for every encounter: never cut
     lootPane.removeAll();

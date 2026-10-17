@@ -350,6 +350,43 @@ class ItemPageTest {
     assertThat(Tables.tooltipAt(drops, 2, rate)).as("no sources").isNull();
   }
 
+  /** The page of an item only Mr. Smite's (646) loot list has, its rate VMaNGOS's, {@code bossNpcs} the bosses. */
+  private static JTable vanillaLootList(java.util.Set<Long> bossNpcs) {
+    var d = new ItemDetail(LETTER, 12, 0, null, List.of(),
+        List.of(new InstanceLoot(new EntityRef(INSTANCE, 2), "The Deadmines", 12, "Mr. Smite", 646L, 4, 20.0, false,
+            1, "vmangos")),
+        List.of(), List.of(), List.of(), List.of(), List.of());
+    var sources = Map.of(new RateSource.Key(646, 2874), List.of(new RateSource("vmangos", 20.0)));
+    return new ItemPage(d, null, sources, bossNpcs, SourceFilter.ALL, f -> { }, t -> {}).droppedBy().table();
+  }
+
+  /** The rendered text of the rate cell of view row {@code row}. */
+  private static String rateText(JTable t, int row) {
+    int col = t.getColumnModel().getColumnIndex("Rate");
+    return ((RateBarRenderer) t.prepareRenderer(t.getCellRenderer(row, col), row, col)).getText();
+  }
+
+  @Test
+  void aDungeonLootListsVanillaRateIsMarkedAndSaysForeverReworkedTheLoot() {
+    JTable t = vanillaLootList(java.util.Set.of(646L));
+    assertThat(column(t, 0)).containsExactly("Mr. Smite");
+    assertThat(t.getModel()).isInstanceOf(dev.wowforever.app.ui.ResultsTableModel.class);
+    assertThat(((dev.wowforever.app.ui.ResultsTableModel<?>) t.getModel()).rowAt(0))
+        .isInstanceOf(DropRow.Loot.class);
+    assertThat(rateText(t, 0)).as("the loot list's headline is VMaNGOS's").isEqualTo("20.00 % V");
+    assertThat(Tables.tooltipAt(t, 0, t.getColumnModel().getColumnIndex("Rate")))
+        .isEqualTo("Vanilla rate (VMaNGOS) 20.00 %\n" + RateSource.BOSS_NOTE);
+  }
+
+  @Test
+  void aWorldBossLootListsVanillaRateSaysNothingOfForever() {
+    // a World Bosses list: its boss NPC is no dungeon or raid boss, so it is not in the set
+    JTable t = vanillaLootList(java.util.Set.of());
+    assertThat(rateText(t, 0)).isEqualTo("20.00 % V");
+    assertThat(Tables.tooltipAt(t, 0, t.getColumnModel().getColumnIndex("Rate")))
+        .isEqualTo("Vanilla rate (VMaNGOS) 20.00 %");
+  }
+
   @Test
   void vanCleefLeadsTheDropsAtSixtyPercent() {
     var p = new ItemPage(repos.items().detail(2874).get(), t -> {});

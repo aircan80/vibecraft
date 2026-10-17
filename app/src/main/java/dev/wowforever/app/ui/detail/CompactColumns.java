@@ -75,14 +75,19 @@ public final class CompactColumns {
 
   /**
    * The tooltip of a compact table's cell: the {@code row} tooltip, then on a line of its own the cell's own
-   * tooltip (say, a cut-off name in full) when it has one; either alone when the other is null.
+   * tooltip (say, a cut-off name in full) when it has one; either alone when the other is null. The line breaks of
+   * a plain part (a rate's boss note on a line of its own) stay line breaks in the HTML.
    */
   public static String join(String row, String cell) {
     if (row == null || cell == null || cell.isBlank()) {
       return row != null ? row : cell;
     }
-    return "<html>" + HtmlText.escape(row) + "<br>" + (isHtml(cell) ? body(cell) : HtmlText.escape(cell))
-        + "</html>";
+    return "<html>" + plainHtml(row) + "<br>" + (isHtml(cell) ? body(cell) : plainHtml(cell)) + "</html>";
+  }
+
+  /** Plain {@code text} escaped for HTML, its line breaks as {@code <br>}. */
+  private static String plainHtml(String text) {
+    return HtmlText.escape(text).replace("\n", "<br>");
   }
 
   private static String plain(String text) {
