@@ -10,19 +10,22 @@ import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemFilter;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.TooltipLine;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-/** Items: detail pages, filtered lists and the class tree. */
+/** Items: detail pages, filtered lists, the class tree and drop rate sources. */
 public final class ItemRepository {
   /** Summary columns over an {@code item i} row source joined with {@link #JOINS}. */
   private static final String COLUMNS = """
@@ -164,6 +167,42 @@ public final class ItemRepository {
               ItemClassNode.CLASS_NODE))
           .toList();
     });
+  }
+
+  /**
+   * Every drop rate source's value for NPC {@code npcId} dropping item {@code itemId}, Questie's first, then
+   * AtlasLoot's ({@link RateSource#ORDER}); empty when no source gave a rate.
+   */
+  public List<RateSource> sources(long npcId, long itemId) {
+    return db.read(c -> sources(c, npcId, itemId));
+  }
+
+  /**
+   * {@link #sources(long, long)} of each pair in {@code pairs}, read on one connection; pairs without a source are
+   * left out.
+   */
+  public Map<RateSource.Key, List<RateSource>> sources(Collection<RateSource.Key> pairs) {
+    if (pairs.isEmpty()) {
+      return Map.of();
+    }
+    return db.read(c -> {
+      Map<RateSource.Key, List<RateSource>> byPair = new LinkedHashMap<>();
+      for (RateSource.Key k : new LinkedHashSet<>(pairs)) {
+        List<RateSource> sources = sources(c, k.npcId(), k.itemId());
+        if (!sources.isEmpty()) {
+          byPair.put(k, sources);
+        }
+      }
+      return Map.copyOf(byPair);
+    });
+  }
+
+  private static List<RateSource> sources(Connection c, long npcId, long itemId) throws SQLException {
+    List<RateSource> sources = new ArrayList<>(Sql.list(c,
+        "SELECT source, pct FROM drop_rate_source WHERE npc_id = ? AND item_id = ?",
+        rs -> new RateSource(rs.getString("source"), Sql.doubleValue(rs, "pct")), npcId, itemId));
+    sources.sort(RateSource.ORDER);
+    return List.copyOf(sources);
   }
 
   private static List<DropSource> droppedBy(Connection c, long itemId) throws SQLException {

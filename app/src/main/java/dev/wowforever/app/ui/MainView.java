@@ -1,5 +1,6 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import javax.swing.JComponent;
@@ -30,5 +31,10 @@ public interface MainView {
    */
   default boolean showsMasterList() {
     return true;
+  }
+
+  /** Which drop rows the item and NPC pages show (the View menu's "Drop sources"); every row unless set. */
+  default SourceFilter sourceFilter() {
+    return SourceFilter.ALL;
   }
 }

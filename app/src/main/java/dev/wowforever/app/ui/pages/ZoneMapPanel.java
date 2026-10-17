@@ -82,6 +82,8 @@ public final class ZoneMapPanel extends JPanel {
   private List<Pin> allNpcPins;
   private List<Pin> objectPins;
   private int pinGeneration;
+  /** While a failed load puts its toggles back: their changes load nothing. */
+  private boolean reverting;
 
   /**
    * The map of zone {@code zoneId}, decoded ({@code map}), pinning {@code pins} (its bosses and rares) at first; the
@@ -147,6 +149,9 @@ public final class ZoneMapPanel extends JPanel {
 
   /** Shows the pins the toggles ask for, loading on the worker those not loaded yet. */
   private void pinsChanged() {
+    if (reverting) {
+      return;
+    }
     boolean needNpcs = allNpcsToggle.isSelected() && allNpcPins == null;
     boolean needObjects = objectsToggle.isSelected() && objectPins == null;
     showPins();
@@ -170,13 +175,20 @@ public final class ZoneMapPanel extends JPanel {
           }
         }, e -> {
           if (generation == pinGeneration) {
-            // back to what the map shows: those pins did not load (asking again retries)
-            if (needNpcs) {
-              bossesToggle.setSelected(true);
+            // back to what the map shows: those pins did not load (asking again retries). Objects goes off before
+            // the bosses come back, and neither change loads anything, so a combined load leaves no stray one
+            reverting = true;
+            try {
+              if (needObjects) {
+                objectsToggle.setSelected(false);
+              }
+              if (needNpcs) {
+                bossesToggle.setSelected(true);
+              }
+            } finally {
+              reverting = false;
             }
-            if (needObjects) {
-              objectsToggle.setSelected(false);
-            }
+            showPins();
             status.fail(e);
           }
         });

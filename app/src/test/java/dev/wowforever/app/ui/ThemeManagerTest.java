@@ -91,8 +91,8 @@ class ThemeManagerTest {
 
   @Test
   void propertiesResourcesContainTokens() throws Exception {
-    assertProps("WowForeverDarkLaf.properties", "#14171C", "#1B2027", "#D6B25E", "#9CC3E6");
-    assertProps("WowForeverLightLaf.properties", "#F4F5F7", "#FFFFFF", "#9A7419", "#1F5FA8");
+    assertProps("WowForeverDarkLaf.properties", "#14171C", "#1B2027", "#D6B25E", "#9CC3E6", "#E0A83A");
+    assertProps("WowForeverLightLaf.properties", "#F4F5F7", "#FFFFFF", "#9A7419", "#1F5FA8", "#9A6B00");
   }
 
   private static void assertProps(String name, String... tokens) throws Exception {

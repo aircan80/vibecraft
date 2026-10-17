@@ -195,7 +195,8 @@ public final class AppController implements Navigator {
 
   /**
    * Shows the current target again without touching the history, say after the window switched between its full
-   * and compact layouts; nothing happens before the first {@link #open}. A search shown where there is a master
+   * and compact layouts or the drop source filter changed; nothing happens before the first {@link #open}. A search
+   * shown where there is a master
    * list leaves the detail area as a search does: the last page shown there comes back (the home page when there
    * was none), and the search runs again into the list.
    */
@@ -301,7 +302,7 @@ public final class AppController implements Navigator {
 
   /**
    * Shows the detail page of {@code ref}: the repository call runs on the worker ({@link DetailPanels#load}), the
-   * panel is built on the EDT ({@link DetailPanels#render}).
+   * panel is built on the EDT ({@link DetailPanels#render}) under the view's drop source filter.
    */
   private void showEntity(EntityRef ref) {
     int generation = ++detailGeneration;
@@ -310,7 +311,7 @@ public final class AppController implements Navigator {
     Async.run(worker, () -> DetailPanels.load(ref, repos), detail -> {
       if (generation == detailGeneration) {
         if (detail.isPresent()) {
-          view.setDetail(DetailPanels.render(detail.get(), repos, this, worker, pageStatus));
+          view.setDetail(DetailPanels.render(detail.get(), repos, this, worker, pageStatus, view.sourceFilter()));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
         } else {
           view.setDetail(DetailPanels.notFound(ref));

@@ -1,11 +1,16 @@
 package dev.wowforever.app.ui.pages;
 
 import com.formdev.flatlaf.FlatLaf;
+import dev.wowforever.app.db.InstanceRepository;
+import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.RateSource;
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
 import dev.wowforever.app.ui.DropRow;
@@ -23,6 +28,7 @@ import java.awt.Dimension;
 import java.awt.Insets;
 import java.awt.image.BufferedImage;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import javax.swing.BorderFactory;
 import javax.swing.ImageIcon;
@@ -38,6 +44,10 @@ import javax.swing.table.TableColumnModel;
  * vendor · 1 quest"), then a section per kind of source the item has, in the order Dropped by, In instance loot,
  * Contained in, Sold by, Quest reward, Related quests (kinds without rows are left out). Drops are ranked by rate,
  * the unknown rates last under a divider. Ctrl+1 to Ctrl+6 jump to the first six sections ({@link SourcesPage}).
+ *
+ * <p>The drop source filter ({@link SourceFilter}) applies to Dropped by and In instance loot (AtlasLoot's lists, so
+ * AtlasLoot-only rows): their headings and the summary count the rows shown, and a note under a section says how
+ * many it hid. A rate whose sources were loaded with the page lists them in its tooltip.
  */
 public final class ItemPage extends SourcesPage {
   private final ItemCardPanel card;
@@ -56,7 +66,23 @@ public final class ItemPage extends SourcesPage {
    * the EDT (shown as given), null for none.
    */
   public ItemPage(ItemDetail d, BufferedImage icon, Navigator nav) {
+    this(d, icon, Map.of(), SourceFilter.ALL, nav);
+  }
+
+  /**
+   * The page of {@code all} as {@code filter} shows it; {@code rateSources} are the drop rate sources of its rows,
+   * loaded off the EDT ({@link dev.wowforever.app.ui.detail.DetailPanels#load}), which the rate tooltips list.
+   */
+  public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+      SourceFilter filter, Navigator nav) {
     super(nav);
+    SourceFilters.Filtered<DropSource> drops = SourceFilters.apply(all.droppedBy(), DropSource::origin, filter);
+    SourceFilters.Filtered<InstanceLoot> lists = SourceFilters.apply(all.inInstanceLoot(),
+        l -> InstanceRepository.BOSS_LOOT_ORIGIN, filter);
+    ItemDetail d = new ItemDetail(all.summary(), all.classId(), all.subclassId(), all.startQuestId(), drops.rows(),
+        lists.rows(), all.containedInObjects(), all.containedInItems(), all.soldBy(), all.rewardFrom(),
+        all.relatedQuests(), all.card());
+    long itemId = all.summary().id();
     header = ItemHeader.of(d, nav);
     summary = PageContent.mutedLabel(ItemSummaryLine.of(d));
     summary.setBorder(BorderFactory.createEmptyBorder(0, 12, 4, 12));
@@ -71,17 +97,19 @@ public final class ItemPage extends SourcesPage {
     }
     content.add(header);
     content.add(summary);
-    droppedBy = addSection("Dropped by", d.droppedBy().size(), Columns.dropSourcesRanked(),
-        DropRow.ranked(d.droppedBy()));
+    droppedBy = addFilteredSection("Dropped by", drops, Columns.dropSourcesRanked(), DropRow.ranked(d.droppedBy()));
     if (droppedBy != null) {
-      RateBarRenderer.install(column(droppedBy, "Rate"));
+      RateBarRenderer.install(column(droppedBy, Columns.RATE), row -> row instanceof DropRow.Source s
+          && s.source().sourceCount() > 0 ? rateSources.get(new RateSource.Key(s.source().ref().id(), itemId)) : null);
       OriginChip.install(column(droppedBy, "Origin"));
       DividerRows.install(droppedBy, DropRow.Divider.class::isInstance);
     }
-    LinkTable<LootListRow> loot = addSection("In instance loot", d.inInstanceLoot().size(), Columns.lootLists(),
+    LinkTable<LootListRow> loot = addFilteredSection("In instance loot", lists, Columns.lootLists(),
         LootListRow.of(d.inInstanceLoot()));
     if (loot != null) {
-      RateBarRenderer.install(column(loot, "Rate"));
+      RateBarRenderer.install(column(loot, Columns.RATE), row -> row instanceof LootListRow r
+          && r.loot().sourceCount() > 0 && r.loot().bossNpcId() != null
+          ? rateSources.get(new RateSource.Key(r.loot().bossNpcId(), itemId)) : null);
     }
     List<ItemSource> containedIn = Stream.concat(d.containedInObjects().stream(), d.containedInItems().stream())
         .toList();

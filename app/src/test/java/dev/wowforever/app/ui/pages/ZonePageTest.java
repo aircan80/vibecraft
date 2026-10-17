@@ -265,6 +265,36 @@ class ZonePageTest {
   }
 
   @Test
+  void aFailedLoadOfNpcsAndObjectsTogetherPutsBothTogglesBackWithoutLoadingAgain() {
+    var failing = new ZoneMapPanel.PinSource() {
+      @Override
+      public List<SpawnPin> npcs(long zoneId, boolean bossesAndRaresOnly) {
+        throw new IllegalStateException("database is locked");
+      }
+
+      @Override
+      public List<SpawnPin> objects(long zoneId) {
+        throw new IllegalStateException("no objects");
+      }
+    };
+    List<Runnable> queued = new ArrayList<>();
+    ZoneMapPanel panel = westfallPage(failing, queued::add, new ArrayList<>()).mapPanel();
+    panel.allNpcsToggle().doClick();
+    panel.objectsToggle().doClick(); // the NPCs still loading: one load of both
+    assertThat(queued).hasSize(2);
+    queued.remove(0).run(); // superseded: dropped, failure and all
+    assertThat(status.failures).isEmpty();
+    queued.remove(0).run();
+    assertThat(status.failures).singleElement().satisfies(e -> assertThat(e).hasMessage("database is locked"));
+    assertThat(panel.bossesToggle().isSelected()).isTrue();
+    assertThat(panel.allNpcsToggle().isSelected()).isFalse();
+    assertThat(panel.objectsToggle().isSelected()).isFalse();
+    assertThat(panel.mapView().bossesAndRaresOnly()).isTrue();
+    assertThat(panel.mapView().pins()).hasSize(3);
+    assertThat(queued).as("going back from a combined failure loads nothing").isEmpty();
+  }
+
+  @Test
   void aFailedLoadIsReportedAndItsToggleGoesBack() {
     var failing = new ZoneMapPanel.PinSource() {
       @Override

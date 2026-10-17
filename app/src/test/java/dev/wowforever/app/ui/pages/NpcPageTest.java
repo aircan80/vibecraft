@@ -11,6 +11,8 @@ import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.LootRow;
+import dev.wowforever.app.model.RateSource;
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.QuestSummary;
@@ -30,6 +32,7 @@ import java.awt.BorderLayout;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.swing.JTable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -52,6 +55,70 @@ class NpcPageTest {
 
   private static LootRow loot(long id, String name, Double pct, String origin, String className) {
     return new LootRow(new EntityRef(ITEM, id), name, 10, pct, origin, null, null, className, null);
+  }
+
+  private static List<LootRow> mixedDrops() {
+    return List.of(loot(1, "Both Sword", 5.0, "both", "Weapon"), loot(2, "Questie Helm", 3.0, "questie", "Armor"),
+        loot(3, "Atlas Ring", 2.0, "atlasloot", "Armor"), loot(4, "Atlas Axe", 1.0, "atlasloot", "Weapon"));
+  }
+
+  private static NpcPage filtered(SourceFilter filter) {
+    return new NpcPage(npc(HOGGER, mixedDrops(), List.of(), List.of()), null, null, Map.of(), filter, t -> {},
+        text -> {});
+  }
+
+  /** The item names of a grouped table, without its heading rows. */
+  private static List<String> itemNames(NpcPage p) {
+    List<String> names = new java.util.ArrayList<>();
+    for (int r = 0; r < p.drops().rowCount(); r++) {
+      if (p.drops().model().rowAt(r) instanceof GroupedRows.Entry<LootRow> e) {
+        names.add(e.value().displayName());
+      }
+    }
+    return names;
+  }
+
+  @Test
+  void theSourceFilterHidesDropsFromTheHiddenSourceAlone() {
+    var all = filtered(SourceFilter.ALL);
+    assertThat(all.section("Drops").heading().getText()).isEqualTo("Drops (4)");
+    assertThat(all.section("Drops").note()).isNull();
+
+    var noAtlas = filtered(SourceFilter.HIDE_ATLASLOOT_ONLY);
+    assertThat(noAtlas.section("Drops").heading().getText()).isEqualTo("Drops (2)");
+    assertThat(itemNames(noAtlas)).containsExactlyInAnyOrder("Both Sword", "Questie Helm");
+    assertThat(noAtlas.section("Drops").note().getText()).isEqualTo("2 rows hidden by the source filter");
+
+    var noQuestie = filtered(SourceFilter.HIDE_QUESTIE_ONLY);
+    assertThat(noQuestie.section("Drops").heading().getText()).isEqualTo("Drops (3)");
+    assertThat(itemNames(noQuestie)).containsExactlyInAnyOrder("Both Sword", "Atlas Ring", "Atlas Axe");
+    assertThat(noQuestie.section("Drops").note().getText()).isEqualTo("1 row hidden by the source filter");
+  }
+
+  @Test
+  void dropsAllHiddenLeaveTheSectionWithItsNote() {
+    var d = npc(HOGGER, List.of(loot(3, "Atlas Ring", 2.0, "atlasloot", "Armor")), List.of(), List.of());
+    var p = new NpcPage(d, null, null, Map.of(), SourceFilter.HIDE_ATLASLOOT_ONLY, t -> {}, text -> {});
+    assertThat(p.section("Drops").heading().getText()).isEqualTo("Drops (0)");
+    assertThat(p.section("Drops").note().getText()).isEqualTo("1 row hidden by the source filter");
+    assertThat(p.drops().isVisible()).isFalse();
+  }
+
+  @Test
+  void aDropRateWithLoadedSourcesListsThemInItsTooltip() {
+    var sword = new LootRow(new EntityRef(ITEM, 1), "Sword", 10, 5.0, "both", null, null, "Weapon", null, true, 2);
+    var d = npc(HOGGER, List.of(sword, loot(2, "Helm", 3.0, "questie", "Armor")), List.of(), List.of());
+    var sources = Map.of(new RateSource.Key(448, 1),
+        List.of(new RateSource("questie-wowhead", 5.0), new RateSource("atlasloot", null)));
+    var p = new NpcPage(d, null, null, sources, SourceFilter.ALL, t -> {}, text -> {});
+    JTable t = p.drops().table();
+    int rate = t.getColumnModel().getColumnIndex("Rate");
+    List<String> tips = new java.util.ArrayList<>();
+    for (int r = 0; r < t.getRowCount(); r++) {
+      tips.add(Tables.tooltipAt(t, r, rate));
+    }
+    assertThat(tips).containsOnlyOnce("Questie 5.00 %  ·  AtlasLoot no rate").filteredOn(java.util.Objects::nonNull)
+        .hasSize(1);
   }
 
   @Test

@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.SourceFilter;
 import java.awt.Rectangle;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +48,23 @@ class UiStateTest {
     state.setDividerLocation(0);
     state.setDividerLocation(-1);
     assertThat(state.dividerLocation()).isEqualTo(350);
+  }
+
+  @Test
+  void sourceFilterDefaultsToAllAndRoundTrips() {
+    assertThat(new UiState(node).sourceFilter()).isEqualTo(SourceFilter.ALL);
+    new UiState(node).setSourceFilter(SourceFilter.HIDE_ATLASLOOT_ONLY);
+    assertThat(new UiState(node).sourceFilter()).isEqualTo(SourceFilter.HIDE_ATLASLOOT_ONLY);
+    new UiState(node).setSourceFilter(SourceFilter.HIDE_QUESTIE_ONLY);
+    assertThat(new UiState(node).sourceFilter()).isEqualTo(SourceFilter.HIDE_QUESTIE_ONLY);
+    new UiState(node).setSourceFilter(SourceFilter.ALL);
+    assertThat(new UiState(node).sourceFilter()).isEqualTo(SourceFilter.ALL);
+  }
+
+  @Test
+  void aGarbledSourceFilterReadsAsAll() {
+    node.put(UiState.SOURCE_FILTER, "HIDE_EVERYTHING");
+    assertThat(new UiState(node).sourceFilter()).isEqualTo(SourceFilter.ALL);
   }
 
   @Test

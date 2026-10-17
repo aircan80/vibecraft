@@ -56,6 +56,29 @@ abstract class SourcesPage extends JPanel {
   }
 
   /**
+   * Adds a section of the rows a source filter kept ({@code filtered}), shown as {@code rows}, and returns its table:
+   * the heading counts the rows kept, a note says how many the filter hid. Adds nothing and returns null when there
+   * were no rows to filter.
+   */
+  <T> LinkTable<T> addFilteredSection(String title, SourceFilters.Filtered<?> filtered, List<Columns.Column<T>> cols,
+      List<T> rows) {
+    if (filtered.rows().isEmpty() && filtered.hidden() == 0) {
+      return null;
+    }
+    LinkTable<T> table = LinkTable.inline(cols, nav);
+    table.setRows(rows);
+    addFilteredSection(title, filtered, table);
+    return table;
+  }
+
+  /** Adds a section of {@code table}, which shows the rows {@code filtered} kept, with its hidden rows' note. */
+  void addFilteredSection(String title, SourceFilters.Filtered<?> filtered, LinkTable<?> table) {
+    SourceSection section = new SourceSection(title, filtered.rows().size(), table);
+    SourceFilters.annotate(section, filtered);
+    addSection(section);
+  }
+
+  /**
    * Adds a section of items ({@link LootTables#plain}) and returns its table; adds nothing and returns null when
    * there are none.
    */

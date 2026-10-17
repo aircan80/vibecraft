@@ -11,6 +11,8 @@ import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
 import dev.wowforever.app.model.QuestGiver;
+import dev.wowforever.app.model.RateSource;
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
@@ -29,7 +31,9 @@ import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Images;
 import dev.wowforever.app.ui.widgets.MapCache;
 import java.awt.image.BufferedImage;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
 import javax.swing.BorderFactory;
@@ -46,9 +50,14 @@ public final class DetailPanels {
 
   /**
    * What {@link #load} returns for an item: the item and its icon, decoded and scaled to {@value IconCache#CARD} px
-   * (null when there is none), which the page's tooltip card shows.
+   * (null when there is none), which the page's tooltip card shows; and the drop rate sources of its drops and loot
+   * lists, which their rate tooltips list.
    */
-  public record LoadedItem(ItemDetail detail, BufferedImage icon) {}
+  public record LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources) {
+    public LoadedItem {
+      rateSources = Map.copyOf(rateSources);
+    }
+  }
 
   /**
    * What {@link #load} returns for a zone: the zone, its decoded map (null: none, or it does not decode) and the
@@ -62,9 +71,15 @@ public final class DetailPanels {
 
   /**
    * What {@link #load} returns for an NPC: the NPC and the decoded map of the zone of its first spawn point with
-   * coordinates, {@code mapZoneId} (both null without such a point; the map alone null when that zone has none).
+   * coordinates, {@code mapZoneId} (both null without such a point; the map alone null when that zone has none); and
+   * the drop rate sources of its drops, which their rate tooltips list.
    */
-  public record LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map) {}
+  public record LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
+      Map<RateSource.Key, List<RateSource>> rateSources) {
+    public LoadedNpc {
+      rateSources = Map.copyOf(rateSources);
+    }
+  }
 
   /** What {@link #load} returns for an object: as {@link LoadedNpc}. */
   public record LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map) {}
@@ -78,17 +93,19 @@ public final class DetailPanels {
    * The icon id is the summary's, which an item with only an {@code Item} row (no tooltip card) has too. The item
    * icons the page's tables show first are loaded into the {@linkplain IconCache#shared shared cache} here too:
    * an NPC's drops and wares, an object's contents, a quest's item givers and rewards, an instance's first boss's
-   * loot.
+   * loot. So are the drop rate sources of the rates with any ({@code sourceCount > 0}) of an item's drops and loot
+   * lists and an NPC's drops, which the rate tooltips list (the instance page loads its bosses' as it shows them).
    */
   public static Optional<Object> load(EntityRef ref, Repositories repos) {
     long id = ref.id();
     Optional<?> detail = switch (ref.kind()) {
       case ITEM -> repos.items().detail(id).map(d -> new LoadedItem(d,
           repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
-              .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null)));
+              .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
+          repos.items().sources(rateKeys(d))));
       case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells())).map(d -> {
         Long zone = mapZone(d.spawns());
-        return new LoadedNpc(d, zone, zoneMap(zone, repos));
+        return new LoadedNpc(d, zone, zoneMap(zone, repos), repos.items().sources(RateSource.keys(id, d.drops())));
       });
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains())).map(d -> {
         Long zone = mapZone(d.spawns());
@@ -100,6 +117,17 @@ public final class DetailPanels {
       case BOSS -> Optional.empty();
     };
     return detail.map(Object.class::cast);
+  }
+
+  /** The NPC and item of each drop of item {@code d} and of each of its loot lists' bosses with rate sources. */
+  private static List<RateSource.Key> rateKeys(ItemDetail d) {
+    long item = d.summary().id();
+    List<RateSource.Key> keys = new ArrayList<>();
+    d.droppedBy().stream().filter(s -> s.sourceCount() > 0)
+        .forEach(s -> keys.add(new RateSource.Key(s.ref().id(), item)));
+    d.inInstanceLoot().stream().filter(l -> l.sourceCount() > 0 && l.bossNpcId() != null)
+        .forEach(l -> keys.add(new RateSource.Key(l.bossNpcId(), item)));
+    return keys;
   }
 
   /** The zone with its decoded map and, when it has one, the pins of its bosses and rares. */
@@ -166,9 +194,19 @@ public final class DetailPanels {
    */
   public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
       StatusSink status) {
+    return render(detail, repos, nav, worker, status, SourceFilter.ALL);
+  }
+
+  /**
+   * The page for a record from {@link #load}, as above; the item and NPC pages show the drop rows {@code filter}
+   * keeps.
+   */
+  public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
+      StatusSink status, SourceFilter filter) {
     return switch (detail) {
-      case LoadedItem p -> new ItemPage(p.detail(), p.icon(), nav);
-      case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
+      case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), filter, nav);
+      case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), filter, nav,
+          ClipboardPort.system());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
       case QuestDetail d -> new QuestPage(d, nav);
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null

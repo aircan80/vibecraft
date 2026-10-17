@@ -11,6 +11,7 @@ import dev.wowforever.app.model.ItemClassNode;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemFilter;
 import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.TooltipLine;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -50,6 +51,27 @@ class ItemRepositoryTest {
         assertThat(repos.items().list(cls.classId(), sub.subclassId(), 1, 0)).isNotEmpty();
       }
     }
+  }
+
+  @Test
+  void sourcesListEveryRateInQuestieThenAtlasLootOrder() {
+    assertThat(repos.items().sources(639, 2874)).containsExactly(
+        new RateSource("questie-wowhead", 56.07), new RateSource("questie-correction", 60.0),
+        new RateSource("atlasloot", 56.07), new RateSource("atlasloot-override", 57.0));
+    assertThat(repos.items().sources(11520, 14149)).containsExactly(new RateSource("atlasloot", 33.3));
+    assertThat(repos.items().sources(126, 730)).as("a drop without rates").isEmpty();
+  }
+
+  @Test
+  void sourcesOfManyPairsComeBackByPairLeavingOutPairsWithoutRates() {
+    var vanCleef = new RateSource.Key(639, 2874);
+    var bag = new RateSource.Key(11520, 14149);
+    var none = new RateSource.Key(126, 730);
+    assertThat(repos.items().sources(List.of(vanCleef, bag, none)))
+        .containsOnlyKeys(vanCleef, bag)
+        .hasEntrySatisfying(vanCleef, l -> assertThat(l).hasSize(4).first()
+            .isEqualTo(new RateSource("questie-wowhead", 56.07)));
+    assertThat(repos.items().sources(List.of())).isEmpty();
   }
 
   @Test

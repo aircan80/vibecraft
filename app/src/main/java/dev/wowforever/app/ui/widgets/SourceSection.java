@@ -15,13 +15,15 @@ import javax.swing.JPanel;
 
 /**
  * One kind of source on a page that scrolls as a whole: a gold heading with the count ({@code "Dropped by (3)"})
- * over an {@linkplain LinkTable#inline inline} link table, as tall as all its rows. The section never stretches
- * taller than that, so a vertical box of sections stacks them tightly.
+ * over an {@linkplain LinkTable#inline inline} link table, as tall as all its rows, and optionally a muted note under
+ * the table ({@link #setNote}). The section never stretches taller than that, so a vertical box of sections stacks
+ * them tightly.
  */
 public final class SourceSection extends JPanel {
   private final String title;
   private final JLabel heading;
   private final LinkTable<?> table;
+  private JLabel note;
 
   public SourceSection(String title, int count, LinkTable<?> table) {
     super(new BorderLayout());
@@ -53,6 +55,30 @@ public final class SourceSection extends JPanel {
     body.add(lead, BorderLayout.NORTH);
     body.add(table, BorderLayout.CENTER);
     add(body, BorderLayout.CENTER);
+  }
+
+  /** Puts a muted line of {@code text} under the table, replacing an earlier one; null removes it. */
+  public void setNote(String text) {
+    if (note != null) {
+      remove(note);
+      note = null;
+    }
+    if (text != null) {
+      note = new JLabel(text) {
+        @Override
+        public Color getForeground() { // looked up per paint, so theme changes apply
+          return Theme.current().textMuted();
+        }
+      };
+      note.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+      add(note, BorderLayout.SOUTH);
+    }
+    revalidate();
+  }
+
+  /** The note under the table; null when there is none. */
+  public JLabel note() {
+    return note;
   }
 
   /** Shows {@code count} in the heading, for a section whose table was given new rows. */

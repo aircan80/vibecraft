@@ -2,6 +2,7 @@ package dev.wowforever.app.ui;
 
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityKind;
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.ui.widgets.MasterList;
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -18,7 +19,8 @@ import javax.swing.SortOrder;
  * Window layout, view settings, pinned pages and recent searches remembered between runs, all in one preferences
  * node (the one {@link ThemeManager} uses): the window bounds, maximised state and screen; the list | detail
  * divider and whether the list shows; the compact window's bounds and mode; always on top; the text size; column
- * widths and sort per table kind; the last search kind; pinned pages; and the last searches. A value that cannot be
+ * widths and sort per table kind; the last search kind; pinned pages; the last searches; and the drop source
+ * filter. A value that cannot be
  * read (say, edited by hand) reads as its default.
  */
 public final class UiState {
@@ -36,6 +38,7 @@ public final class UiState {
   static final String LAST_SEARCH_KIND = "search.lastKind";
   static final String PINNED = "pinned";
   static final String RECENT = "search.recent";
+  static final String SOURCE_FILTER = "view.sourceFilter";
   /** The smallest text size, in percent of the theme's font. */
   public static final int TEXT_MIN = 90;
   /** The text size when none is saved. */
@@ -310,6 +313,21 @@ public final class UiState {
     if (px > 0) {
       prefs.putInt(DIVIDER, px);
     }
+  }
+
+  /** Which drop rows the item and NPC pages show; {@link SourceFilter#ALL} unless set. */
+  public SourceFilter sourceFilter() {
+    String saved = prefs.get(SOURCE_FILTER, null);
+    try {
+      return saved == null ? SourceFilter.ALL : SourceFilter.valueOf(saved);
+    } catch (IllegalArgumentException e) {
+      return SourceFilter.ALL;
+    }
+  }
+
+  /** Saves the drop source filter; {@link SourceFilter#ALL} removes it. */
+  public void setSourceFilter(SourceFilter filter) {
+    putOrRemove(SOURCE_FILTER, filter == SourceFilter.ALL ? null : filter.name());
   }
 
   /** The last {@value #RECENT_SEARCHES} searches, most recent first. */

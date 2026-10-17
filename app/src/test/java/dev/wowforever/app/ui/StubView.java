@@ -1,10 +1,12 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.BorderLayout;
 import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 
@@ -25,6 +27,8 @@ final class StubView implements MainView {
   RailTarget rail;
   /** What {@link #showsMasterList()} answers: false plays the compact window. */
   BooleanSupplier masterListShown = () -> true;
+  /** What {@link #sourceFilter()} answers. */
+  Supplier<SourceFilter> sourceFilter = () -> SourceFilter.ALL;
 
   @Override
   public MasterList masterList() {
@@ -62,5 +66,10 @@ final class StubView implements MainView {
   @Override
   public boolean showsMasterList() {
     return masterListShown.getAsBoolean();
+  }
+
+  @Override
+  public SourceFilter sourceFilter() {
+    return sourceFilter.get();
   }
 }

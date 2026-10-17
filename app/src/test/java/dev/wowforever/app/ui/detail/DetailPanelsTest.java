@@ -15,6 +15,8 @@ import dev.wowforever.app.db.SpawnFixtureDb;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.RateSource;
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.NpcPage;
@@ -34,6 +36,7 @@ import java.util.Arrays;
 import java.util.List;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
+import javax.swing.JTable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
@@ -157,6 +160,53 @@ class DetailPanelsTest {
     return a.getWidth() == b.getWidth() && a.getHeight() == b.getHeight()
         && Arrays.equals(a.getRGB(0, 0, a.getWidth(), a.getHeight(), null, 0, a.getWidth()),
             b.getRGB(0, 0, b.getWidth(), b.getHeight(), null, 0, b.getWidth()));
+  }
+
+  @Test
+  void anItemLoadsTheRateSourcesOfItsDropsAndLootLists() {
+    var letter = (DetailPanels.LoadedItem) DetailPanels.load(new EntityRef(ITEM, 2874), repos).orElseThrow();
+    assertThat(letter.rateSources()).containsOnlyKeys(new RateSource.Key(639, 2874));
+    assertThat(letter.rateSources().get(new RateSource.Key(639, 2874))).extracting(RateSource::source)
+        .containsExactly("questie-wowhead", "questie-correction", "atlasloot", "atlasloot-override");
+    // the loot list's boss is an NPC too: its rate is the same pair
+    var bag = (DetailPanels.LoadedItem) DetailPanels.load(new EntityRef(ITEM, 14149), repos).orElseThrow();
+    assertThat(bag.rateSources()).containsOnlyKeys(new RateSource.Key(11520, 14149));
+    var page = (ItemPage) DetailPanels.render(letter, repos, t -> {});
+    JTable drops = page.droppedBy().table();
+    assertThat(tooltipAt(drops, 0, drops.getColumnModel().getColumnIndex("Rate"))).isEqualTo(
+        "Questie 56.07 %  ·  Questie correction 60.00 %  ·  AtlasLoot 56.07 %  ·  AtlasLoot override 57.00 %");
+  }
+
+  @Test
+  void anNpcLoadsTheRateSourcesOfTheDropsThatHaveAny() {
+    var vanCleef = (DetailPanels.LoadedNpc) DetailPanels.load(new EntityRef(NPC, 639), repos).orElseThrow();
+    assertThat(vanCleef.rateSources().keySet()).extracting(RateSource.Key::itemId)
+        .containsExactlyInAnyOrder(2874L, 5191L, 5193L, 5202L, 10399L);
+    var lucifron = (DetailPanels.LoadedNpc) DetailPanels.load(new EntityRef(NPC, 12118), repos).orElseThrow();
+    assertThat(lucifron.detail().drops()).isNotEmpty();
+    assertThat(lucifron.rateSources()).as("drops without rates load none").isEmpty();
+  }
+
+  @Test
+  void renderAppliesTheSourceFilterToItemAndNpcPages() {
+    Object vanCleef = DetailPanels.load(new EntityRef(NPC, 639), repos).orElseThrow();
+    var all = (NpcPage) DetailPanels.render(vanCleef, repos, t -> {});
+    assertThat(all.section("Drops").heading().getText()).isEqualTo("Drops (5)");
+    var filtered = (NpcPage) DetailPanels.render(vanCleef, repos, t -> {}, Runnable::run, StatusSink.NONE,
+        SourceFilter.HIDE_ATLASLOOT_ONLY);
+    assertThat(filtered.section("Drops").heading().getText()).isEqualTo("Drops (2)");
+    assertThat(filtered.section("Drops").note().getText()).isEqualTo("3 rows hidden by the source filter");
+    Object atlasOnly = DetailPanels.load(new EntityRef(ITEM, 16800), repos).orElseThrow();
+    var item = (ItemPage) DetailPanels.render(atlasOnly, repos, t -> {}, Runnable::run, StatusSink.NONE,
+        SourceFilter.HIDE_ATLASLOOT_ONLY);
+    assertThat(item.section("Dropped by").heading().getText()).isEqualTo("Dropped by (0)");
+  }
+
+  /** The tooltip a pointer resting in the middle of view cell ({@code row}, {@code col}) shows. */
+  private static String tooltipAt(JTable t, int row, int col) {
+    java.awt.Rectangle cell = t.getCellRect(row, col, false);
+    return t.getToolTipText(new java.awt.event.MouseEvent(t, java.awt.event.MouseEvent.MOUSE_MOVED, 0L, 0,
+        cell.x + cell.width / 2, cell.y + cell.height / 2, 0, false));
   }
 
   @Test

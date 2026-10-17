@@ -25,6 +25,7 @@ import java.util.List;
 import javax.swing.JLabel;
 import javax.swing.JList;
 import javax.swing.JSplitPane;
+import javax.swing.JTable;
 import javax.swing.JToggleButton;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -129,6 +130,46 @@ class InstancePageTest {
     p.selectBoss(0);
     assertThat(p.extraLists().isSelectionEmpty()).isTrue();
     assertThat(p.bossHeader().title()).isEqualTo("Rhahk'Zor");
+  }
+
+  /** Selects Edwin VanCleef, whose loot has rates. */
+  private static void selectVanCleef(InstancePage p) {
+    int vanCleef = -1;
+    for (int i = 0; i < p.encounters().getModel().getSize(); i++) {
+      if (java.util.Objects.equals(p.encounters().getModel().getElementAt(i).npcId(), 639L)) {
+        vanCleef = i;
+      }
+    }
+    p.selectBoss(vanCleef);
+  }
+
+  @Test
+  void bossLootRatesListTheirSourcesLoadedWithTheLoot() {
+    var p = deadmines(new ArrayList<>());
+    selectVanCleef(p);
+    JTable t = p.lootTable().table();
+    int rate = t.getColumnModel().getColumnIndex("Rate");
+    int letter = -1;
+    for (int r = 0; r < t.getRowCount(); r++) {
+      if ("An Unsent Letter".equals(String.valueOf(t.getValueAt(r, 0)))) {
+        letter = r;
+      }
+    }
+    assertThat(letter).isNotNegative();
+    assertThat(Tables.tooltipAt(t, letter, rate)).isEqualTo(
+        "Questie 56.07 %  ·  Questie correction 60.00 %  ·  AtlasLoot 56.07 %  ·  AtlasLoot override 57.00 %");
+  }
+
+  @Test
+  void aFakeBossLootWithoutSourcesShowsNoRateTooltips() {
+    var d = repos.instances().detail(2).get();
+    var p = new InstancePage(d, (bossId, difficulty) -> repos.instances().bossLoot(bossId, difficulty), t -> {});
+    selectVanCleef(p);
+    JTable t = p.lootTable().table();
+    int rate = t.getColumnModel().getColumnIndex("Rate");
+    for (int r = 0; r < t.getRowCount(); r++) {
+      assertThat(Tables.tooltipAt(t, r, rate)).isNull();
+    }
   }
 
   @Test

@@ -20,6 +20,13 @@ final class Tables {
     return values;
   }
 
+  /** The tooltip a pointer resting in the middle of view cell ({@code row}, {@code col}) shows. */
+  static String tooltipAt(JTable t, int row, int col) {
+    java.awt.Rectangle cell = t.getCellRect(row, col, false);
+    return t.getToolTipText(new java.awt.event.MouseEvent(t, java.awt.event.MouseEvent.MOUSE_MOVED, 0L, 0,
+        cell.x + cell.width / 2, cell.y + cell.height / 2, 0, false));
+  }
+
   /** The column titles, left to right. */
   static List<String> columnNames(JTable t) {
     List<String> names = new ArrayList<>();

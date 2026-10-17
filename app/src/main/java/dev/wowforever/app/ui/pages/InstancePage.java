@@ -9,6 +9,7 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.LootRow;
+import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Labels;
 import dev.wowforever.app.ui.detail.HeaderPanel;
@@ -22,6 +23,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.function.IntFunction;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
@@ -69,7 +71,7 @@ public final class InstancePage extends JPanel {
 
   /** The page over the repository's boss loot. */
   public InstancePage(InstanceDetail d, Repositories repos, Navigator nav) {
-    this(d, repos.instances()::bossLoot, nav);
+    this(d, BossLoot.of(repos), nav);
   }
 
   /** The page reading each boss's loot from {@code bossLoot}. */
@@ -247,20 +249,24 @@ public final class InstancePage extends JPanel {
 
   /**
    * Shows the loot of {@code boss} in the selected difficulty (none when the instance has no difficulty), under a
-   * header linking the boss's NPC page. Runs on the EDT and loads the loot synchronously: the one documented
-   * exception to loading off the EDT. A boss loot query is a single indexed lookup returning a few dozen rows, and
-   * the page would otherwise need its own async plumbing and stale-load guard for a load users never notice.
+   * header linking the boss's NPC page. Runs on the EDT and loads the loot synchronously, with the drop rate sources
+   * its rate tooltips list: the one documented exception to loading off the EDT. A boss loot query is a single
+   * indexed lookup returning a few dozen rows (and its sources a primary-key lookup per rated row), and the page
+   * would otherwise need its own async plumbing and stale-load guard for a load users never notice.
    */
   private void showLoot(BossSummary boss) {
     shown = boss;
     List<LootRow> loot = difficulty == null ? List.of() : bossLoot.lookup(boss.id(), difficulty);
+    Map<RateSource.Key, List<RateSource>> sources = boss.npcId() == null ? Map.of()
+        : bossLoot.sources(RateSource.keys(boss.npcId(), loot));
     String level = levelText(boss.level());
     bossHeader = new HeaderPanel(boss.displayName(), Labels.join(level == null ? null : "Level " + level));
     bossHeader.setAlignmentX(LEFT_ALIGNMENT);
     if (boss.npcId() != null) {
       bossHeader.addLink("NPC page", new EntityRef(EntityKind.NPC, boss.npcId()), nav);
     }
-    lootTable = LootTables.grouped(loot, SlotGroups::of, SlotGroups.ORDER, null, nav);
+    lootTable = LootTables.grouped(loot, SlotGroups::of, SlotGroups.ORDER, null,
+        boss.npcId() == null ? LootTables.NO_SOURCES : LootTables.sourcesOf(boss.npcId(), sources), nav);
     lootSection = new SourceSection("Loot", loot.size(), lootTable);
     lootPane.removeAll();
     lootPane.add(bossHeader);

@@ -2,7 +2,10 @@ package dev.wowforever.app.ui.theme;
 
 import java.awt.Color;
 
-/** Colour tokens of one mode, for custom painting. {@link #current()} is the active palette. */
+/**
+ * Colour tokens of one mode, for custom painting. {@link #current()} is the active palette. {@code warn} is the
+ * amber of a warning sign, such as the marker of a drop rate whose sources disagree.
+ */
 public record Theme(
     boolean dark,
     Color bgBase,
@@ -13,7 +16,8 @@ public record Theme(
     Color accentGold,
     Color link,
     Color cardBg,
-    Color cardBorder) {
+    Color cardBorder,
+    Color warn) {
 
   private static volatile Theme current = Tokens.DARK;
 

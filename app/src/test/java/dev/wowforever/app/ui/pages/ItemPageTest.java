@@ -19,6 +19,8 @@ import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.RateSource;
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.DropRow;
 import dev.wowforever.app.ui.LinkRenderer;
@@ -39,6 +41,7 @@ import java.awt.event.KeyEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JTable;
@@ -123,6 +126,85 @@ class ItemPageTest {
         .isEqualTo("3 NPCs · 2 loot lists · 2 containers · 1 vendor · 2 quests");
     assertThat(new ItemPage(everything(), t -> {}).summaryLabel().getForeground())
         .isEqualTo(Theme.current().textMuted());
+  }
+
+  /** Drops and a loot list of every origin. */
+  private static ItemDetail mixedOrigins() {
+    return new ItemDetail(LETTER, 12, 0, null,
+        List.of(drop(639, "Edwin VanCleef", 60.0, "both"), drop(1, "Defias Pirate", null, "questie"),
+            drop(2, "Defias Squallshaper", 1.5, "questie"), drop(5, "Atlas Only", 2.0, "atlasloot")),
+        List.of(new InstanceLoot(new EntityRef(INSTANCE, 2), "The Deadmines", 10, "Edwin VanCleef", 639L, 6, 60.0)),
+        List.of(), List.of(), List.of(), List.of(), List.of());
+  }
+
+  private static ItemPage filtered(ItemDetail d, SourceFilter filter) {
+    return new ItemPage(d, null, Map.of(), filter, t -> {});
+  }
+
+  @Test
+  void everySourceShowsByDefaultWithoutANote() {
+    var p = filtered(mixedOrigins(), SourceFilter.ALL);
+    assertThat(p.section("Dropped by").heading().getText()).isEqualTo("Dropped by (4)");
+    assertThat(p.section("Dropped by").note()).isNull();
+    assertThat(p.section("In instance loot").note()).isNull();
+    assertThat(new ItemPage(mixedOrigins(), t -> {}).droppedBy().rowCount()).isEqualTo(5); // with the divider
+  }
+
+  @Test
+  void hidingAtlasLootOnlyRowsKeepsQuestieAndBothAndCountsWhatIsLeft() {
+    var p = filtered(mixedOrigins(), SourceFilter.HIDE_ATLASLOOT_ONLY);
+    SourceSection dropped = p.section("Dropped by");
+    assertThat(dropped.heading().getText()).isEqualTo("Dropped by (3)");
+    assertThat(column(p.droppedBy().table(), 0)).contains("Edwin VanCleef", "Defias Pirate", "Defias Squallshaper")
+        .doesNotContain("Atlas Only");
+    assertThat(dropped.note().getText()).isEqualTo("1 row hidden by the source filter");
+    assertThat(dropped.note().getForeground()).isEqualTo(Theme.current().textMuted());
+    // AtlasLoot's loot lists are AtlasLoot-only rows: the section stays to say so, its table empty and hidden
+    SourceSection loot = p.section("In instance loot");
+    assertThat(loot.heading().getText()).isEqualTo("In instance loot (0)");
+    assertThat(loot.note().getText()).isEqualTo("1 row hidden by the source filter");
+    assertThat(loot.table().rowCount()).isZero();
+    assertThat(loot.table().isVisible()).isFalse();
+    assertThat(p.summary()).as("the summary counts what is shown").isEqualTo("3 NPCs · no vendor · no quests");
+  }
+
+  @Test
+  void hidingQuestieOnlyRowsKeepsAtlasLootAndBoth() {
+    var p = filtered(mixedOrigins(), SourceFilter.HIDE_QUESTIE_ONLY);
+    assertThat(p.section("Dropped by").heading().getText()).isEqualTo("Dropped by (2)");
+    assertThat(column(p.droppedBy().table(), 0)).containsExactly("Edwin VanCleef", "Atlas Only");
+    assertThat(p.section("Dropped by").note().getText()).isEqualTo("2 rows hidden by the source filter");
+    assertThat(p.section("In instance loot").heading().getText()).isEqualTo("In instance loot (1)");
+    assertThat(p.section("In instance loot").note()).isNull();
+  }
+
+  @Test
+  void aFilterThatHidesNothingAddsNoNote() {
+    var p = filtered(drops(drop(639, "Edwin VanCleef", 60.0, "both")), SourceFilter.HIDE_QUESTIE_ONLY);
+    assertThat(p.section("Dropped by").heading().getText()).isEqualTo("Dropped by (1)");
+    assertThat(p.section("Dropped by").note()).isNull();
+  }
+
+  @Test
+  void rateCellsWithLoadedSourcesListThemInTheirTooltip() {
+    var vanCleef = new DropSource(new EntityRef(NPC, 639), "Edwin VanCleef", 20, 21, "The Deadmines", 1581L, 60.0,
+        "questie", "both", true, 2);
+    var pirate = new DropSource(new EntityRef(NPC, 1), "Defias Pirate", 20, 21, "The Deadmines", 1581L, 1.5,
+        "questie", "questie", false, 0);
+    var d = new ItemDetail(LETTER, 12, 0, null, List.of(vanCleef, pirate),
+        List.of(new InstanceLoot(new EntityRef(INSTANCE, 2), "The Deadmines", 10, "Edwin VanCleef", 639L, 6, 60.0,
+            true, 2)),
+        List.of(), List.of(), List.of(), List.of(), List.of());
+    var sources = Map.of(new RateSource.Key(639, 2874),
+        List.of(new RateSource("atlasloot", 56.07), new RateSource("questie-wowhead", 60.0)));
+    var p = new ItemPage(d, null, sources, SourceFilter.ALL, t -> {});
+    JTable drops = p.droppedBy().table();
+    int rate = drops.getColumnModel().getColumnIndex("Rate");
+    assertThat(Tables.tooltipAt(drops, 0, rate)).isEqualTo("Questie 60.00 %  ·  AtlasLoot 56.07 %");
+    assertThat(Tables.tooltipAt(drops, 1, rate)).as("no sources").isNull();
+    JTable loot = p.section("In instance loot").table().table();
+    assertThat(Tables.tooltipAt(loot, 0, loot.getColumnModel().getColumnIndex("Rate")))
+        .isEqualTo("Questie 60.00 %  ·  AtlasLoot 56.07 %");
   }
 
   @Test

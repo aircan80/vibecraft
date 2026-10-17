@@ -1,5 +1,6 @@
 package dev.wowforever.app.ui;
 
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.widgets.HistoryButtons;
 import dev.wowforever.app.ui.widgets.MasterList;
@@ -124,11 +125,7 @@ public final class MainFrame extends JFrame implements MainView {
     persistence = WindowStatePersistence.install(this, uiState);
     compactShell.setOnTop(isAlwaysOnTop());
     layout = new LayoutSwitch(new LayoutSwitch.Parts(toolbar, content, detailSlot, list, compactShell, searchBar,
-        detailHolder, status), uiState, layoutWindow(), () -> {
-          if (controller != null) {
-            controller.rerender();
-          }
-        });
+        detailHolder, status), uiState, layoutWindow(), this::rerender);
     layout.start();
     textSize.applySaved();
   }
@@ -207,6 +204,18 @@ public final class MainFrame extends JFrame implements MainView {
       return CANNOT_PIN;
     }
     return state.togglePinned(key.get()) ? "Pinned" : "Unpinned";
+  }
+
+  /** Shows the current page again (a layout switch, a new drop source filter); nothing before the controller. */
+  private void rerender() {
+    if (controller != null) {
+      controller.rerender();
+    }
+  }
+
+  @Override
+  public SourceFilter sourceFilter() {
+    return uiState.sourceFilter();
   }
 
   /** Wires in the controller once the database is open, and enables searching and type-ahead. */
@@ -353,6 +362,7 @@ public final class MainFrame extends JFrame implements MainView {
     JPopupMenu menu = new JPopupMenu();
     menu.add(full);
     menu.add(dark);
+    menu.add(WindowMenus.sourceFilterMenu(uiState, this::rerender));
     menu.addSeparator();
     menu.add(shortcuts);
     menu.add(about);
@@ -391,6 +401,7 @@ public final class MainFrame extends JFrame implements MainView {
     JMenu view = new JMenu("View");
     view.add(showList);
     view.add(dark);
+    view.add(WindowMenus.sourceFilterMenu(uiState, this::rerender));
     view.addMenuListener(new MenuListener() {
       @Override
       public void menuSelected(MenuEvent e) {
