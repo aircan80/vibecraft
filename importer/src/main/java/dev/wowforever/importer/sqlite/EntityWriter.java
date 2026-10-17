@@ -97,12 +97,13 @@ final class EntityWriter {
     }
   }
 
-  /** Quests, their objective text and their start/end givers. */
+  /** Quests, their objective text, their start/end givers and (see {@link QuestObjectiveWriter}) objectives. */
   void quests(EntityTable t) throws SQLException {
     try (Batch quests = new Batch(c, "INSERT INTO quest(id, name, required_level, quest_level, zone_or_sort,"
             + " required_races, required_classes, objectives_text, quest_flags, special_flags)"
             + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        Batch givers = new Batch(c, "INSERT INTO quest_giver(quest_id, kind, entity_id, role) VALUES (?, ?, ?, ?)")) {
+        Batch givers = new Batch(c, "INSERT INTO quest_giver(quest_id, kind, entity_id, role) VALUES (?, ?, ?, ?)");
+        QuestObjectiveWriter objectives = new QuestObjectiveWriter(c, columns, report)) {
       for (Map.Entry<Long, LuaValue[]> e : t.rows().entrySet()) {
         RawEntity r = row(t, e.getValue());
         long id = e.getKey();
@@ -111,6 +112,7 @@ final class EntityWriter {
             r.scalar("questFlags"), r.scalar("specialFlags"));
         r.givers(id, "startedBy", "start", givers);
         r.givers(id, "finishedBy", "end", givers);
+        objectives.write(id, r);
       }
     }
   }

@@ -54,8 +54,17 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select name from zone where id = 1581")).isEqualTo("The Deadmines");
       assertThat(scalar(c, "select value from meta where key = 'questiedb_commit'")).isEqualTo("49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4");
       assertThat(scalar(c, "select count(*) from quest_giver where quest_id = 2 and role = 'start'")).isEqualTo(1);
+      // 5561 Kodo Roundup after classicQuestFixes: a killCredit group, then an explore objective with one point
+      assertThat(scalar(c, "select count(*) from quest_objective where quest_id = 5561 and credit_group = 0")).isEqualTo(3);
+      assertThat(scalar(c, "select zone_id from quest_objective_point where quest_id = 5561 and ordinal = 1")).isEqualTo(405);
     }
     assertThat(r.skipsOnUiFields()).isZero();
+    assertThat(r.get("table.quest_objective")).isPositive();
+    assertThat(r.get("table.quest_objective_point")).isPositive();
+    assertThat(r.get("table.quest_source_item")).isEqualTo(r.get("quest.sourceItems")).isPositive();
+    assertThat(r.get("quest.objective.kinds.creature")).isPositive();
+    assertThat(r.get("quest.objective.unknownKind")).isZero();
+    assertThat(r.render()).contains("quest.objective.unknownKind = 0");
     assertThat(tmp.resolve("import-report.txt")).exists();
     assertThat(r.get("provenance.pairs")).isPositive();
     assertThat(r.get("provenance.disagreeing")).isPositive();
