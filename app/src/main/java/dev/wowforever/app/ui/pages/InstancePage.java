@@ -60,6 +60,8 @@ public final class InstancePage extends JPanel implements PageState {
   public static final int STACK_BELOW = 600;
   /** The title of the section of the quests filed under the instance's zone. */
   private static final String QUESTS = "Quests";
+  /** The title of the selected encounter's loot section. */
+  private static final String LOOT = "Loot";
   /** The share of a stacked page's height the encounters start with. */
   private static final double STACKED_LIST_SHARE = 0.4;
 
@@ -131,9 +133,18 @@ public final class InstancePage extends JPanel implements PageState {
     add(split, BorderLayout.CENTER);
     if (!d.bosses().isEmpty()) {
       selectBoss(0); // firstBoss(d): main encounters come first
-    } else if (questsSection != null) {
-      lootPane.add(questsSection);
+    } else {
+      addSections(questsSection);
     }
+  }
+
+  /**
+   * Adds the given sections (nulls left out) to the right-hand pane in {@link SectionOrder#INSTANCE} order: Loot, then
+   * Quests. The left-hand pane holds the order's other two, Encounters over Other loot lists.
+   */
+  private void addSections(SourceSection... sections) {
+    List<SourceSection> present = java.util.Arrays.stream(sections).filter(java.util.Objects::nonNull).toList();
+    SectionOrder.sort(SectionOrder.INSTANCE, present, SourceSection::title).forEach(lootPane::add);
   }
 
   /**
@@ -361,16 +372,14 @@ public final class InstancePage extends JPanel implements PageState {
     lootTable = LootTables.grouped(loot, new LootTables.Grouping(SlotGroups::of, SlotGroups.ORDER, null, Set.of(),
         Set.of(Columns.LOOT_ORDER)),
         boss.npcId() == null ? LootTables.NO_SOURCES : LootTables.sourcesOf(boss.npcId(), sources), nav);
-    lootSection = new SourceSection("Loot", loot.size(), lootTable);
+    lootSection = new SourceSection(LOOT, loot.size(), lootTable);
+    lootSection.setRowLimited(false); // the page's main content, rebuilt for every encounter: never cut
     lootPane.removeAll();
     lootPane.add(bossHeader);
     if (difficultyControl != null) {
       lootPane.add(difficultyControl);
     }
-    lootPane.add(lootSection);
-    if (questsSection != null) {
-      lootPane.add(questsSection);
-    }
+    addSections(lootSection, questsSection);
     lootPane.revalidate();
     lootPane.repaint();
   }

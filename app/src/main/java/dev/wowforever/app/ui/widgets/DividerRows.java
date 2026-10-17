@@ -34,6 +34,7 @@ public final class DividerRows {
   public static <T> void install(LinkTable<T> links, Predicate<T> isDivider, Predicate<T> selectable) {
     JTable table = links.table();
     table.setRowSorter(null);
+    links.setNonDataRows(isDivider); // a section's row limit counts data rows only
     IntPredicate divider = viewRow -> viewRow >= 0 && viewRow < table.getRowCount()
         && isDivider.test(links.model().rowAt(table.convertRowIndexToModel(viewRow)));
     for (int c = 0; c < table.getColumnModel().getColumnCount(); c++) {

@@ -16,7 +16,10 @@ import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Rectangle;
 import java.awt.event.MouseEvent;
+import java.util.ArrayList;
 import java.util.List;
+import javax.accessibility.AccessibleRole;
+import javax.accessibility.AccessibleState;
 import javax.swing.BoxLayout;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -147,6 +150,123 @@ class SourceSectionTest {
     assertThat(s.shownRows()).isEqualTo(8);
     assertThat(s.showAllButton().isVisible()).isTrue();
     assertThat(s.showAllButton().getText()).isEqualTo("Show all 12");
+  }
+
+  /** {@code data} vendors with a divider row (a vendor named "—") after every third. */
+  private static SourceSection withDividers(int data) {
+    List<ItemSource> rows = new ArrayList<>();
+    for (ItemSource v : vendors(data)) {
+      rows.add(v);
+      if (v.ref().id() % 3 == 0) {
+        rows.add(new ItemSource(ItemSource.VENDOR, new EntityRef(NPC, 1000 + v.ref().id()), "—"));
+      }
+    }
+    LinkTable<ItemSource> t = LinkTable.inline(Columns.itemSources(), v -> {});
+    t.setRows(rows);
+    DividerRows.install(t, s -> "—".equals(s.name()));
+    return new SourceSection("Sold by", data, t);
+  }
+
+  @Test
+  void theCutCountsDataRowsAndTheButtonReadsTheHeadingsCount() {
+    SourceSection s = withDividers(10); // 10 vendors, dividers after the 3rd, 6th and 9th: 13 rows
+    JTable table = s.table().table();
+    assertThat(table.getRowCount()).isEqualTo(13);
+    assertThat(s.shownRows()).as("eight vendors and the two dividers among them").isEqualTo(10);
+    int header = table.getTableHeader().getPreferredSize().height;
+    assertThat(s.table().getPreferredSize().height).isEqualTo(header + 10 * table.getRowHeight());
+    assertThat(s.showAllButton().getText()).as("the heading's count, not the rows'").isEqualTo("Show all 10");
+    assertThat(s.heading().text()).isEqualTo("Sold by (10)");
+    assertThat(s.showAllButton().isVisible()).isTrue();
+
+    SourceSection eight = withDividers(8); // 8 vendors and 2 dividers: 10 rows, but nothing to cut
+    assertThat(eight.table().table().getRowCount()).isEqualTo(10);
+    assertThat(eight.shownRows()).isEqualTo(10);
+    assertThat(eight.showAllButton().isVisible()).isFalse();
+  }
+
+  @Test
+  void aSectionThatOptsOutShowsEveryRow() {
+    SourceSection s = section(34);
+    s.setRowLimited(false);
+    assertThat(s.isRowLimited()).isFalse();
+    assertThat(s.shownRows()).isEqualTo(34);
+    assertThat(s.showAllButton().isVisible()).isFalse();
+  }
+
+  @Test
+  void aSectionLeftWithoutRowsStaysSoThroughCollapsing() {
+    LinkTable<ItemSource> t = LinkTable.inline(Columns.itemSources(), v -> {});
+    SourceSection s = new SourceSection("Dropped by", 0, t);
+    s.markEmptied();
+    assertThat(s.isEmptied()).isTrue();
+    assertThat(s.table().isVisible()).isFalse();
+    s.setCollapsible(true);
+    s.setCollapsed(true);
+    s.setCollapsed(false);
+    assertThat(s.table().isVisible()).as("still emptied").isFalse();
+    SourceSection late = section(3); // emptied while collapsed
+    late.setCollapsible(true);
+    late.setCollapsed(true);
+    late.markEmptied();
+    late.setCollapsed(false);
+    assertThat(late.table().isVisible()).isFalse();
+  }
+
+  @Test
+  void rowsGivenWhileCollapsedGetTheButtonOnOpening() {
+    SourceSection s = section(3);
+    s.setCollapsible(true);
+    s.setCollapsed(true);
+    @SuppressWarnings("unchecked")
+    LinkTable<ItemSource> t = (LinkTable<ItemSource>) s.table();
+    t.setRows(vendors(20));
+    s.setCount(20);
+    s.setCollapsed(false);
+    assertThat(s.shownRows()).isEqualTo(8);
+    assertThat(visibleIn(s.showAllButton(), s)).isTrue();
+    assertThat(s.showAllButton().getText()).isEqualTo("Show all 20");
+  }
+
+  @Test
+  void theHeadingSaysWhetherItsSectionIsOpen() {
+    SourceSection s = section(4);
+    var context = s.heading().getAccessibleContext();
+    assertThat(context.getAccessibleName()).as("a heading that does not fold").isEqualTo("Sold by (4)");
+    s.setCollapsible(true);
+    assertThat(context.getAccessibleName()).isEqualTo("Sold by (4), expanded");
+    assertThat(context.getAccessibleRole()).isEqualTo(AccessibleRole.TOGGLE_BUTTON);
+    assertThat(context.getAccessibleStateSet().contains(AccessibleState.EXPANDED)).isTrue();
+    List<Object> fired = new ArrayList<>();
+    context.addPropertyChangeListener(e -> fired.add(e.getPropertyName() + " " + e.getNewValue()));
+    s.setCollapsed(true);
+    assertThat(context.getAccessibleName()).isEqualTo("Sold by (4), collapsed");
+    assertThat(context.getAccessibleStateSet().contains(AccessibleState.COLLAPSED)).isTrue();
+    assertThat(context.getAccessibleStateSet().contains(AccessibleState.EXPANDED)).isFalse();
+    assertThat(fired).contains("AccessibleState collapsed", "AccessibleName Sold by (4), collapsed");
+    s.setCount(5);
+    assertThat(context.getAccessibleName()).isEqualTo("Sold by (5), collapsed");
+    s.setCollapsible(false);
+    assertThat(context.getAccessibleName()).isEqualTo("Sold by (5)");
+  }
+
+  @Test
+  void takenOutAndPutBackASectionKeepsWhatTheUserOpened() {
+    JPanel compact = new JPanel();
+    compact.putClientProperty(CompactColumns.KEY, Boolean.TRUE);
+    JPanel pane = new JPanel();
+    compact.add(pane);
+    SourceSection loot = section(3);
+    SourceSection quests = section(4);
+    pane.add(loot);
+    pane.add(quests);
+    assertThat(quests.isCollapsed()).isTrue();
+    quests.setCollapsed(false); // the user opens it
+    pane.removeAll(); // a page rebuilding its pane, as the instance page does for every encounter
+    pane.add(loot);
+    pane.add(quests);
+    assertThat(quests.isCollapsed()).isFalse();
+    assertThat(quests.isCollapsible()).isTrue();
   }
 
   @Test

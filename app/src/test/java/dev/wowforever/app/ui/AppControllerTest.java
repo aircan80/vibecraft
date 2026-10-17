@@ -855,6 +855,22 @@ class AppControllerTest {
   }
 
   @Test
+  void aLoadThatFailsAfterTheLoadingPageShowedSaysSoThere() throws Exception {
+    Database closed = Database.open(FixtureDb.path());
+    closed.close();
+    List<Runnable> pending = new ArrayList<>();
+    ManualDelay loading = new ManualDelay();
+    AppController c = new AppController(Repositories.of(closed), view, pending::add, Map.of(), loading);
+    c.open(new ViewTarget.Entity(new EntityRef(NPC, 448)));
+    loading.fire();
+    assertThat(((LoadingPage) view.detail).what()).isEqualTo("Loading drops…");
+    pending.remove(0).run();
+    assertThat(view.detail).isInstanceOf(LoadingPage.class);
+    assertThat(((LoadingPage) view.detail).what()).startsWith("Could not load: ").doesNotContain("Loading");
+    assertThat(view.status().message()).startsWith("Error: ");
+  }
+
+  @Test
   void theLoadingPageOfAHitReadsTheHitsNameAndALinkItsKindAndId() {
     List<Runnable> pending = new ArrayList<>();
     ManualDelay loading = new ManualDelay();

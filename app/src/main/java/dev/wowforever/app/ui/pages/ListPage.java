@@ -81,6 +81,7 @@ public final class ListPage extends SourcesPage {
     Icon icon = RailIcons.shared().small(RailTarget.of(target.kind()).orElseThrow(), RailIcons.SMALL);
     for (SourceSection s : sections()) { // the rail icon of the list, rows or not
       s.heading().setIcon(icon);
+      s.setRowLimited(false); // a rail list (or a level band) is the page itself: never cut at eight rows
     }
     bindJumpKeys();
   }

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.function.Predicate;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -52,8 +53,10 @@ public final class LinkTable<T> extends JPanel {
   private ClipboardPort clipboard = ClipboardPort.system();
   private Function<T, Optional<String>> idText = this::entityIdText;
   private boolean compact;
-  /** How many rows an inline table shows before the rest is cut off; 0 for all. */
+  /** How many data rows an inline table shows before the rest is cut off; 0 for all. */
   private int rowLimit;
+  /** The rows that are not data (group headings, dividers), which the row limit does not count. */
+  private Predicate<T> nonData = row -> false;
 
   /** A link table in its own scroll pane. */
   public LinkTable(List<Columns.Column<T>> cols, Navigator nav) {
@@ -98,8 +101,9 @@ public final class LinkTable<T> extends JPanel {
   }
 
   /**
-   * Shows only the first {@code limit} rows of an inline table (the rest are there, below the cut): the table is as
-   * tall as those rows. 0 shows every row again.
+   * Shows an inline table only down to its {@code limit}th data row (the rest are there, below the cut): the table is
+   * as tall as the rows above the cut. Group headings and dividers ({@link #setNonDataRows}) do not count. 0 shows
+   * every row again.
    */
   public void setRowLimit(int limit) {
     if (limit < 0) {
@@ -110,10 +114,47 @@ public final class LinkTable<T> extends JPanel {
     repaint();
   }
 
-  /** How many rows show: every row, or the first {@link #setRowLimit} rows when there are more. */
+  /**
+   * Marks the rows {@code isNonData} matches (group headings, dividers) as no data: the row limit and
+   * {@link #dataRows} skip them. {@link dev.wowforever.app.ui.widgets.DividerRows} passes its divider test here.
+   */
+  public void setNonDataRows(Predicate<T> isNonData) {
+    nonData = Objects.requireNonNull(isNonData, "isNonData");
+    revalidate();
+  }
+
+  /** Whether view row {@code viewRow} holds data (not a heading or divider). */
+  public boolean isDataRow(int viewRow) {
+    return !nonData.test(model.rowAt(table.convertRowIndexToModel(viewRow)));
+  }
+
+  /** How many view rows hold data. */
+  public int dataRows() {
+    int n = 0;
+    for (int v = 0; v < table.getRowCount(); v++) {
+      if (isDataRow(v)) {
+        n++;
+      }
+    }
+    return n;
+  }
+
+  /**
+   * How many view rows show: every row, or those down to the {@link #setRowLimit}th data row when there are more
+   * (headings and dividers among them show too).
+   */
   public int shownRows() {
     int rows = table.getRowCount();
-    return rowLimit > 0 && inline ? Math.min(rows, rowLimit) : rows;
+    if (rowLimit <= 0 || !inline) {
+      return rows;
+    }
+    int data = 0;
+    for (int v = 0; v < rows; v++) {
+      if (isDataRow(v) && ++data == rowLimit) {
+        return v + 1;
+      }
+    }
+    return rows;
   }
 
   /** An inline table cut at its row limit is as tall as the header and the rows it shows. */

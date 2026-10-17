@@ -22,6 +22,7 @@ import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.Component;
 import java.awt.Rectangle;
 import java.util.ArrayList;
@@ -304,6 +305,12 @@ class InstancePageTest {
     assertThat(pane.indexOf(p.lootSection())).isLessThan(pane.indexOf(p.questsSection()));
     p.selectBoss(1);
     assertThat(List.of(p.lootSection().getParent().getComponents())).endsWith(p.questsSection());
+    List<String> right = java.util.Arrays.stream(p.lootSection().getParent().getComponents())
+        .filter(SourceSection.class::isInstance).map(c -> ((SourceSection) c).title()).toList();
+    assertThat(right).isEqualTo(SectionOrder.INSTANCE.stream().filter(right::contains).toList())
+        .containsExactly("Loot", "Quests");
+    assertThat(p.questsSection().isRowLimited()).as("the quests keep the eight-row cut").isTrue();
+    assertThat(p.lootSection().isRowLimited()).as("an encounter's loot is the page: never cut").isFalse();
     assertThat(deadmines(new ArrayList<>()).questsSection()).as("no quests, no section").isNull();
   }
 

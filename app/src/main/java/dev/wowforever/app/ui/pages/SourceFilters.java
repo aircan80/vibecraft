@@ -41,7 +41,7 @@ final class SourceFilters {
       section.setNote(note(filtered.hidden()));
     }
     if (filtered.rows().isEmpty()) {
-      section.table().setVisible(false);
+      section.markEmptied();
     }
   }
 }

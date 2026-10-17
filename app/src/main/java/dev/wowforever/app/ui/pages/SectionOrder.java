@@ -17,7 +17,10 @@ public final class SectionOrder {
   public static final List<String> NPC = List.of("Drops", "Sells", "Quests", "Location");
   /** The zone page: "Map" and "Dungeons & raids" are the map and the row of instance links. */
   public static final List<String> ZONE = List.of("Map", "Dungeons & raids", "Quests", "NPCs", "Objects");
-  /** The dungeon or raid page. */
+  /**
+   * The dungeon or raid page, laid out in two panes: Encounters over Other loot lists on the left, Loot then Quests on
+   * the right (the instance page sorts the right-hand pane by this order).
+   */
   public static final List<String> INSTANCE = List.of("Encounters", "Loot", "Other loot lists", "Quests");
 
   private SectionOrder() {}

@@ -265,6 +265,20 @@ class ListPageTest {
   }
 
   @Test
+  void aRailListIsNeverCutAtEightRows() {
+    ListPage items = page(new ViewTarget.List(ITEM));
+    SourceSection results = items.sections().get(0);
+    assertThat(results.table().rowCount()).as("more than a section shows").isGreaterThan(SourceSection.ROW_LIMIT);
+    assertThat(results.shownRows()).isEqualTo(results.table().table().getRowCount());
+    assertThat(results.showAllButton().isVisible()).isFalse();
+    ListPage instances = page(new ViewTarget.List(INSTANCE));
+    assertThat(instances.sections()).isNotEmpty().allSatisfy(band -> {
+      assertThat(band.isRowLimited()).isFalse();
+      assertThat(band.shownRows()).isEqualTo(band.table().table().getRowCount());
+    });
+  }
+
+  @Test
   void resultsAreSortable() {
     ListPage p = page(new ViewTarget.List(ITEM, new ItemFilter(null, null, 1, null, null)));
     var table = p.results().table();

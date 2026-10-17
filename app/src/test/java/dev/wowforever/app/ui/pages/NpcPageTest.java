@@ -362,6 +362,30 @@ class NpcPageTest {
   }
 
   @Test
+  void ctrlNumberInTheCompactWindowOpensTheCollapsedSectionItJumpsTo() {
+    QuestSummary quest = new QuestSummary(2, "Sharptalon's Claw", 18, 15, "Elwynn Forest");
+    var p = new NpcPage(new NpcDetail(HOGGER, 0, null, List.of(loot(1, "Claw", 84.0, "both", "Quest")),
+        List.of(loot(9, "Bread", null, null, "Consumable")), List.of(quest), List.of(quest),
+        List.of(new Spawn(12, "Elwynn Forest", 25.0, 92.9))), t -> {}, text -> {});
+    javax.swing.JPanel compact = new javax.swing.JPanel(new java.awt.BorderLayout());
+    compact.putClientProperty(dev.wowforever.app.ui.detail.CompactColumns.KEY, Boolean.TRUE);
+    compact.add(p);
+    compact.setSize(420, 700);
+    Tables.layOut(compact);
+    assertThat(p.sections()).extracting(SourceSection::isCollapsed).containsExactly(false, true, true, true, true);
+    p.jumpTo(1); // Ctrl+2
+    SourceSection sells = p.section("Sells");
+    assertThat(sells.isCollapsed()).as("Ctrl+2 opens Sells, the second section").isFalse();
+    // the jump selects its first row and asks for the focus (which a headless test cannot see granted)
+    assertThat(sells.table().table().getSelectedRow()).isZero();
+    assertThat(p.section("Location").isCollapsed()).isTrue();
+    p.jumpTo(4); // Ctrl+5: the fifth section, no IndexOutOfBoundsException
+    assertThat(p.section("Ends quests").isCollapsed()).isFalse();
+    assertThat(p.getInputMap(javax.swing.JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke(
+        java.awt.event.KeyEvent.VK_5, java.awt.event.InputEvent.CTRL_DOWN_MASK))).isNotNull();
+  }
+
+  @Test
   void sellsStartsAndEndsHaveSectionsAndEmptyOnesAreLeftOut() {
     QuestSummary quest = new QuestSummary(2, "Sharptalon's Claw", 18, 15, "Elwynn Forest");
     var d = new NpcDetail(HOGGER, 0, null, List.of(), List.of(loot(9, "Bread", null, null, "Consumable")),

@@ -445,6 +445,9 @@ public final class AppController implements Navigator {
     }, e -> {
       if (generation == detailGeneration) {
         loadingDelay.cancel();
+        if (page instanceof LoadingPage loading) { // it would read "Loading…" for good
+          loading.showFailure(message(e));
+        }
         fail(e);
       }
     });

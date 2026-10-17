@@ -53,12 +53,18 @@ public final class LoadingPage extends JPanel {
     };
   }
 
+  /** Says the page could not load ({@code "Could not load: <message>"}) in place of the loading line. */
+  public void showFailure(String message) {
+    what.setText("Could not load: " + message);
+    what.getAccessibleContext().setAccessibleName(what.getText());
+  }
+
   /** The name in the header. */
   public String title() {
     return header.title();
   }
 
-  /** The loading line: {@code "Loading drops…"}. */
+  /** The loading line: {@code "Loading drops…"}, or the failure once {@link #showFailure} said it. */
   public String what() {
     return what.getText();
   }

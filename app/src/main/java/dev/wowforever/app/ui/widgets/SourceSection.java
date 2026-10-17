@@ -11,6 +11,7 @@ import java.awt.Container;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
+import java.awt.Graphics;
 import java.awt.Insets;
 import java.awt.LayoutManager;
 import java.awt.event.HierarchyEvent;
@@ -37,11 +38,15 @@ import javax.swing.event.ListSelectionListener;
  * table ({@link #setNote}) and further controls under that ({@link #addFooter}). The section never stretches taller
  * than its content, so a vertical box of sections stacks them tightly.
  *
- * <p>The table shows its first {@value #ROW_LIMIT} rows and a "Show all 34" button under them ({@link #showAll});
- * selecting a row below the cut (arrowing down) shows them all too. Inside the compact window
+ * <p>A section of more than {@value #ROW_LIMIT} rows (its count) shows its first {@value #ROW_LIMIT} data rows, with
+ * any group headings and dividers among them, and a "Show all 34" button under them that reads the heading's count
+ * ({@link #showAll}); selecting a row below the cut (arrowing down) shows them all too. A list that is the page's
+ * whole content opts out ({@link #setRowLimited}). Inside the compact window
  * ({@link CompactColumns#within}) the section is collapsible: a click on its heading (or Enter or Space while the
  * heading has the focus) shows or hides everything but the heading, and every section but the first of its container
- * starts collapsed, reading {@code "Heading (count)"}. It follows the window it is moved into, as the table does.
+ * starts collapsed, reading {@code "Heading (count)"}; the heading's accessible name ends in ", collapsed" or
+ * ", expanded". It follows the window it is moved into, as the table does, and keeps what the user opened or closed
+ * while it is only taken out and put back (a page rebuilding its panes).
  */
 public final class SourceSection extends JPanel {
   /** How many rows a section shows before its "Show all" button. */
@@ -71,6 +76,9 @@ public final class SourceSection extends JPanel {
   private JLabel note;
   private int count;
   private boolean allShown;
+  private boolean rowLimited = true;
+  /** Whether the source filter left the section without rows ({@link #markEmptied}). */
+  private boolean emptied;
   private boolean collapsible;
   private boolean collapsed;
   /** Whether the section was last put inside the compact window; null before it was put anywhere. */
@@ -103,7 +111,8 @@ public final class SourceSection extends JPanel {
     add(foot, BorderLayout.SOUTH);
     table.model().addTableModelListener(e -> updateLimit());
     ListSelectionListener belowTheCut = e -> {
-      if (!allShown && table.table().getSelectedRow() >= ROW_LIMIT) {
+      int row = table.table().getSelectedRow();
+      if (isCut() && row >= table.shownRows()) {
         showAll();
       }
     };
@@ -118,19 +127,32 @@ public final class SourceSection extends JPanel {
     });
     installToggle();
     addHierarchyListener(e -> {
-      if ((e.getChangeFlags() & HierarchyEvent.PARENT_CHANGED) != 0) {
+      // taken out of its container (to be put back, say): keep the state until it lands somewhere
+      if ((e.getChangeFlags() & HierarchyEvent.PARENT_CHANGED) != 0 && getParent() != null) {
         followWindow();
       }
     });
     updateLimit();
   }
 
-  /** A borderless button in the link colour, with a hand cursor, that runs {@code action}. */
+  /**
+   * A borderless button in the link colour, with a hand cursor, that runs {@code action}; with the keyboard focus it
+   * is underlined in gold.
+   */
   private static JButton linkButton(Runnable action) {
     JButton b = new JButton() {
       @Override
       public Color getForeground() { // looked up per paint, so theme changes apply
         return LinkRenderer.linkColor();
+      }
+
+      @Override
+      protected void paintComponent(Graphics g) {
+        super.paintComponent(g);
+        if (isFocusOwner()) {
+          g.setColor(Theme.current().accentGold());
+          g.fillRect(0, getHeight() - 1, getWidth(), 1);
+        }
       }
     };
     b.setBorderPainted(false);
@@ -149,18 +171,56 @@ public final class SourceSection extends JPanel {
   }
 
   /**
-   * Cuts the table at {@value #ROW_LIMIT} rows, with the button under it, while it has more rows than that and the
-   * user has not asked for all of them. The button counts what the heading counts (at least the rows).
+   * Cuts the table after its {@value #ROW_LIMIT}th data row, with the button under it, while the section counts more
+   * than {@value #ROW_LIMIT} rows, the rows reach past the cut and the user has not asked for all of them. The button
+   * reads the heading's count. A collapsed section hides the button with the rest, and shows it again on opening.
    */
   private void updateLimit() {
-    int rows = table.table().getRowCount();
-    table.setRowLimit(allShown ? 0 : ROW_LIMIT);
-    showAll.setText(showAllText(Math.max(count, rows)));
-    boolean cut = !allShown && rows > ROW_LIMIT && table.isVisible();
+    table.setRowLimit(rowLimited && !allShown && count > ROW_LIMIT ? ROW_LIMIT : 0);
+    showAll.setText(showAllText(count));
+    boolean cut = isCut();
     showAll.setVisible(cut);
     showAllRow.setVisible(cut);
     revalidate();
     repaint();
+  }
+
+  /** Whether the table is cut: some of its rows are below the cut, waiting for "Show all". */
+  private boolean isCut() {
+    return rowLimited && !allShown && count > ROW_LIMIT && table.shownRows() < table.table().getRowCount();
+  }
+
+  /**
+   * Whether the section cuts its rows at {@value #ROW_LIMIT} (the default). A list that is the page's whole content,
+   * such as a rail list or an encounter's loot, shows every row.
+   */
+  public void setRowLimited(boolean limited) {
+    rowLimited = limited;
+    updateLimit();
+  }
+
+  public boolean isRowLimited() {
+    return rowLimited;
+  }
+
+  /**
+   * Marks the section as left without rows by the source filter: its table is hidden, so only the heading and the
+   * note show, and the page's Ctrl+n keys pass it by ({@link #isEmptied}). Collapsing and opening the section in the
+   * compact window keep it so.
+   */
+  public void markEmptied() {
+    emptied = true;
+    if (collapsed) {
+      shownBeforeCollapse.put(table.getParent() == this ? table : table.getParent(), false);
+    } else {
+      table.setVisible(false);
+    }
+    updateLimit();
+  }
+
+  /** Whether the source filter left the section without rows ({@link #markEmptied}). */
+  public boolean isEmptied() {
+    return emptied;
   }
 
   /** Shows every row and takes the "Show all" button away. */
@@ -174,7 +234,7 @@ public final class SourceSection extends JPanel {
     return showAll;
   }
 
-  /** How many table rows show: at most {@value #ROW_LIMIT} until {@link #showAll}. */
+  /** How many table rows show: down to the {@value #ROW_LIMIT}th data row until {@link #showAll}. */
   public int shownRows() {
     return table.shownRows();
   }
@@ -237,6 +297,7 @@ public final class SourceSection extends JPanel {
   public void setCollapsible(boolean collapsible) {
     this.collapsible = collapsible;
     heading.setFocusable(collapsible);
+    heading.setFoldState(collapsible ? !collapsed : null);
     heading.setCursor(collapsible ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR) : null);
     heading.remove(glyph);
     if (collapsible) {
@@ -255,6 +316,9 @@ public final class SourceSection extends JPanel {
   /** Shows the heading alone (with its count), or the whole section again. */
   public void setCollapsed(boolean collapsed) {
     glyph.setText(collapsed ? COLLAPSED_GLYPH : EXPANDED_GLYPH);
+    if (collapsible) {
+      heading.setFoldState(!collapsed);
+    }
     if (collapsed == this.collapsed) {
       return;
     }
@@ -273,8 +337,7 @@ public final class SourceSection extends JPanel {
     if (!collapsed) {
       shownBeforeCollapse.clear();
     }
-    revalidate();
-    repaint();
+    updateLimit(); // rows given while collapsed may now need the button
   }
 
   public boolean isCollapsed() {

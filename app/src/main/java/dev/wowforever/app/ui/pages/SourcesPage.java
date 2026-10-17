@@ -198,7 +198,7 @@ abstract class SourcesPage extends JPanel implements PageState {
   }
 
   /**
-   * Ctrl+n jumps to section n (in the window, wherever the focus is), counting only the sections whose table shows
+   * Ctrl+n jumps to section n (in the window, wherever the focus is), counting only the sections with rows
    * ({@link #jumpTargets}). Call once, after the sections are added.
    */
   void bindJumpKeys() {
@@ -217,11 +217,11 @@ abstract class SourcesPage extends JPanel implements PageState {
   }
 
   /**
-   * The sections Ctrl+n jumps to, in page order: those whose table shows (a section the source filter emptied has
-   * only its heading and note).
+   * The sections Ctrl+n jumps to, in page order: those with rows (a section the source filter emptied has only its
+   * heading and note), collapsed or not.
    */
   private List<SourceSection> jumpTargets() {
-    return sections.stream().filter(s -> s.table().isVisible()).toList();
+    return sections.stream().filter(s -> !s.isEmptied()).toList();
   }
 
   /**
