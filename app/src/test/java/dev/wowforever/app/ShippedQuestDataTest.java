@@ -19,6 +19,33 @@ import org.junit.jupiter.api.Test;
 @Tag("shipped-data")
 class ShippedQuestDataTest extends ShippedDataSupport {
   @Test
+  void involvingFindsObjectiveItemsGiversAndProvidedItems() {
+    involvement(dev.wowforever.app.model.EntityKind.NPC, 448, 176,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.DROPS_OBJECTIVE_ITEM), "Huge Gnoll Claw");
+    involvement(dev.wowforever.app.model.EntityKind.NPC, 240, 176,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.ENDS), null);
+    involvement(dev.wowforever.app.model.EntityKind.NPC, 234, 166,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.STARTS,
+            dev.wowforever.app.model.QuestInvolvement.Role.ENDS), null);
+    involvement(dev.wowforever.app.model.EntityKind.ITEM, 1931, 176,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.OBJECTIVE), null);
+    involvement(dev.wowforever.app.model.EntityKind.ITEM, 19018, 7787,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.STARTS,
+            dev.wowforever.app.model.QuestInvolvement.Role.PROVIDED), null);
+    involvement(dev.wowforever.app.model.EntityKind.OBJECT, 68, 176,
+        java.util.Set.of(dev.wowforever.app.model.QuestInvolvement.Role.STARTS), null);
+  }
+
+  private void involvement(dev.wowforever.app.model.EntityKind kind, long id, long quest,
+      java.util.Set<dev.wowforever.app.model.QuestInvolvement.Role> roles, String via) {
+    assertThat(repos.quests().involving(new dev.wowforever.app.model.EntityRef(kind, id)))
+        .filteredOn(row -> row.quest().id() == quest).singleElement().satisfies(row -> {
+          assertThat(row.roles()).isEqualTo(roles);
+          assertThat(row.viaItemName()).isEqualTo(via);
+        });
+  }
+
+  @Test
   void schemaVersionHasTheQuestTables() {
     // v3 brought the quest tables; ShippedProvenanceDataTest pins the current version
     assertThat(Integer.parseInt(db.meta().get("schema_version"))).isGreaterThanOrEqualTo(3);

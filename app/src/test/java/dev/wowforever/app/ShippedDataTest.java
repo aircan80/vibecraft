@@ -256,17 +256,16 @@ class ShippedDataTest extends ShippedDataSupport {
     assertThat(vanCleef.rankChip().getText()).isEqualTo("Boss");
     assertThat(vanCleef.sections().get(0).title()).isEqualTo("Drops");
     // the item page's facts are positive only: Hogger drops the claw, and nothing says "no vendor". Wanted: "Hogger"
-    // asks for it only as its objective (quest_objective), which no item source reads yet: the item page's Quests
-    // section (Task 14) brings it, and with it "1 NPC · 1 quest"
+    // asks for it as an objective, which the merged quest involvement section and facts strip now include.
     assertThat(((ItemPage) TestPages.build(new EntityRef(EntityKind.ITEM, 1931), repos, t -> {})).summary())
-        .isEqualTo("1 NPC");
+        .isEqualTo("1 NPC · 1 quest");
     // The Deadmines lists the quests filed under its zone (1581), The Defias Brotherhood among them
     var deadmines = (InstancePage) TestPages.build(new EntityRef(EntityKind.INSTANCE, 3), repos, t -> {});
     assertThat(deadmines.header().title()).isEqualTo("The Deadmines");
     JTable deadminesQuests = deadmines.questsSection().table().table();
     List<Object> questNames = new ArrayList<>();
     for (int r = 0; r < deadminesQuests.getRowCount(); r++) {
-      questNames.add(deadminesQuests.getValueAt(r, 0));
+      questNames.add(deadminesQuests.getValueAt(r, deadminesQuests.getColumnModel().getColumnIndex("Name")));
     }
     assertThat(questNames).contains("The Defias Brotherhood", "Red Silk Bandanas");
     assertThat(deadmines.questsSection().heading().text()).isEqualTo("Quests (" + questNames.size() + ")");

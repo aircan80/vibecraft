@@ -8,6 +8,7 @@ import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.QuestInvolvement;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.Navigator;
@@ -22,8 +23,8 @@ import dev.wowforever.app.ui.widgets.DividerRows;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.ItemCardPanel;
 import dev.wowforever.app.ui.widgets.OriginChip;
-import dev.wowforever.app.ui.widgets.RaisedBorder;
 import dev.wowforever.app.ui.widgets.RailTarget;
+import dev.wowforever.app.ui.widgets.RaisedBorder;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
 import dev.wowforever.app.ui.widgets.SourceFilterControl;
 import dev.wowforever.app.ui.widgets.SourceSection;
@@ -48,8 +49,7 @@ import javax.swing.table.TableColumnModel;
  * over a facts line ("Item #id", class and levels, a starts-quest link), an item without it with the header (an
  * items plate, the name and that line); then the header's facts strip, a one-line summary of the sources it has
  * ("3 NPCs · 2 loot lists · 1 quest", positive facts only), then a section per kind of source the item has, in
- * {@link SectionOrder#ITEM} order (Dropped by, Sold by, Quest reward, Contained in), then Related quests until a
- * later task merges it (kinds without rows are left out). Ctrl+1 to Ctrl+6 jump to the first six sections
+ * {@link SectionOrder#ITEM} order (Dropped by, Sold by, Quest reward, Contained in), then Quests with the item's merged roles (kinds without rows are left out). Ctrl+1 to Ctrl+6 jump to the first six sections
  * ({@link SourcesPage}).
  *
  * <p>"Dropped by" lists the NPCs that drop the item and the AtlasLoot loot lists of dungeons and raids it is in, in
@@ -114,6 +114,14 @@ public final class ItemPage extends SourcesPage {
    */
   public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
       Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav) {
+    this(all, icon, rateSources, bossNpcs, filter, onFilterChange,
+        QuestInvolvement.fromRelated(all.relatedQuests()), nav);
+  }
+
+  /** All quest roles loaded off the EDT with this item. */
+  public ItemPage(ItemDetail all, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+      Set<Long> bossNpcs, SourceFilter filter, Consumer<SourceFilter> onFilterChange,
+      QuestInvolvement.Result involvement, Navigator nav) {
     super(nav);
     SourceFilters.Filtered<DropSource> drops = SourceFilters.apply(all.droppedBy(), DropSource::origin, filter);
     ItemDetail d = new ItemDetail(all.summary(), all.classId(), all.subclassId(), all.startQuestId(), drops.rows(),
@@ -121,7 +129,7 @@ public final class ItemPage extends SourcesPage {
         all.relatedQuests(), all.card());
     long itemId = all.summary().id();
     header = ItemHeader.of(d, nav);
-    header.setFacts(ItemSummaryLine.of(d));
+    header.setFacts(ItemSummaryLine.of(d, involvement));
     if (d.card().lines().isEmpty()) {
       card = null;
       header.setNote(STATS_HIDDEN);
@@ -161,7 +169,7 @@ public final class ItemPage extends SourcesPage {
     addSection("Contained in", containedIn.size(), Columns.itemSources(), containedIn);
     addSection("Sold by", d.soldBy().size(), Columns.sourceNames(), d.soldBy());
     addSection("Quest reward", d.rewardFrom().size(), Columns.sourceNames(), d.rewardFrom());
-    addSection("Related quests", d.relatedQuests().size(), Columns.sourceNames(), d.relatedQuests());
+    addQuestInvolvements(involvement, EntityKind.ITEM, null);
     addSectionsInOrder(SectionOrder.ITEM);
     bindJumpKeys();
   }

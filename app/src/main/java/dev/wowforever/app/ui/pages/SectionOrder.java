@@ -11,9 +11,9 @@ import java.util.function.Function;
  * titles are the keys, as {@link SourcesPage#section} looks them up.
  */
 public final class SectionOrder {
-  /** The item page; "Dropped by" holds the instance loot lists too. A later task fills "Quests". */
+  /** The item page; "Dropped by" holds the instance loot lists too. "Quests" holds merged involvement roles. */
   public static final List<String> ITEM = List.of("Dropped by", "Sold by", "Quest reward", "Contained in", "Quests");
-  /** The NPC page. "Starts quests" and "Ends quests" follow until a later task merges them into "Quests". */
+  /** The NPC page, with one merged "Quests" section. */
   public static final List<String> NPC = List.of("Drops", "Sells", "Quests", "Location");
   /** The zone page: "Map" and "Dungeons & raids" are the map and the row of instance links. */
   public static final List<String> ZONE = List.of("Map", "Dungeons & raids", "Quests", "NPCs", "Objects");

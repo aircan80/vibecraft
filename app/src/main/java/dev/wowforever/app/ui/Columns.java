@@ -12,6 +12,7 @@ import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcSummary;
 import dev.wowforever.app.model.ObjectSummary;
 import dev.wowforever.app.model.QuestGiver;
+import dev.wowforever.app.model.QuestInvolvement;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.model.Spawn;
@@ -176,6 +177,21 @@ public final class Columns {
     return List.of(
         link("Name", ObjectSummary::displayName, o -> Optional.of(o.ref())),
         link("Zone", ObjectSummary::zoneName, o -> zoneRef(o.zoneId())));
+  }
+
+  public static List<Column<QuestInvolvement>> questInvolvements() {
+    return questInvolvements(null);
+  }
+
+  /** Role remains visible even when every quest has the same relationship to the page. */
+  public static List<Column<QuestInvolvement>> questInvolvements(EntityKind kind) {
+    return List.of(
+        plain(" ", String.class, QuestInvolvement::glyphs),
+        link("Name", r -> r.quest().displayName(), r -> Optional.of(r.quest().ref())),
+        plain("Level", Integer.class, r -> r.quest().questLevel()),
+        plain("Required level", Integer.class, r -> r.quest().requiredLevel()),
+        plain("Zone", String.class, r -> r.quest().zoneName()),
+        plain("Role", String.class, r -> r.rolesText(kind)));
   }
 
   public static List<Column<QuestSummary>> quests() {

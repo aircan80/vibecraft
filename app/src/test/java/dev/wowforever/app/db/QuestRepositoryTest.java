@@ -27,6 +27,76 @@ class QuestRepositoryTest {
   private final Repositories repos = FixtureDb.repositories();
 
   @Test
+  void involvingMergesGiverRoles(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("merged.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into quest_giver(quest_id,kind,entity_id,role) values (2,'npc',999999,'start'),(2,'npc',999999,'end')");
+    }
+    try (Database db = Database.open(copy)) {
+      var result = Repositories.of(db).quests().involving(new dev.wowforever.app.model.EntityRef(EntityKind.NPC, 999999));
+      assertThat(result).singleElement().satisfies(r -> {
+        assertThat(r.quest().id()).isEqualTo(2);
+        assertThat(r.roles()).containsExactlyInAnyOrder(
+            dev.wowforever.app.model.QuestInvolvement.Role.STARTS, dev.wowforever.app.model.QuestInvolvement.Role.ENDS);
+        assertThat(r.glyphs()).isEqualTo("! ?");
+        assertThat(r.rolesText()).isEqualTo("Starts · Ends");
+      });
+    }
+  }
+
+  @Test
+  void involvingMergesRepeatedItemSourcesAndSortsQuests(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("source-roles.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into item(id,name) values (99001,'Alpha item'),(99002,'Beta item')");
+      st.executeUpdate("insert into quest(id,name,quest_level) values (99001,'Late',20),(99002,'Early',10)");
+      st.executeUpdate("insert into quest_giver(quest_id,kind,entity_id,role) values (99001,'npc',999995,'start'),(99002,'npc',999995,'end')");
+      st.executeUpdate("insert into quest_objective(quest_id,ordinal,kind,entity_id) values (99001,0,'creature',999995),(99001,1,'item',99001),(99001,2,'item',99002),(99001,3,'item',99001)");
+      st.executeUpdate("insert into item_npc_drop(item_id,npc_id,origin) values (99001,999995,'questie'),(99002,999995,'questie')");
+    }
+    try (Database db = Database.open(copy)) {
+      var rows = Repositories.of(db).quests().involving(new dev.wowforever.app.model.EntityRef(EntityKind.NPC, 999995));
+      assertThat(rows).extracting(r -> r.quest().id()).containsExactly(99002L, 99001L);
+      assertThat(rows.getLast().roles()).containsExactlyInAnyOrder(
+          dev.wowforever.app.model.QuestInvolvement.Role.STARTS,
+          dev.wowforever.app.model.QuestInvolvement.Role.OBJECTIVE,
+          dev.wowforever.app.model.QuestInvolvement.Role.DROPS_OBJECTIVE_ITEM);
+      assertThat(rows.getLast().viaItemName()).isEqualTo("Alpha item, Beta item");
+      assertThat(rows.getLast().rolesText(EntityKind.NPC))
+          .isEqualTo("Starts · Kill objective · Drops Alpha item, Beta item");
+    }
+  }
+
+  @Test
+  void involvingCapsOnlyAboveFiveHundred(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("involving.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      for (int i = 0; i < 500; i++) {
+        st.executeUpdate("insert into quest(id,name,quest_level) values (" + (98000+i) + ",'Cap Quest " + i + "',10)");
+        st.executeUpdate("insert into quest_giver(quest_id,kind,entity_id,role) values (" + (98000+i) + ",'npc',999999,'start'),(" + (98000+i) + ",'npc',999999,'end')");
+      }
+    }
+    try (Database db = Database.open(copy)) {
+      var result = Repositories.of(db).quests().involvingResult(new dev.wowforever.app.model.EntityRef(EntityKind.NPC, 999999));
+      assertThat(result.rows()).hasSize(500);
+      assertThat(result.capped()).isFalse();
+    }
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into quest(id,name,quest_level) values (99000,'Overflow',11)");
+      st.executeUpdate("insert into quest_giver(quest_id,kind,entity_id,role) values (99000,'npc',999999,'start')");
+    }
+    try (Database db = Database.open(copy)) {
+      var quests = Repositories.of(db).quests();
+      var ref = new dev.wowforever.app.model.EntityRef(EntityKind.NPC, 999999);
+      assertThat(quests.involving(ref)).hasSize(500);
+      assertThat(quests.involvingResult(ref).capped()).isTrue();
+    }
+  }
+
+  @Test
   void questDetailHasGivers() {
     assertThat(repos.quests().detail(2).get().givers()).isNotEmpty();
   }

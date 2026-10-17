@@ -3,6 +3,7 @@ package dev.wowforever.app.ui.detail;
 import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.GiverSpot;
 import dev.wowforever.app.model.InstanceDetail;
 import dev.wowforever.app.model.ItemDetail;
 import dev.wowforever.app.model.ItemSource;
@@ -13,6 +14,8 @@ import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
 import dev.wowforever.app.model.QuestPageData;
 import dev.wowforever.app.model.QuestGiver;
+import dev.wowforever.app.model.QuestInvolvement;
+import dev.wowforever.app.model.QuestPageData;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.SourceFilter;
@@ -61,7 +64,12 @@ public final class DetailPanels {
    * ({@link dev.wowforever.app.db.NpcRepository#bosses}), whose VMaNGOS rates say {@value RateSource#BOSS_NOTE}.
    */
   public record LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
-      Set<Long> bossNpcs) {
+      Set<Long> bossNpcs, QuestInvolvement.Result involvement) {
+    public LoadedItem(ItemDetail detail, BufferedImage icon, Map<RateSource.Key, List<RateSource>> rateSources,
+        Set<Long> bossNpcs) {
+      this(detail, icon, rateSources, bossNpcs, QuestInvolvement.fromRelated(detail.relatedQuests()));
+    }
+
     public LoadedItem {
       rateSources = Map.copyOf(rateSources);
       bossNpcs = Set.copyOf(bossNpcs);
@@ -86,12 +94,22 @@ public final class DetailPanels {
    * {@value RateSource#BOSS_NOTE}.
    */
   public record LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
-      Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes) {
+      Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes,
+      QuestInvolvement.Result involvement) {
     public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
         Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs) {
-      this(detail, mapZoneId, map, rateSources, bossNpcs, List.of());
+      this(detail, mapZoneId, map, rateSources, bossNpcs, List.of(),
+          QuestInvolvement.fromGivers(detail.starts(), detail.ends()));
     }
-
+    public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
+        Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes) {
+      this(detail, mapZoneId, map, rateSources, bossNpcs, routes,
+          QuestInvolvement.fromGivers(detail.starts(), detail.ends()));
+    }
+    public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
+        Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, QuestInvolvement.Result involvement) {
+      this(detail, mapZoneId, map, rateSources, bossNpcs, List.of(), involvement);
+    }
     public LoadedNpc {
       routes = List.copyOf(routes);
       rateSources = Map.copyOf(rateSources);
@@ -110,7 +128,12 @@ public final class DetailPanels {
   }
 
   /** What {@link #load} returns for an object: as {@link LoadedNpc}. */
-  public record LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map) {}
+  public record LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map,
+      QuestInvolvement.Result involvement) {
+    public LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map) {
+      this(detail, mapZoneId, map, QuestInvolvement.fromGivers(detail.starts(), detail.ends()));
+    }
+  }
 
   /**
    * What {@link #load} returns for a quest: all page data and its decoded zone maps, loaded off the EDT.
@@ -148,17 +171,18 @@ public final class DetailPanels {
         return new LoadedItem(d,
             repos.assets().iconOrFallback(iconId(d)).flatMap(Images::decode)
                 .map(image -> IconCache.scale(image, IconCache.CARD)).orElse(null),
-            repos.items().sourcesOfItem(id, rated), repos.npcs().bosses(rated));
+            repos.items().sourcesOfItem(id, rated), repos.npcs().bosses(rated), repos.quests().involvingResult(ref));
       });
       case NPC -> repos.npcs().detail(id).map(d -> warmed(d, d.drops(), d.sells())).map(d -> {
         Long zone = mapZone(d.spawns());
         List<Long> rated = RateSource.ratedItems(d.drops());
         return new LoadedNpc(d, zone, zoneMap(zone, repos), repos.items().sourcesOfNpc(id, rated),
-            rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)), repos.npcs().routes(id));
+            rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)), repos.npcs().routes(id),
+            repos.quests().involvingResult(ref));
       });
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains())).map(d -> {
         Long zone = mapZone(d.spawns());
-        return new LoadedObject(d, zone, zoneMap(zone, repos));
+        return new LoadedObject(d, zone, zoneMap(zone, repos), repos.quests().involvingResult(ref));
       });
       case QUEST -> repos.questLocator().load(id).map(data -> {
         QuestDetail d = data.detail();
@@ -275,10 +299,10 @@ public final class DetailPanels {
       BooleanSetting routes) {
     return switch (detail) {
       case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), p.bossNpcs(), filter, onFilterChange,
-          nav);
+          p.involvement(), nav);
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), p.bossNpcs(), filter,
-          onFilterChange, nav, ClipboardPort.system(), p.routes());
-      case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
+          onFilterChange, p.involvement(), nav, ClipboardPort.system(), p.routes());
+      case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), p.involvement(), nav, ClipboardPort.system());
       case LoadedQuest p -> new QuestPage(p.data(), p.maps(), nav, ClipboardPort.system());
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
