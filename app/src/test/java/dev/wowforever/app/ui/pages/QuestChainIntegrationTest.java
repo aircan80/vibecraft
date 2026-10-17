@@ -37,7 +37,17 @@ class QuestChainIntegrationTest {
     host.add(page);
     page.chainView().doLayout();
     page.doLayout();
-    assertThat(page.section("Quest chain").isVisible()).isFalse();
+    boolean coverageNote = standalone.data().chain().attUnsupportedConditions() > 0;
+    assertThat(page.section("Quest chain").isVisible()).isEqualTo(coverageNote);
+    if (coverageNote) {
+      assertThat(page.chainView().getComponents()).anySatisfy(component -> {
+        assertThat(component).isInstanceOf(javax.swing.JTextArea.class);
+        assertThat(((javax.swing.JTextArea) component).getText()).isEqualTo("Some AllTheThings conditions were not imported.");
+        assertThat(component.isVisible()).isTrue();
+      });
+      assertThat(page.section("Quest chain").heading().isVisible()).isFalse();
+      assertThat(page.chainView().heading().isVisible()).isTrue();
+    }
     host.remove(page);
     var linear = QuestTestData.load(166);
     page = new QuestPage(linear.data(), linear.maps(), t -> {}, text -> {});
