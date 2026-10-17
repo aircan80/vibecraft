@@ -19,6 +19,30 @@ class SourceArchiveRepositoryTest {
     }
   }
 
+  @Test void legacyBuildMetadataHasHonestRevisionAndReferenceLinks() throws Exception {
+    var file = dir.resolve("legacy.sqlite");
+    try (var c = DriverManager.getConnection("jdbc:sqlite:" + file); var sql = c.createStatement()) {
+      sql.execute("CREATE TABLE meta(key TEXT,value TEXT)");
+      sql.execute("INSERT INTO meta VALUES('questiedb_commit','49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4'),"
+          + "('atlasloot_commit','8e99341e4e779328460bf7684c0d5b22ce50ddf1'),"
+          + "('client_product','wow_classic_beta'),('client_build','1.60.1.70450'),"
+          + "('client_fallback_product','wow_classic_era'),('client_fallback_build','1.15.9.70003'),"
+          + "('serverdb_commit','464179081673cfd240f7ffe7f0daf96bca0b5a70'),('serverdb_asset','db-sqlite-4641790.zip')");
+    }
+    try (var db = Database.open(file)) {
+      var result = new SourceArchiveRepository(db).catalog();
+      assertThat(result.available()).isFalse();
+      assertThat(result.snapshots()).isEmpty();
+      assertThat(result.projection()).isNull();
+      assertThat(result.legacySources()).hasSize(5);
+      assertThat(result.legacySources().getFirst().url()).isEqualTo(
+          "https://github.com/Questie/QuestieDB/tree/49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4");
+      assertThat(result.legacySources().get(3).version()).contains("wow_classic_era", "1.15.9.70003");
+      assertThat(result.legacySources().get(3).linkType()).contains("not archived source evidence");
+      assertThat(result.legacySources().get(4).version()).contains("db-sqlite-4641790.zip");
+    }
+  }
+
   @Test void keepsHistoryAndNullableMetadataWithoutReadingBlobs() throws Exception {
     var file = dir.resolve("archive.sqlite");
     try (var c = DriverManager.getConnection("jdbc:sqlite:" + file); var sql = c.createStatement()) {

@@ -28,17 +28,26 @@ public final class SourceCatalogPanel extends JPanel {
     super(new BorderLayout(8, 8));
     add(new WrappingText(catalog.available()
         ? "Archived datasets and history; archive presence does not establish which source produced an app value."
-        : "This database has no source archive. Existing app data remains available.", "Source archive scope"), BorderLayout.NORTH);
+        : "Legacy build metadata; original inputs not archived. Links identify recorded revisions or reference sites, not field-level evidence.", "Source archive scope"), BorderLayout.NORTH);
     var rows = new ArrayList<Object[]>();
     for (var s : catalog.snapshots()) rows.add(new Object[] {s.source(), s.version(), s.product(), s.build(),
         s.locale(), s.capturedAt(), String.join(", ", catalog.activeRoles().getOrDefault(s.id(), List.of())), s.id()});
-    snapshots = table(rows.toArray(Object[][]::new), new String[] {"Source", "Version", "Product", "Build",
-        "Locale", "Captured (UTC)", "App input roles", "Snapshot ID"});
-    files = table(new Object[0][], new String[] {"File", "Source URL", "SHA-256"});
+    if (!catalog.available()) for (var source : catalog.legacySources()) rows.add(new Object[] {
+        source.source(), source.version(), source.linkType()});
+    snapshots = table(rows.toArray(Object[][]::new), catalog.available()
+        ? new String[] {"Source", "Version", "Product", "Build", "Locale", "Captured (UTC)", "App input roles", "Snapshot ID"}
+        : new String[] {"Source", "Recorded version/build", "Link type"});
+    files = table(new Object[0][], catalog.available() ? new String[] {"File", "Source URL", "SHA-256"}
+        : new String[] {"Reference", "Source URL", "Archive status"});
     snapshots.getSelectionModel().addListSelectionListener(e -> {
       if (e.getValueIsAdjusting()) return;
       int row = snapshots.getSelectedRow();
-      selectedFiles = row < 0 ? List.of() : catalog.snapshots().get(snapshots.convertRowIndexToModel(row)).files();
+      if (row < 0) selectedFiles = List.of();
+      else if (catalog.available()) selectedFiles = catalog.snapshots().get(snapshots.convertRowIndexToModel(row)).files();
+      else {
+        var source = catalog.legacySources().get(snapshots.convertRowIndexToModel(row));
+        selectedFiles = List.of(new SourceFile(source.linkType(), source.url(), "Original inputs not archived"));
+      }
       var model = (DefaultTableModel) files.getModel();
       model.setRowCount(0);
       for (var f : selectedFiles) model.addRow(new Object[] {f.path(), f.url(), f.sha256()});
@@ -89,7 +98,8 @@ public final class SourceCatalogPanel extends JPanel {
     for (int i = 0; i < columns.length; i++) {
       String name = columns[i];
       int width = name.equals("Source URL") || name.equals("SHA-256") || name.equals("Snapshot ID") ? 420
-          : name.equals("File") || name.startsWith("Captured") ? 220 : 150;
+          : name.equals("File") || name.equals("Recorded version/build") || name.equals("Link type")
+              || name.equals("Reference") || name.startsWith("Captured") ? 220 : 150;
       table.getColumnModel().getColumn(i).setPreferredWidth(width);
     }
     table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);

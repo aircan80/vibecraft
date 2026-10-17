@@ -34,6 +34,23 @@ class SourceCatalogPanelTest {
     });
   }
 
+  @Test void legacyRowsAreClearlySeparateFromArchivedSnapshotsAndOpenOnClick() throws Exception {
+    SwingUtilities.invokeAndWait(() -> {
+      var opened = new ArrayList<URI>();
+      var source = new LegacySource("Client fallback", "wow_classic_era · 1.15.9.70003",
+          "Delivery/reference site; not archived source evidence", "https://wago.tools/db2");
+      var panel = new SourceCatalogPanel(new Catalog(false, List.of(), java.util.Map.of(), null, List.of(source)), opened::add);
+      assertThat(panel.snapshotsTable().getColumnName(1)).isEqualTo("Recorded version/build");
+      panel.snapshotsTable().setRowSelectionInterval(0, 0);
+      assertThat(panel.filesTable().getColumnName(0)).isEqualTo("Reference");
+      assertThat(panel.filesTable().getValueAt(0, 2)).isEqualTo("Original inputs not archived");
+      panel.filesTable().setRowSelectionInterval(0, 0);
+      assertThat(opened).isEmpty();
+      panel.openButton().doClick();
+      assertThat(opened).containsExactly(URI.create("https://wago.tools/db2"));
+    });
+  }
+
   @Test void oldDatabaseCatalogIsUsableWithoutAnyNetworkOrRecords() throws Exception {
     SwingUtilities.invokeAndWait(() -> {
       var panel = new SourceCatalogPanel(new Catalog(false, List.of()), uri -> { throw new AssertionError(); });

@@ -10,12 +10,16 @@ public final class SourceArchiveRepository {
       String locale, String capturedAt, List<SourceFile> files) {
     public Snapshot { files = List.copyOf(files); }
   }
+  public record LegacySource(String source, String version, String linkType, String url) {}
   public record Projection(String ingestionId, String projectedAt, String transformVersion) {}
   public record Catalog(boolean available, List<Snapshot> snapshots, Map<String, List<String>> activeRoles,
-      Projection projection) {
+      Projection projection, List<LegacySource> legacySources) {
+    public Catalog(boolean available, List<Snapshot> snapshots, Map<String, List<String>> activeRoles,
+        Projection projection) { this(available, snapshots, activeRoles, projection, List.of()); }
     public Catalog(boolean available, List<Snapshot> snapshots) { this(available, snapshots, Map.of(), null); }
     public Catalog {
       snapshots = List.copyOf(snapshots);
+      legacySources = List.copyOf(legacySources);
       var roles = new java.util.LinkedHashMap<String, List<String>>();
       activeRoles.forEach((id, values) -> roles.put(id, List.copyOf(values)));
       activeRoles = Map.copyOf(roles);
@@ -30,7 +34,12 @@ public final class SourceArchiveRepository {
     return db.read(c -> {
       boolean available = Sql.list(c, "SELECT name FROM sqlite_master WHERE type='table' "
           + "AND name IN ('source_archive_snapshot','source_archive_file')", rs -> rs.getString(1)).size() == 2;
-      if (!available) return new Catalog(false, List.of());
+      if (!available) {
+        var meta = new java.util.LinkedHashMap<String, String>();
+        if (Sql.hasTable(c, "meta")) for (var row : Sql.list(c, "SELECT key,value FROM meta",
+            rs -> new String[] {rs.getString(1), rs.getString(2)})) meta.put(row[0], row[1]);
+        return new Catalog(false, List.of(), Map.of(), null, legacy(meta));
+      }
       var snapshots = Sql.list(c, "SELECT id,source,version,product,build,locale,captured_at "
           + "FROM source_archive_snapshot ORDER BY source,captured_at DESC,id", rs ->
           new Snapshot(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), rs.getString(5),
@@ -63,4 +72,33 @@ public final class SourceArchiveRepository {
       return new Catalog(true, result, active, projection);
     });
   }
+  private static List<LegacySource> legacy(Map<String, String> meta) {
+    var sources = new java.util.ArrayList<LegacySource>();
+    commit(sources, "QuestieDB", meta.get("questiedb_commit"), "Questie/QuestieDB");
+    commit(sources, "AtlasLootClassic", meta.get("atlasloot_commit"), "Hoizame/AtlasLootClassic");
+    commit(sources, "AtlasLoot baseline", meta.get("atlasloot_baseline_commit"), "Hoizame/AtlasLootClassic");
+    client(sources, "Blizzard client (via wago.tools)", meta.get("client_product"), meta.get("client_build"));
+    client(sources, "Blizzard client fallback (via wago.tools)", meta.get("client_fallback_product"), meta.get("client_fallback_build"));
+    String server = meta.get("serverdb_commit");
+    if (present(server) || present(meta.get("serverdb_asset"))) sources.add(new LegacySource("VMaNGOS",
+        java.util.stream.Stream.of(server, meta.get("serverdb_asset")).filter(SourceArchiveRepository::present)
+            .collect(java.util.stream.Collectors.joining(" · ")),
+        "Repository revision; asset recorded separately", pinned("vmangos/core", server)));
+    return List.copyOf(sources);
+  }
+  private static void commit(List<LegacySource> sources, String source, String version, String repo) {
+    if (present(version)) sources.add(new LegacySource(source, version,
+        pinned(repo, version).isEmpty() ? "Recorded pin; original inputs not archived" : "Pinned repository revision", pinned(repo, version)));
+  }
+  private static void client(List<LegacySource> sources, String source, String product, String build) {
+    if (present(product) || present(build)) sources.add(new LegacySource(source,
+        java.util.stream.Stream.of(product, build).filter(SourceArchiveRepository::present)
+            .collect(java.util.stream.Collectors.joining(" · ")),
+        "Delivery/reference site; not archived source evidence", "https://wago.tools/db2"));
+  }
+  private static String pinned(String repo, String commit) {
+    return commit != null && commit.matches("[0-9a-fA-F]{40}") ? "https://github.com/" + repo + "/tree/" + commit : "";
+  }
+  private static boolean present(String value) { return value != null && !value.isBlank(); }
+
 }
