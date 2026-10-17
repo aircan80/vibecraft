@@ -16,6 +16,9 @@ follow from them, transitively:
   SpellAuraOptions                      (SpellAuraOptions by SpellID: the $h proc chance)
   SpellRadius                           radii named by the kept effects' EffectRadiusIndex_0/_1
   SpellItemEnchantment                  enchantments named by enchanting spell effects
+  SpellReagents, SkillLineAbility       the reagents (by SpellID) and skill rows (by Spell) of every kept spell;
+                                        --crafts adds crafting spells to the spell closure (a recipe item's
+                                        taught spell is reached through its item effects already)
   RandPropPoints, ItemDamage*,          rows for every item level used (plus --extra-levels)
   ItemArmorTotal/Quality/Shield
   UiMap, UiMapXMapArt, UiMapArt,        the chain for --ui-maps
@@ -173,7 +176,7 @@ class Subset:
 
 
 def build_subset(csv_dir, items: Iterable[int], sets: Iterable[int] = (), ui_maps: Iterable[int] = (),
-                 areas: Iterable[int] = (), extra_levels: Iterable[int] = ()) -> Subset:
+                 areas: Iterable[int] = (), extra_levels: Iterable[int] = (), crafts: Iterable[int] = ()) -> Subset:
     s = Subset(csv_dir)
     item_ids = set(items)
     set_ids = set(sets)
@@ -213,7 +216,7 @@ def build_subset(csv_dir, items: Iterable[int], sets: Iterable[int] = (), ui_map
     era_effects = s.select(fallback_name("ItemEffect"), lambda r: _int(r["ParentItemID"]) in era_ids)
 
     spell_ids = (_ids(r["SpellID"] for r in effects) | _ids(r["SpellID"] for r in era_effects)
-                 | _ids(r["SpellID"] for r in set_spells))
+                 | _ids(r["SpellID"] for r in set_spells) | {c for c in crafts if c > 0})
     enchant_ids = _ids(r.get("Socket_match_enchantment_ID", "") for r in sparse)
     spell_ids, enchant_ids = _close_spells(s, spell_ids, enchant_ids)
 
@@ -227,6 +230,8 @@ def build_subset(csv_dir, items: Iterable[int], sets: Iterable[int] = (), ui_map
     radii = _ids(r.get(c, "") for r in spell_effects for c in ("EffectRadiusIndex_0", "EffectRadiusIndex_1"))
     s.select("SpellRadius", lambda r: _int(r["ID"]) in radii)
     s.select("SpellItemEnchantment", lambda r: _int(r["ID"]) in enchant_ids)
+    s.select("SpellReagents", lambda r: _int(r["SpellID"]) in spell_ids)
+    abilities = s.select("SkillLineAbility", lambda r: _int(r["Spell"]) in spell_ids)
 
     levels = _ids(r["ItemLevel"] for r in sparse) | set(extra_levels)
     for name in LEVEL_TABLES_BY_ID:
@@ -235,7 +240,8 @@ def build_subset(csv_dir, items: Iterable[int], sets: Iterable[int] = (), ui_map
         s.select(name, lambda r: _int(r["ItemLevel"]) in levels)
 
     refs = {
-        "SkillLine": _ids(r.get("RequiredSkill", "") for r in sparse),
+        "SkillLine": (_ids(r.get("RequiredSkill", "") for r in sparse)
+                      | _ids(r.get("SkillLine", "") for r in abilities)),
         "Faction": _ids(r.get("MinFactionID", "") for r in sparse),
         "ItemNameDescription": _ids(r.get("ItemNameDescriptionID", "") for r in sparse),
     }
@@ -351,6 +357,7 @@ def main(argv=None) -> int:
     ap.add_argument("--ui-maps", default="", help="comma-separated UiMap ids")
     ap.add_argument("--areas", default="", help="comma-separated AreaTable ids (descendants included)")
     ap.add_argument("--extra-levels", default="60", help="item levels always kept in scaling tables")
+    ap.add_argument("--crafts", default="", help="comma-separated crafting spell ids (added to the spell closure)")
     ap.add_argument("--list-fdids", choices=("icons", "tiles"),
                     help="print the icon or tile FileDataIDs of the subset (comma-separated) and write nothing")
     args = ap.parse_args(argv)
@@ -360,7 +367,7 @@ def main(argv=None) -> int:
         print("no cached csv for build %s under %s" % (args.build, args.cache), file=sys.stderr)
         return 2
     s = build_subset(csv_dir, _id_list(args.items), _id_list(args.sets), _id_list(args.ui_maps),
-                     _id_list(args.areas), _id_list(args.extra_levels))
+                     _id_list(args.areas), _id_list(args.extra_levels), _id_list(args.crafts))
     if args.list_fdids:
         ids = icon_fdids(s) if args.list_fdids == "icons" else tile_fdids(s)
         print(",".join(str(i) for i in sorted(ids)))

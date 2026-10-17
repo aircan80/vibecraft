@@ -16,7 +16,7 @@ import java.util.stream.Collectors;
 /**
  * The importer's client-data stage: reads a converted client-data directory and returns everything the writer embeds.
  * In order: the source and its build lock, {@link ItemSparseLoader}, {@link ItemClassNames}, {@link ItemValues},
- * {@link ItemTooltips}, {@link IconLoader}, {@link ZoneMapLoader}.
+ * {@link ItemTooltips}, {@link IconLoader}, {@link ZoneMapLoader}, {@link UiAssetLoader}, {@link CraftLoader}.
  *
  * <p>With {@code --skip-client-data} it returns {@link ClientDataBundle#EMPTY} (the writer then creates the client
  * tables empty, sets no {@code has_client_data} and writes no {@code client_*} meta keys) and counts
@@ -88,7 +88,9 @@ public final class ClientDataStage {
     ItemTooltips tooltips = ItemTooltips.build(source, clientItems, values, names, report);
     Map<Long, byte[]> icons = IconLoader.load(source, clientItems.values(), report);
     ZoneMaps zoneMaps = ZoneMapLoader.load(source, questieDbRoot, zones, report);
-    return new ClientDataBundle(clientItems, classNames, values, tooltips, icons, zoneMaps, lock);
+    Map<String, byte[]> uiAssets = UiAssetLoader.load(source, report);
+    Crafts crafts = CraftLoader.load(source, report);
+    return new ClientDataBundle(clientItems, classNames, values, tooltips, icons, zoneMaps, lock, uiAssets, crafts);
   }
 
   /**

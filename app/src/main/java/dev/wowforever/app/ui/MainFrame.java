@@ -8,8 +8,10 @@ import dev.wowforever.app.ui.widgets.Rail;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.BorderLayout;
 import java.awt.Component;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Frame;
+import java.awt.KeyboardFocusManager;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
@@ -412,10 +414,29 @@ public final class MainFrame extends JFrame implements MainView {
 
   @Override
   public void setDetail(JComponent c) {
+    Component owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
+    boolean keepFocusInPage = focusStaysInPage(owner, detailHolder);
     detailHolder.removeAll();
     detailHolder.add(c, BorderLayout.CENTER);
     detailHolder.revalidate();
     detailHolder.repaint();
+    if (keepFocusInPage) {
+      // Removing the focused page still hands the focus on by traversal (to the search box, as it happens); focus
+      // requests are queued, and this last one wins. SearchBar ignores that transient traversal gain, so the recent
+      // searches never pop open.
+      focusTargetIn(c).requestFocusInWindow();
+    }
+  }
+
+  /** Whether the keyboard focus, held by {@code owner}, sits inside {@code holder} (a page about to be replaced). */
+  static boolean focusStaysInPage(Component owner, Container holder) {
+    return owner != null && SwingUtilities.isDescendingFrom(owner, holder);
+  }
+
+  /** Where the focus goes on a freshly shown page: its first table or list, else the page itself. */
+  static Component focusTargetIn(JComponent page) {
+    Component browsable = LayoutSwitch.firstBrowsable(page);
+    return browsable != null ? browsable : page;
   }
 
   @Override

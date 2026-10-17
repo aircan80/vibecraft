@@ -33,6 +33,9 @@ function QuestieQuestFixes:Load()
     local rankKeys = QuestieProfessions.rankNames
 
     return {
+        [452] = { -- Pyrewood Ambush
+            [questKeys.objectives] = {nil, nil, nil, nil, {{{2060, 2061, 2062, 2063, 2064, 2065, 2066, 2067, 2068}, 2060}}},
+        },
         [960] = { -- Onu is meditating
             [questKeys.name] = "Onu is meditating",
             [questKeys.startedBy] = {{3616}},
@@ -47,6 +50,43 @@ function QuestieQuestFixes:Load()
             [questKeys.nextQuestInChain] = 0,
             [questKeys.questFlags] = 8,
             [questKeys.specialFlags] = specialFlags.REPEATABLE,
+        },
+        [1136] = { -- Frostmaw
+            [questKeys.extraObjectives] = {{nil, Questie.ICON_TYPE_OBJECT, l10n("Use a Fresh Carcass at the Flame of Uzel"), 0, {{"object", 1770}}}},
+        },
+        [3644] = { -- Membership Card Renewal
+            [questKeys.preQuestSingle] = {3639, 3641, 3643},
+            [questKeys.requiredSpecialization] = specKeys.ENGINEERING_GOBLIN,
+        },
+        [4964] = { -- The Completed Orb of Dar'Orahil
+            [questKeys.objectives] = {{{6266, nil, Questie.ICON_TYPE_EVENT}}},
+            [questKeys.preQuestSingle] = {},
+            [questKeys.preQuestGroup] = {4976, -4962},
+            [questKeys.exclusiveTo] = {4963},
+        },
+        [5142] = { -- Little Pamela
+            [questKeys.breadcrumbForQuestId] = 5149,
+        },
+        [5149] = { -- Pamela's Doll
+            [questKeys.preQuestSingle] = {},
+            [questKeys.breadcrumbs] = {5142, 5601},
+        },
+        [5561] = { -- Kodo Roundup
+            [questKeys.objectives] = {nil, nil, nil, nil, {{{4700, 4701, 4702}, 4700, nil, Questie.ICON_TYPE_INTERACT}}},
+            [questKeys.extraObjectives] = {{{[zoneIDs.DESOLACE] = {{60.58, 62}}}, Questie.ICON_TYPE_EVENT, l10n("Lure the Kodos to Smeed Scrabblescrew.")}},
+        },
+        [5601] = { -- Sister Pamela
+            [questKeys.breadcrumbForQuestId] = 5149,
+        },
+        [8121] = { -- Take Four Bases
+            [questKeys.requiredMinRep] = {510, 3000},
+            [questKeys.triggerEnd] = {"Hold Four Bases.", {
+                [zoneIDs.THUNDER_BLUFF] = {{40.4, 51.57}},
+                [zoneIDs.ARATHI_HIGHLANDS] = {{73.72, 29.52}},
+                [zoneIDs.ORGRIMMAR] = {{50.1, 69.03}},
+                [zoneIDs.SILVERPINE_FOREST] = {{39.68, 17.75}}
+            },
+            },
         },
         [9422] = { -- Scouring the Desert
             [questKeys.preQuestSingle] = {},

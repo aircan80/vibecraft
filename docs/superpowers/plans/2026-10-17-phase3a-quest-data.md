@@ -73,7 +73,7 @@
 ### Task 5: Regenerate the shipped database and shipped-data tests
 
 **Files:**
-- Modify: `app/src/main/resources/data/*` (regenerated with the real client cache: fetch the six icons, convert, import with `--fail-on-unsupported`), `tools/clientdata/build.lock`, `app/src/test/java/dev/wowforever/app/ShippedDataTest.java` (+ `importer` `KnownQuestsTest`): quest 176 has a creature objective (Hogger 448) and an item objective (Huge Gnoll Claw 1931) and an object start (poster) and an NPC end; 7787 has pre relations to 7785/7786; 6502 has ≥ 10 relation rows and a chain reachable to 6602 via `exclusive` or a shared ancestor (verify and record); a repeatable quest has `repeatable = 1`; `quest.relation.missing` is reported; `ui_asset` has the six icons (+@24). Record the sanity numbers in the report (objective rows, relation rows by kind, missing targets, sort labels).
+- Modify: `app/src/main/resources/data/*` (regenerated with the real client cache: fetch the six icons, convert, import with `--fail-on-unsupported`), `tools/clientdata/build.lock`, `app/src/test/java/dev/wowforever/app/ShippedDataTest.java` (+ `importer` `KnownQuestsTest`): quest 176 has exactly one objective, the item objective Huge Gnoll Claw 1931 (Questie records no creature objective for Hogger), two object starts (Wanted Posters 68 and 156561) and the NPC end 240; 7787 has pre relations to 7785/7786; 6502 has ≥ 10 relation rows and a chain reachable to 6602 via `exclusive` or a shared ancestor (verify and record); a repeatable quest has `repeatable = 1`; `quest.relation.missing` is reported; `ui_asset` has the six icons (+@24). Record the sanity numbers in the report (objective rows, relation rows by kind, missing targets, sort labels).
 - Docs: README "Rebuild the data" and NOTICE updated.
 
 - [ ] Run, test, commit `data: quest objectives, relations and UI icons (schema v3)` + `docs: …`.
@@ -85,3 +85,46 @@
 - Test: repository tests on the fixture DB (`FixtureDb` builds with the quest fixture), `QuestChainTest` (linear chain, all-of/one-of, exclusive branch, breadcrumb, cycle, missing target, depth cap) on an in-memory DB.
 
 - [ ] Tests red → green; commit `feat(app): quest objective, relation and chain readers`.
+
+### Task 7: NPC patrol routes (owner request, 2026-10-17)
+
+Owner's words: "for npcs that patrol/move (like the defias messenger) can we mark on the map their spawn point (we
+already do) and the route they take? (and if they disappear where that happens, like a despawn point)". Questie's
+`npcKeys.waypoints` (index 8) holds `{[zoneId] = {{{x,y},...}, ...}}` per NPC (e.g. Defias Messenger 550 in Westfall);
+Questie records no despawn points, so the UI will mark the route's END as "route ends here" when it is not a loop
+(last point farther than 2 % from the first).
+
+**Files:**
+- Modify: `schema.sql` (+ `npc_waypoint(npc_id INTEGER NOT NULL, zone_id INTEGER NOT NULL, route INTEGER NOT NULL,
+  ordinal INTEGER NOT NULL, x REAL, y REAL, PRIMARY KEY (npc_id, zone_id, route, ordinal))`), `EntityWriter`
+  (writes every waypoint list; counter `npc.waypoints.npcs`, `npc.waypoints.points`), the NPC fixture (+550 with its
+  route), `app/.../db/NpcRepository.routes(npcId) -> List<Route(zoneId, List<Point>, boolean loop)>` and
+  `ZoneRepository.routesInZone(zoneId)`.
+- Test: `EntityWriterTest.waypointsAreWrittenInOrder`, `NpcRepositoryTest.routesOfTheDefiasMessenger` (ordinal order,
+  loop detection false), `ShippedDataTest` (550 has ≥ 30 points in zone 40; `npc.waypoints.npcs` reported).
+- [ ] Tests red → green; commit `feat(importer): NPC patrol waypoints`.
+
+### Task 8: Crafting data from the client (owner request)
+
+**Files:** tools/clientdata `REQUIRED_TABLES` + `SpellReagents`, `SkillLineAbility` (and `SkillRaceClassInfo` if present); importer `clientdata/CraftLoader` (SpellEffect Effect = 24 "Create Item" → `EffectItemType`, `EffectBasePoints`+1 = quantity; SkillLineAbility → skill id, min/trivial ranks; SpellReagents → reagents; recipe items: `ItemEffect` with a "learn spell" trigger whose taught spell creates an item → `source recipe_item_id`); schema `craft`, `craft_reagent` (+ indexes on item_id); `ClientDataStage` wiring; report counters `clientdata.crafts`, `clientdata.crafts.noSkill`; fixture CSVs cut for a few crafts (e.g. Heavy Leather, a Blacksmithing weapon, a cooking recipe); shipped-data checks (3+ crafts for a known item, reagent lists non-empty).
+**Tests:** `CraftLoaderTest` (created item + quantity, reagents, skill ranks, recipe item link, a spell that creates nothing is skipped), `ImportPipelineTest` counts.
+- [ ] Commit `feat(clientdata): crafting recipes and reagents`.
+
+### Task 9: Community drop rates from a server database (owner request)
+
+**Source (verified 2026-10-17 via the GitHub API):** `github.com/vmangos/core` (GPL-2.0) publishes release tag `db_latest` (published 2026-09-28) with assets `db-4641790.zip` (MySQL dump, 30.5 MB) and `db-sqlite-4641790.zip` (SQLite build, 42.5 MB). Use the SQLite asset: no MySQL and no dump parsing. Pin the asset name (its commit hash `4641790`) and a sha256 in a committed `tools/serverdb/serverdb.lock`; never read a moving `latest` without the pin.
+**Files:** `tools/serverdb/fetch.py` (downloads the pinned `db-sqlite-<hash>.zip` into `~/.cache/wowforever-serverdb/<hash>/`, verifies sha256, unzips the SQLite file; keeps the GPL-2.0 licence text beside it), `tools/serverdb/extract.py` (reads the SQLite world DB with the stdlib `sqlite3` module and writes `creature_loot_template`, `reference_loot_template`, `gameobject_loot_template`, `npc_vendor` as CSV; the importer could also attach the SQLite file directly — builder's choice, say which), importer `serverdb/ServerDbSource` + `ServerDropRates` (resolves reference loot groups; converts ChanceOrQuestChance to a percentage, negative = quest-only drop; adds `drop_rate_source(source='vmangos')` rows; feeds `DropRates` with precedence after questie corrections and before atlasloot, per the spec ruling); `--server-db-dir` option (optional; skipped when absent); NOTICE (VMaNGOS data licence); report counters `serverdb.loot.rows`, `serverdb.unmatched.npcs`.
+**Tests:** Python tests on a tiny dump fixture; `ServerDropRatesTest` (reference loot resolution, negative chance, precedence, disagreement flagging), shipped-data check that `drop_rate_source` has `vmangos` rows for Hogger's Huge Gnoll Claw.
+- [ ] Commit `feat(importer): community drop rates from the VMaNGOS world database`.
+
+### Task 10: Regenerate the shipped database once for Tasks 7–9 (controller addition, 2026-10-17)
+
+Ruling: Tasks 7 (waypoints), 8 (crafting) and 9 (VMaNGOS rates) each add tables but do NOT regenerate the shipped
+database — every regeneration commits a ~67 MB blob, so one regeneration covers all three. Until then the committed
+database lacks those tables; the new readers are not called by any UI (plan 3B) and the shipped-data assertions those
+tasks name move here.
+
+**Files:**
+- Modify: `app/src/main/resources/data/*` (regenerated as in Task 5), `ShippedDataTest` (+ 550 has ≥ 30 waypoints in
+  zone 40 and `npc.waypoints.npcs` reported; the crafting and VMaNGOS assertions from Tasks 8–9), README rebuild notes.
+- [ ] Run, test, commit `data: NPC waypoints, crafting and community drop rates` + `docs: …`.

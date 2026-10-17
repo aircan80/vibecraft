@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.wowforever.importer.clientdata.ClientDataOptions;
 import dev.wowforever.importer.clientdata.ClientDataStage;
 import dev.wowforever.importer.report.ImportReport;
+import dev.wowforever.importer.serverdb.ServerDbFixture;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
@@ -54,13 +55,85 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select name from zone where id = 1581")).isEqualTo("The Deadmines");
       assertThat(scalar(c, "select value from meta where key = 'questiedb_commit'")).isEqualTo("49e7dbca1f18eb3b8e57ee5d9562ac3e5c9adcc4");
       assertThat(scalar(c, "select count(*) from quest_giver where quest_id = 2 and role = 'start'")).isEqualTo(1);
+      // 5561 Kodo Roundup after classicQuestFixes: a killCredit group, then an explore objective with one point
+      assertThat(scalar(c, "select count(*) from quest_objective where quest_id = 5561 and credit_group = 0")).isEqualTo(3);
+      assertThat(scalar(c, "select zone_id from quest_objective_point where quest_id = 5561 and ordinal = 1")).isEqualTo(405);
     }
     assertThat(r.skipsOnUiFields()).isZero();
+    assertThat(r.get("table.quest_objective")).isPositive();
+    assertThat(r.get("table.quest_objective_point")).isPositive();
+    assertThat(r.get("table.quest_source_item")).isEqualTo(r.get("quest.sourceItems")).isPositive();
+    assertThat(r.get("quest.objective.kinds.creature")).isPositive();
+    assertThat(r.get("quest.objective.unknownKind")).isZero();
+    assertThat(r.render()).contains("quest.objective.unknownKind = 0");
     assertThat(tmp.resolve("import-report.txt")).exists();
     assertThat(r.get("provenance.pairs")).isPositive();
     assertThat(r.get("provenance.disagreeing")).isPositive();
     assertThat(r.get("provenance.sources.questie-correction")).isPositive();
     assertThat(r.render()).contains("== Conflicts ==").contains("639 2874 questie-correction=60.0");
+    // no --server-db-dir: the VMaNGOS stage is skipped
+    assertThat(r.get("serverdb.skipped")).isEqualTo(1);
+    assertThat(r.get("provenance.sources.vmangos")).isZero();
+    assertThat(r.counters()).doesNotContainKeys("serverdb.loot.rows", "serverdb.unmatched.npcs");
+  }
+
+  @Test
+  void endToEndWithTheServerDatabase(@TempDir Path tmp) throws Exception {
+    Path serverDb = new ServerDbFixture()
+        .creature(639, 639).loot(639, 2874, -100.0, 0, 1, 1).loot(639, 1, 3.0, 0, 1, 1)
+        .creature(11520, 11520).lootRef(11520, 9000, 100, 0, 1).ref(9000, 14149, 10.0, 0, 1, 1)
+        .creature(999999, 999999).loot(999999, 2874, 5.0, 0, 1, 1)
+        .write(tmp.resolve("serverdb"));
+    Files.writeString(serverDb.resolve("serverdb.lock"), """
+        {"repo": "vmangos/core", "tag": "db_latest", "asset": "db-sqlite-4641790.zip",
+         "commit": "464179081673cfd240f7ffe7f0daf96bca0b5a70", "sha256": "ab"}""", StandardCharsets.UTF_8);
+    ImportOptions o = new ImportOptions(tmp.resolve("out.sqlite"), tmp.resolve("cache"),
+        Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), true,
+        ImportOptions.defaultBuildIdOut(tmp.resolve("out.sqlite")), ClientDataOptions.skipped(),
+        ClientDataStage.DEFAULT_MIN_COVERAGE_PCT, Optional.of(serverDb));
+    ImportReport r = ImportPipeline.run(o, QUIET);
+    try (Connection c = open(o.out())) {
+      // the Questie correction still wins; the quest-only VMaNGOS rate is the fifth source, marked
+      assertThat(scalar(c, "select drop_pct || '/' || pct_source || '/' || source_count || '/' || disagrees"
+          + " from item_npc_drop where item_id = 2874 and npc_id = 639")).isEqualTo("60.0/questie-correction/5/1");
+      assertThat(scalar(c, "select pct || '/' || quest_only from drop_rate_source where npc_id = 639"
+          + " and item_id = 2874 and source = 'vmangos'")).isEqualTo("100.0/1");
+      assertThat(scalar(c, "select count(*) from drop_rate_source where quest_only = 1")).isEqualTo(1);
+      // VMaNGOS outranks the AtlasLoot drop table's 33.3 and disagrees with it
+      assertThat(scalar(c, "select drop_pct || '/' || pct_source || '/' || source_count || '/' || disagrees"
+          + " from item_npc_drop where item_id = 14149 and npc_id = 11520")).isEqualTo("10.0/vmangos/2/1");
+      assertThat(scalar(c, "select min(source_count || '/' || disagrees) from boss_loot bl join boss b"
+          + " on b.id = bl.boss_id where b.npc_id = 11520 and bl.item_id = 14149")).isEqualTo("2/1");
+      // a pair only VMaNGOS knows adds no drop row: world drops are never a mob's own loot
+      assertThat(scalar(c, "select count(*) from item_npc_drop where npc_id = 639 and item_id = 1")).isEqualTo(0);
+      assertThat(scalar(c, "select count(*) from drop_rate_source where source = 'vmangos'")).isEqualTo(2);
+      assertThat(scalar(c, "select value from meta where key = 'serverdb_asset'")).isEqualTo("db-sqlite-4641790.zip");
+      assertThat(scalar(c, "select value from meta where key = 'serverdb_commit'"))
+          .isEqualTo("464179081673cfd240f7ffe7f0daf96bca0b5a70");
+    }
+    assertThat(r.get("serverdb.skipped")).isZero();
+    assertThat(r.get("serverdb.loot.rows")).isEqualTo(4);
+    assertThat(r.get("serverdb.reference.rows")).isEqualTo(1);
+    assertThat(r.get("serverdb.unmatched.npcs")).isEqualTo(1);
+    assertThat(r.get("serverdb.rates")).isEqualTo(3);
+    assertThat(r.get("provenance.sources.vmangos")).isEqualTo(2);
+    assertThat(r.render()).contains("serverdb.loot.rows = 4").contains("serverdb.unmatched.npcs = 1");
+    assertThat(r.skipsOnUiFields()).isZero();
+  }
+
+  @Test
+  void aServerDatabaseDirectoryWithoutTheWorldDatabaseIsSkippedWithANote(@TempDir Path tmp) throws Exception {
+    ImportOptions o = new ImportOptions(tmp.resolve("out.sqlite"), tmp.resolve("cache"),
+        Optional.of(Fixtures.questieDbRoot()), Optional.of(Fixtures.atlasLootRoot()), false,
+        ImportOptions.defaultBuildIdOut(tmp.resolve("out.sqlite")), ClientDataOptions.skipped(),
+        ClientDataStage.DEFAULT_MIN_COVERAGE_PCT, Optional.of(tmp.resolve("no-such-dir")));
+    ImportReport r = ImportPipeline.run(o, QUIET);
+    assertThat(r.get("serverdb.skipped")).isEqualTo(1);
+    assertThat(r.notes()).anyMatch(n -> n.startsWith("serverdb: no mangos.sqlite in ") && n.contains("no-such-dir"));
+    try (Connection c = open(o.out())) {
+      assertThat(scalar(c, "select count(*) from drop_rate_source where source = 'vmangos'")).isEqualTo(0);
+      assertThat(scalar(c, "select count(*) from meta where key like 'serverdb%'")).isEqualTo(0);
+    }
   }
 
   @Test
@@ -109,7 +182,7 @@ class ImportPipelineTest {
   /** Tables the client-data stage and drop-rate provenance fill. */
   private static final List<String> CLIENT_TABLES = List.of("item_stat", "item_damage", "item_armor", "item_effect",
       "item_set", "item_set_item", "item_set_bonus", "item_tooltip_line", "icon", "zone_map", "drop_rate_source",
-      "item_alt_value");
+      "item_alt_value", "ui_asset", "craft", "craft_reagent", "craft_recipe_item");
 
   @Test
   void endToEndWithClientDataFixture(@TempDir Path tmp) throws Exception {
@@ -140,7 +213,19 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select has_client_data from item where id = 212347")).isEqualTo(0);
       assertThat(scalar(c, "select icon_id from item where id = 212347")).isEqualTo(134236);
       assertThat(scalar(c, "select count(*) from icon where id = 134236")).isEqualTo(1);
+      assertThat(strings(c, "select name from ui_asset order by name"))
+          .containsExactly("rail.quests", "rail.quests@24");
+      assertThat(strings(c, "select spell_name from craft where item_id = 4234")).containsExactly("Heavy Leather");
+      assertThat(strings(c, "select spell_name from craft c join craft_reagent r on r.spell_id = c.spell_id"
+          + " where r.item_id = 17204")).containsExactly("Eye of Sulfuras");
+      assertThat(scalar(c, "select recipe_item_id from craft where spell_id = 1225758")).isEqualTo(238645);
     }
+    assertThat(r.get("clientdata.crafts")).isEqualTo(6);
+    assertThat(r.get("clientdata.crafts.noSkill")).isEqualTo(1);
+    assertThat(r.get("clientdata.crafts.reagents")).isEqualTo(15).isEqualTo(r.get("table.craft_reagent"));
+    assertThat(r.get("clientdata.crafts.recipes")).isEqualTo(2);
+    assertThat(r.get("clientdata.crafts.recipeItems")).isEqualTo(3).isEqualTo(r.get("table.craft_recipe_item"));
+    assertThat(r.get("clientdata.uiAssets")).isEqualTo(1);
     long named = r.get("clientdata.items.named");
     assertThat(named).isPositive();
     long namedMatched = r.get("clientdata.items.named.matched");
@@ -177,7 +262,8 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select count(*) from zone where ui_map_id is not null")).isEqualTo(0);
     }
     assertThat(r.get("clientdata.skipped")).isEqualTo(1);
-    assertThat(r.counters()).doesNotContainKeys("clientdata.items.matched", "clientdata.coverage.pct");
+    assertThat(r.counters()).doesNotContainKeys("clientdata.items.matched", "clientdata.coverage.pct",
+        "clientdata.uiAssets", "clientdata.crafts");
   }
 
   /** Runs the import into {@code dir}; asserts build-id.txt equals meta.build_id of the written DB. */

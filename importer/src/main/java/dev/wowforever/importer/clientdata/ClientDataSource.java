@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
@@ -23,6 +24,7 @@ import java.util.stream.Stream;
  *   icons/{fdid}.png       item icons, icons/0.png the fallback
  *   maps/{uiMapId}.jpg     composed zone maps
  *   maps.json              [{ui_map_id, name, width, height, tiles, overlays, missing_tiles}]
+ *   ui_icons/{name}.png    client UI textures (the rail icons) at native size, ui_icons/{name}@24.png at 24 px
  *   build.lock             the client build the tables came from
  * </pre>
  *
@@ -136,6 +138,29 @@ public final class ClientDataSource {
   /** {@code maps/{uiMapId}.jpg} when present. */
   public Optional<Path> map(long uiMapId) {
     return file(dir.resolve("maps").resolve(uiMapId + ".jpg"));
+  }
+
+  /**
+   * Every {@code ui_icons/*.png} by file name without {@code .png}, sorted by name; empty when the directory is
+   * absent.
+   */
+  public Map<String, Path> uiIcons() {
+    Path d = dir.resolve("ui_icons");
+    if (!Files.isDirectory(d)) {
+      return Map.of();
+    }
+    try (Stream<Path> files = Files.list(d)) {
+      Map<String, Path> out = new TreeMap<>();
+      files.filter(Files::isRegularFile)
+          .filter(f -> f.getFileName().toString().endsWith(".png"))
+          .forEach(f -> {
+            String n = f.getFileName().toString();
+            out.put(n.substring(0, n.length() - ".png".length()), f);
+          });
+      return Collections.unmodifiableMap(out);
+    } catch (IOException e) {
+      throw new UncheckedIOException("cannot list " + d + ": " + e.getMessage(), e);
+    }
   }
 
   /** The entries of {@code maps.json} in file order; empty when the file is absent. */

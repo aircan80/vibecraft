@@ -36,6 +36,12 @@ public final class Sql {
     }
   }
 
+  /** Whether the database has a table named {@code table} (for tables a database built before them lacks). */
+  public static boolean hasTable(Connection c, String table) throws SQLException {
+    return one(c, "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", rs -> Boolean.TRUE, table)
+        .isPresent();
+  }
+
   private static PreparedStatement prepare(Connection c, String sql, Object... params) throws SQLException {
     PreparedStatement ps = c.prepareStatement(sql);
     try {

@@ -41,7 +41,7 @@ class CorrectionApplierTest {
     EntityTable quests = questsWith(2);
     apply(quests, "{ [2] = { [questKeys.objectives_add] = {{{123}}}, [questKeys.name] = UNKNOWN_SYMBOL } }", "x");
     assertThat(report.skips()).extracting(Skip::field).containsExactlyInAnyOrder("objectives", "name");
-    assertThat(report.skipsOnUiFields()).isEqualTo(1);
+    assertThat(report.skipsOnUiFields()).as("objectives is a UI field since phase 3A").isEqualTo(2);
   }
   @Test void tableIntoScalarIsSkipped() { EntityTable items = itemsWith(730); apply(items, "{ [730] = { [itemKeys.itemLevel] = {1,2} } }", "x"); assertThat(report.skips()).hasSize(1); assertThat(items.get(730, "itemLevel")).isNotEqualTo(lua("{1,2}")); }
 
@@ -134,7 +134,8 @@ class CorrectionApplierTest {
     EntityTable npcs = tableWith(EntityKind.NPC, 448);
     apply(npcs, "{ [448] = { [npcKeys.waypoints_add] = {[12] = {{{1,2}}}} } }", "x");
     assertThat(report.skips()).extracting(Skip::reason).containsExactly("unsupported op on shape WAYPOINTLIST");
-    assertThat(report.skipsOnUiFields()).isZero();
+    // waypoints are a UI field since phase 3A (patrol routes), so the lost add-op fails the strict gate
+    assertThat(report.skipsOnUiFields()).isEqualTo(1);
   }
 
   @Test

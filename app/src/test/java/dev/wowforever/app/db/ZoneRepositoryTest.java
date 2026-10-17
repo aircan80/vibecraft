@@ -9,6 +9,8 @@ import dev.wowforever.app.model.LevelBand;
 import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.QuestRef;
+import dev.wowforever.app.model.Route;
+import dev.wowforever.app.model.Route.Point;
 import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
@@ -116,6 +118,32 @@ class ZoneRepositoryTest {
   }
 
   @Test
+  void routesInZoneHoldTheDefiasMessengersPatrol() {
+    assertThat(repos.zones().routesInZone(40)).singleElement().satisfies(r -> {
+      assertThat(r.npcId()).isEqualTo(550);
+      assertThat(r.points()).hasSize(171);
+    });
+    assertThat(repos.zones().routesInZone(12)).isEmpty();
+  }
+
+  @Test
+  void routesInZoneAreEveryNpcsRoutesByNpcRouteAndOrdinal(@TempDir Path dir) throws Exception {
+    try (SchemaDb schema = SchemaDb.create(dir)) {
+      NpcRepositoryTest.waypoint(schema, 9, 12, 1, 2, 2, 2);
+      NpcRepositoryTest.waypoint(schema, 9, 12, 1, 1, 1, 1);
+      NpcRepositoryTest.waypoint(schema, 3, 12, 2, 1, 7, 7);
+      NpcRepositoryTest.waypoint(schema, 3, 12, 1, 1, 6, 6);
+      NpcRepositoryTest.waypoint(schema, 3, 40, 1, 1, 8, 8);
+      try (Database db = schema.open()) {
+        assertThat(new ZoneRepository(db).routesInZone(12)).containsExactly(
+            new Route(3, 12, 1, List.of(new Point(6, 6)), false),
+            new Route(3, 12, 2, List.of(new Point(7, 7)), false),
+            new Route(9, 12, 1, List.of(new Point(1, 1), new Point(2, 2)), false));
+      }
+    }
+  }
+
+  @Test
   void npcSpawnsInZoneJoinNamesAndRanksAndSkipPointsWithoutCoordinates() {
     List<SpawnPin> elwynn = repos.zones().npcSpawnsInZone(12, false);
     assertThat(elwynn).filteredOn(p -> p.ref().id() == 448).hasSize(5)
@@ -140,9 +168,9 @@ class ZoneRepositoryTest {
     ZoneRepository zones = SpawnFixtureDb.repositories().zones();
     assertThat(zones.npcSpawnsInZone(40, true)).extracting(SpawnPin::name, SpawnPin::rank)
         .containsExactlyInAnyOrder(tuple("Foe Reaper 4000", 2), tuple("Vultros", 4), tuple("Test Boss", 3));
-    // Thor's points at -1, -1 and 100.5, 50 are off the map
+    // Thor's points at -1, -1 and 100.5, 50 are off the map; the Defias Messenger is a normal NPC
     assertThat(zones.npcSpawnsInZone(40, false)).extracting(SpawnPin::name)
-        .containsExactlyInAnyOrder("Foe Reaper 4000", "Vultros", "Test Boss", "Thor");
+        .containsExactlyInAnyOrder("Defias Messenger", "Foe Reaper 4000", "Vultros", "Test Boss", "Thor");
   }
 
   @Test

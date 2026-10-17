@@ -8,10 +8,36 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import javax.swing.JPanel;
+import javax.swing.JTable;
+import javax.swing.JTextField;
 import org.junit.jupiter.api.Test;
 
 /** {@link MainFrame}'s static parts; the frame itself is never created in tests (see {@link MainFrameContentTest}). */
 class MainFrameTest {
+
+  @Test
+  void focusStaysInThePageOnlyWhenItsOwnerSitsInTheHolder() {
+    JPanel holder = new JPanel();
+    JPanel page = new JPanel();
+    JTable table = new JTable();
+    page.add(table);
+    holder.add(page);
+    JTextField elsewhere = new JTextField();
+    assertThat(MainFrame.focusStaysInPage(table, holder)).isTrue();
+    assertThat(MainFrame.focusStaysInPage(elsewhere, holder)).isFalse();
+    assertThat(MainFrame.focusStaysInPage(null, holder)).isFalse();
+  }
+
+  @Test
+  void aFreshPageTakesTheFocusOnItsFirstTableOrItself() {
+    JPanel page = new JPanel();
+    assertThat(MainFrame.focusTargetIn(page)).isSameAs(page);
+    JTable table = new JTable();
+    page.add(new JPanel());
+    page.add(table);
+    assertThat(MainFrame.focusTargetIn(page)).isSameAs(table);
+  }
 
   @Test
   void aboutTextShowsNoticeAndDatabaseMeta() {

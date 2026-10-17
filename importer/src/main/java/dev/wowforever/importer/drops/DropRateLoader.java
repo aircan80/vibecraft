@@ -18,14 +18,22 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * Loads drop percentages from four sources. Precedence (lower wins): 1 Questie manual corrections,
- * 2 AtlasLoot item overrides, 3 Questie Wowhead data, 4 AtlasLoot drop table.
+ * Loads drop percentages from four sources and defines the precedence of all of them (lower wins): 1 Questie manual
+ * corrections, 2 AtlasLoot item overrides, 3 Questie Wowhead data, 4 VMaNGOS server rates, 5 AtlasLoot drop table,
+ * 6 VMaNGOS quest-only rates. The VMaNGOS rates are loaded separately by
+ * {@link dev.wowforever.importer.serverdb.ServerDropRates}: they are a vanilla emulator's configured chances, while
+ * Forever's loot is reworked, so observed and curated data outranks them, and a quest-only chance (the chance while
+ * on the quest) is a different quantity that headlines only when no other source rates the pair.
  */
 public final class DropRateLoader {
-  private static final int CORRECTION = 1;
-  private static final int OVERRIDE = 2;
-  private static final int WOWHEAD = 3;
-  private static final int ATLASLOOT = 4;
+  public static final int QUESTIE_CORRECTION = 1;
+  public static final int ATLASLOOT_OVERRIDE = 2;
+  public static final int QUESTIE_WOWHEAD = 3;
+  /** VMaNGOS rates of ordinary rows: below Questie's observed data, above the AtlasLoot drop table. */
+  public static final int VMANGOS = 4;
+  public static final int ATLASLOOT = 5;
+  /** VMaNGOS quest-only rates (negative {@code ChanceOrQuestChance}): below every other source. */
+  public static final int VMANGOS_QUEST_ONLY = 6;
 
   private static final Path QUESTIE_DROPS = Path.of("support/Forever/DropTables/classicItemDrops.lua");
   private static final Path QUESTIE_CORRECTIONS = Path.of("support/Forever/DropTables/itemDropCorrections.lua");
@@ -54,7 +62,7 @@ public final class DropRateLoader {
     LuaValue table = new ChunkEvaluator(inner.fileName(), CallHandler.NONE, problems)
         .run(inner.statements(), new Scope()).orElse(null);
     forEachPair(table, (itemId, npcId, pct) ->
-        rates.put(npcId, itemId, new DropRate(pct, "questie-wowhead"), WOWHEAD));
+        rates.put(npcId, itemId, new DropRate(pct, "questie-wowhead"), QUESTIE_WOWHEAD));
   }
 
   /**
@@ -76,7 +84,7 @@ public final class DropRateLoader {
     scope.define("DropKeys", keys);
     LuaValue table = new Evaluator(chunk.fileName(), scope, CallHandler.NONE, problems).eval(era.get());
     forEachPair(table, (itemId, npcId, pct) ->
-        rates.put(npcId, itemId, new DropRate(pct, "questie-correction"), CORRECTION));
+        rates.put(npcId, itemId, new DropRate(pct, "questie-correction"), QUESTIE_CORRECTION));
   }
 
   /** {@code local DropRateData = {[npcId] = {[itemId] = pct}}}. */
@@ -108,7 +116,7 @@ public final class DropRateLoader {
       var itemId = LuaValues.asLong(e.getKey());
       // A value of false means "ignore this item".
       if (itemId.isPresent() && e.getValue() instanceof LuaNumber pct) {
-        rates.putItem(itemId.getAsLong(), new DropRate(pct.value(), "atlasloot-override"), OVERRIDE);
+        rates.putItem(itemId.getAsLong(), new DropRate(pct.value(), "atlasloot-override"), ATLASLOOT_OVERRIDE);
       }
     }
   }

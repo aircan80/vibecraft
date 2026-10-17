@@ -3,6 +3,10 @@ package dev.wowforever.importer.sqlite;
 import dev.wowforever.importer.clientdata.BuildLock;
 import dev.wowforever.importer.clientdata.ClientDataBundle;
 import dev.wowforever.importer.clientdata.ClientItem;
+import dev.wowforever.importer.clientdata.Craft;
+import dev.wowforever.importer.clientdata.CraftReagent;
+import dev.wowforever.importer.clientdata.CraftRecipeItem;
+import dev.wowforever.importer.clientdata.Crafts;
 import dev.wowforever.importer.clientdata.ItemClassNames;
 import dev.wowforever.importer.clientdata.ItemDamage;
 import dev.wowforever.importer.clientdata.ItemSetInfo;
@@ -45,6 +49,11 @@ import java.util.stream.Collectors;
  */
 public final class SqliteWriter {
   private static final String SCHEMA_RESOURCE = "/dev/wowforever/importer/schema.sql";
+  /**
+   * The {@code schema.sql} generation, written as {@code meta.schema_version}: 1 the v0.1 tables, 2 the phase 2A
+   * client data, 3 the phase 3A quest objectives, relations, source items and UI assets. Changes are additive.
+   */
+  public static final int SCHEMA_VERSION = 3;
   /** Separates the table definitions in {@code schema.sql} from the indexes created after the bulk load. */
   private static final Pattern INDEX_MARKER = Pattern.compile("^-- @indexes\\s*$", Pattern.MULTILINE);
   private static final List<String> PRAGMAS = List.of(
@@ -114,13 +123,14 @@ public final class SqliteWriter {
       ItemClassNames classNames, Map<Long, ItemValues> values, ItemTooltips tooltips)
       throws IOException, SQLException {
     write(out, model, report, new ClientDataBundle(clientItems, classNames, values, tooltips, Map.of(),
-        ZoneMaps.EMPTY, null));
+        ZoneMaps.EMPTY, null, Map.of()));
   }
 
   /**
    * Writes the model with everything the client-data stages produced, see {@link ClientDataBundle}. Icons and
-   * zone maps fill {@code icon} and {@code zone_map} and set {@code zone.ui_map_id}; with a build lock the
-   * {@code client_*} meta keys are written too.
+   * zone maps fill {@code icon} and {@code zone_map} and set {@code zone.ui_map_id}, UI textures fill
+   * {@code ui_asset}, crafts fill {@code craft}, {@code craft_reagent} and {@code craft_recipe_item}; with a build
+   * lock the {@code client_*} meta keys are written too.
    */
   public static void write(Path out, ImportModel model, ImportReport report, ClientDataBundle client)
       throws IOException, SQLException {
@@ -153,6 +163,7 @@ public final class SqliteWriter {
       c.setAutoCommit(false);
 
       writeMeta(c, model.meta());
+      writeMeta(c, Map.of("schema_version", String.valueOf(SCHEMA_VERSION)));
       writeItemClasses(c, classNames);
       LuaColumns columns = new LuaColumns(report);
       EntityWriter entities = new EntityWriter(c, columns, report);
@@ -173,6 +184,8 @@ public final class SqliteWriter {
       writeZones(c, model.zones(), spawnZones, client.zoneMaps().zoneToMap(), report);
       writeIcons(c, client.icons());
       writeZoneMaps(c, client.zoneMaps());
+      writeUiAssets(c, client.uiAssets());
+      writeCrafts(c, client.crafts());
       writeClientMeta(c, client);
 
       execute(c, List.of(SEARCH_INDEX));
@@ -187,6 +200,36 @@ public final class SqliteWriter {
     try (Batch rows = new Batch(c, "INSERT INTO icon(id, png) VALUES (?, ?)")) {
       for (Map.Entry<Long, byte[]> e : new TreeMap<>(icons).entrySet()) {
         rows.add(e.getKey(), e.getValue());
+      }
+    }
+  }
+
+  private static void writeUiAssets(Connection c, Map<String, byte[]> assets) throws SQLException {
+    try (Batch rows = new Batch(c, "INSERT INTO ui_asset(name, png) VALUES (?, ?)")) {
+      for (Map.Entry<String, byte[]> e : new TreeMap<>(assets).entrySet()) {
+        rows.add(e.getKey(), e.getValue());
+      }
+    }
+  }
+
+  /** {@code craft}, {@code craft_reagent} (in the given slot order) and {@code craft_recipe_item}. */
+  private static void writeCrafts(Connection c, Crafts crafts) throws SQLException {
+    try (Batch rows = new Batch(c, "INSERT INTO craft(spell_id, spell_name, item_id, quantity_min, quantity_max,"
+        + " skill_line_id, skill_name, min_skill, trivial_low, trivial_high, recipe_item_id)"
+        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
+      for (Craft k : crafts.crafts()) {
+        rows.add(k.spellId(), k.spellName(), k.createdItemId(), k.quantityMin(), k.quantityMax(), k.skillLineId(),
+            k.skillName(), k.minSkill(), k.trivialLow(), k.trivialHigh(), k.recipeItemId());
+      }
+    }
+    try (Batch rows = new Batch(c, "INSERT INTO craft_reagent(spell_id, item_id, count) VALUES (?, ?, ?)")) {
+      for (CraftReagent r : crafts.reagents()) {
+        rows.add(r.spellId(), r.itemId(), r.count());
+      }
+    }
+    try (Batch rows = new Batch(c, "INSERT INTO craft_recipe_item(spell_id, item_id) VALUES (?, ?)")) {
+      for (CraftRecipeItem r : crafts.recipeItems()) {
+        rows.add(r.spellId(), r.itemId());
       }
     }
   }

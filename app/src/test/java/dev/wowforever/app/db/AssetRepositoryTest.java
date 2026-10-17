@@ -39,6 +39,15 @@ class AssetRepositoryTest {
   }
 
   @Test
+  void uiIconIsTheNamedPng() {
+    assertThat(repos.assets().uiIcon("rail.quests"))
+        .hasValueSatisfying(png -> assertThat(png).startsWith(PNG_SIGNATURE));
+    assertThat(repos.assets().uiIcon("rail.quests@24"))
+        .hasValueSatisfying(png -> assertThat(png).startsWith(PNG_SIGNATURE));
+    assertThat(repos.assets().uiIcon("rail.nothing")).isEmpty();
+  }
+
+  @Test
   void iconOrFallbackIsEmptyWithoutAFallbackIcon(@TempDir Path dir) throws Exception {
     Path copy = dir.resolve("copy.sqlite");
     Files.copy(FixtureDb.path(), copy);

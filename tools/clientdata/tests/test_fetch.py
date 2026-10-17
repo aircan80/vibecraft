@@ -99,15 +99,20 @@ def test_fetch_tables_skips_cached_files(server, tmp_path):
         server.routes["/db2/%s/csv?build=%s" % (t, build)] = (200, "ID,Name\n1,%s\n" % t)
     c = make_client(server)
     out = fetch.fetch_tables(c, build, tmp_path)
-    assert len(tables.REQUIRED_TABLES) == 44
+    assert len(tables.REQUIRED_TABLES) == 48
     assert set(out) == set(tables.REQUIRED_TABLES)
     assert out["Item"] == tmp_path / build / "csv" / "Item.csv"
     assert out["Item"].read_text() == "ID,Name\n1,Item\n"
     hits = server.hits
-    assert hits == 44
+    assert hits == 48
     out2 = fetch.fetch_tables(c, build, tmp_path)
     assert server.hits == hits
     assert out2 == out
+
+
+def test_required_tables_include_the_crafting_tables():
+    # Task 8 (3A): reagents and skill ranks of the crafting spells; SkillRaceClassInfo exists in 1.60.1.70425
+    assert {"SpellReagents", "SkillLineAbility", "SkillRaceClassInfo"} <= set(tables.REQUIRED_TABLES)
 
 
 def test_fetch_tables_refetches_empty_file(server, tmp_path):
@@ -515,3 +520,30 @@ def test_cli_refuses_a_hostile_fallback_or_pinned_build(server, tmp_path, capsys
                        "--cache", str(tmp_path), "--rate", "1000"]) == 2
     assert "not four dot-separated numbers" in capsys.readouterr().err
     assert [p for p in server.paths if p.startswith("/db2/")] == []
+
+
+UI_MANIFEST = ("ID,FilePath,FileName\n"
+               "134414,Interface\\ICONS\\,INV_Misc_Rune_01.blp\n"
+               "130716,Interface\\BUTTONS\\,Button-Backpack-Up.blp\n")
+
+
+def test_ui_icons_fetches_the_resolved_fdids_and_locks_them(server, tmp_path, capsys):
+    server.routes["/db2/ManifestInterfaceData/csv?build=1.60.1.70425"] = (200, UI_MANIFEST)
+    assert fetch.main(["--product", "wow_classic_beta", "--base-url", server.url, "--cache", str(tmp_path),
+                       "--tables", "ManifestInterfaceData", "--ui-icons", "--rate", "1000"]) == 0
+    assert _fetched_fdids(server) == [130716, 134414]
+    lock = json.loads((tmp_path / "1.60.1.70425" / "build.lock").read_text())
+    assert lock["ui_icons"] == [
+        {"name": "rail.home", "path": "Interface/Icons/INV_Misc_Rune_01", "fdid": 134414, "choice": "first"},
+        {"name": "rail.items", "path": "Interface/Buttons/Button-Backpack-Up", "fdid": 130716, "choice": "second"},
+    ]
+    out = capsys.readouterr()
+    assert "rail.items" in out.err and "second choice" in out.err
+    assert "ui icons: 2 resolved, 4 unresolved" in out.out
+
+
+def test_ui_icons_without_the_manifest_fails_clearly(server, tmp_path, capsys):
+    assert _cli(server, tmp_path, "--ui-icons") == 2
+    err = capsys.readouterr().err
+    assert "ManifestInterfaceData" in err and "Traceback" not in err
+    assert _fetched_fdids(server) == []

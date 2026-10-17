@@ -24,6 +24,7 @@ class RateSourceTest {
     assertThat(new RateSource("questie-correction", 1.0).label()).isEqualTo("Questie correction");
     assertThat(new RateSource("atlasloot", 1.0).label()).isEqualTo("AtlasLoot");
     assertThat(new RateSource("atlasloot-override", 1.0).label()).isEqualTo("AtlasLoot override");
+    assertThat(new RateSource("vmangos", 1.0).label()).isEqualTo("Vanilla rate (VMaNGOS)");
     assertThat(new RateSource("magic", 1.0).label()).isEqualTo("magic");
   }
 }

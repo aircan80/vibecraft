@@ -152,3 +152,60 @@ def test_no_era_effect_table_in_the_cache_writes_none(tmp_path):
     counts = fixture.build_subset(csv_dir, items=[1], sets=[7]).write(tmp_path / "out" / "csv")
     assert "ItemSparse.era" in counts
     assert "ItemEffect.era" not in counts
+
+
+def _append(csv_dir, name, text):
+    with open(csv_dir / (name + ".csv"), "ab") as f:
+        f.write(text.encode("utf-8"))
+
+
+def _craft_cache(tmp_path):
+    csv_dir = _cache(tmp_path)
+    # spell 700 creates item 50 (a craft named by --crafts), 701 is a craft outside the subset
+    _append(csv_dir, "Spell", "700,,,\n701,,,\n")
+    _append(csv_dir, "SpellName", "700,Craft\n701,Other craft\n")
+    _append(csv_dir, "SpellEffect", "5,24,0,0,0,0,700\n6,24,0,0,0,0,701\n")
+    (csv_dir / "SpellReagents.csv").write_bytes(
+        b"ID,SpellID,Reagent_0,ReagentCount_0\n1,700,60,5\n2,701,61,1\n3,400,62,2\n")
+    (csv_dir / "SkillLineAbility.csv").write_bytes(
+        b"ID,SkillLine,Spell,MinSkillLineRank\n10,165,700,1\n11,164,701,1\n12,185,400,1\n")
+    (csv_dir / "SkillLine.csv").write_bytes(b"DisplayName_lang,ID\nBlacksmithing,164\nLeatherworking,165\n"
+                                            b"Cooking,185\nTailoring,197\n")
+    return csv_dir
+
+
+def test_crafts_join_the_spell_closure_and_keep_their_reagents_and_skill_rows(tmp_path):
+    csv_dir = _craft_cache(tmp_path)
+    s = fixture.build_subset(csv_dir, items=[1], crafts=[700])
+    counts = s.write(tmp_path / "out" / "csv")
+
+    spells = {int(l.split(",")[0]) for l in _out(tmp_path, "Spell").splitlines()[1:] if l[:1].isdigit()}
+    assert 700 in spells and 701 not in spells
+    assert "5,24,0,0,0,0,700" in _out(tmp_path, "SpellEffect").splitlines()
+    # reagents and skill rows of every kept spell: the craft 700 and the item's spell 400, not 701
+    assert _out(tmp_path, "SpellReagents") == "ID,SpellID,Reagent_0,ReagentCount_0\n1,700,60,5\n3,400,62,2\n"
+    assert _out(tmp_path, "SkillLineAbility") == "ID,SkillLine,Spell,MinSkillLineRank\n10,165,700,1\n12,185,400,1\n"
+    assert counts["SpellReagents"] == 2 and counts["SkillLineAbility"] == 2
+
+
+def test_skill_race_class_info_is_written_header_only(tmp_path):
+    # the importer does not read it, so the cut keeps no rows (the committed fixture CSV is header-only)
+    csv_dir = _craft_cache(tmp_path)
+    (csv_dir / "SkillRaceClassInfo.csv").write_bytes(b"ID,SkillID,ClassMask\n1,165,0\n")
+    counts = fixture.build_subset(csv_dir, items=[1], crafts=[700]).write(tmp_path / "out" / "csv")
+    assert _out(tmp_path, "SkillRaceClassInfo") == "ID,SkillID,ClassMask\n"
+    assert counts["SkillRaceClassInfo"] == 0
+
+
+def test_a_large_skill_line_table_keeps_the_kept_crafts_skill_lines(tmp_path, monkeypatch):
+    csv_dir = _craft_cache(tmp_path)
+    monkeypatch.setattr(fixture, "WHOLE_TABLE_LIMIT", 0)
+    fixture.build_subset(csv_dir, items=[1], crafts=[700]).write(tmp_path / "out" / "csv")
+    assert _out(tmp_path, "SkillLine") == "DisplayName_lang,ID\nLeatherworking,165\nCooking,185\n"
+
+
+def test_cli_takes_crafts(tmp_path):
+    _craft_cache(tmp_path)
+    assert fixture.main(["--cache", str(tmp_path / "cache"), "--build", "B", "--items", "1", "--crafts", "700",
+                         "--out", str(tmp_path / "out")]) == 0
+    assert "1,700,60,5" in _out(tmp_path, "SpellReagents")

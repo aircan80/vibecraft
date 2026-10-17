@@ -19,7 +19,7 @@ Never install the requirements globally.
 
 ## Commands
 
-    # all 44 required tables, newest build of the product, local wow.tools.local (default base URL)
+    # all 48 required tables, newest build of the product, local wow.tools.local (default base URL)
     python tools/clientdata/fetch.py --product wow_classic_beta --cache ~/.cache/wowforever-clientdata
 
     # against wago.tools, one table only (smoke test)
@@ -33,12 +33,15 @@ Never install the requirements globally.
     ... --fdids "$(python tools/clientdata/needed_icons.py --db app/src/main/resources/data/wowforever.sqlite \
         --cache ~/.cache/wowforever-clientdata --build 1.60.1.70425)"
 
+    # the navigation rail's UI icons (needs ManifestInterfaceData.csv in the cache, see "UI icons" below)
+    ... --ui-icons
+
     # also the Classic Era ItemSparse and ItemEffect as a fallback for items Forever's ItemSparse lacks (ruling 17)
     ... --fallback-product wow_classic_era
 
 Flags: `--product` (required), `--build` (default newest), `--base-url` (default
 `http://localhost:5000`, wow.tools.local's port), `--cache` (required), `--tables A,B` (subset), `--icons-from ITEM_CSV`
-(path, or file name inside `{cache}/{build}/csv`), `--maps`, `--fdids 1,2,3` (exactly these files),
+(path, or file name inside `{cache}/{build}/csv`), `--maps`, `--fdids 1,2,3` (exactly these files), `--ui-icons`,
 `--retry-missing`, `--rate` (default 4 req/s), `--fallback-product PRODUCT` (also fetch that product's newest
 `ItemSparse` and `ItemEffect`, and nothing else from it), `--fallback-build BUILD` (pin the fallback build; needs
 `--fallback-product`), `--user-agent CONTACT` (the contact part of the User-Agent, see "Politeness").
@@ -56,8 +59,9 @@ Tests: `tools/clientdata/.venv/Scripts/python -m pytest tools/clientdata -q` (no
     {cache}/{build}/missing.txt         FileDataIDs that returned 404 (not fatal)
     {cache}/{build}/csv/{Table}.era.csv   the fallback product's ItemSparse and ItemEffect (--fallback-product)
     {cache}/{build}/build.lock          {product, build, fetched_at, base_url, tables{name: sha256}, file_count, missing_count
-                                         [, fallback_product, fallback_build]}; the fallback tables are
-                                         tables["ItemSparse.era"] and tables["ItemEffect.era"]
+                                         [, fallback_product, fallback_build][, ui_icons]}; the fallback tables are
+                                         tables["ItemSparse.era"] and tables["ItemEffect.era"]; ui_icons is
+                                         [{name, path, fdid, choice}] (fetch.py --ui-icons)
 
 Re-running is idempotent: cached items and files already recorded in `missing.txt` cause no requests
 (only `/api/builds` is read each run, once). Pass `--retry-missing` to deliberately re-request the known-404 files.
@@ -65,7 +69,8 @@ A request answered with HTTP 5xx is retried three times, after 2, 4 and 8 second
 never retried.
 Each run merges into the build's existing `build.lock`: it replaces the hashes of the tables it fetched (or found
 cached) and keeps every other table entry and the `fallback_*` keys of earlier runs, so a `--tables` or `--fdids`
-run never drops what an earlier run recorded. `file_count` counts the BLP files in `files/` and `missing_count`
+run never drops what an earlier run recorded; the `ui_icons` key is kept the same way until a `--ui-icons` run
+replaces it. `file_count` counts the BLP files in `files/` and `missing_count`
 the ids in `missing.txt`, whatever the run fetched.
 The fallback tables (`ItemSparse.era.csv`, `ItemEffect.era.csv`) are cached under the Forever build. They are
 fetched again when the last `build.lock` names a different (or no) `fallback_build` than the one resolved now, so a
@@ -129,6 +134,8 @@ Reads `{cache}/{build}` and writes a deterministic (no timestamps) import tree:
     OUT/icons/0.png         fallback "?" icon (drawn, no external asset)
     OUT/maps/{uiMapId}.jpg  composited zone map, 1002x668, JPEG quality 85
     OUT/maps.json           [{ui_map_id, name, width, height, tiles, overlays, missing_tiles}] by ui_map_id
+    OUT/ui_icons/{name}.png      the lock's ui_icons at native size, RGBA
+    OUT/ui_icons/{name}@24.png   the same at 24 px
 
 - Icons: the 64 px source has a 4 px decorative border (`ICON_BORDER_PX`), cropped on every side, then LANCZOS to 56 px.
   Without `Item.csv` in the cache, every cached BLP that is not a map tile is converted.
@@ -142,12 +149,64 @@ Reads `{cache}/{build}` and writes a deterministic (no timestamps) import tree:
   BGRA). In build 1.60.1.70425 that is icon 4559256, used by Rough Wolf Pelt (247877), Savannah Lion Hide (269715)
   and Tanning Rack (279941).
 
+`--ui-icons-only` writes only `OUT/build.lock` and `OUT/ui_icons/` and leaves the rest of `OUT` as it is.
+`--tables A,B` copies only those cached tables into `OUT/csv/` (plus `OUT/build.lock`) and leaves the rest of `OUT` as
+it is; a table that is not cached stops the run with exit code 2 before anything is written. The two flags exclude
+each other.
+
+The crafting tables (`SpellReagents`, `SkillLineAbility` and `SkillRaceClassInfo`, 3A Task 8) joined
+`REQUIRED_TABLES` after the full run and were fetched and converted alone:
+
+    python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C \
+        --tables SpellReagents,SkillLineAbility,SkillRaceClassInfo
+    python tools/clientdata/convert.py --cache $C --build $B --out $C/out/current \
+        --tables SpellReagents,SkillLineAbility,SkillRaceClassInfo
+
+The importer reads `SpellReagents` and `SkillLineAbility`; `SkillRaceClassInfo` (which races and classes may learn a
+skill) is fetched for completeness and not read yet. Both tables the importer reads are optional: a converted
+directory without them (one made before Task 8) imports without crafts, counted as `clientdata.crafts.skipped` with a
+note naming the missing tables.
+
+## UI icons
+
+The browser's navigation rail shows six client textures (spec section 5; the owner allows client art for icons only),
+listed with a first and a second choice in `clientdata/ui_icons.py`:
+
+| Name | First choice | Second choice |
+|---|---|---|
+| rail.home | Interface/Icons/INV_Misc_Rune_01 | Interface/Icons/Spell_Nature_AstralRecal |
+| rail.items | Interface/Icons/INV_Misc_Bag_08 | Interface/Buttons/Button-Backpack-Up |
+| rail.npcs | Interface/GossipFrame/GossipGossipIcon | Interface/Icons/INV_Misc_Head_Human_01 |
+| rail.quests | Interface/GossipFrame/AvailableQuestIcon | Interface/Icons/INV_Misc_Note_01 |
+| rail.zones | Interface/Icons/INV_Misc_Map_01 | Interface/WorldMap/UI-World-Icon |
+| rail.instances | Interface/Icons/INV_Misc_Head_Dragon_01 | Interface/Icons/INV_Misc_Key_03 |
+
+`fetch.py --ui-icons` resolves the paths to FileDataIDs with the client's own `ManifestInterfaceData` table (one of
+the required tables; columns `ID`, `FilePath`, `FileName`), matching `FilePath + FileName` whole and ignoring case and
+slash direction (`FileName` carries the `.blp`). A missing first choice is logged and the second used; when neither
+exists the icon is logged as an error, skipped and counted in the run's `ui icons: N resolved, M unresolved` line. The
+resolved `{name, path, fdid, choice}` entries go into `build.lock` under `ui_icons` and their files are fetched.
+`convert.py` then writes `ui_icons/{name}.png` at native size and `ui_icons/{name}@24.png`: Interface/Icons art is
+cropped to its central 86 % (a 55 px box of 64, which removes the bevel) and resized to 24 px bicubic; GossipFrame,
+Buttons and WorldMap art is centred at native size on a transparent 24 px canvas (downscaled first only when larger).
+A cached BLP missing or undecodable counts in `ui_icons_missing` or `ui_icons_failed` of the summary; neither is
+fatal. The importer embeds both variants in `ui_asset` as `{name}` and `{name}@24`.
+
+Build 1.60.1.70425 resolves all six to their first choice: 134414, 133633, 132053, 132049, 134269 and 134153 (the
+two GossipFrame textures are 16 x 16, the rest 64 x 64). They were fetched alone, without a full run:
+
+    python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C \
+        --tables ManifestInterfaceData --ui-icons
+    python tools/clientdata/convert.py --cache $C --build $B --out $C/out/current --ui-icons-only
+
 ## make_fixture.py: importer test fixture
 
 Cuts a small, self-consistent subset of the cached tables: the given items (plus every piece of their sets)
 and every row reached from them (effects, spells incl. trigger and `$<id>` text references, enchantments,
 set bonuses, scaling rows for the item levels used), the UiMap chain of the given maps, the given areas with
 their sub-zones, and the small lookup tables whole. Rows are copied byte for byte under the original header.
+`--crafts 1,2,3` adds crafting spells to the spell closure, and the `SpellReagents` (by `SpellID`) and
+`SkillLineAbility` (by `Spell`) rows of every kept spell are kept, their skill lines joining the `SkillLine` references.
 When the cache has `ItemSparse.era.csv`, the Era rows of every subset item are kept in `ItemSparse.era.csv`; for
 items without a Forever ItemSparse row they also add their item levels (and references) to the closures, but
 they never add items or sets. When it has `ItemEffect.era.csv`, the Era effects (by `ParentItemID`) of those
@@ -188,7 +247,21 @@ fixture, and its icon `134236.png` was converted from the cached BLP. `ItemEffec
 the fixture's Era-sourced items (Onslaught Girdle, Arcanist Boots, the Felheart pieces, ...), with their Forever
 spell rows; the fixture `build.lock` gained its `tables["ItemEffect.era"]` sha (of the full table, like the others).
 
+3A Task 8 (crafting) added, the same way and additively, `SpellReagents.csv` and `SkillLineAbility.csv`, the recipe
+items Recipe: Prowler Steak (238645) and its second recipe 250394, and the crafts Heavy Leather (20649,
+Leatherworking), Sulfuron Hammer (21161, Blacksmithing) and Coarse Dynamite (3931, Engineering, a yield range of 1 to
+3): `ARGS` above plus `--items ...,238645,250394 --crafts 20649,21161,3931`. Spells already in the fixture became
+crafts too: Eye of Sulfuras (21160, no SkillLineAbility row), Transmute: Air to Fire (17559, taught by 13482) and
+Prowler Steak (1225758, Cooking); Enchant Weapon - Dismantle (435481) has reagents and a skill row but creates
+nothing. `SkillRaceClassInfo.csv` is header-only: the importer does not read it, so the cutter keeps no rows of it.
+The cut reproduces every committed CSV byte for byte except the hand-extended `UiMapAssignment.csv`, which was left
+alone; it also writes a header-only `ManifestInterfaceData.csv` that the fixture lacks (the importer does not read
+that table either). The fixture `build.lock` was not changed.
+
 The fixture tree is `-text` in `.gitattributes`: one quoted ItemSparse cell holds a real CRLF.
+
+The fixture's `ui_icons/rail.quests.png` (16 x 16) and `rail.quests@24.png` (24 x 24) are not client art: they were
+drawn with a few lines of Pillow (a yellow bar and dot on a transparent canvas) for `UiAssetLoaderTest`.
 
 ## known_items.py: the known-items oracle
 

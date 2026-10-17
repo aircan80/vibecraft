@@ -160,3 +160,34 @@ distress beacon (item start, escort without points).
   2B merges to main; same subagent-driven process; v0.3.0 at the end.
 - Left to the builders: exact chain-walk algorithm, pin glyph rendering details, the Marcellus bundling (resource +
   licence file), the crop/plate rendering of client icons, QuestSort label table.
+
+## 10. Addendum (2026-10-17): NPC patrol routes
+Owner request: show a patrolling NPC's route on the map, and where it despawns. Data: Questie `npcKeys.waypoints`
+gives ordered coordinate lists per zone for patrolling NPCs (Defias Messenger 550 has ~60 points in Westfall);
+despawn points are not recorded. Design: the NPC page's Spawns map and the zone map (toggle "Routes", off by default)
+draw each route as a 2 px dashed polyline in the NPC's pin colour with arrowheads every ~10 points, the spawn pin as
+today, and — when the route is not a loop — an end marker "route ends here" (hollow square) at the last point, with
+the tooltip "Last known point of the patrol; the NPC may despawn here". Loops close the polyline. The route layer
+clusters nothing; hit-testing the line shows the NPC tooltip; click opens the NPC. Data lands in 3A Task 7; the UI in
+plan 3B.
+
+## 11. Addendum (2026-10-17): owner-approved research features
+Owner's framing: a "research and learning tool (kind of what wow-head provides)", not a leveling guide. Approved:
+1. **Community drop rates** from a server database (VMaNGOS world DB: creature_loot_template, gameobject_loot_template,
+   reference_loot_template, npc_vendor) as a third provenance source `vmangos`, shown through the existing
+   `drop_rate_source` / "≠" machinery and the per-source tooltip; licence noted in NOTICE (3A Task 9).
+2. **"What do I need for this dungeon"**: an instance page tab listing the quests that send you inside (objectives or
+   turn-ins in the instance's zone / its bosses), their givers in town, and the prerequisite quests, built from 3A's
+   quest relations and objectives (3B).
+3. **Vendor and trainer finder**: NPC flags (vendor, repair, trainer per profession, flight master, innkeeper, bank,
+   auctioneer) already in `npc.npc_flags`; a list page filter "Role" and a zone map toggle "Services" with distinct
+   glyphs; an NPC page chip row ("Vendor · Repair") (3B).
+4. **Copy-to-game helpers and coordinates**: every map shows the cursor's map coordinates ("45.1, 69.3") in a corner
+   label as the mouse moves; right-click on any map point copies a `/way` for it; item and quest pages get "Copy
+   in-game link" (`|Hitem:19019:0:0:0:0:0:0:0:60|h[Name]|h` / `|Hquest:176:11|h[Name]|h`) (3B).
+5. **Crafting**: "Created by <spell/recipe> (Profession 225) with {reagents}" on item pages and "Reagent for" lists; a
+   recipe item page shows what it teaches; data from the client tables SpellReagents, SkillLineAbility, SkillLine,
+   Spell/SpellEffect (ItemType created, quantity) → tables `craft(spell_id, skill_id, skill_rank, item_id, quantity,
+   source recipe_item_id|trainer)`, `craft_reagent(spell_id, item_id, count)` (3A Task 8; UI in 3B).
+6. **WoW expert review** of the UI as a research tool (three experts: loot/raids, professions/economy,
+   lore/exploration) — findings folded into the 3B plan.

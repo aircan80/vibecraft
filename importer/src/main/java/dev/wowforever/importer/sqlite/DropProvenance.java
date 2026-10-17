@@ -64,12 +64,13 @@ final class DropProvenance {
   void write(Connection c, ImportReport report) throws SQLException {
     report.count("provenance.pairs", 0);
     report.count("provenance.disagreeing", 0);
-    try (Batch rows = new Batch(c, "INSERT INTO drop_rate_source(npc_id, item_id, source, pct) VALUES (?, ?, ?, ?)")) {
+    try (Batch rows = new Batch(c,
+        "INSERT INTO drop_rate_source(npc_id, item_id, source, pct, quest_only) VALUES (?, ?, ?, ?, ?)")) {
       for (Map.Entry<Pair, List<DropRate>> e : pairs.entrySet()) {
         Pair p = e.getKey();
         List<DropRate> sources = e.getValue();
         for (DropRate r : sources) {
-          rows.add(p.npcId(), p.itemId(), r.source(), r.percent());
+          rows.add(p.npcId(), p.itemId(), r.source(), r.percent(), r.questOnly() ? 1 : 0);
           report.count("provenance.sources." + r.source(), 1);
         }
         report.count("provenance.pairs", 1);

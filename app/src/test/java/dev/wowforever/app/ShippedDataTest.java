@@ -4,9 +4,7 @@ import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.wowforever.app.db.Database;
 import dev.wowforever.app.db.DatabaseInstaller;
-import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceSummary;
@@ -36,10 +34,6 @@ import java.awt.Graphics2D;
 import java.awt.image.BufferedImage;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -54,65 +48,17 @@ import java.util.regex.Pattern;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
 import javax.swing.JTable;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Sanity checks against the real committed database. It is extracted from the classpath resource by the
- * production {@link DatabaseInstaller}, so these tests also cover the extraction path on the shipped file.
- * Skip them with {@code -DexcludedGroups=shipped-data}.
+ * production {@link DatabaseInstaller}, so these tests also cover the extraction path on the shipped file
+ * ({@link ShippedDataSupport}). The quest data checks are in {@link ShippedQuestDataTest}, the crafting and drop rate
+ * provenance checks in {@link ShippedProvenanceDataTest}. Skip them with {@code -DexcludedGroups=shipped-data}.
  */
 @Tag("shipped-data")
-class ShippedDataTest {
-  static Database db;
-  static Repositories repos;
-
-  @BeforeAll
-  static void open(@TempDir Path dir) throws Exception {
-    Path file = new DatabaseInstaller(dir).install();
-    db = Database.open(file);
-    repos = Repositories.of(db);
-  }
-
-  @AfterAll
-  static void close() {
-    if (db != null) {
-      db.close();
-    }
-  }
-
-  private static long scalar(String sql) {
-    synchronized (db) {
-      try (Statement st = db.connection().createStatement(); ResultSet rs = st.executeQuery(sql)) {
-        rs.next();
-        return rs.getLong(1);
-      } catch (SQLException e) {
-        throw new IllegalStateException(sql, e);
-      }
-    }
-  }
-
-  private static List<Object> column(String sql) {
-    synchronized (db) {
-      try (Statement st = db.connection().createStatement(); ResultSet rs = st.executeQuery(sql)) {
-        List<Object> out = new ArrayList<>();
-        while (rs.next()) {
-          out.add(rs.getObject(1));
-        }
-        return out;
-      } catch (SQLException e) {
-        throw new IllegalStateException(sql, e);
-      }
-    }
-  }
-
-  private static long count(String table) {
-    return scalar("select count(*) from " + table);
-  }
-
+class ShippedDataTest extends ShippedDataSupport {
   @Test
   void minimumCounts() {
     assertThat(count("item")).isGreaterThan(15_000);
@@ -256,6 +202,18 @@ class ShippedDataTest {
     }
     assertThat(rows).last().asString().startsWith("World drops (").endsWith(")" + " ▸");
     assertThat(rows).contains("Huge Gnoll Claw").hasSizeLessThan(8);
+    // every pool drop of Hogger's is below 10 % (Tough Jerky 6.09 %): Quest items (2), then World drops (23)
+    assertThat(rows).hasSize(4).first().isEqualTo("Quest items (2)");
+    assertThat(rows).last().isEqualTo("World drops (23) ▸");
+    // a high-rate shared drop is what the NPC is farmed for: Murloc Tidehunter (NPC 127) drops Murloc Eye at
+    // 50.0 % (questie-wowhead, 36 droppers), so it stays in Trade goods and not in the world drops
+    var tidehunter = (NpcPage) TestPages.build(new EntityRef(NPC, 127), repos, t -> {});
+    List<Object> tidehunterRows = new ArrayList<>();
+    for (int r = 0; r < tidehunter.drops().table().getRowCount(); r++) {
+      tidehunterRows.add(tidehunter.drops().table().getValueAt(r, 0));
+    }
+    assertThat(tidehunterRows).containsSequence("Trade goods (3)", "Murloc Eye");
+    assertThat(tidehunterRows).last().asString().startsWith("World drops (");
     // a quest item 22 NPCs drop at an unknown rate stays in the table, not in the world drops
     var horror = (NpcPage) TestPages.build(new EntityRef(NPC, 3642), repos, t -> {});
     List<Object> horrorRows = new ArrayList<>();
@@ -288,7 +246,12 @@ class ShippedDataTest {
     var sulfuras = repos.items().detail(17204).get().droppedBy().stream()
         .filter(s -> s.ref().id() == 11502L).findFirst();
     assertThat(sulfuras).isPresent();
-    assertThat(sulfuras.get().dropPct()).isNotNull().isBetween(7.5, 8.6);
+    // VMaNGOS (3 %) outranks AtlasLoot (8.05 %, kept as a source); the two disagree
+    assertThat(sulfuras.get().dropPct()).isNotNull().isBetween(2.5, 3.5);
+    assertThat(sulfuras.get().pctSource()).isEqualTo("vmangos");
+    assertThat(sulfuras.get().disagrees()).isTrue();
+    assertThat(column("select pct from drop_rate_source where npc_id = 11502 and item_id = 17204"
+        + " and source = 'atlasloot'")).singleElement().satisfies(p -> assertThat((Double) p).isBetween(7.5, 8.6));
     assertThat(repos.npcs().detail(639).get().drops())
         .anyMatch(l -> l.item().id() == 2874 && l.dropPct() != null && l.dropPct() > 50);
     assertThat(repos.search().search("hogger", Optional.empty(), 5)).extracting(SearchHit::ref)
@@ -334,13 +297,6 @@ class ShippedDataTest {
     assertThat(report).as("the Conflicts section").containsPattern("(?m)^== Conflicts ==\\s*$");
     assertThat(report).as("Era effects whose spell Forever lacks")
         .containsPattern("(?m)^clientdata\\.era\\.effectUnresolved = \\d+\\s*$");
-  }
-
-  private static String committedReport() throws Exception {
-    try (InputStream in = ShippedDataTest.class.getResourceAsStream("/data/import-report.txt")) {
-      assertThat(in).as("/data/import-report.txt").isNotNull();
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-    }
   }
 
   @Test
@@ -505,24 +461,5 @@ class ShippedDataTest {
       }
     }
     return out;
-  }
-
-  private static List<Object[]> rows(String sql) {
-    synchronized (db) {
-      try (Statement st = db.connection().createStatement(); ResultSet rs = st.executeQuery(sql)) {
-        List<Object[]> out = new ArrayList<>();
-        int n = rs.getMetaData().getColumnCount();
-        while (rs.next()) {
-          Object[] row = new Object[n];
-          for (int i = 0; i < n; i++) {
-            row[i] = rs.getObject(i + 1);
-          }
-          out.add(row);
-        }
-        return out;
-      } catch (SQLException e) {
-        throw new IllegalStateException(sql, e);
-      }
-    }
   }
 }

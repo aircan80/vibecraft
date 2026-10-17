@@ -1,5 +1,7 @@
 package dev.wowforever.app.db;
 
+import dev.wowforever.app.model.Craft;
+import dev.wowforever.app.model.CraftReagent;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
@@ -264,6 +266,71 @@ public final class ItemRepository {
             Sql.longValue(rs, "npc_id"), Sql.integer(rs, "slot"), Sql.doubleValue(rs, "drop_pct"),
             rs.getInt("disagrees") != 0, rs.getInt("source_count")),
         itemId);
+  }
+
+  /**
+   * The crafts that create item {@code itemId} ("Created by"), by skill (crafts without one last), then spell name;
+   * empty when there are none or the database predates the craft tables.
+   */
+  public List<Craft> createdBy(long itemId) {
+    return db.read(c -> crafts(c, "c.item_id = ?", itemId));
+  }
+
+  /** The crafts that consume item {@code itemId} ("Reagent for"), ordered like {@link #createdBy}. */
+  public List<Craft> reagentFor(long itemId) {
+    return db.read(c -> crafts(c, "c.spell_id IN (SELECT spell_id FROM craft_reagent WHERE item_id = ?)", itemId));
+  }
+
+  /**
+   * The crafts that item {@code recipeItemId} teaches (any of a craft's recipe items, not only the lowest), ordered
+   * like {@link #createdBy}.
+   */
+  public List<Craft> taughtBy(long recipeItemId) {
+    return db.read(c -> crafts(c, "c.spell_id IN (SELECT spell_id FROM craft_recipe_item WHERE item_id = ?)",
+        recipeItemId));
+  }
+
+  /**
+   * The crafts matching {@code where} (over {@code craft c}, one parameter) with their reagents in insert (slot)
+   * order and their recipe items in id order, the created, recipe and reagent items resolved against the item table;
+   * empty on a database without the craft tables.
+   */
+  private static List<Craft> crafts(Connection c, String where, long param) throws SQLException {
+    if (!Sql.hasTable(c, "craft") || !Sql.hasTable(c, "craft_reagent") || !Sql.hasTable(c, "craft_recipe_item")) {
+      return List.of();
+    }
+    record Recipe(long spellId, long itemId) {}
+    Map<Long, List<Long>> recipeItems = new LinkedHashMap<>();
+    for (Recipe r : Sql.list(c, "SELECT spell_id, item_id FROM craft_recipe_item"
+            + " WHERE spell_id IN (SELECT c.spell_id FROM craft c WHERE " + where + ") ORDER BY spell_id, item_id",
+        rs -> new Recipe(rs.getLong("spell_id"), rs.getLong("item_id")), param)) {
+      recipeItems.computeIfAbsent(r.spellId(), k -> new ArrayList<>()).add(r.itemId());
+    }
+    record Reagent(long spellId, CraftReagent reagent) {}
+    Map<Long, List<CraftReagent>> reagents = new LinkedHashMap<>();
+    for (Reagent r : Sql.list(c, "SELECT r.spell_id, r.item_id, r.count, i.name, i.quality, i.icon_id"
+            + " FROM craft_reagent r LEFT JOIN item i ON i.id = r.item_id"
+            + " WHERE r.spell_id IN (SELECT c.spell_id FROM craft c WHERE " + where + ") ORDER BY r.rowid",
+        rs -> new Reagent(rs.getLong("spell_id"), new CraftReagent(rs.getLong("item_id"), rs.getInt("count"),
+            rs.getString("name"), Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id"))),
+        param)) {
+      reagents.computeIfAbsent(r.spellId(), k -> new ArrayList<>()).add(r.reagent());
+    }
+    return Sql.list(c, "SELECT c.spell_id, c.spell_name, c.item_id, i.name AS item_name,"
+            + " i.quality AS item_quality, i.icon_id AS item_icon_id, c.quantity_min, c.quantity_max,"
+            + " c.skill_line_id, c.skill_name, c.min_skill, c.trivial_low, c.trivial_high, c.recipe_item_id,"
+            + " ri.name AS recipe_item_name"
+            + " FROM craft c LEFT JOIN item i ON i.id = c.item_id LEFT JOIN item ri ON ri.id = c.recipe_item_id"
+            + " WHERE " + where
+            + " ORDER BY c.skill_name IS NULL, c.skill_name COLLATE NOCASE, c.spell_name COLLATE NOCASE, c.spell_id",
+        rs -> new Craft(rs.getLong("spell_id"), rs.getString("spell_name"), rs.getLong("item_id"),
+            rs.getString("item_name"), Sql.integer(rs, "item_quality"), Sql.longValue(rs, "item_icon_id"),
+            rs.getInt("quantity_min"), rs.getInt("quantity_max"), Sql.longValue(rs, "skill_line_id"),
+            rs.getString("skill_name"), Sql.integer(rs, "min_skill"), Sql.integer(rs, "trivial_low"),
+            Sql.integer(rs, "trivial_high"), Sql.longValue(rs, "recipe_item_id"), rs.getString("recipe_item_name"),
+            recipeItems.getOrDefault(rs.getLong("spell_id"), List.of()),
+            reagents.getOrDefault(rs.getLong("spell_id"), List.of())),
+        param);
   }
 
   /**

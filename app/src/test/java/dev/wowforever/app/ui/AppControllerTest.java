@@ -369,7 +369,7 @@ class AppControllerTest {
     c.open(new ViewTarget.Home());
     c.open(new ViewTarget.List(NPC));
     ListPage page = listPage();
-    assertThat(page.results().rowCount()).isEqualTo(15);
+    assertThat(page.results().rowCount()).isEqualTo(16);
     select(page.filterBar().ranks(), 3);
     select(page.filterBar().zones(), 2717L);
     assertThat(view.detail).as("the page stays, its table reloads").isSameAs(page);

@@ -18,6 +18,7 @@ Movement speed slowed by $s1%."
 13439,,"Launches a bolt of frost at the enemy causing $s2 Frost damage and slowing movement speed by $s1% for $d.","Movement slowed by $s1%."
 14134,,"Purifies the friendly target, removing $m1 disease $leffect:effects; and $m2 poison $leffect:effects;.",
 15464,,"Improves your chance to hit by ${$s1}.1%.",
+3931,,,
 15279,,"A crystal shield surrounds the friendly target, doing $s1 damage to anyone who hits $ghim:her;.  Lasts $d.","Causes $s1 nature damage to attackers."
 16939,,"Chance on hit to grant nearby party members $s1% increased critical strike chance.","Critical strike chance increased by $w1%."
 17538,,"Increases Agility by $s1 and chance to get a critical hit by $s2%. Lasts for $d.","Agility increased by $w1 and critical hit chance increases by $w2%."
@@ -74,12 +75,15 @@ Movement speed slowed by $s1%."
 18374,,,
 18381,,"Reduces target enemy's attack power by $s1 for $d.","Attack power lowered by $s1."
 18384,,"Improves your chance to get a critical strike with spells by ${$s1}.1%.",
+20649,,,
+21161,,,
 402265,,,
 432639,,"Improves your chance to hit by ${$s1}.1%.",
 435467,,,
 439164,,,
 442206,,,
 446847,,,
+1225758,,,
 1226808,,"Restores $s1% of your health and mana per second for $d.  Must remain seated while eating.","Restores $s1% of your health and mana per second."
 1293654,,"Silences an enemy, preventing it from casting spells for $d.","Cannot cast spells."
 1293733,,,"Absorbs $w1 damage."

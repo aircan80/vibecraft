@@ -6,7 +6,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * A minimal JSON reader for the two small files the Python tools write ({@code build.lock}, {@code maps.json}).
+ * A minimal JSON reader for the small files the Python tools write ({@code build.lock}, {@code maps.json},
+ * {@code serverdb.lock}).
  * The importer has no JSON library and this does not justify one.
  *
  * <p>Values map to {@code Map<String, Object>} (insertion order), {@code List<Object>}, {@code String},
@@ -14,7 +15,7 @@ import java.util.Map;
  * {@code null}. Full RFC 8259 syntax is accepted, including string escapes and {@code \}{@code uXXXX}.
  * Errors are {@link IllegalArgumentException}s carrying the character offset.
  */
-final class MiniJson {
+public final class MiniJson {
   private final String s;
   private int i;
 
@@ -22,7 +23,7 @@ final class MiniJson {
     this.s = s;
   }
 
-  static Object parse(String json) {
+  public static Object parse(String json) {
     MiniJson p = new MiniJson(json);
     p.ws();
     Object v = p.value();

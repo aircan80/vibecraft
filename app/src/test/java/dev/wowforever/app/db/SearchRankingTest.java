@@ -51,12 +51,13 @@ class SearchRankingTest {
 
   @Test
   void exactNameMatchRanksFirst() throws Exception {
-    // an item outranks a plain NPC by kind, but the NPC's name is the exact search text
+    // an item outranks a plain NPC by kind, but the NPC's name is the exact search text; the quest Wanted: "Hogger"
+    // only contains it
     List<SearchHit> hits = searchCopy("hogger", 10,
         index("item", 90001, "Hogger Tusk"),
         "insert into item(id, name, item_level, class_id, subclass_id) values (90001, 'Hogger Tusk', 12, 12, 0)");
     assertThat(hits).extracting(SearchHit::ref)
-        .containsExactly(new EntityRef(NPC, 448), new EntityRef(ITEM, 90001));
+        .containsExactly(new EntityRef(NPC, 448), new EntityRef(ITEM, 90001), new EntityRef(QUEST, 176));
   }
 
   @Test

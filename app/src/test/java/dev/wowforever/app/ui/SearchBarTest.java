@@ -16,6 +16,7 @@ import dev.wowforever.app.ui.widgets.Keys;
 import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.SearchDropdown;
 import dev.wowforever.app.ui.widgets.SearchDropdown.Row;
+import java.awt.event.FocusEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -288,6 +289,54 @@ class SearchBarTest {
   void focusingWithoutRecentsShowsNothing() {
     bar.focusChanged(true);
     assertThat(dropdown.isShowing()).isFalse();
+  }
+
+  @Test
+  void focusFallingIntoTheBoxAfterAPageSwapNeverOpensRecents() {
+    attachInline();
+    state.addRecentSearch("hogger");
+    // Removing a focused page hands the focus on by traversal; activating the window restores it. Neither is a
+    // deliberate entry into the search box.
+    bar.focusChanged(true, FocusEvent.Cause.TRAVERSAL_FORWARD);
+    assertThat(dropdown.isShowing()).isFalse();
+    bar.focusChanged(false, FocusEvent.Cause.UNKNOWN);
+    bar.focusChanged(true, FocusEvent.Cause.ACTIVATION);
+    assertThat(dropdown.isShowing()).isFalse();
+  }
+
+  @Test
+  void clickingIntoTheEmptyBoxShowsRecents() {
+    attachInline();
+    state.addRecentSearch("hogger");
+    bar.focusChanged(true, FocusEvent.Cause.MOUSE_EVENT);
+    assertThat(dropdown.isShowing()).isTrue();
+    assertThat(dropdown.rows()).contains(new Row.Recent("hogger"));
+  }
+
+  @Test
+  void clickingTheAlreadyFocusedEmptyBoxShowsRecents() {
+    attachInline();
+    state.addRecentSearch("hogger");
+    // Focus came back through window activation: quiet. The click that follows is the deliberate entry.
+    bar.focusChanged(true, FocusEvent.Cause.ACTIVATION);
+    assertThat(dropdown.isShowing()).isFalse();
+    bar.clicked();
+    assertThat(dropdown.isShowing()).isTrue();
+    bar.clicked();
+    assertThat(dropdown.rows()).containsOnlyOnce(new Row.Recent("hogger"));
+  }
+
+  @Test
+  void focusShortcutCountsAsADeliberateEntry() {
+    attachInline();
+    state.addRecentSearch("hogger");
+    bar.focus();
+    // Headless: requestFocusInWindow cannot succeed, so the flag is dropped and a stray focus event stays quiet.
+    bar.focusChanged(true, FocusEvent.Cause.UNKNOWN);
+    assertThat(dropdown.isShowing()).isFalse();
+    bar.markFocusDeliberate();
+    bar.focusChanged(true, FocusEvent.Cause.UNKNOWN);
+    assertThat(dropdown.isShowing()).isTrue();
   }
 
   @Test

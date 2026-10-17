@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Iterable, NamedTuple, Optional
 
+from . import ui_icons as ui
 from .http import Client, FetchError
 from .tables import FALLBACK_TABLES, REQUIRED_TABLES, fallback_name
 
@@ -185,7 +186,8 @@ def _cached_file_count(cache_dir, build):
     return sum(1 for p in files.glob("*.blp") if p.stat().st_size > 0) if files.is_dir() else 0
 
 
-def write_lock(cache_dir, build, tables, files=None, product="", base_url="", missing_count=None, fallback=None):
+def write_lock(cache_dir, build, tables, files=None, product="", base_url="", missing_count=None, fallback=None,
+               ui_icons=None):
     """Writes {cache_dir}/{build}/build.lock, merged into the build's existing lock.
 
     ``tables`` maps the names this run fetched (or verified) to their CSV paths; their sha256 replaces the
@@ -194,7 +196,9 @@ def write_lock(cache_dir, build, tables, files=None, product="", base_url="", mi
     are recorded, and its tables' shas are expected in ``tables`` under FALLBACK_NAMES); without one the
     existing fallback keys are kept. ``file_count`` is the number of BLP files in the cache's files
     directory and ``missing_count`` the number of ids in missing.txt, whatever this run fetched; ``files``
-    is accepted for compatibility and not counted.
+    is accepted for compatibility and not counted. ``ui_icons`` is the resolved rail icon list
+    ({name, path, fdid, choice} entries, see ``ui_icons.resolve``) of a ``--ui-icons`` run; without one the
+    existing ``ui_icons`` key is kept.
     """
     previous = read_lock(cache_dir, build)
     if previous.get("build") not in (None, build):
@@ -218,6 +222,10 @@ def write_lock(cache_dir, build, tables, files=None, product="", base_url="", mi
     elif previous.get("fallback_product") and previous.get("fallback_build"):
         lock["fallback_product"] = previous["fallback_product"]
         lock["fallback_build"] = previous["fallback_build"]
+    if ui_icons is not None:
+        lock["ui_icons"] = list(ui_icons)
+    elif previous.get("ui_icons"):
+        lock["ui_icons"] = previous["ui_icons"]
     path = Path(cache_dir) / build / "build.lock"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(lock, indent=2) + "\n", encoding="utf-8")
@@ -257,6 +265,9 @@ def main(argv=None) -> int:
     ap.add_argument("--maps", action="store_true",
                     help="fetch UiMapArtTile and WorldMapOverlayTile FileDataIDs")
     ap.add_argument("--fdids", help="comma-separated FileDataIDs to fetch (e.g. a fixture's icons)")
+    ap.add_argument("--ui-icons", action="store_true",
+                    help="resolve the navigation rail's UI icons with the cached %s.csv, fetch them and record "
+                         "them in build.lock under ui_icons" % ui.MANIFEST_TABLE)
     ap.add_argument("--retry-missing", action="store_true",
                     help="re-request files previously recorded as 404 in missing.txt")
     ap.add_argument("--rate", type=float, default=4.0, help="max requests per second (default 4)")
@@ -313,6 +324,17 @@ def main(argv=None) -> int:
             for name in ("UiMapArtTile", "WorldMapOverlayTile"):
                 p = tables.get(name) or (cache / b.build / "csv" / (name + ".csv"))
                 fdids |= _column_ids(p, "FileDataID", name)
+        resolution = None
+        if args.ui_icons:
+            p = tables.get(ui.MANIFEST_TABLE) or (cache / b.build / "csv" / (ui.MANIFEST_TABLE + ".csv"))
+            if not p.exists():
+                raise MissingInputError("%s not found at %s (fetch it first, e.g. --tables %s)"
+                                        % (ui.MANIFEST_TABLE, p, ui.MANIFEST_TABLE))
+            resolution = ui.resolve(ui.load_manifest(p))
+            for m in resolution.messages:
+                print(m, file=sys.stderr)
+            print("ui icons: %d resolved, %d unresolved" % (len(resolution.resolved), len(resolution.unresolved)))
+            fdids |= {e["fdid"] for e in resolution.resolved}
     except MissingInputError as e:
         print("error: %s" % e, file=sys.stderr)
         return 2
@@ -321,7 +343,8 @@ def main(argv=None) -> int:
     if fdids:
         print("files cached: %d of %d" % (len(files), len(fdids)))
 
-    lock = write_lock(cache, b.build, tables, files, product=b.product, base_url=client.base_url, fallback=fb)
+    lock = write_lock(cache, b.build, tables, files, product=b.product, base_url=client.base_url, fallback=fb,
+                      ui_icons=resolution.resolved if resolution is not None else None)
     print("lock: %s" % lock)
     return 0
 

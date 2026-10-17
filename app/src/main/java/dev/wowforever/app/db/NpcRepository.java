@@ -6,6 +6,8 @@ import dev.wowforever.app.model.LootRow;
 import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.model.NpcSummary;
+import dev.wowforever.app.model.Route;
+import dev.wowforever.app.model.Route.Point;
 import dev.wowforever.app.model.Spawn;
 import java.sql.Connection;
 import java.sql.ResultSet;
@@ -102,6 +104,53 @@ public final class NpcRepository {
     return Sql.list(c, SUMMARY + " WHERE n.zone_id = ?" + outdoors
             + " ORDER BY n.name IS NULL, n.name COLLATE NOCASE, n.id LIMIT ?",
         NpcRepository::summary, zoneId, limit);
+  }
+
+  /**
+   * The patrol routes of NPC {@code npcId}, by zone and route, each in walking order; empty when it has none or the
+   * database predates the npc_waypoint table.
+   */
+  public List<Route> routes(long npcId) {
+    return db.read(c -> routes(c, RouteKey.NPC, npcId));
+  }
+
+  /** The npc_waypoint column {@link #routes(Connection, RouteKey, long)} selects routes by. */
+  enum RouteKey {
+    NPC("npc_id"), ZONE("zone_id");
+
+    private final String column;
+
+    RouteKey(String column) {
+      this.column = column;
+    }
+  }
+
+  /**
+   * The routes whose {@code key} column (npc_id or zone_id) is {@code id}, ordered by NPC, zone, route and point;
+   * empty on a database without the npc_waypoint table.
+   */
+  static List<Route> routes(Connection c, RouteKey key, long id) throws SQLException {
+    if (!Sql.hasTable(c, "npc_waypoint")) {
+      return List.of();
+    }
+    record Row(long npc, long zone, int route, Point point) {}
+    List<Row> rows = Sql.list(c, "SELECT npc_id, zone_id, route, x, y FROM npc_waypoint WHERE " + key.column + " = ?"
+            + " AND x IS NOT NULL AND y IS NOT NULL ORDER BY npc_id, zone_id, route, ordinal",
+        rs -> new Row(rs.getLong("npc_id"), rs.getLong("zone_id"), rs.getInt("route"),
+            new Point(rs.getDouble("x"), rs.getDouble("y"))),
+        id);
+    List<Route> routes = new ArrayList<>();
+    int start = 0;
+    for (int i = 1; i <= rows.size(); i++) {
+      Row first = rows.get(start);
+      if (i == rows.size() || rows.get(i).npc() != first.npc() || rows.get(i).zone() != first.zone()
+          || rows.get(i).route() != first.route()) {
+        List<Point> points = rows.subList(start, i).stream().map(Row::point).toList();
+        routes.add(new Route(first.npc(), first.zone(), first.route(), points, Route.isLoop(points)));
+        start = i;
+      }
+    }
+    return routes;
   }
 
   /**

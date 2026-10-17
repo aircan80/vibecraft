@@ -18,6 +18,21 @@ class DropRatesTest {
   }
 
   @Test
+  void theSourcesRankInTheRuledOrder() {
+    DropRates r = new DropRates();
+    r.put(1, 2, new DropRate(100, "vmangos", true), DropRateLoader.VMANGOS_QUEST_ONLY);
+    r.put(1, 2, new DropRate(5, "atlasloot"), DropRateLoader.ATLASLOOT);
+    r.put(1, 2, new DropRate(4, "vmangos"), DropRateLoader.VMANGOS);
+    r.put(1, 2, new DropRate(3, "questie-wowhead"), DropRateLoader.QUESTIE_WOWHEAD);
+    r.putItem(2, new DropRate(2, "atlasloot-override"), DropRateLoader.ATLASLOOT_OVERRIDE);
+    r.put(1, 2, new DropRate(1, "questie-correction"), DropRateLoader.QUESTIE_CORRECTION);
+    assertThat(r.allSources(1, 2)).extracting(DropRate::source).containsExactly("questie-correction",
+        "atlasloot-override", "questie-wowhead", "vmangos", "atlasloot", "vmangos");
+    assertThat(r.allSources(1, 2).get(5).questOnly()).isTrue();
+    assertThat(new DropRate(1, "x")).isEqualTo(new DropRate(1, "x", false));
+  }
+
+  @Test
   void itemLevelOverrideAppearsInAllSources() {
     DropRates r = new DropRates();
     r.put(1, 2, new DropRate(60.0, "questie-correction"), 1);

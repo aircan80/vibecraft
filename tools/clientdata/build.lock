@@ -1,7 +1,7 @@
 {
   "product": "wow_classic_beta",
   "build": "1.60.1.70425",
-  "fetched_at": "2026-10-17T00:11:28Z",
+  "fetched_at": "2026-10-17T05:52:20Z",
   "base_url": "https://wago.tools",
   "tables": {
     "AreaTable": "0dd594a9b4f6eb80ddcf793f40b4d1d74b332363b76dfd06f73b0515a20830e8",
@@ -31,9 +31,12 @@
     "ItemSparse.era": "eef48b88d1af6ea23872155819dc59342204b2f34c0b613df0405ef06f7a5145",
     "ItemSubClass": "b780c3fd8b6ef227c31164f42db2ee8ba94454461fa858b8590c98a1929e6c6f",
     "ItemXItemEffect": "399dfdee2d68f96178a2108b51c7bae7efb850e6bb2a39f678411eb092370493",
+    "ManifestInterfaceData": "71b82f75741b87ad38c82bb73cba99b3e3bdeb6c0c00e09dde1298dafce31441",
     "Map": "63e3681e1d37c2860ed4744511201121dd1391b8351ecb97d41ece33dc7b4f24",
     "RandPropPoints": "e4a41af2ea8dc344c0c1ce36b26cba741b7f393cb74197e52d9893e6cb223db5",
     "SkillLine": "72715f0f750d222f5e907e84b91dd81f85999a2e901489946b8db1e4adfaaae7",
+    "SkillLineAbility": "9880b28c0e09f79aa7c7da992635441231c0046131fcfa438eebf326d4d88d02",
+    "SkillRaceClassInfo": "2193908c90f65d38fa9bc68907217fd759c132ccdc9f882cd3bc5acecabba322",
     "Spell": "0deeeb6d70041cc0acf7f3519bd1f1140912903be04d9f6cebfea178417c2520",
     "SpellAuraOptions": "c1a48460bf0ebb6188a47c5808bc067df39fa923e511938bee09b55815b82989",
     "SpellDuration": "46ba17d896e4373814e4b61864aa9f3104ec2671ed9e1d7219f2499643813c5d",
@@ -42,6 +45,7 @@
     "SpellMisc": "80acf9664ff641e36ad7327774118a6782a99f2625ef9b5633aac8235b6ca8b3",
     "SpellName": "2eaea379c49908494e90799e6c96d9e59b7ca6fd38e73ce14111e6e72d9b1231",
     "SpellRadius": "c45efa9792d9be30af61aac2e2499493834bc030f6a29d0c119be76f9fe336ed",
+    "SpellReagents": "47a239be7aca0043dea181311d86d0956edcea46c52d7491ee04140372b3846d",
     "UiMap": "1f4aac70eaac015b1d2d0ea0faf6e3d7fb2cf7afdf45e5bb6772d9b80a72346b",
     "UiMapArt": "4e41d771db74b6d6135ad695243ca054760cd8c163f6d7496582152908175fb8",
     "UiMapArtStyleLayer": "a8322f8c5c119f6c018ba47f750b42a8ad7f00f0881f4cec8ad36a35285af499",
@@ -51,8 +55,46 @@
     "WorldMapOverlay": "d8c884864504ab54d7dc1e048fd4e49e41177bee5cce3d43d8ee3c339e284d85",
     "WorldMapOverlayTile": "31d8b8c4cae7a1afd312f13a74ba75a461042e00b6e69e2b63809ce9809df02f"
   },
-  "file_count": 6311,
+  "file_count": 6313,
   "missing_count": 0,
   "fallback_product": "wow_classic_era",
-  "fallback_build": "1.15.9.70003"
+  "fallback_build": "1.15.9.70003",
+  "ui_icons": [
+    {
+      "name": "rail.home",
+      "path": "Interface/Icons/INV_Misc_Rune_01",
+      "fdid": 134414,
+      "choice": "first"
+    },
+    {
+      "name": "rail.items",
+      "path": "Interface/Icons/INV_Misc_Bag_08",
+      "fdid": 133633,
+      "choice": "first"
+    },
+    {
+      "name": "rail.npcs",
+      "path": "Interface/GossipFrame/GossipGossipIcon",
+      "fdid": 132053,
+      "choice": "first"
+    },
+    {
+      "name": "rail.quests",
+      "path": "Interface/GossipFrame/AvailableQuestIcon",
+      "fdid": 132049,
+      "choice": "first"
+    },
+    {
+      "name": "rail.zones",
+      "path": "Interface/Icons/INV_Misc_Map_01",
+      "fdid": 134269,
+      "choice": "first"
+    },
+    {
+      "name": "rail.instances",
+      "path": "Interface/Icons/INV_Misc_Head_Dragon_01",
+      "fdid": 134153,
+      "choice": "first"
+    }
+  ]
 }

@@ -19,6 +19,8 @@ import java.util.Optional;
  * @param clientData        {@code --client-data-dir <dir>} or {@code --skip-client-data}; exactly one is required
  * @param coverageMinPct    {@code --coverage-min}: with {@code --fail-on-unsupported}, exit with code 2 when fewer
  *                          than this percentage (0 to 100) of the named items have client data
+ * @param serverDbDir       {@code --server-db-dir}: a directory holding the VMaNGOS world database
+ *                          ({@code tools/serverdb/fetch.py} output) for community drop rates; skipped when absent
  */
 public record ImportOptions(
     Path out,
@@ -28,7 +30,8 @@ public record ImportOptions(
     boolean failOnUnsupported,
     Path buildIdOut,
     ClientDataOptions clientData,
-    int coverageMinPct) {
+    int coverageMinPct,
+    Optional<Path> serverDbDir) {
 
   public static final String USAGE = """
       Usage: java -jar importer.jar --out <file.sqlite> (--client-data-dir <dir> | --skip-client-data) [options]
@@ -42,7 +45,9 @@ public record ImportOptions(
                                  --skip-client-data is required
         --skip-client-data       import without client data (client tables are created empty)
         --coverage-min <pct>     with --fail-on-unsupported, exit with code 2 when fewer than <pct> % (0-100) of
-                                 the named items have client data (default: 85)""";
+                                 the named items have client data (default: 85)
+        --server-db-dir <dir>    the VMaNGOS world database (tools/serverdb/fetch.py output) for community drop
+                                 rates; without it, or when <dir> has no mangos.sqlite, they are skipped""";
 
   public ImportOptions {
     Objects.requireNonNull(out, "out");
@@ -51,12 +56,23 @@ public record ImportOptions(
     Objects.requireNonNull(atlasLootDir, "atlasLootDir");
     Objects.requireNonNull(buildIdOut, "buildIdOut");
     Objects.requireNonNull(clientData, "clientData");
+    Objects.requireNonNull(serverDbDir, "serverDbDir");
     if (coverageMinPct < 0 || coverageMinPct > 100) {
       throw new IllegalArgumentException("--coverage-min must be between 0 and 100, not " + coverageMinPct);
     }
   }
 
-  /** Options with the default {@code --coverage-min} ({@value ClientDataStage#DEFAULT_MIN_COVERAGE_PCT}). */
+  /** Options without {@code --server-db-dir}. */
+  public ImportOptions(Path out, Path cacheDir, Optional<Path> questieDbDir, Optional<Path> atlasLootDir,
+      boolean failOnUnsupported, Path buildIdOut, ClientDataOptions clientData, int coverageMinPct) {
+    this(out, cacheDir, questieDbDir, atlasLootDir, failOnUnsupported, buildIdOut, clientData, coverageMinPct,
+        Optional.empty());
+  }
+
+  /**
+   * Options with the default {@code --coverage-min} ({@value ClientDataStage#DEFAULT_MIN_COVERAGE_PCT}) and without
+   * {@code --server-db-dir}.
+   */
   public ImportOptions(Path out, Path cacheDir, Optional<Path> questieDbDir, Optional<Path> atlasLootDir,
       boolean failOnUnsupported, Path buildIdOut, ClientDataOptions clientData) {
     this(out, cacheDir, questieDbDir, atlasLootDir, failOnUnsupported, buildIdOut, clientData,
@@ -91,6 +107,7 @@ public record ImportOptions(
     Optional<Path> clientDataDir = Optional.empty();
     boolean skipClientData = false;
     int coverageMin = ClientDataStage.DEFAULT_MIN_COVERAGE_PCT;
+    Optional<Path> serverDb = Optional.empty();
     for (int i = 0; i < args.length; i++) {
       String flag = args[i];
       switch (flag) {
@@ -103,6 +120,7 @@ public record ImportOptions(
         case "--client-data-dir" -> clientDataDir = Optional.of(Path.of(value(args, i++)));
         case "--skip-client-data" -> skipClientData = true;
         case "--coverage-min" -> coverageMin = percent(value(args, i++));
+        case "--server-db-dir" -> serverDb = Optional.of(Path.of(value(args, i++)));
         default -> throw usage("unknown option " + flag);
       }
     }
@@ -116,7 +134,7 @@ public record ImportOptions(
       throw usage(e.getMessage());
     }
     return new ImportOptions(out, cache, questieDb, atlasLoot, failOnUnsupported,
-        buildIdOut != null ? buildIdOut : defaultBuildIdOut(out), clientData, coverageMin);
+        buildIdOut != null ? buildIdOut : defaultBuildIdOut(out), clientData, coverageMin, serverDb);
   }
 
   private static int percent(String text) {

@@ -13,10 +13,16 @@ public final class UiFields {
       EntityKind.ITEM, Set.of("name", "npcDrops", "objectDrops", "itemDrops", "vendors", "questRewards",
           "relatedQuests", "startQuest", "class", "subClass", "itemLevel", "requiredLevel"),
       EntityKind.NPC, Set.of("name", "subName", "minLevel", "maxLevel", "rank", "zoneID", "spawns",
-          "questStarts", "questEnds", "npcFlags"),
+          "questStarts", "questEnds", "npcFlags",
+          // phase 3A: patrol routes on the NPC and zone maps
+          "waypoints"),
       EntityKind.OBJECT, Set.of("name", "zoneID", "spawns", "questStarts", "questEnds"),
       EntityKind.QUEST, Set.of("name", "startedBy", "finishedBy", "requiredLevel", "questLevel", "zoneOrSort",
-          "objectivesText", "questFlags", "specialFlags"));
+          "objectivesText", "questFlags", "specialFlags",
+          // schema v3 (phase 3A): objectives, source items, relations and requirements on the quest page
+          "objectives", "triggerEnd", "sourceItemId", "requiredSourceItems", "extraObjectives", "preQuestGroup",
+          "preQuestSingle", "childQuests", "inGroupWith", "exclusiveTo", "nextQuestInChain", "parentQuest",
+          "breadcrumbForQuestId", "breadcrumbs", "requiredSkill", "requiredMinRep"));
 
   private UiFields() {}
 

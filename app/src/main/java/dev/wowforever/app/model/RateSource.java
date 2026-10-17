@@ -6,7 +6,8 @@ import java.util.Map;
 
 /**
  * One drop rate source's value for an NPC and item ({@code drop_rate_source}): {@code source} is the importer's
- * name for it ({@code questie-wowhead}, {@code questie-correction}, {@code atlasloot}, {@code atlasloot-override})
+ * name for it ({@code questie-wowhead}, {@code questie-correction}, {@code atlasloot}, {@code atlasloot-override},
+ * {@code vmangos})
  * and {@code pct} the rate in percent, null when the source gave none.
  */
 public record RateSource(String source, Double pct) {
@@ -15,7 +16,7 @@ public record RateSource(String source, Double pct) {
       "atlasloot-override");
   private static final Map<String, String> LABELS = Map.of("questie", "Questie", "questie-wowhead", "Questie",
       "questie-correction", "Questie correction", "atlasloot", "AtlasLoot", "atlasloot-override",
-      "AtlasLoot override");
+      "AtlasLoot override", "vmangos", "Vanilla rate (VMaNGOS)");
 
   /** Questie's sources first, then AtlasLoot's, then unknown sources by name. */
   public static final Comparator<RateSource> ORDER = Comparator
@@ -30,7 +31,10 @@ public record RateSource(String source, Double pct) {
     return loot.stream().filter(l -> l.sourceCount() > 0).map(l -> l.item().id()).toList();
   }
 
-  /** The source as the tooltip names it: {@code "Questie"}, {@code "AtlasLoot override"}; unknown ones as stored. */
+  /**
+   * The source as the tooltip names it: {@code "Questie"}, {@code "AtlasLoot override"}, {@code "Vanilla rate
+   * (VMaNGOS)"}; unknown ones as stored.
+   */
   public String label() {
     return LABELS.getOrDefault(source, source);
   }

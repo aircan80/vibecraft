@@ -7,6 +7,7 @@ import dev.wowforever.app.model.MapCoordinates;
 import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.QuestPins;
 import dev.wowforever.app.model.QuestRef;
+import dev.wowforever.app.model.Route;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
@@ -141,6 +142,14 @@ public final class ZoneRepository {
   /** The map of zone {@code zoneId} (the zone_map of its UiMap), or empty when it has none. */
   public Optional<ZoneMap> map(long zoneId) {
     return db.read(c -> map(c, zoneId));
+  }
+
+  /**
+   * Every NPC's patrol routes in zone {@code zoneId}, by NPC id, route and point; empty when there are none or the
+   * database predates the npc_waypoint table.
+   */
+  public List<Route> routesInZone(long zoneId) {
+    return db.read(c -> NpcRepository.routes(c, NpcRepository.RouteKey.ZONE, zoneId));
   }
 
   /**
