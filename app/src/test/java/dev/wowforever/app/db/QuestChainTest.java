@@ -87,8 +87,29 @@ class QuestChainTest {
     assertThat(rows(goal)).containsExactly(
         "11:REQUIRES_ALL:-1", "13:REQUIRES_ONE:-2", "14:REQUIRES_ONE:-2", "12:REQUIRES_ALL:-1", "10:-:0");
     assertThat(goal.currentIndex()).isEqualTo(4);
+    // 12's own prerequisites sit between 11 and 12: the parent ids, not row order, group the "Requires all of" line
+    assertThat(parents(goal)).containsExactly("11<10", "13<12", "14<12", "12<10", "10<-");
     // without next hints the spine takes the highest-level prerequisite
     assertThat(ids(goal.spine())).containsExactly(14L, 12L, 10L);
+  }
+
+  @Test
+  void eachQuestSitsAtItsShallowestDepth() throws Exception {
+    // 1 unlocks 2 and 3; 2 unlocks 4; 5 requires one of 4 and 3, so it is two steps away through 3
+    schema.quest(1, "Root", 10).quest(2, "A", 11).quest(3, "B", 12).quest(4, "X", 13).quest(5, "Y", 14)
+        .relation(2, 1, "pre_single").relation(3, 1, "pre_single").relation(4, 2, "pre_single")
+        .relation(5, 4, "pre_single").relation(5, 3, "pre_single");
+    QuestChain root = chain(1);
+    assertThat(rows(root)).containsExactly("1:-:0", "2:UNLOCKS:1", "4:UNLOCKS:2", "3:UNLOCKS:1", "5:UNLOCKS:2");
+    assertThat(parents(root)).containsExactly("1<-", "2<1", "4<2", "3<1", "5<3");
+  }
+
+  @Test
+  void exclusiveAndLoopStepsNameTheirParent() throws Exception {
+    schema.quest(20, "Little", 50).quest(21, "Sister", 50).quest(30, "Chicken", 10).quest(31, "Egg", 10)
+        .relation(20, 21, "exclusive").relation(30, 31, "pre_single").relation(31, 30, "pre_single");
+    assertThat(parents(chain(20))).containsExactly("20<-", "21<20");
+    assertThat(parents(chain(30))).containsExactly("30<31", "31<30", "30<-");
   }
 
   @Test
@@ -160,6 +181,16 @@ class QuestChainTest {
     assertThat(rows(child)).containsExactly("50:DURING:-1", "51:-:0");
     assertThat(ids(child.spine())).containsExactly(51L);
     assertThat(rows(chain(50))).containsExactly("50:-:0", "51:UNLOCKS:1");
+  }
+
+  @Test
+  void parentQuestsOwnPrerequisitesAreWalked() throws Exception {
+    // 51 is done during 50, which requires 49
+    schema.quest(49, "Before", 29).quest(50, "Parent", 30).quest(51, "Child", 30)
+        .relation(51, 50, "parent").relation(50, 49, "pre_single");
+    QuestChain child = chain(51);
+    assertThat(rows(child)).containsExactly("49:REQUIRES_ONE:-2", "50:DURING:-1", "51:-:0");
+    assertThat(parents(child)).containsExactly("49<50", "50<51", "51<-");
   }
 
   @Test
@@ -280,6 +311,13 @@ class QuestChainTest {
     return chain.steps().stream()
         .map(s -> s.questId() + ":" + (s.connector() == null ? "-" : s.connector().name()) + ":" + s.depth()
             + (s.loop() ? ":loop" : ""))
+        .toList();
+  }
+
+  /** {@code id<parentQuestId}, {@code -} for no parent. */
+  private static List<String> parents(QuestChain chain) {
+    return chain.steps().stream()
+        .map(s -> s.questId() + "<" + (s.parentQuestId() == null ? "-" : s.parentQuestId()))
         .toList();
   }
 

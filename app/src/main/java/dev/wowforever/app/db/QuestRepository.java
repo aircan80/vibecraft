@@ -117,7 +117,7 @@ public final class QuestRepository {
 
   /**
    * The quest chain around {@code questId} (prerequisites, alternatives, unlocks and the linear spine); a quest
-   * without relations is a standalone chain of one step, an unknown quest one step without a name.
+   * without relations is a standalone chain of one step, an unknown quest {@link QuestChain#EMPTY}.
    */
   public QuestChain chain(long questId) {
     return db.read(c -> QuestChainBuilder.build(c, questId));
