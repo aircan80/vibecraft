@@ -8,6 +8,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.stream.Stream;
 
 /**
  * Item spell effects: {@code ItemXItemEffect(ItemID -> ItemEffectID)} to {@code ItemEffect(TriggerType, SpellID,
@@ -23,14 +24,26 @@ import java.util.TreeSet;
  *       the item has none).
  *   <li>Other triggers (on pickup, on looted, ...) are skipped and counted as {@value #OTHER_TRIGGER}.
  * </ul>
- * Counts {@value #EFFECTS}, the effects returned.
+ *
+ * <p>An item whose ItemSparse row is Era's ({@link ClientItem#ERA}, ruling 17) and that has no Forever effect takes
+ * its effects from the Era fallback's {@code ItemEffect.era} when present, by {@code ParentItemID} (Classic Era has no
+ * {@code ItemXItemEffect}); Forever's rows win whenever the item has any. The spell text still comes from Forever's
+ * spell tables: an Era effect whose spell has neither a Forever {@code Spell} nor {@code SpellName} row is dropped
+ * and counted as {@value #ERA_UNRESOLVED}.
+ *
+ * <p>Counts {@value #EFFECTS}, the effects returned.
  */
 public final class ItemEffectLoader {
   public static final String EFFECTS = "clientdata.effects";
   public static final String OTHER_TRIGGER = "clientdata.effects.otherTrigger";
+  public static final String ERA_UNRESOLVED = "clientdata.era.effectUnresolved";
+  /** The Era fallback's ItemEffect: Forever's columns plus {@code ParentItemID}, the item. */
+  public static final String ERA_EFFECT = "ItemEffect" + ClientDataSource.ERA_SUFFIX;
   static final List<String> LINK_COLUMNS = List.of("ItemID", "ItemEffectID");
   static final List<String> EFFECT_COLUMNS = List.of("ID", "LegacySlotIndex", "TriggerType", "Charges", "CoolDownMSec",
       "CategoryCoolDownMSec", "SpellID");
+  static final List<String> ERA_EFFECT_COLUMNS =
+      Stream.concat(EFFECT_COLUMNS.stream(), Stream.of("ParentItemID")).toList();
 
   private ItemEffectLoader() {}
 
@@ -39,15 +52,28 @@ public final class ItemEffectLoader {
       SpellDescriptionFormatter fmt, ImportReport report) {
     Map<Long, List<CsvTable.Row>> links = require(src.table("ItemXItemEffect"), LINK_COLUMNS).groupByLong("ItemID");
     Map<Long, CsvTable.Row> effects = require(src.table("ItemEffect"), EFFECT_COLUMNS).indexByLong("ID");
+    Map<Long, List<CsvTable.Row>> eraEffects = src.optionalTable(ERA_EFFECT)
+        .map(t -> require(t, ERA_EFFECT_COLUMNS).groupByLong("ParentItemID"))
+        .orElse(Map.of());
     Map<Long, List<ItemSpellEffect>> out = new LinkedHashMap<>();
     long total = 0;
     long other = 0;
+    long eraUnresolved = 0;
     for (long id : new TreeSet<>(items.keySet())) {
       List<CsvTable.Row> rows = new ArrayList<>();
       for (CsvTable.Row link : links.getOrDefault(id, List.of())) {
         CsvTable.Row e = effects.get(link.longOr("ItemEffectID", 0));
         if (e != null) {
           rows.add(e);
+        }
+      }
+      if (rows.isEmpty() && ClientItem.ERA.equals(items.get(id).clientSource())) {
+        for (CsvTable.Row e : eraEffects.getOrDefault(id, List.of())) {
+          if (fmt.tables().contains(e.longOr("SpellID", 0))) {
+            rows.add(e);
+          } else {
+            eraUnresolved++;
+          }
         }
       }
       if (rows.isEmpty()) {
@@ -96,6 +122,7 @@ public final class ItemEffectLoader {
     }
     report.count(EFFECTS, total);
     report.count(OTHER_TRIGGER, other);
+    report.count(ERA_UNRESOLVED, eraUnresolved);
     return Collections.unmodifiableMap(out);
   }
 

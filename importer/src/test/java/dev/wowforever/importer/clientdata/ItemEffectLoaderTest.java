@@ -1,11 +1,22 @@
 package dev.wowforever.importer.clientdata;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
+import dev.wowforever.importer.Fixtures;
 import dev.wowforever.importer.report.ImportReport;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class ItemEffectLoaderTest {
 
@@ -62,6 +73,75 @@ class ItemEffectLoaderTest {
       assertThat(e.fromItemDescription()).isTrue();
     });
     assertThat(report.get(ItemEffectLoader.EFFECTS)).isEqualTo(2);
+  }
+
+  @Test
+  void anEraSourcedItemTakesItsEffectsFromTheEraTableWithForeverSpellText() {
+    ImportReport report = new ImportReport();
+    Map<Long, List<ItemSpellEffect>> effects = load(report, 19137, 16800, 19019);
+    // Onslaught Girdle: no Forever ItemSparse or effect rows; Era ItemEffect rows 102124 (slot 0) and 102125 (slot 1)
+    assertThat(effects.get(19137L)).extracting(ItemSpellEffect::ordinal, ItemSpellEffect::trigger,
+        ItemSpellEffect::spellId, ItemSpellEffect::text).containsExactly(
+        tuple(0, ItemSpellEffect.EQUIP, 7597L,
+            "Improves your chance to get a critical strike with melee attacks by 1.0%."),
+        tuple(1, ItemSpellEffect.EQUIP, 15464L, "Improves your chance to hit by 1.0%."));
+    assertThat(effects.get(16800L)).as("Arcanist Boots").extracting(ItemSpellEffect::spellId)
+        .containsExactly(18384L, 9416L);
+    assertThat(effects.get(19019L)).as("a Forever item is unchanged").singleElement()
+        .satisfies(e -> assertThat(e.spellId()).isEqualTo(21992));
+    assertThat(report.get(ItemEffectLoader.EFFECTS)).isEqualTo(5);
+    assertThat(report.get(ItemEffectLoader.ERA_UNRESOLVED)).isZero();
+  }
+
+  @Test
+  void withoutAnEraEffectTableEraSourcedItemsHaveNoEffects(@TempDir Path tmp) throws IOException {
+    ClientDataSource src = fixtureCopy(tmp);
+    Files.delete(tmp.resolve("csv/ItemEffect.era.csv"));
+    ImportReport report = new ImportReport();
+    Map<Long, List<ItemSpellEffect>> effects = load(src, report, 19137, 19019);
+    assertThat(effects).containsOnlyKeys(19019L);
+    assertThat(report.get(ItemEffectLoader.ERA_UNRESOLVED)).isZero();
+  }
+
+  @Test
+  void foreverRowsWinAndEraSpellsMissingFromForeverAreCounted(@TempDir Path tmp) throws IOException {
+    ClientDataSource src = fixtureCopy(tmp);
+    Files.writeString(tmp.resolve("csv/ItemEffect.era.csv"),
+        "900001,0,1,0,-1,-1,0,7597,0,0,17204\n" // Eye of Sulfuras: a Forever item, its Era rows are never read
+            + "900002,0,1,0,-1,-1,0,7597,0,0,14145\n" // Cursed Felblade: Era-sourced, but Forever has its effect
+            + "900003,2,1,0,-1,-1,0,99999999,0,0,19137\n", // a spell neither Forever Spell nor SpellName has
+        StandardCharsets.UTF_8, StandardOpenOption.APPEND);
+    ImportReport report = new ImportReport();
+    Map<Long, List<ItemSpellEffect>> effects = load(src, report, 17204, 14145, 19137);
+    Map<Long, List<ItemSpellEffect>> plain = load(new ImportReport(), 17204, 14145, 19137);
+
+    assertThat(effects.get(17204L)).isEqualTo(plain.get(17204L));
+    assertThat(effects.get(14145L)).isEqualTo(plain.get(14145L)).singleElement()
+        .satisfies(e -> assertThat(e.spellId()).isEqualTo(18381));
+    assertThat(effects.get(19137L)).as("no line for the unresolved spell").isEqualTo(plain.get(19137L)).hasSize(2);
+    assertThat(report.get(ItemEffectLoader.ERA_UNRESOLVED)).isEqualTo(1);
+  }
+
+  private static Map<Long, List<ItemSpellEffect>> load(ClientDataSource src, ImportReport report, long... ids) {
+    Map<Long, ClientItem> items = ItemSparseLoader.load(src,
+        Arrays.stream(ids).boxed().collect(Collectors.toSet()), new ImportReport());
+    return ItemEffectLoader.load(src, items, new SpellDescriptionFormatter(SpellTables.load(src)), report);
+  }
+
+  /** The client-data fixture copied into {@code tmp}, to add or remove rows. */
+  private static ClientDataSource fixtureCopy(Path tmp) throws IOException {
+    Path from = Fixtures.clientDataRoot();
+    try (Stream<Path> files = Files.walk(from)) {
+      for (Path p : files.toList()) {
+        Path to = tmp.resolve(from.relativize(p).toString());
+        if (Files.isDirectory(p)) {
+          Files.createDirectories(to);
+        } else {
+          Files.copy(p, to);
+        }
+      }
+    }
+    return new ClientDataSource(tmp);
   }
 
   @Test

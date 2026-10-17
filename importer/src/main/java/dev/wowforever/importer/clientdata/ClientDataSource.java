@@ -12,12 +12,14 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Stream;
 
 /**
  * A converted client-data directory as written by {@code tools/clientdata/convert.py}:
  *
  * <pre>
- *   csv/{Table}.csv        DB2 tables as CSV (csv/ItemSparse.era.csv: the optional Era fallback, ruling 17)
+ *   csv/{Table}.csv        DB2 tables as CSV (csv/{Table}.era.csv: the optional Era fallback tables, ruling 17:
+ *                          ItemSparse.era and ItemEffect.era)
  *   icons/{fdid}.png       item icons, icons/0.png the fallback
  *   maps/{uiMapId}.jpg     composed zone maps
  *   maps.json              [{ui_map_id, name, width, height, tiles, overlays, missing_tiles}]
@@ -27,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * Tables, the lock and the map index are read on first use and cached.
  */
 public final class ClientDataSource {
+  /** The name suffix of a fallback (Classic Era) table: {@code ItemSparse.era}, {@code ItemEffect.era}. */
+  public static final String ERA_SUFFIX = ".era";
   private final Path dir;
   private final Map<String, CsvTable> tables = new ConcurrentHashMap<>();
   private final Map<String, Map<Long, CsvTable.Row>> idIndexes = new ConcurrentHashMap<>();
@@ -47,9 +51,9 @@ public final class ClientDataSource {
   /**
    * The build lock, read once.
    *
-   * @throws IllegalStateException when {@code build.lock} is missing or malformed, or when
-   *     {@code csv/ItemSparse.era.csv} exists but the lock does not record the fallback it came from
-   *     ({@code fallback_product}, {@code fallback_build} and {@code tables["ItemSparse.era"]}): the file is then left
+   * @throws IllegalStateException when {@code build.lock} is missing or malformed, or when a
+   *     {@code csv/{Table}.era.csv} exists but the lock does not record the fallback it came from
+   *     ({@code fallback_product}, {@code fallback_build} and {@code tables["{Table}.era"]}): the file is then left
    *     over from an earlier fetch and its build is unknown
    */
   public BuildLock lock() {
@@ -67,11 +71,30 @@ public final class ClientDataSource {
   }
 
   private void checkFallback(BuildLock l, Path lockFile) {
-    String era = ItemSparseLoader.ERA_SPARSE;
-    if (hasTable(era) && (l.fallbackProduct() == null || l.fallbackBuild() == null || !l.tableSha().containsKey(era))) {
-      throw new IllegalStateException(era + ".csv present but build.lock has no fallback entry"
-          + " (fallback_product, fallback_build and tables[\"" + era + "\"]); re-run fetch.py --fallback-product"
-          + " wow_classic_era and convert.py, or delete the stale " + tablePath(era) + " (lock: " + lockFile + ")");
+    for (String era : eraTables()) {
+      if (l.fallbackProduct() == null || l.fallbackBuild() == null || !l.tableSha().containsKey(era)) {
+        throw new IllegalStateException(era + ".csv present but build.lock has no fallback entry"
+            + " (fallback_product, fallback_build and tables[\"" + era + "\"]); re-run fetch.py --fallback-product"
+            + " wow_classic_era and convert.py, or delete the stale " + tablePath(era) + " (lock: " + lockFile + ")");
+      }
+    }
+  }
+
+  /** The names of the fallback tables present, {@code csv/*.era.csv} without {@code .csv}, sorted. */
+  private List<String> eraTables() {
+    Path csv = dir.resolve("csv");
+    if (!Files.isDirectory(csv)) {
+      return List.of();
+    }
+    try (Stream<Path> files = Files.list(csv)) {
+      return files.map(p -> p.getFileName().toString())
+          .filter(n -> n.endsWith(ERA_SUFFIX + ".csv"))
+          .map(n -> n.substring(0, n.length() - ".csv".length()))
+          .filter(this::hasTable)
+          .sorted()
+          .toList();
+    } catch (IOException e) {
+      throw new UncheckedIOException("cannot list " + csv + ": " + e.getMessage(), e);
     }
   }
 

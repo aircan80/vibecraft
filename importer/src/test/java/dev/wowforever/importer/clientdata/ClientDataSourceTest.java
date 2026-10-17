@@ -29,7 +29,7 @@ class ClientDataSourceTest {
     assertThat(lock.build()).isEqualTo("1.60.1.70425");
     assertThat(lock.baseUrl()).isEqualTo("https://wago.tools");
     assertThat(lock.fetchedAt()).matches("\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z");
-    assertThat(lock.tableSha()).hasSize(43).containsKeys("ItemSparse", "ItemSparse.era");
+    assertThat(lock.tableSha()).hasSize(44).containsKeys("ItemSparse", "ItemSparse.era", "ItemEffect.era");
     assertThat(lock.fallbackProduct()).isEqualTo("wow_classic_era");
     assertThat(lock.fallbackBuild()).isEqualTo("1.15.9.70003");
     assertThat(lock.tableSha().get("ItemSparse")).matches("[0-9a-f]{64}");
@@ -205,5 +205,26 @@ class ClientDataSourceTest {
         + " \"fallback_product\": \"wow_classic_era\", \"fallback_build\": \"1.15.9.70003\"}",
         StandardCharsets.UTF_8);
     assertThat(new ClientDataSource(tmp).lock().fallbackBuild()).isEqualTo("1.15.9.70003");
+  }
+
+  @Test
+  void everyEraFileNeedsItsOwnLockEntry() throws IOException {
+    Files.createDirectories(tmp.resolve("csv"));
+    Files.writeString(tmp.resolve("csv/ItemSparse.era.csv"), "ID\n1\n", StandardCharsets.UTF_8);
+    Files.writeString(tmp.resolve("csv/ItemEffect.era.csv"), "ID\n1\n", StandardCharsets.UTF_8);
+    String base = "\"product\": \"wow_classic_beta\", \"build\": \"1.60.1.70425\", \"fetched_at\": \"f\","
+        + " \"base_url\": \"u\", \"fallback_product\": \"wow_classic_era\", \"fallback_build\": \"1.15.9.70003\"";
+    Path lock = tmp.resolve("build.lock");
+
+    // an ItemEffect.era.csv left over from a later fetch than the lock (or copied in by hand)
+    Files.writeString(lock, "{" + base + ", \"tables\": {\"ItemSparse.era\": \"cc\"}}", StandardCharsets.UTF_8);
+    assertThatThrownBy(() -> new ClientDataSource(tmp).lock())
+        .isInstanceOf(IllegalStateException.class)
+        .hasMessageContaining("ItemEffect.era.csv present but build.lock has no fallback entry")
+        .hasMessageContaining("tables[\"ItemEffect.era\"]");
+
+    Files.writeString(lock, "{" + base + ", \"tables\": {\"ItemSparse.era\": \"cc\", \"ItemEffect.era\": \"dd\"}}",
+        StandardCharsets.UTF_8);
+    assertThat(new ClientDataSource(tmp).lock().tableSha()).containsKeys("ItemSparse.era", "ItemEffect.era");
   }
 }

@@ -145,6 +145,11 @@ public final class SpellTables {
     return new SpellTables(texts, names, effects, durationsMs, radii, procChances);
   }
 
+  /** True when the spell has a {@code Spell} or a {@code SpellName} row. */
+  public boolean contains(long spellId) {
+    return texts.containsKey(spellId) || names.containsKey(spellId);
+  }
+
   /** {@code Spell.Description_lang}, empty when the spell is unknown or has none. */
   public String description(long spellId) {
     Text t = texts.get(spellId);

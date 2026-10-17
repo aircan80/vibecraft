@@ -32,7 +32,7 @@ class TooltipBuilderTest {
   @BeforeAll
   static void build() {
     long[] ids = {19019, 10329, 5079, 13482, 4500, 5768, 5613, 1307, 5411, 7953, 13262, 19316, 19682, 12640, 6948,
-        118, 159, 25, 17204, 6900, 215129, 2916, 5248};
+        118, 159, 25, 17204, 6900, 215129, 2916, 5248, 19137};
     Map<Long, ClientItem> items = ClientItems.load(ids);
     report = new ImportReport();
     Map<Long, ItemValues> values = ItemValues.compute(items, ClientItems.fixtureTables(), report);
@@ -97,6 +97,16 @@ class TooltipBuilderTest {
         "20 item_level #9d9d9d Item Level 37",
         "21 sell_price #9d9d9d Sell Price: 25s 7c",
         "22 source_note #9d9d9d Stats from Classic Era data; Forever values may differ");
+  }
+
+  @Test
+  void anEraSourcedItemShowsItsEraEquipLinesAndTheSourceNote() {
+    // Onslaught Girdle: ItemSparse and effects from Era, spell text from Forever
+    List<String> lines = render(19137).stream().map(l -> l.substring(l.indexOf(' ') + 1)).toList();
+    assertThat(lines).filteredOn(l -> l.startsWith("equip ")).containsExactly(
+        "equip #1eff00 Equip: Improves your chance to get a critical strike with melee attacks by 1.0%.",
+        "equip #1eff00 Equip: Improves your chance to hit by 1.0%.");
+    assertThat(lines.getLast()).isEqualTo("source_note #9d9d9d Stats from Classic Era data; Forever values may differ");
   }
 
   @Test
