@@ -761,6 +761,45 @@ Runs after Task 17 and before Task 16, so the screenshots include it. Copy is th
 - [ ] **Step 2:** run the tests and expect FAIL; implement; run and expect PASS, then the full verify.
 - [ ] **Step 3:** commit `feat(ui): Forever dungeon pages with client-named bosses and no-loot states`.
 
+### Task 19: Hidden-item hotfix overlay, build-watch and AtlasLoot Classic Forever (data)
+
+Added 2026-10-17 from the owner's data-source review (controller ruling; PM memo `pm-data-sources.md` in the plan workspace is the authority for every rule below and must be read first). Runs after Task 17 and before Task 18.
+
+**Files:**
+- Modify `tools/clientdata/fetch.py` (+ `--hotfix-cache` snapshot of `https://storage.googleapis.com/raidbots-static/wow/classic_beta/enUS/DBCache.bin` into `~/.cache/wowforever-clientdata/hotfix/<sha256>.bin`, recording header build, SHA-256, Last-Modified and fetch time in `build.lock`), `tools/clientdata/convert.py` (+ hotfix overlay CSVs `ItemSparse.hotfix.csv`, `Item.hotfix.csv`, `ItemEffect.hotfix.csv` from the cache's valid rows, status 1, using WoWDBDefs definitions for the pinned build; invalidated rows undo only that push), `tools/clientdata/README.md`, `tools/clientdata/tests/`.
+- Create `tools/build_watch.py` (+ tests): compares the patch service versions for `wow_classic_beta` and `wowf`, wago's `/api/builds`, the Raidbots `Last-Modified` plus the header build from a 44-byte range GET, and the QuestieDB master commit against `build.lock` and `sources.properties`; one line per upstream; exit 1 when anything is stale; an unreachable upstream reads "unknown", never "fresh"; the fork reads "manual check" with its pinned version. It never imports or updates anything.
+- Modify `sources.properties` (`atlasloot.*` → the AtlasLoot Classic Forever zip: version, SHA-256, the same three data files plus LICENSE; downloaded by hand into the pinned cache because CurseForge refuses automation), `NOTICE.md` + the app copy (Raidbots named as the transport of Blizzard hotfix rows; the fork's author and GPL-2.0).
+- Modify the importer: `clientdata` item loading (overlay precedence 1 hotfix, 2 forever, 3 era; `client_source` gains `hotfix`), `DropRateLoader` (positions 2 and 5 read the fork; label "AtlasLoot Forever"; a Classic boss row the old pin had and the fork dropped is kept when Questie or VMaNGOS still list it, counted `atlasloot.forever.removedVsHoizame`; fork additions counted `atlasloot.forever.additions`), the report counters `hotfix.itemsparse.valid/.applied/.invalidated/.notInItemTable`, `hotfix.fromEra`, `hotfix.fromNoClient`, and a build-mismatch failure (cache header build ≠ `build.lock` build) with the build-watch text.
+- Modify the app: `ItemCardPanel`/tooltip footers per `client_source`: `hotfix` → "Forever stats revealed by a Blizzard hotfix · beta <build> · cache <date>", `era` → "Classic Era values. Forever stats are still hidden.", no client data → "Stats hidden until this item drops on a realm", `forever` → none. `RateSource` label for the fork rows "AtlasLoot Forever". Never the words "live" or "confirmed" for beta hotfix data.
+- Regenerate the shipped database once (the second and last 3B regeneration).
+- Tests: tools tests for the overlay and the watch; importer tests on fixtures (precedence, invalidation, build mismatch, fork diff counters); `ShippedDataTest`/`ShippedProvenanceDataTest` acceptance ids: 286978 Rotmender's Garb (`hotfix`, `item_set_id 2133`, stats present, hotfix footer), 869 Dazzling Longsword (`era` → `hotfix`), 16806 Felheart Belt (stays `era`, new footer; negative control), 273643 Worgenbane Talisman (`hotfix`; Questie's name equal or kept as alt value); counters within recorded ranges (≈ 3,173 fromEra and ≈ 626 fromNoClient on today's data — record the actual numbers after Task 17's refresh); City of Dalaran 2959 either has ≥ 1 fork loot row or the report states the fork has none for the four beta dungeons (both honest).
+
+**Interfaces:** Produces `client_source = 'hotfix'`, `RateSource` label "AtlasLoot Forever" with state `Reported` for Forever-boss rows (Task 18 shows the chip "AtlasLoot Forever, unverified" on those sections), the three footers above, `tools/build_watch.py`. Spot-check: 10 fork rates against the Wowhead tooltip test oracle, result recorded in the report (if all match Wowhead to the decimal, the controller tells the owner before release).
+
+- [ ] Steps: failing tests → implement tools, importer, app → refresh (hotfix snapshot + fork) → regenerate → full verify → commit `data: hotfix-revealed item stats, build watch and AtlasLoot Classic Forever`.
+
+### Task 20: In-game collector addon and its import (two halves)
+
+Added 2026-10-17 (PM memo `pm-data-sources.md`, section "Task 20"). The addon half touches no Java and starts at once in a worktree on branch `feature/collector-addon` from `main`; it must be ready for the owner by 19 October because the beta ends about 22 October. The importer half runs on the 3B branch after Task 19 and before Task 16.
+
+**Addon half — files:** create `tools/collector/WowForeverCollector/WowForeverCollector.toc` (Interface version of the beta client, title, `## SavedVariables: WowForeverCollectorDB`), `Core.lua`, `README.md` (install into the beta's `Interface/AddOns` by the owner — the app never writes there; the run plan below; where the SavedVariables file lands: `WTF/Account/<account>/SavedVariables/WowForeverCollector.lua`), `tools/collector/fixtures/WowForeverCollector.sample.lua` (a hand-written SavedVariables file in the exact schema), and a `lua-table` module test that parses the sample with the existing Lua table reader.
+
+**Schema 1 of `WowForeverCollectorDB`** (account-wide; never a character name, realm or guild anywhere):
+- `session`: build (`GetBuildInfo`), date, addon version.
+- `loot`: on `LOOT_OPENED`, each slot's item link and quantity, each `GetLootSourceInfo` GUID reduced to type and id (Creature or GameObject), instance name, mapID and difficulty (`GetInstanceInfo`), uiMapID and player x,y; de-duplicated per source GUID so a corpse counts once.
+- `encounters`: `ENCOUNTER_START` / `ENCOUNTER_END` with encounterID, name, success.
+- `vendors`: on `MERCHANT_SHOW`, the NPC id, then each item's link, price, stack, limited stock and extended cost.
+- `trainers`: on `TRAINER_SHOW`, the NPC id, then each service's name, cost, required level and required skill.
+- `quests`: on accept and turn-in, questID, giver or ender id and type, objectives text, rewards, uiMapID and x,y.
+- `apiFailures`: every call that returned a secret or nil value where data was expected, with the call name and where it happened.
+
+**Owner's run plan (README):** 19 Oct install; session 1 (~1 h): one run of City of Dalaran (28+) or Excavation Site (26+), one vendor and one trainer in a city, accept and turn in one quest, `/reload`, log out; share the SavedVariables file; 20–21 Oct session 2 only if fixes were needed. Acceptance: at least one Forever boss → item row "Observed in game", or `apiFailures` explains why not.
+
+**Importer half — files:** importer option `--collector-file <path>` (repeatable, opt-in), parsed with the lua-table reader; provenance source `collector` reading "Observed in game"; loot sources become presence rows on `item_npc_drop` / `item_object_drop` with no rate, plus encounters; vendors into `item_vendor`; trainers and quests kept raw in a `collector_observation` table; an observation upgrades a `Reported` fork row to `Known`. Tests: a fixture file imports deterministically; the schema has no name/realm/guild fields; duplicate source GUIDs count once.
+
+- [ ] Addon half: write the sample fixture and its parser test first; implement the addon; commit `feat(collector): in-game collector addon, schema 1` on `feature/collector-addon`.
+- [ ] Importer half: failing tests → implement → full verify → commit `feat(importer): import collector observations as Observed in game`.
+
 ---
 
 ## Self-review
