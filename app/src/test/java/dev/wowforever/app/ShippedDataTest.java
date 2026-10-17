@@ -220,8 +220,9 @@ class ShippedDataTest extends ShippedDataSupport {
     }
     assertThat(rows).last().asString().startsWith("World drops (").endsWith(")" + " ▸");
     assertThat(rows).contains("Huge Gnoll Claw").hasSizeLessThan(8);
-    // every pool drop of Hogger's is below 10 % (Tough Jerky 6.09 %): Quest items (2), then World drops (23)
-    assertThat(rows).hasSize(4).first().isEqualTo("Quest items (2)");
+    // every pool drop of Hogger's is below 10 % (Tough Jerky 6.09 %): his two quest items lead under Notable, then
+    // World drops (23)
+    assertThat(rows).hasSize(4).first().isEqualTo("Notable (2)");
     assertThat(rows).last().isEqualTo("World drops (23) ▸");
     // a high-rate shared drop is what the NPC is farmed for: Murloc Tidehunter (NPC 127) drops Murloc Eye at
     // 50.0 % (questie-wowhead, 36 droppers), so it stays in Trade goods and not in the world drops

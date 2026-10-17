@@ -109,6 +109,11 @@ public final class SectionHeading extends JPanel {
     repaint();
   }
 
+  /** The control at the heading's right end ({@link #setTrailing}); null for none. */
+  public JComponent trailing() {
+    return trailing;
+  }
+
   /**
    * Makes the heading the toggle of a foldable section, open ({@code true}) or closed ({@code false}): its accessible
    * role becomes a toggle button with an expandable state and its name ends in ", expanded" or ", collapsed"; null

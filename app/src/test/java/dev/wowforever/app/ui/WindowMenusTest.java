@@ -10,6 +10,7 @@ import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.pages.NpcPage;
 import dev.wowforever.app.ui.pages.ZonePage;
+import dev.wowforever.app.ui.widgets.SourceFilterControl;
 import java.awt.Component;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,48 +43,34 @@ class WindowMenusTest {
     throw new AssertionError("No item " + text);
   }
 
-  private static List<String> selected(JMenu menu) {
-    List<String> on = new ArrayList<>();
-    for (int i = 0; i < menu.getItemCount(); i++) {
-      if (menu.getItem(i).isSelected()) {
-        on.add(menu.getItem(i).getText());
-      }
-    }
-    return on;
-  }
-
   @Test
-  void theDropSourcesMenuOffersEveryFilterWithTheSavedOneSelected() {
-    state.setSourceFilter(SourceFilter.HIDE_QUESTIE_ONLY);
-    JMenu menu = WindowMenus.sourceFilterMenu(state, () -> {});
-    assertThat(menu.getText()).isEqualTo("Drop sources");
-    assertThat(List.of(menu.getItem(0).getText(), menu.getItem(1).getText(), menu.getItem(2).getText()))
-        .containsExactly("All sources", "Hide AtlasLoot-only rows", "Hide Questie-only rows");
-    assertThat(selected(menu)).containsExactly("Hide Questie-only rows");
-  }
-
-  @Test
-  void choosingAFilterSavesItAndShowsTheCurrentPageAgainFiltered() {
+  void theFilterControlBesideDropsSavesItAndShowsTheCurrentPageAgainFiltered() {
+    // the View menu's "Drop sources" moved onto the drop sections: the control beside the heading does its job
     StubView view = new StubView();
     view.sourceFilter = state::sourceFilter;
+    view.saveSourceFilter = state::setSourceFilter;
     AppController c = new AppController(FixtureDb.repositories(), view, Runnable::run);
     c.open(new ViewTarget.Entity(new EntityRef(NPC, 639)));
     var before = (NpcPage) view.detail;
     assertThat(before.section("Drops").heading().text()).isEqualTo("Drops (5)");
-    JMenu menu = WindowMenus.sourceFilterMenu(state, c::rerender);
+    var control = (SourceFilterControl) before.section("Drops").heading().trailing();
+    assertThat(control.getSelectedItem()).isEqualTo(SourceFilter.ALL);
 
-    item(menu, "Hide AtlasLoot-only rows").doClick();
+    control.setSelectedItem(SourceFilter.HIDE_ATLASLOOT_ONLY);
     assertThat(new UiState(node).sourceFilter()).as("saved").isEqualTo(SourceFilter.HIDE_ATLASLOOT_ONLY);
     var after = (NpcPage) view.detail;
     assertThat(after).as("shown again").isNotSameAs(before);
     assertThat(after.section("Drops").heading().text()).isEqualTo("Drops (2)");
     assertThat(after.section("Drops").note().getText()).isEqualTo("3 rows hidden by the source filter");
     assertThat(c.history().canBack()).as("no history entry").isFalse();
+    var again = (SourceFilterControl) after.section("Drops").heading().trailing();
+    assertThat(again.getSelectedItem()).as("the new page's control shows the filter")
+        .isEqualTo(SourceFilter.HIDE_ATLASLOOT_ONLY);
 
-    item(menu, "Hide AtlasLoot-only rows").doClick(); // already chosen: nothing to show again
+    c.changeSourceFilter(SourceFilter.HIDE_ATLASLOOT_ONLY); // already chosen: nothing to show again
     assertThat(view.detail).isSameAs(after);
 
-    item(menu, "All sources").doClick();
+    again.setSelectedItem(SourceFilter.ALL);
     assertThat(new UiState(node).sourceFilter()).isEqualTo(SourceFilter.ALL);
     assertThat(((NpcPage) view.detail).section("Drops").note()).isNull();
   }
@@ -115,18 +102,19 @@ class WindowMenusTest {
     List<String> calls = new ArrayList<>();
     boolean[] dark = {true};
     WindowMenus.Actions actions = new WindowMenus.Actions(() -> dark[0], () -> calls.add("theme"),
-        () -> calls.add("rerender"), () -> calls.add("shortcuts"), () -> calls.add("about"));
+        () -> calls.add("shortcuts"), () -> calls.add("about"));
     JMenu view = new JMenu("View");
-    WindowMenus.addViewItems(view, state, actions);
+    WindowMenus.addViewItems(view, actions);
     JMenu help = new JMenu("Help");
     WindowMenus.addHelpItems(help, actions);
     JPopupMenu compact = new JPopupMenu();
-    WindowMenus.addViewItems(compact, state, actions);
+    WindowMenus.addViewItems(compact, actions);
     WindowMenus.addHelpItems(compact, actions);
-    assertThat(texts(view)).containsExactly("Slate theme", "Parchment theme", "Drop sources");
+    // no "Drop sources" menu: the filter sits beside the drop sections' headings
+    assertThat(texts(view)).containsExactly("Slate theme", "Parchment theme");
     assertThat(texts(help)).containsExactly("Keyboard shortcuts", "About");
-    assertThat(texts(compact)).containsExactly("Slate theme", "Parchment theme", "Drop sources", "---",
-        "Keyboard shortcuts", "About");
+    assertThat(texts(compact)).containsExactly("Slate theme", "Parchment theme", "---", "Keyboard shortcuts",
+        "About");
 
     JMenuItem slate = (JMenuItem) compact.getComponent(0);
     JMenuItem parchment = (JMenuItem) compact.getComponent(1);
@@ -140,17 +128,6 @@ class WindowMenusTest {
     slate.doClick();
     item(help, "Keyboard shortcuts").doClick();
     item(help, "About").doClick();
-    item((JMenu) compact.getComponent(2), "Hide Questie-only rows").doClick();
-    assertThat(calls).containsExactly("theme", "shortcuts", "about", "rerender");
-  }
-
-  @Test
-  void aMenuOpenedAfterTheOtherLayoutsMenuChangedTheFilterShowsTheNewOne() {
-    JMenu full = WindowMenus.sourceFilterMenu(state, () -> {});
-    JMenu compact = WindowMenus.sourceFilterMenu(state, () -> {});
-    item(compact, "Hide Questie-only rows").doClick();
-    assertThat(selected(full)).containsExactly("All sources");
-    full.setSelected(true); // the submenu opening
-    assertThat(selected(full)).containsExactly("Hide Questie-only rows");
+    assertThat(calls).containsExactly("theme", "shortcuts", "about");
   }
 }

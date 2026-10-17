@@ -210,7 +210,9 @@ class DetailPanelsTest {
     Object atlasOnly = DetailPanels.load(new EntityRef(ITEM, 16800), repos).orElseThrow();
     var item = (ItemPage) TestPages.render(atlasOnly, repos, t -> {}, Runnable::run, StatusSink.NONE,
         SourceFilter.HIDE_ATLASLOOT_ONLY);
-    assertThat(item.section("Dropped by").heading().text()).isEqualTo("Dropped by (0)");
+    // its AtlasLoot-only NPC row goes; the boss's instance loot list is never filtered and stays
+    assertThat(item.section("Dropped by").heading().text()).isEqualTo("Dropped by (1)");
+    assertThat(item.section("Dropped by").note().getText()).isEqualTo("1 row hidden by the source filter");
   }
 
   /** The tooltip a pointer resting in the middle of view cell ({@code row}, {@code col}) shows. */

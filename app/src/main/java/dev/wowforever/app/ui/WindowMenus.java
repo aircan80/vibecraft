@@ -1,41 +1,30 @@
 package dev.wowforever.app.ui;
 
-import dev.wowforever.app.model.SourceFilter;
-import java.util.EnumMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.function.BooleanSupplier;
-import javax.swing.ButtonGroup;
 import javax.swing.JComponent;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
 import javax.swing.JRadioButtonMenuItem;
 import javax.swing.JToggleButton;
-import javax.swing.event.MenuEvent;
-import javax.swing.event.MenuListener;
 
 /**
  * Menus both window layouts offer, built by one helper so the full window's View and Help menus and the compact
- * window's context menu stay the same: {@link #addViewItems} (Slate theme, Parchment theme, Drop sources) and
- * {@link #addHelpItems}
- * (Keyboard shortcuts, About).
+ * window's context menu stay the same: {@link #addViewItems} (Slate theme, Parchment theme) and
+ * {@link #addHelpItems} (Keyboard shortcuts, About). The drop source filter is no menu: it sits beside the drop
+ * sections' headings ({@link dev.wowforever.app.ui.widgets.SourceFilterControl}).
  */
 final class WindowMenus {
-  /** The title of the drop source filter's submenu. */
-  static final String DROP_SOURCES = "Drop sources";
-
   /**
    * What the shared items do: whether the dark theme (Slate) is on ({@code dark}, read whenever a theme item is
-   * asked, so a switch made in the other layout shows), switching it, showing the current page again after a
-   * source filter change, and opening the shortcut list and the About box.
+   * asked, so a switch made in the other layout shows), switching it, and opening the shortcut list and the About
+   * box.
    */
-  record Actions(BooleanSupplier dark, Runnable toggleTheme, Runnable rerender, Runnable shortcuts,
-      Runnable about) {
+  record Actions(BooleanSupplier dark, Runnable toggleTheme, Runnable shortcuts, Runnable about) {
     Actions {
       Objects.requireNonNull(dark, "dark");
       Objects.requireNonNull(toggleTheme, "toggleTheme");
-      Objects.requireNonNull(rerender, "rerender");
       Objects.requireNonNull(shortcuts, "shortcuts");
       Objects.requireNonNull(about, "about");
     }
@@ -45,9 +34,9 @@ final class WindowMenus {
 
   /**
    * Adds the View items both layouts share to {@code menu} (a {@link JMenu} or a {@link JPopupMenu}): a radio item
-   * per theme ("Slate theme", "Parchment theme"), the one on selected, then the drop source filter.
+   * per theme ("Slate theme", "Parchment theme"), the one on selected.
    */
-  static void addViewItems(JComponent menu, UiState state, Actions actions) {
+  static void addViewItems(JComponent menu, Actions actions) {
     for (ThemeManager.Mode mode : ThemeManager.Mode.values()) {
       boolean dark = mode == ThemeManager.Mode.DARK;
       JRadioButtonMenuItem item = new JRadioButtonMenuItem(mode.label() + " theme");
@@ -59,7 +48,6 @@ final class WindowMenus {
       });
       menu.add(item);
     }
-    menu.add(sourceFilterMenu(state, actions.rerender()));
   }
 
   /**
@@ -93,45 +81,5 @@ final class WindowMenus {
     public boolean isSelected() {
       return selected.getAsBoolean();
     }
-  }
-
-  /**
-   * The "Drop sources" submenu: a radio item per {@link SourceFilter}, the saved one selected (read again whenever
-   * the submenu opens, as the other layout's menu may have changed it). Choosing another filter saves it in
-   * {@code state} and runs {@code onChange}, which shows the current page again.
-   */
-  static JMenu sourceFilterMenu(UiState state, Runnable onChange) {
-    Objects.requireNonNull(state, "state");
-    Objects.requireNonNull(onChange, "onChange");
-    JMenu menu = new JMenu(DROP_SOURCES);
-    ButtonGroup group = new ButtonGroup();
-    Map<SourceFilter, JRadioButtonMenuItem> items = new EnumMap<>(SourceFilter.class);
-    for (SourceFilter filter : SourceFilter.values()) {
-      JRadioButtonMenuItem item = new JRadioButtonMenuItem(filter.label());
-      item.addActionListener(e -> {
-        if (state.sourceFilter() != filter) {
-          state.setSourceFilter(filter);
-          onChange.run();
-        }
-      });
-      group.add(item);
-      menu.add(item);
-      items.put(filter, item);
-    }
-    Runnable showSaved = () -> items.get(state.sourceFilter()).setSelected(true);
-    showSaved.run();
-    menu.addMenuListener(new MenuListener() {
-      @Override
-      public void menuSelected(MenuEvent e) {
-        showSaved.run();
-      }
-
-      @Override
-      public void menuDeselected(MenuEvent e) {}
-
-      @Override
-      public void menuCanceled(MenuEvent e) {}
-    });
-    return menu;
   }
 }

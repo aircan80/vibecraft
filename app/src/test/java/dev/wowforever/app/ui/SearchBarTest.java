@@ -11,11 +11,15 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.SearchHit;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.widgets.FakeDropdownHost;
+import dev.wowforever.app.ui.widgets.HistoryButtons;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Keys;
+import dev.wowforever.app.ui.widgets.KindChips;
 import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.SearchDropdown;
 import dev.wowforever.app.ui.widgets.SearchDropdown.Row;
+import java.awt.Component;
+import java.awt.Container;
 import java.awt.event.FocusEvent;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +29,8 @@ import java.util.concurrent.Executor;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import javax.swing.AbstractButton;
+import javax.swing.JToolBar;
+import javax.swing.SwingUtilities;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -448,6 +454,29 @@ class SearchBarTest {
     assertThat(opened).containsExactly(new ViewTarget.Search("hog", Optional.of(ITEM)));
     assertThat(delay.pending()).isZero();
     assertThat(state.recentSearches()).as("no Enter, Show all or hit: not a search to remember").isEmpty();
+  }
+
+  /** Every component under {@code c}, {@code c} included. */
+  private static List<Component> tree(Component c) {
+    List<Component> all = new ArrayList<>(List.of(c));
+    if (c instanceof Container k) {
+      for (Component child : k.getComponents()) {
+        all.addAll(tree(child));
+      }
+    }
+    return all;
+  }
+
+  @Test
+  void noKindChipsInToolbar() {
+    JToolBar toolbar = MainFrame.toolbar(HistoryButtons.back(), HistoryButtons.forward(), bar);
+    assertThat(tree(toolbar)).noneMatch(KindChips.class::isInstance);
+    assertThat(SwingUtilities.isDescendingFrom(bar.kindChips(), bar)).isFalse();
+    // they are the dropdown's top row, shown with its hits
+    attachInline();
+    typeAndWait("hog");
+    assertThat(bar.kindChips().isVisible()).isTrue();
+    assertThat(bar.kindChips()).isSameAs(dropdown.kindChips());
   }
 
   @Test

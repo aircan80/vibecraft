@@ -36,17 +36,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The search box with type-ahead, kind chips, recent searches and paste parsing. Typing looks up the top hits and
- * the per-kind counts on the worker {@value #DEBOUNCE_MILLIS} ms after the last keystroke and shows them in the
- * {@link SearchDropdown} (a lookup that newer text has overtaken is dropped); the focused empty box shows the recent
- * searches. Enter opens the chosen or top hit ({@link Opener#openHit}, with the search for the text), or runs the
- * full search when there is none (or the text changed since the hits came); Shift+Enter and "Show all" run the
- * full search. A kind chip filters the dropdown and the full search, and re-runs the search at once while the
- * dropdown is closed. Pasting a link, item string, Wowhead URL or bare number over the whole text opens that page;
- * pasting {@code [Name]} searches for the name ({@link PasteParser}). Only what the user asked for goes to the recent
- * searches: the text of a search run with Enter, Shift+Enter or "Show all" (or a recent one run again), and the name
- * of a hit opened; never the text of a type-ahead lookup, a chip's re-run or a paste.
- * In the compact window ({@link #setCompact}) the "Search:" label goes and the chips fold into a {@link KindMenu}.
+ * The search box with type-ahead, kind chips (the dropdown's top row), recent searches and paste parsing. Typing looks
+ * up the top hits and the per-kind counts on the worker {@value #DEBOUNCE_MILLIS} ms after the last keystroke and shows
+ * them in the {@link SearchDropdown} (a lookup that newer text has overtaken is dropped); the focused empty box shows
+ * the recent searches. Enter opens the chosen or top hit ({@link Opener#openHit}, with the search for the text), or
+ * runs the full search when there is none (or the text changed since the hits came); Shift+Enter and "Show all" run the
+ * full search. A kind chip filters the dropdown and the full search, and re-runs the search at once while the dropdown
+ * is closed (the compact window's kind menu). Pasting a link, item string, Wowhead URL or bare number over the whole
+ * text opens that page; pasting {@code [Name]} searches for the name ({@link PasteParser}). Only what the user asked
+ * for goes to the recent searches: the text of a search run with Enter, Shift+Enter or "Show all" (or a recent one run
+ * again), and the name of a hit opened; never the text of a type-ahead lookup, a chip's re-run or a paste. In the
+ * compact window ({@link #setCompact}) the "Search:" label goes and a {@link KindMenu} of the chips follows the box.
  */
 public final class SearchBar extends JPanel {
   public static final int DEBOUNCE_MILLIS = 250;
@@ -111,8 +111,8 @@ public final class SearchBar extends JPanel {
   private final UiState state;
   private final MasterList.Delay delay;
   private final SearchDropdown dropdown;
-  private final KindChips chips = new KindChips();
-  private final KindMenu kindMenu = new KindMenu(chips);
+  private final KindChips chips;
+  private final KindMenu kindMenu;
   private final JLabel label = new JLabel("Search:");
   private final JTextField text = new JTextField(32) {
     @Override
@@ -147,6 +147,8 @@ public final class SearchBar extends JPanel {
     this.state = Objects.requireNonNull(state, "state");
     this.delay = Objects.requireNonNull(delay, "delay");
     this.dropdown = Objects.requireNonNull(dropdown, "dropdown");
+    this.chips = dropdown.kindChips();
+    this.kindMenu = new KindMenu(chips);
     text.addContainerListener(new ContainerAdapter() {
       @Override
       public void componentAdded(ContainerEvent e) { // the look and feel adds the clear button as a child
@@ -213,11 +215,10 @@ public final class SearchBar extends JPanel {
         stop();
       }
     });
-    chips.onSelect(kind -> kindChanged());
+    dropdown.onKindSelect(kind -> kindChanged());
     setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 0));
     add(label, BorderLayout.WEST);
     add(text, BorderLayout.CENTER);
-    add(chips, BorderLayout.EAST);
   }
 
   /** Starts type-ahead: lookups go to {@code source} on {@code worker}. Until then typing looks nothing up. */
@@ -277,11 +278,17 @@ public final class SearchBar extends JPanel {
     kindMenu.setEnabled(enabled);
   }
 
-  /** For the narrow compact window: no "Search:" label, and the kind menu in place of the chips; or back. */
+  /**
+   * For the narrow compact window: no "Search:" label, and the kind menu at the box's end (the full window has no
+   * kind control beside the box: the chips are the dropdown's top row); or back.
+   */
   public void setCompact(boolean compact) {
     label.setVisible(!compact);
-    remove(compact ? chips : kindMenu);
-    add(compact ? kindMenu : chips, BorderLayout.EAST);
+    if (compact) {
+      add(kindMenu, BorderLayout.EAST);
+    } else {
+      remove(kindMenu);
+    }
     kindMenu.refresh();
     revalidate();
     repaint();
@@ -295,6 +302,7 @@ public final class SearchBar extends JPanel {
     return text;
   }
 
+  /** The kind chips, the top row of the dropdown ({@link SearchDropdown#kindChips}). */
   public KindChips kindChips() {
     return chips;
   }

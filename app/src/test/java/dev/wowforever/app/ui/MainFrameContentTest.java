@@ -65,6 +65,7 @@ class MainFrameContentTest {
 
   @Test
   void movingTheDividerSavesIt() {
+    state.setListVisible(true); // pinned open: the divider shows
     split(content()).setDividerLocation(410);
     assertThat(new UiState(node).dividerLocation()).isEqualTo(410);
   }
@@ -77,6 +78,7 @@ class MainFrameContentTest {
   @Test
   void toggleListHidesAndShowsTheListAndRemembersIt() {
     state.setDividerLocation(333);
+    state.setListVisible(true); // pinned open last time
     JPanel content = content();
     JSplitPane split = split(content);
     // Ctrl+B itself is bound on the root pane by KeyMap; the content holds the action
@@ -106,6 +108,40 @@ class MainFrameContentTest {
     assertThat(list.isVisible()).isTrue();
     assertThat(split.getDividerSize()).isPositive();
     assertThat(split.getDividerLocation()).isEqualTo(333);
+  }
+
+  @Test
+  void anUnpinnedListShowsForResultsAndCollapsesWhenOneOpens() {
+    state.setDividerLocation(333);
+    JPanel content = content();
+    JSplitPane split = split(content);
+    assertThat(list.isVisible()).as("not pinned: hidden until a search").isFalse();
+    MainFrame.updateList(content, ListVisibility::resultsShown);
+    assertThat(list.isVisible()).isTrue();
+    assertThat(split.getDividerLocation()).isEqualTo(333);
+    MainFrame.updateList(content, ListVisibility::previewed);
+    assertThat(list.isVisible()).as("a preview keeps it").isTrue();
+    MainFrame.updateList(content, v -> v.resultOpened(1280));
+    assertThat(list.isVisible()).isFalse();
+    assertThat(split.getDividerSize()).isZero();
+    assertThat(new UiState(node).listVisible()).as("collapsing is no pin change").isFalse();
+    MainFrame.updateList(content, ListVisibility::resultsShown);
+    MainFrame.updateList(content, v -> v.resultOpened(ListVisibility.WIDE_PX));
+    assertThat(list.isVisible()).as("a wide window keeps it").isTrue();
+  }
+
+  @Test
+  void ctrlBPinsTheListAgainstCollapsing() {
+    JPanel content = content();
+    toggle(content);
+    assertThat(list.isVisible()).isTrue();
+    assertThat(new UiState(node).listVisible()).as("the pin is saved").isTrue();
+    MainFrame.updateList(content, v -> v.resultOpened(1280));
+    assertThat(list.isVisible()).isTrue();
+    toggle(content);
+    assertThat(list.isVisible()).isFalse();
+    assertThat(new UiState(node).listVisible()).isFalse();
+    assertThat(MainFrame.listVisibility(content).pinned()).isFalse();
   }
 
   @Test

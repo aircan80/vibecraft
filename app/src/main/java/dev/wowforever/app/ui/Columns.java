@@ -4,6 +4,7 @@ import dev.wowforever.app.db.AssetRepository;
 import dev.wowforever.app.model.DropSource;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
@@ -138,6 +139,8 @@ public final class Columns {
   public static final String FRIENDLY_TO = "Friendly to";
   /** The title of the loot tables' AtlasLoot entry order column (not an equipment slot). */
   public static final String LOOT_ORDER = "#";
+  /** The origin of a row that comes from an AtlasLoot loot list. */
+  public static final String ATLASLOOT = "atlasloot";
 
   /**
    * Orders formatted numbers ({@code "5.00 %"}, {@code "45.3"}) by their leading number; text without one
@@ -205,20 +208,31 @@ public final class Columns {
   }
 
   /**
-   * The ranked drop table of the item page ({@link DropRow#ranked}): source, level, zone, rate (a {@link Double},
-   * null when unknown) and data origin. The divider row shows its text in the Source column and links nowhere.
+   * The ranked drop table of the item page ({@link DropRow#merged}): {@link #dropSourcesMerged()}, kept for tables of
+   * NPC rows alone.
    */
   public static List<Column<DropRow>> dropSourcesRanked() {
+    return dropSourcesMerged();
+  }
+
+  /**
+   * The item page's "Dropped by" table ({@link DropRow#merged}): source, level, zone, rate (a {@link Double}, null
+   * when unknown) and data origin. An NPC row links its NPC; a loot list reads as its boss (or list, such as
+   * "Trash"), linked to the boss's NPC or else the instance, from AtlasLoot, with no level or zone. The page shows
+   * the instance of a loot list (and of an NPC row a boss list was merged into) as a chip in the Source column. The
+   * divider row shows its text in the Source column and links nowhere.
+   */
+  public static List<Column<DropRow>> dropSourcesMerged() {
     return List.of(
-        link("Source", r -> r instanceof DropRow.Divider d ? d.text() : r.drop().orElseThrow().displayName(),
-            r -> r.drop().map(DropSource::ref)),
+        link("Source", r -> r instanceof DropRow.Divider d ? d.text() : r.name(), DropRow::ref),
         plain("Level", Levels.class, r -> r.drop().map(s -> new Levels(Labels.positive(s.levelMin()),
             Labels.positive(s.levelMax()))).orElse(null)),
         link("Zone", r -> r.drop().map(DropSource::zoneName).orElse(null),
             r -> r.drop().flatMap(s -> zoneRef(s.zoneId()))),
-        rate(r -> r.drop().map(DropSource::dropPct).orElse(null),
-            r -> r.drop().map(DropSource::disagrees).orElse(false)),
-        plain("Origin", String.class, r -> r.drop().map(DropSource::origin).orElse(null)));
+        rate(DropRow::pct, r -> r.drop().map(DropSource::disagrees)
+            .orElseGet(() -> r.loot().map(InstanceLoot::disagrees).orElse(false))),
+        plain("Origin", String.class, r -> r instanceof DropRow.Loot ? ATLASLOOT
+            : r.drop().map(DropSource::origin).orElse(null)));
   }
 
   /**

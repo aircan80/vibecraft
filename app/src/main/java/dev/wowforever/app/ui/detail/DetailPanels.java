@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
@@ -241,10 +242,19 @@ public final class DetailPanels {
    */
   public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
       StatusSink status, SourceFilter filter, BooleanSetting questPins) {
+    return render(detail, repos, nav, worker, status, filter, f -> { }, questPins);
+  }
+
+  /**
+   * {@link #render(Object, Repositories, Navigator, Executor, StatusSink, SourceFilter, BooleanSetting)}, the item
+   * and NPC pages' filter control handing a new filter to {@code onFilterChange}.
+   */
+  public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
+      StatusSink status, SourceFilter filter, Consumer<SourceFilter> onFilterChange, BooleanSetting questPins) {
     return switch (detail) {
-      case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), filter, nav);
-      case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), filter, nav,
-          ClipboardPort.system());
+      case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), filter, onFilterChange, nav);
+      case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), filter, onFilterChange,
+          nav, ClipboardPort.system());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
       case LoadedQuest p -> new QuestPage(p.detail(), p.starts(), p.ends(), nav);
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null

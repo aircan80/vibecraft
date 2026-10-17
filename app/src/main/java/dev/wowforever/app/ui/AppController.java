@@ -5,6 +5,7 @@ import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ListFilter;
 import dev.wowforever.app.model.NoFilter;
+import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.NavigationHistory;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
@@ -49,6 +50,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>A hit opened from the search box's dropdown ({@link #openHit}) also runs its search into the master list, with
  * no history entry of its own, and selects the opened row there; Home empties the list to its placeholder.
+ *
+ * <p>The view hears when a result is opened for good (a commit from the list, a hit from the dropdown; never a
+ * preview), when the master list may collapse, and when a search's results fill the list, which then shows
+ * ({@link MainView#onResultOpened}, {@link MainView#onResultsShown}).
  *
  * <p>Where the view shows no master list (the compact window, {@link MainView#showsMasterList}), a full search's
  * results fill the detail area as a list of their own, without previews: Enter or a click opens a row.
@@ -207,6 +212,7 @@ public final class AppController implements Navigator {
    * A row already on screen (previewed, or clicked twice) is only kept in the history, not loaded again.
    */
   public void commit(EntityRef ref) {
+    view.onResultOpened();
     ViewTarget t = new ViewTarget.Entity(ref);
     if (isCurrent(t)) {
       previewSlot = false;
@@ -228,6 +234,7 @@ public final class AppController implements Navigator {
    * page in one step. The detail keeps the page, also in the compact window, where the list is not shown.
    */
   public void openHit(ViewTarget.Entity hit, ViewTarget.Search search) {
+    view.onResultOpened();
     open(hit);
     loadResults(() -> search(search), hit.ref());
   }
@@ -291,7 +298,7 @@ public final class AppController implements Navigator {
       loadingDelay.cancel();
       leaveListPage();
       setPage(t, DetailPanels.render(loaded.detail(), repos, this, worker, pageStatus(generation),
-          view.sourceFilter(), view.questPins()), state);
+          view.sourceFilter(), this::changeSourceFilter, view.questPins()), state);
       view.setTitleSuffix(DetailPanels.name(loaded.detail()));
       return;
     }
@@ -317,6 +324,17 @@ public final class AppController implements Navigator {
     PendingState pending = pendingState;
     pendingState = null;
     setPage(t, p, pending != null && pending.target().equals(t) ? pending.state() : null);
+  }
+
+  /**
+   * A page's filter control chose {@code filter}: the view saves it and the page on screen is built again under it,
+   * keeping its scroll ({@link #rerender}).
+   */
+  public void changeSourceFilter(SourceFilter filter) {
+    if (filter != view.sourceFilter()) {
+      view.setSourceFilter(filter);
+      rerender();
+    }
   }
 
   /** Re-shows the previous target, if any. */
@@ -395,6 +413,9 @@ public final class AppController implements Navigator {
         if (opened != null) {
           view.masterList().selectQuietly(opened);
         } else {
+          if (view.showsMasterList()) {
+            view.onResultsShown();
+          }
           if (!view.showsMasterList() && detail == detailGeneration) {
             setPage(null, resultsPage(listing), null);
           }
@@ -435,7 +456,7 @@ public final class AppController implements Navigator {
         if (detail.isPresent()) {
           loaded = new Loaded(ref, detail.get());
           setPage(new ViewTarget.Entity(ref), DetailPanels.render(detail.get(), repos, this, worker,
-              pageStatus(generation), view.sourceFilter(), view.questPins()));
+              pageStatus(generation), view.sourceFilter(), this::changeSourceFilter, view.questPins()));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
         } else {
           loaded = null;

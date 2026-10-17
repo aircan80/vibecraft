@@ -212,6 +212,34 @@ class AppControllerTest {
   }
 
   @Test
+  void commitCollapsesPreviewDoesNot() {
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.Search("subterr", Optional.empty()));
+    assertThat(view.listEvents).as("a search's results show the list").containsExactly("results");
+    view.listEvents.clear();
+    EntityRef ref = list().entries().get(0).ref();
+    c.preview(ref);
+    assertThat(view.listEvents).as("a preview never collapses the list").isEmpty();
+    c.commit(ref); // Enter on the previewed row: on screen already, and still a result opened
+    assertThat(view.listEvents).containsExactly("opened");
+    view.listEvents.clear();
+    c.openHit(new ViewTarget.Entity(new EntityRef(NPC, 448)), new ViewTarget.Search("hogger", Optional.empty()));
+    assertThat(view.listEvents).as("its search fills the list quietly: the list stays collapsed")
+        .containsExactly("opened");
+    view.listEvents.clear();
+    previewRow(0);
+    assertThat(view.listEvents).as("arrowing through the list").isEmpty();
+  }
+
+  @Test
+  void searchResultsInTheCompactWindowShowNoList() {
+    view.masterListShown = () -> false;
+    AppController c = new AppController(repos, view, Runnable::run);
+    c.open(new ViewTarget.Search("subterr", Optional.empty()));
+    assertThat(view.listEvents).isEmpty();
+  }
+
+  @Test
   void anOpenedHitMissingFromItsSearchLeavesTheListUnselected() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.openHit(new ViewTarget.Entity(new EntityRef(NPC, 448)), new ViewTarget.Search("subterr", Optional.empty()));

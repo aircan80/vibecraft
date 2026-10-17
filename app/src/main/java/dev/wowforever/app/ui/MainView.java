@@ -33,10 +33,25 @@ public interface MainView {
     return true;
   }
 
-  /** Which drop rows the item and NPC pages show (the View menu's "Drop sources"); every row unless set. */
+  /**
+   * Which drop rows the item and NPC pages show (the filter control beside their drop sections' headings); every
+   * row unless set.
+   */
   default SourceFilter sourceFilter() {
     return SourceFilter.ALL;
   }
+
+  /** Saves {@code filter} as the drop source filter, which {@link #sourceFilter()} then answers. */
+  default void setSourceFilter(SourceFilter filter) {}
+
+  /**
+   * A result was opened from the master list or the search box (not previewed): the master list may collapse
+   * ({@link ListVisibility#resultOpened}).
+   */
+  default void onResultOpened() {}
+
+  /** A search's results went into the master list: the list shows ({@link ListVisibility#resultsShown}). */
+  default void onResultsShown() {}
 
   /** Whether zone maps pin quest givers, which their "Quests" toggle changes; off and not remembered unless set. */
   default BooleanSetting questPins() {

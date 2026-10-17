@@ -27,11 +27,14 @@ import dev.wowforever.app.ui.LinkRenderer;
 import dev.wowforever.app.ui.detail.LinkTable;
 import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.widgets.Chip;
+import dev.wowforever.app.ui.widgets.ChipCellRenderer;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.Images;
 import dev.wowforever.app.ui.widgets.ItemCardPanel;
 import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
+import dev.wowforever.app.ui.widgets.SourceFilterControl;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.Component;
 import java.awt.Rectangle;
@@ -100,20 +103,22 @@ class ItemPageTest {
   @Test
   void onlyNonEmptySectionsInOrderWithCounts() {
     var p = new ItemPage(repos.items().detail(14149).get(), t -> {});
-    assertThat(p.sections()).extracting(s -> s.heading().text())
-        .containsExactly("Dropped by (1)", "In instance loot (1)");
+    // Taragaman drops it, and his Ragefire Chasm loot list is merged into his row
+    assertThat(p.sections()).extracting(s -> s.heading().text()).containsExactly("Dropped by (1)");
     assertThat(p.section("Sold by")).isNull();
+    assertThat(p.section("In instance loot")).as("merged into Dropped by").isNull();
     assertThat(p.section("Dropped by").table()).isSameAs(p.droppedBy());
   }
 
   @Test
   void everyKindHasItsSectionInTheFixedOrder() {
     var p = new ItemPage(everything(), t -> {});
-    // SectionOrder.ITEM first; "In instance loot" and "Related quests" (merged by later tasks) after it
+    // SectionOrder.ITEM first; "Related quests" (merged by a later task) after it; the loot lists are in Dropped by
     assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Dropped by", "Sold by",
-        "Quest reward", "Contained in", "In instance loot", "Related quests");
-    assertThat(p.sections()).extracting(s -> s.heading().text()).containsExactly("Dropped by (3)", "Sold by (1)",
-        "Quest reward (1)", "Contained in (2)", "In instance loot (2)", "Related quests (2)");
+        "Quest reward", "Contained in", "Related quests");
+    // three NPCs (VanCleef's boss list merged into his row) and the trash list
+    assertThat(p.sections()).extracting(s -> s.heading().text()).containsExactly("Dropped by (4)", "Sold by (1)",
+        "Quest reward (1)", "Contained in (2)", "Related quests (2)");
     JTable contained = p.section("Contained in").table().table();
     assertThat(contained.getColumnName(1)).isEqualTo("Kind");
     assertThat(column(contained, 1)).containsExactly("Object", "Container item");
@@ -130,7 +135,7 @@ class ItemPageTest {
     assertThat(p.sections()).as("laid out in that order").extracting(onPage::indexOf).isSorted();
     // empty ones are absent
     assertThat(new ItemPage(repos.items().detail(14149).get(), t -> {}).sections()).extracting(SourceSection::title)
-        .containsExactly("Dropped by", "In instance loot");
+        .containsExactly("Dropped by");
   }
 
   @Test
@@ -173,7 +178,6 @@ class ItemPageTest {
     var p = filtered(mixedOrigins(), SourceFilter.ALL);
     assertThat(p.section("Dropped by").heading().text()).isEqualTo("Dropped by (4)");
     assertThat(p.section("Dropped by").note()).isNull();
-    assertThat(p.section("In instance loot").note()).isNull();
     assertThat(new ItemPage(mixedOrigins(), t -> {}).droppedBy().rowCount()).isEqualTo(5); // with the divider
   }
 
@@ -186,11 +190,8 @@ class ItemPageTest {
         .doesNotContain("Atlas Only");
     assertThat(dropped.note().getText()).isEqualTo("1 row hidden by the source filter");
     assertThat(dropped.note().getForeground()).isEqualTo(Theme.current().textMuted());
-    // the filter is for NPC drops: the instance loot lists stay as they are
-    SourceSection loot = p.section("In instance loot");
-    assertThat(loot.heading().text()).isEqualTo("In instance loot (1)");
-    assertThat(loot.note()).isNull();
-    assertThat(loot.table().rowCount()).isEqualTo(1);
+    // the filter is for NPC drops: VanCleef's loot list stays, merged into his row
+    assertThat(p.droppedBy().model().rowAt(0).loot()).isPresent();
     assertThat(p.summary()).as("the NPCs shown, every loot list").isEqualTo("3 NPCs · 1 loot list");
   }
 
@@ -215,8 +216,108 @@ class ItemPageTest {
     assertThat(p.section("Dropped by").heading().text()).isEqualTo("Dropped by (2)");
     assertThat(column(p.droppedBy().table(), 0)).containsExactly("Edwin VanCleef", "Atlas Only");
     assertThat(p.section("Dropped by").note().getText()).isEqualTo("2 rows hidden by the source filter");
-    assertThat(p.section("In instance loot").heading().text()).isEqualTo("In instance loot (1)");
-    assertThat(p.section("In instance loot").note()).isNull();
+  }
+
+  /** Felheart Belt 16806 as the shipped data has it: Molten Core trash NPCs, and AtlasLoot's "Trash" list there. */
+  private static ItemDetail felheartBelt(InstanceLoot... extraLists) {
+    EntityRef moltenCore = new EntityRef(INSTANCE, 27);
+    List<InstanceLoot> lists = new ArrayList<>(List.of(
+        new InstanceLoot(moltenCore, "Molten Core", 290, "Trash", null, 3, null)));
+    lists.addAll(List.of(extraLists));
+    return new ItemDetail(new ItemSummary(16806, "Felheart Belt", 66, 60, "Armor", "Cloth", 16), 4, 1, null,
+        List.of(new DropSource(new EntityRef(NPC, 11665), "Lava Annihilator", 62, 62, "Molten Core", 2717L, 0.12,
+                "questie", "questie"),
+            new DropSource(new EntityRef(NPC, 11659), "Molten Destroyer", 62, 62, "Molten Core", 2717L, 0.58,
+                "questie", "questie"),
+            new DropSource(new EntityRef(NPC, 11662), "Flamewaker Priest", 62, 62, "Molten Core", 2717L, 0.56,
+                "questie", "questie")),
+        lists, List.of(), List.of(), List.of(), List.of(), List.of());
+  }
+
+  /** The instance chip view row {@code row} of the drops shows; null for none. */
+  private static String instanceChip(JTable t, int row) {
+    Component c = t.prepareRenderer(t.getCellRenderer(row, 0), row, 0);
+    return c instanceof ChipCellRenderer.Cell cell ? cell.chip().getText() : null;
+  }
+
+  @Test
+  void droppedByMergesInstanceLoot() {
+    var p = new ItemPage(felheartBelt(), t -> {});
+    assertThat(p.section("In instance loot")).isNull();
+    LinkTable<DropRow> d = p.droppedBy();
+    JTable t = d.table();
+    // the AtlasLoot list is a row of Dropped by, ranked by its rate (unknown: after the divider)
+    assertThat(column(t, 0)).containsExactly("Molten Destroyer", "Flamewaker Priest", "Lava Annihilator",
+        "Rate unknown (1)", "Trash");
+    assertThat(p.section("Dropped by").heading().text()).isEqualTo("Dropped by (4)");
+    assertThat(d.model().rowAt(4)).isInstanceOf(DropRow.Loot.class);
+    assertThat(instanceChip(t, 4)).isEqualTo("Molten Core");
+    assertThat(((ChipCellRenderer.Cell) t.prepareRenderer(t.getCellRenderer(4, 0), 4, 0)).chip().style())
+        .isEqualTo(Chip.Style.PLAIN);
+    assertThat(instanceChip(t, 0)).as("an NPC row has no chip").isNull();
+    assertThat(d.model().refAt(4, 0)).as("a list without a boss NPC links its instance")
+        .contains(new EntityRef(INSTANCE, 27));
+    assertThat(((OriginChip) t.prepareRenderer(t.getCellRenderer(4, 4), 4, 4)).chipText()).isEqualTo("AtlasLoot");
+    assertThat(p.section("Dropped by").heading().label().getIcon()).as("NPCs and a loot list: no one kind")
+        .isNull();
+    // a rated list ranks among the NPC rows; a boss list links the boss's NPC
+    var ragnaros = new InstanceLoot(new EntityRef(INSTANCE, 27), "Molten Core", 299, "Ragnaros", 11502L, 7, 0.5);
+    var q = new ItemPage(felheartBelt(ragnaros), t2 -> {});
+    JTable u = q.droppedBy().table();
+    assertThat(column(u, 0)).containsExactly("Molten Destroyer", "Flamewaker Priest", "Ragnaros", "Lava Annihilator",
+        "Rate unknown (1)", "Trash");
+    assertThat(instanceChip(u, 2)).isEqualTo("Molten Core");
+    assertThat(q.droppedBy().model().refAt(2, 0)).contains(new EntityRef(NPC, 11502));
+    assertThat(rendered(u, 2, 3)).isEqualTo("0.50 %");
+  }
+
+  @Test
+  void filterNeverHidesInstanceRows() {
+    var atlasOnlyBoss = new DropSource(new EntityRef(NPC, 11502), "Ragnaros", 63, 63, "Molten Core", 2717L, 0.5,
+        "atlasloot", "atlasloot");
+    var ragnarosList = new InstanceLoot(new EntityRef(INSTANCE, 27), "Molten Core", 299, "Ragnaros", 11502L, 7, 0.5);
+    ItemDetail all = felheartBelt(ragnarosList);
+    ItemDetail d = new ItemDetail(all.summary(), all.classId(), all.subclassId(), null,
+        java.util.stream.Stream.concat(all.droppedBy().stream(), java.util.stream.Stream.of(atlasOnlyBoss)).toList(),
+        all.inInstanceLoot(), List.of(), List.of(), List.of(), List.of(), List.of());
+    var shown = filtered(d, SourceFilter.ALL);
+    assertThat(column(shown.droppedBy().table(), 0)).as("the boss list merges into Ragnaros's NPC row")
+        .containsExactly("Molten Destroyer", "Flamewaker Priest", "Ragnaros", "Lava Annihilator", "Rate unknown (1)",
+            "Trash");
+    assertThat(shown.droppedBy().model().rowAt(2)).isInstanceOf(DropRow.Source.class);
+
+    var p = filtered(d, SourceFilter.HIDE_ATLASLOOT_ONLY);
+    JTable t = p.droppedBy().table();
+    // Ragnaros's AtlasLoot-only NPC row goes, his loot list stays (as a row of its own), and so does the trash list
+    assertThat(column(t, 0)).containsExactly("Molten Destroyer", "Flamewaker Priest", "Ragnaros", "Lava Annihilator",
+        "Rate unknown (1)", "Trash");
+    assertThat(p.droppedBy().model().rowAt(2)).isInstanceOf(DropRow.Loot.class);
+    assertThat(instanceChip(t, 2)).isEqualTo("Molten Core");
+    assertThat(p.section("Dropped by").note().getText()).as("counts the NPC rows hidden")
+        .isEqualTo("1 row hidden by the source filter");
+    assertThat(p.section("Dropped by").heading().text()).isEqualTo("Dropped by (5)");
+
+    // the questie filter hides every NPC row here, never the lists
+    var q = filtered(d, SourceFilter.HIDE_QUESTIE_ONLY);
+    assertThat(column(q.droppedBy().table(), 0)).containsExactly("Ragnaros", "Rate unknown (1)", "Trash");
+    assertThat(q.section("Dropped by").note().getText()).isEqualTo("3 rows hidden by the source filter");
+    assertThat(q.section("Dropped by").isEmptied()).isFalse();
+  }
+
+  @Test
+  void theFilterControlSitsBesideTheDroppedByHeading() {
+    List<SourceFilter> chosen = new ArrayList<>();
+    var p = new ItemPage(mixedOrigins(), null, Map.of(), SourceFilter.HIDE_QUESTIE_ONLY, chosen::add, t -> {});
+    var control = (SourceFilterControl) p.section("Dropped by").heading().trailing();
+    assertThat(control.getSelectedItem()).isEqualTo(SourceFilter.HIDE_QUESTIE_ONLY);
+    assertThat(control.getToolTipText()).isEqualTo(SourceFilterControl.LEGEND);
+    control.setSelectedItem(SourceFilter.ALL);
+    assertThat(chosen).containsExactly(SourceFilter.ALL);
+    // loot lists alone: nothing to filter, no control
+    var lists = new ItemDetail(LETTER, 12, 0, null, List.of(),
+        List.of(new InstanceLoot(new EntityRef(INSTANCE, 2), "The Deadmines", 11, "Trash", null, 3, null)),
+        List.of(), List.of(), List.of(), List.of(), List.of());
+    assertThat(new ItemPage(lists, t -> {}).section("Dropped by").heading().trailing()).isNull();
   }
 
   @Test
@@ -234,18 +335,19 @@ class ItemPageTest {
         "questie", "questie", false, 0);
     var d = new ItemDetail(LETTER, 12, 0, null, List.of(vanCleef, pirate),
         List.of(new InstanceLoot(new EntityRef(INSTANCE, 2), "The Deadmines", 10, "Edwin VanCleef", 639L, 6, 60.0,
-            true, 2)),
+            true, 2), new InstanceLoot(new EntityRef(INSTANCE, 2), "The Deadmines", 12, "Mr. Smite", 646L, 4, 20.0,
+            false, 1)),
         List.of(), List.of(), List.of(), List.of(), List.of());
     var sources = Map.of(new RateSource.Key(639, 2874),
-        List.of(new RateSource("atlasloot", 56.07), new RateSource("questie-wowhead", 60.0)));
+        List.of(new RateSource("atlasloot", 56.07), new RateSource("questie-wowhead", 60.0)),
+        new RateSource.Key(646, 2874), List.of(new RateSource("atlasloot", 20.0)));
     var p = new ItemPage(d, null, sources, SourceFilter.ALL, t -> {});
     JTable drops = p.droppedBy().table();
     int rate = drops.getColumnModel().getColumnIndex("Rate");
+    assertThat(column(drops, 0)).containsExactly("Edwin VanCleef", "Mr. Smite", "Defias Pirate");
     assertThat(Tables.tooltipAt(drops, 0, rate)).isEqualTo("Questie 60.00 %  ·  AtlasLoot 56.07 %");
-    assertThat(Tables.tooltipAt(drops, 1, rate)).as("no sources").isNull();
-    JTable loot = p.section("In instance loot").table().table();
-    assertThat(Tables.tooltipAt(loot, 0, loot.getColumnModel().getColumnIndex("Rate")))
-        .isEqualTo("Questie 60.00 %  ·  AtlasLoot 56.07 %");
+    assertThat(Tables.tooltipAt(drops, 1, rate)).as("a loot list: its boss's sources").isEqualTo("AtlasLoot 20.00 %");
+    assertThat(Tables.tooltipAt(drops, 2, rate)).as("no sources").isNull();
   }
 
   @Test
@@ -320,33 +422,35 @@ class ItemPageTest {
   }
 
   @Test
-  void lootListsReadInstanceThenListAndLinkBoth() {
+  void aBossListMergesIntoItsNpcRowWhichShowsTheInstance() {
     List<ViewTarget> opened = new ArrayList<>();
     var p = new ItemPage(repos.items().detail(14149).get(), opened::add);
-    var loot = p.section("In instance loot").table();
-    JTable t = loot.table();
-    assertThat(List.of(t.getColumnName(0), t.getColumnName(1), t.getColumnName(2)))
-        .containsExactly("Loot list", "Boss", "Rate");
-    assertThat(t.getValueAt(0, 0)).isEqualTo("Ragefire Chasm › Taragaman the Hungerer");
-    assertThat(loot.model().refAt(0, 0)).contains(new EntityRef(INSTANCE, 1));
-    assertThat(loot.model().refAt(0, 1)).contains(new EntityRef(NPC, 11520));
-    assertThat(rendered(t, 0, 2)).isEqualTo("33.30 %");
-    loot.activateRow(0);
-    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(INSTANCE, 1)));
+    var drops = p.droppedBy();
+    JTable t = drops.table();
+    assertThat(column(t, 0)).containsExactly("Taragaman the Hungerer");
+    assertThat(instanceChip(t, 0)).isEqualTo("Ragefire Chasm");
+    assertThat(t.prepareRenderer(t.getCellRenderer(0, 0), 0, 0).getForeground()).as("still a link")
+        .isEqualTo(LinkRenderer.linkColor());
+    assertThat(drops.model().refAt(0, 0)).contains(new EntityRef(NPC, 11520));
+    assertThat(p.section("Dropped by").heading().label().getIcon()).as("every row an NPC: the NPC icon").isNotNull();
+    drops.activateRow(0);
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 11520)));
   }
 
   @Test
-  void lootListsThatReadTheSameNameTheirSlot() {
+  void lootListsOfTheSameNameKeepTheirSlotOrder() {
     EntityRef sm = new EntityRef(INSTANCE, 9);
     ItemDetail d = new ItemDetail(LETTER, 12, 0, null, List.of(),
         List.of(new InstanceLoot(sm, "Scarlet Monastery", 70, "Armory trash", null, 24, 0.5),
             new InstanceLoot(sm, "Scarlet Monastery", 70, "Armory trash", null, 4, 0.5),
             new InstanceLoot(sm, "Scarlet Monastery", 71, "Herod", 3975L, 2, 12.0)),
         List.of(), List.of(), List.of(), List.of(), List.of());
-    var loot = new ItemPage(d, t -> {}).section("In instance loot").table();
-    assertThat(column(loot.table(), 0)).containsExactly("Scarlet Monastery › Herod",
-        "Scarlet Monastery › Armory trash · slot 4", "Scarlet Monastery › Armory trash · slot 24");
-    assertThat(loot.model().refAt(1, 1)).isEmpty();
+    var drops = new ItemPage(d, t -> {}).droppedBy();
+    assertThat(column(drops.table(), 0)).containsExactly("Herod", "Armory trash", "Armory trash");
+    assertThat(drops.model().rowAt(1).loot().orElseThrow().slot()).isEqualTo(4);
+    assertThat(drops.model().rowAt(2).loot().orElseThrow().slot()).isEqualTo(24);
+    assertThat(drops.model().refAt(0, 0)).contains(new EntityRef(NPC, 3975));
+    assertThat(drops.model().refAt(1, 0)).contains(sm);
   }
 
   @Test
@@ -509,8 +613,8 @@ class ItemPageTest {
   void theJumpKeysStillReachTheSectionsUnderTheCard() {
     var p = new ItemPage(repos.items().detail(14149).get(), icon(0), t -> {});
     assertThat(p.card()).isNotNull();
-    assertThat(p.sections()).hasSize(2);
-    for (int key : new int[] {KeyEvent.VK_1, KeyEvent.VK_2}) {
+    assertThat(p.sections()).hasSize(1);
+    for (int key : new int[] {KeyEvent.VK_1}) {
       assertThat(p.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW)
           .get(KeyStroke.getKeyStroke(key, InputEvent.CTRL_DOWN_MASK))).isNotNull();
     }

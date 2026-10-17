@@ -140,7 +140,8 @@ class CompactShellTest {
     shell.claim(search, new JPanel(), status);
     KindMenu menu = search.kindMenu();
     assertThat(SwingUtilities.isDescendingFrom(menu, search)).isTrue();
-    assertThat(search.kindChips().getParent()).isNull();
+    assertThat(SwingUtilities.isDescendingFrom(search.kindChips(), search)).as("the chips are the dropdown's row")
+        .isFalse();
     assertThat(menu.getText()).startsWith("All");
 
     JPopupMenu popup = menu.popup();
@@ -152,7 +153,8 @@ class CompactShellTest {
 
     search.setCompact(false);
     assertThat(menu.getParent()).isNull();
-    assertThat(SwingUtilities.isDescendingFrom(search.kindChips(), search)).isTrue();
+    assertThat(SwingUtilities.isDescendingFrom(search.kindChips(), search)).as("the full bar has no kind control")
+        .isFalse();
     assertThat(search.kindChips().chips().get(1).isSelected()).isTrue();
   }
 

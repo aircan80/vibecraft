@@ -228,9 +228,12 @@ public final class UiState {
     return pin;
   }
 
-  /** Whether the master list shows (Ctrl+B hides it). */
+  /**
+   * Whether Ctrl+B pinned the master list open ({@link ListVisibility#pinned}); off unless set, so the list shows
+   * while searching and collapses when a result is opened.
+   */
   public boolean listVisible() {
-    return prefs.getBoolean(LIST_VISIBLE, true);
+    return prefs.getBoolean(LIST_VISIBLE, false);
   }
 
   public void setListVisible(boolean visible) {

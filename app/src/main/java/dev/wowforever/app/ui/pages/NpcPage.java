@@ -15,26 +15,32 @@ import dev.wowforever.app.ui.widgets.Chip;
 import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.widgets.MapView;
 import dev.wowforever.app.ui.widgets.RailTarget;
+import dev.wowforever.app.ui.widgets.SourceFilterControl;
 import java.awt.image.BufferedImage;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Consumer;
 
 /**
  * The NPC page, one scrolling page: the header (an NPCs plate, name and title, a rank chip, levels and a zone link),
  * then the sections in {@link SectionOrder#NPC} order, Drops, Sells and Location, then Starts quests and Ends quests
  * until a later task merges them into Quests (those without rows are left out). Drops are
- * grouped by {@link ItemCategories} under heading rows, each group ranked by rate with unknown rates last; the
- * world drops (the generic pool many NPCs drop, at an unknown or low rate) come last in a collapsed group, and
- * recipes show their skill.
+ * grouped by {@link ItemCategories} under heading rows, each group ranked by rate with unknown rates last: Notable
+ * first (epics and better, and quest items: what the NPC is looked up for), then by item class; the world drops (the
+ * generic pool many NPCs drop, at an unknown or low rate) come last in a collapsed group, and recipes show their
+ * skill.
  * Columns that say nothing for any row are left out ({@link VisibleColumns}). Given the decoded map of a spawn
  * zone, the Location section shows it above its table with the NPC's spawn points there.
  *
- * <p>The drop source filter ({@link SourceFilter}) applies to the drops: the heading counts the drops shown and a
- * note under the section says how many it hid. A rate whose sources were loaded with the page lists them in its
- * tooltip.
+ * <p>The drop source filter ({@link SourceFilter}), chosen with the control beside the "Drops" heading ({@link
+ * SourceFilterControl}, whose tooltip is the rate marks' legend), applies to the drops: the heading counts the drops
+ * shown and a note under the section says how many it hid. A rate whose sources were loaded with the page lists them in
+ * its tooltip.
  */
 public final class NpcPage extends SourcesPage {
+  /** The title of the drops section. */
+  public static final String DROPS = "Drops";
   private final HeaderPanel header;
   private final Chip rankChip;
   private final LinkTable<GroupedRows.Row<LootRow>> drops;
@@ -56,6 +62,15 @@ public final class NpcPage extends SourcesPage {
    */
   public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
       SourceFilter filter, Navigator nav, ClipboardPort clipboard) {
+    this(d, mapZoneId, map, rateSources, filter, f -> { }, nav, clipboard);
+  }
+
+  /**
+   * As above, the "Drops" heading's filter control ({@link SourceFilterControl}) handing a new filter to
+   * {@code onFilterChange}, which saves it and shows the page again.
+   */
+  public NpcPage(NpcDetail d, Long mapZoneId, BufferedImage map, Map<RateSource.Key, List<RateSource>> rateSources,
+      SourceFilter filter, Consumer<SourceFilter> onFilterChange, Navigator nav, ClipboardPort clipboard) {
     super(nav);
     NpcSummary s = d.summary();
     header = zoneHeader(title(s), Labels.join("NPC #" + s.id(), Labels.levels(s.minLevel(), s.maxLevel())),
@@ -71,10 +86,11 @@ public final class NpcPage extends SourcesPage {
     if (d.drops().isEmpty()) {
       drops = null;
     } else {
-      drops = LootTables.grouped(shown.rows(), new LootTables.Grouping(ItemCategories::ofDrop,
+      drops = LootTables.grouped(shown.rows(), new LootTables.Grouping(ItemCategories::ofNpcDrop,
           ItemCategories.DROP_ORDER, LootTables.BY_RATE, Set.of(ItemCategories.WORLD_DROPS), Set.of()),
           LootTables.sourcesOf(s.id(), rateSources), nav);
-      addFilteredSection("Drops", shown, drops);
+      addFilteredSection(DROPS, shown, drops);
+      section(DROPS).heading().setTrailing(new SourceFilterControl(filter, onFilterChange));
     }
     addLootSection("Sells", d.sells());
     addSection("Starts quests", d.starts().size(), VisibleColumns.of(Columns.quests(), d.starts(), s.zoneName()),

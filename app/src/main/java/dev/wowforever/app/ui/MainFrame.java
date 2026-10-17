@@ -23,6 +23,7 @@ import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import javax.swing.AbstractAction;
 import javax.swing.Action;
 import javax.swing.BorderFactory;
@@ -65,6 +66,8 @@ public final class MainFrame extends JFrame implements MainView {
   /** The content's action that hides or shows the master list (Ctrl+B through {@link KeyMap}). */
   static final String TOGGLE_LIST = "toggleList";
   private static final String SHOWN_DIVIDER_SIZE = "wowforever.shownDividerSize";
+  /** The content's client property holding its {@link ListVisibility}. */
+  private static final String LIST_VISIBILITY = "wowforever.listVisibility";
 
   private final JButton back = HistoryButtons.back();
   private final JButton forward = HistoryButtons.forward();
@@ -161,8 +164,9 @@ public final class MainFrame extends JFrame implements MainView {
 
   /**
    * The window content: {@code toolbar} on top; {@code rail} at the left of a {@code list | detail} split whose
-   * divider starts at, and is saved to, {@code state}; {@code status} below. The content's {@link #TOGGLE_LIST}
-   * action hides or shows the list, which starts as {@code state} last saw it.
+   * divider starts at, and is saved to, {@code state}; {@code status} below. When the list shows is up to the
+   * content's {@link ListVisibility} ({@link #listVisibility}): the content's {@link #TOGGLE_LIST} action (Ctrl+B)
+   * goes through it, and the list starts shown when {@code state} saved it pinned.
    */
   public static JPanel buildContent(JComponent toolbar, JComponent rail, JComponent list, JComponent detail,
       JComponent status, UiState state) {
@@ -182,21 +186,47 @@ public final class MainFrame extends JFrame implements MainView {
     content.add(toolbar, BorderLayout.NORTH);
     content.add(middle, BorderLayout.CENTER);
     content.add(status, BorderLayout.SOUTH);
+    ListVisibility visibility = new ListVisibility(state.listVisible());
+    Runnable apply = () -> showList(split, list, state, visibility.visible());
+    content.putClientProperty(LIST_VISIBILITY, new ListControl(visibility, apply));
     content.getActionMap().put(TOGGLE_LIST, new AbstractAction("Show list") {
       @Override
       public void actionPerformed(ActionEvent e) {
-        toggleList(split, list, state);
-        state.setListVisible(list.isVisible());
+        visibility.toggle();
+        apply.run();
+        state.setListVisible(visibility.pinned());
       }
     });
-    if (!state.listVisible()) {
-      toggleList(split, list, state);
-    }
+    apply.run();
     return content;
   }
 
-  /** Hides the list (the detail takes the whole split), or shows it again at the saved width. */
-  private static void toggleList(JSplitPane split, JComponent list, UiState state) {
+  /** The list's visibility in a content, and what shows or hides the list as it says. */
+  private record ListControl(ListVisibility visibility, Runnable apply) {}
+
+  /** The list's visibility in {@code content}, made by {@link #buildContent}. */
+  static ListVisibility listVisibility(JPanel content) {
+    return ((ListControl) content.getClientProperty(LIST_VISIBILITY)).visibility();
+  }
+
+  /**
+   * Updates the list of {@code content} with {@code change} to its {@link ListVisibility}, then shows or hides it as
+   * that says.
+   */
+  static void updateList(JPanel content, Consumer<ListVisibility> change) {
+    ListControl control = (ListControl) content.getClientProperty(LIST_VISIBILITY);
+    change.accept(control.visibility());
+    control.apply().run();
+  }
+
+  /**
+   * Hides the list (the detail takes the whole split), or shows it again at the saved width; nothing when it is
+   * already so.
+   */
+  private static void showList(JSplitPane split, JComponent list, UiState state, boolean show) {
+    if (list.isVisible() == show) {
+      return;
+    }
     if (list.isVisible()) {
       split.putClientProperty(SHOWN_DIVIDER_SIZE, split.getDividerSize());
       list.setVisible(false);
@@ -212,7 +242,7 @@ public final class MainFrame extends JFrame implements MainView {
     split.repaint();
   }
 
-  /** Shows the current page again (a layout switch, a new drop source filter); nothing before the controller. */
+  /** Shows the current page again (a layout switch); nothing before the controller. */
   private void rerender() {
     if (controller != null) {
       controller.rerender();
@@ -222,6 +252,27 @@ public final class MainFrame extends JFrame implements MainView {
   @Override
   public SourceFilter sourceFilter() {
     return uiState.sourceFilter();
+  }
+
+  @Override
+  public void setSourceFilter(SourceFilter filter) {
+    uiState.setSourceFilter(filter);
+  }
+
+  /** A result opened: the list collapses unless pinned or the window is wide ({@link ListVisibility}). */
+  @Override
+  public void onResultOpened() {
+    if (!layout.isCompact()) { // the compact layout has no list
+      updateList(content, v -> v.resultOpened(getWidth()));
+    }
+  }
+
+  /** A search filled the list: it shows. */
+  @Override
+  public void onResultsShown() {
+    if (!layout.isCompact()) {
+      updateList(content, ListVisibility::resultsShown);
+    }
   }
 
   @Override
@@ -362,8 +413,8 @@ public final class MainFrame extends JFrame implements MainView {
 
   /** What the menu items both layouts share do ({@link WindowMenus}). */
   private WindowMenus.Actions menuActions() {
-    return new WindowMenus.Actions(ThemeManager::isDark, () -> ThemeManager.toggle(this), this::rerender,
-        this::showShortcuts, this::showAbout);
+    return new WindowMenus.Actions(ThemeManager::isDark, () -> ThemeManager.toggle(this), this::showShortcuts,
+        this::showAbout);
   }
 
   /** The compact layout's context menu: what its missing menu bar would offer, and the way back. */
@@ -372,7 +423,7 @@ public final class MainFrame extends JFrame implements MainView {
     full.addActionListener(e -> toggleCompactMode());
     JPopupMenu menu = new JPopupMenu();
     menu.add(full);
-    WindowMenus.addViewItems(menu, uiState, menuActions());
+    WindowMenus.addViewItems(menu, menuActions());
     WindowMenus.addHelpItems(menu, menuActions());
     return menu;
   }
@@ -395,7 +446,7 @@ public final class MainFrame extends JFrame implements MainView {
     });
     JMenu view = new JMenu("View");
     view.add(showList);
-    WindowMenus.addViewItems(view, uiState, menuActions());
+    WindowMenus.addViewItems(view, menuActions());
     JMenu help = new JMenu("Help");
     WindowMenus.addHelpItems(help, menuActions());
     JMenuBar bar = new JMenuBar();

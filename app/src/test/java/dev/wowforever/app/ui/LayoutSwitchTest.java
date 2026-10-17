@@ -154,7 +154,9 @@ class LayoutSwitchTest {
     assertThat(window.menuBar).isTrue();
     assertThat(search.getParent()).isSameAs(toolbar);
     assertThat(toolbar.getComponentIndex(search)).isEqualTo(toolbar.getComponentCount() - 1);
-    assertThat(search.kindChips().getParent()).isSameAs(search); // no longer the compact kind menu
+    assertThat(search.kindMenu().getParent()).isNull(); // no longer the compact kind menu
+    assertThat(SwingUtilities.isDescendingFrom(search.kindChips(), search)).as("chips only in the dropdown")
+        .isFalse();
     assertThat(view.holder.getParent()).isSameAs(detailSlot);
     assertThat(((BorderLayout) content.getLayout()).getLayoutComponent(BorderLayout.SOUTH)).isSameAs(view.status());
   }

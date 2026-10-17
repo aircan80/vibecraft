@@ -117,7 +117,7 @@ class UiStateTest {
     assertThat(state.alwaysOnTop()).isFalse();
     assertThat(state.textSizePct()).isEqualTo(100);
     assertThat(state.pinned()).isEmpty();
-    assertThat(state.listVisible()).isTrue();
+    assertThat(state.listVisible()).as("the list is not pinned open: it collapses when a result opens").isFalse();
   }
 
   @Test

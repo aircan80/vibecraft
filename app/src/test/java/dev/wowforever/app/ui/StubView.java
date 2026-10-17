@@ -5,7 +5,10 @@ import dev.wowforever.app.ui.widgets.ManualDelay;
 import dev.wowforever.app.ui.widgets.MasterList;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.BorderLayout;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BooleanSupplier;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.swing.JComponent;
 import javax.swing.JPanel;
@@ -31,6 +34,10 @@ final class StubView implements MainView {
   Supplier<SourceFilter> sourceFilter = () -> SourceFilter.ALL;
   /** What {@link #questPins()} answers. */
   BooleanSetting questPins = BooleanSetting.inMemory(false);
+  /** What {@link #setSourceFilter} does with a filter: nothing unless set. */
+  Consumer<SourceFilter> saveSourceFilter = f -> { };
+  /** What the master list heard, in order: "opened" ({@link #onResultOpened}), "results" ({@link #onResultsShown}). */
+  final List<String> listEvents = new ArrayList<>();
 
   @Override
   public MasterList masterList() {
@@ -78,5 +85,20 @@ final class StubView implements MainView {
   @Override
   public BooleanSetting questPins() {
     return questPins;
+  }
+
+  @Override
+  public void setSourceFilter(SourceFilter filter) {
+    saveSourceFilter.accept(filter);
+  }
+
+  @Override
+  public void onResultOpened() {
+    listEvents.add("opened");
+  }
+
+  @Override
+  public void onResultsShown() {
+    listEvents.add("results");
   }
 }

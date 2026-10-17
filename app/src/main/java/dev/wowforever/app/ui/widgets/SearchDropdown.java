@@ -3,6 +3,7 @@ package dev.wowforever.app.ui.widgets;
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.ui.theme.Theme;
+import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.Font;
@@ -21,12 +22,14 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Consumer;
 import javax.swing.AbstractAction;
 import javax.swing.AbstractListModel;
 import javax.swing.BorderFactory;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JList;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTextField;
 import javax.swing.JWindow;
@@ -40,12 +43,14 @@ import javax.swing.UIManager;
 import javax.swing.border.Border;
 
 /**
- * The type-ahead list under the search box: the top {@value #MAX_HITS} hits grouped by kind (groups in the order of
- * their best hit) and a "Show all n results" row, or the recent searches under "Recent". The search box keeps the
- * keyboard focus: {@link #install} binds Up/Down (move the selection, skipping headings), Enter (open the selected
- * row, else the top hit, else the full search), Shift+Enter (the full search) and Esc (close) in its input map.
- * Up, Down and Esc are left alone while the list is closed. Where the list shows is a {@link Host}: a non-focusable
- * {@link JWindow} in the app, a stand-in in tests.
+ * The type-ahead list under the search box: the kind chips on top ({@link KindChips}, which wrap to the list's width),
+ * then the top {@value #MAX_HITS} hits grouped by kind (groups in the order of their best hit) and a "Show all n
+ * results" row; or the recent searches under "Recent", without the chips. A chip clicked narrows the hits shown to its
+ * kind at once and tells {@link #onKindSelect}'s listener, which looks the kind's own hits up. The search box keeps the
+ * keyboard focus: {@link #install} binds Up/Down (move the selection, skipping headings), Enter (open the selected row,
+ * else the top hit, else the full search), Shift+Enter (the full search) and Esc (close) in its input map. Up, Down and
+ * Esc are left alone while the list is closed. Where the list shows is a {@link Host}: a non-focusable {@link JWindow}
+ * in the app, a stand-in in tests.
  */
 public final class SearchDropdown {
   /** Most hits shown. */
@@ -99,8 +104,15 @@ public final class SearchDropdown {
 
   private final Host host;
   private final JList<Row> list = new JList<>();
-  private final JScrollPane content;
+  private final KindChips chips = new KindChips();
+  private final JScrollPane scroll;
+  /** What goes on screen: the chips over the scrolling list, in the list's border. */
+  private final JPanel content = new JPanel(new BorderLayout());
   private List<Row> rows = List.of();
+  /** The hits last given ({@link #showHits}) and their total, which a chip narrows. */
+  private List<ListEntry> hits = List.of();
+  private int hitsTotal;
+  private Consumer<Optional<EntityKind>> onKind = k -> {};
   private JTextField field;
   private Listener listener = new Listener() {
     @Override
@@ -146,8 +158,31 @@ public final class SearchDropdown {
     };
     list.addMouseListener(mouse);
     list.addMouseMotionListener(mouse);
-    content = new JScrollPane(list, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
+    scroll = new JScrollPane(list, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
         ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+    scroll.setBorder(BorderFactory.createEmptyBorder());
+    chips.setBorder(BorderFactory.createEmptyBorder(2, 6, 0, 6));
+    chips.setOpaque(true);
+    chips.setVisible(false);
+    chips.onSelect(kind -> {
+      narrow(kind);
+      onKind.accept(kind);
+    });
+    content.add(chips, BorderLayout.NORTH);
+    content.add(scroll, BorderLayout.CENTER);
+  }
+
+  /** The kind chips of the top row. */
+  public KindChips kindChips() {
+    return chips;
+  }
+
+  /**
+   * Called with the kind of a chip the user clicks, after the hits shown are narrowed to it; replaces any earlier
+   * listener.
+   */
+  public void onKindSelect(Consumer<Optional<EntityKind>> listener) {
+    onKind = Objects.requireNonNull(listener, "listener");
   }
 
   /** Binds the dropdown keys in {@code field}'s input map; choices go to {@code listener}. */
@@ -172,6 +207,25 @@ public final class SearchDropdown {
    * {@code total} results (at least as many as shown), or "No matches" when there are none.
    */
   public void showHits(List<ListEntry> hits, int total) {
+    this.hits = List.copyOf(hits);
+    this.hitsTotal = total;
+    chips.setVisible(true);
+    render(hits, total);
+  }
+
+  /**
+   * Narrows the hits shown to {@code kind} (all of them for All), the "Show all" total being the kind's count on its
+   * chip; nothing while the list shows no hits.
+   */
+  private void narrow(Optional<EntityKind> kind) {
+    if (!showing || !chips.isVisible()) {
+      return;
+    }
+    List<ListEntry> kept = hits.stream().filter(h -> kind.isEmpty() || h.ref().kind() == kind.get()).toList();
+    render(kept, kind.isEmpty() ? hitsTotal : chips.count(kind).orElse(kept.size()));
+  }
+
+  private void render(List<ListEntry> hits, int total) {
     List<ListEntry> top = hits.subList(0, Math.min(MAX_HITS, hits.size()));
     Map<EntityKind, List<ListEntry>> groups = new LinkedHashMap<>();
     for (ListEntry hit : top) {
@@ -197,6 +251,7 @@ public final class SearchDropdown {
       setRows(List.of());
       return;
     }
+    chips.setVisible(false);
     List<Row> r = new ArrayList<>();
     r.add(new Row.Heading("Recent"));
     recent.forEach(t -> r.add(new Row.Recent(t)));
@@ -244,12 +299,14 @@ public final class SearchDropdown {
     stale = false;
     Color line = UIManager.getColor("Component.borderColor"); // read on each show: the theme may have changed
     content.setBorder(BorderFactory.createLineBorder(line != null ? line : Theme.current().textMuted()));
+    chips.setBackground(list.getBackground());
     showing = host.show(field, content, preferredHeight());
   }
 
   /**
-   * How tall the list wants to be: every row at its own height plus the border, so that a short list has no empty
-   * space and a long one no scrollbar, up to {@value #MAX_HEIGHT} logical pixels.
+   * How tall the dropdown wants to be: every row at its own height and the border, so that a short list has no empty
+   * space and a long one no scrollbar, up to {@value #MAX_HEIGHT} logical pixels, then the chips over it (wrapped to
+   * the dropdown's width, {@link #chipRowHeight}).
    */
   int preferredHeight() {
     ListCellRenderer<? super Row> renderer = list.getCellRenderer();
@@ -257,7 +314,21 @@ public final class SearchDropdown {
     for (int i = 0; i < rows.size(); i++) {
       height += renderer.getListCellRendererComponent(list, rows.get(i), i, false, false).getPreferredSize().height;
     }
-    return Math.min(height, UIScale.scale(MAX_HEIGHT));
+    return Math.min(height, UIScale.scale(MAX_HEIGHT)) + chipRowHeight(); // the cap is the list's: the chips stay
+  }
+
+  /**
+   * The height of the chips' row at the width the dropdown shows at (the search box's, at least {@value #MIN_WIDTH}
+   * logical pixels, as {@link #windowHost} sizes it); 0 while the chips are hidden.
+   */
+  int chipRowHeight() {
+    if (!chips.isVisible()) {
+      return 0;
+    }
+    int width = Math.max(field == null ? 0 : field.getWidth(), UIScale.scale(MIN_WIDTH))
+        - content.getInsets().left - content.getInsets().right;
+    chips.setWrapWidth(width);
+    return chips.heightAt(width);
   }
 
   private void setRows(List<Row> r) {

@@ -281,7 +281,9 @@ class SearchDropdownTest {
         hit(ITEM, 6, "Blackened Defias Belt"), hit(QUEST, 7, "The Defias Brotherhood"), hit(NPC, 8, "Mr. Smite"));
     dropdown.showHits(hits, 22);
     int border = 2; // a one-pixel line above and below
-    assertThat(host.height).isEqualTo(rowHeights() + border);
+    int chips = dropdown.chipRowHeight(); // the kind chips' row on top
+    assertThat(chips).isPositive();
+    assertThat(host.height).isEqualTo(chips + rowHeights() + border);
     // eight two-line hits are taller than eight rows of the first (heading) row, the old scroll pane height
     var list = dropdown.jlist();
     int headingHeight = list.getCellRenderer().getListCellRendererComponent(list, dropdown.rows().get(0), 0, false,
@@ -290,7 +292,30 @@ class SearchDropdownTest {
 
     dropdown.showHits(List.of(hit(ITEM, 1, "Cruel Barb")), 1);
     assertThat(dropdown.rows()).hasSize(3);
+    assertThat(host.height).isEqualTo(chips + rowHeights() + border);
+    dropdown.showRecents(List.of("hogger"));
+    assertThat(dropdown.chipRowHeight()).as("no chips over the recent searches").isZero();
     assertThat(host.height).isEqualTo(rowHeights() + border);
+  }
+
+  @Test
+  void kindChipsInDropdownFilter() {
+    List<java.util.Optional<EntityKind>> asked = new ArrayList<>();
+    dropdown.onKindSelect(asked::add);
+    dropdown.kindChips().setCounts(java.util.Map.of(ITEM, 9, NPC, 2));
+    dropdown.showHits(List.of(hit(ITEM, 1, "Hogger Tusk"), hit(NPC, 2, "Hogger"), hit(ITEM, 3, "Hog Snout"),
+        hit(NPC, 4, "Hogger's Pup")), 11);
+    assertThat(dropdown.kindChips().isVisible()).as("the chips are the dropdown's top row").isTrue();
+    assertThat(dropdown.kindChips().chips()).extracting(javax.swing.AbstractButton::getText)
+        .startsWith("All 11", "Items 9", "NPCs 2");
+    dropdown.kindChips().chips().get(2).doClick(); // NPCs
+    assertThat(rows()).containsExactly("# NPCs", "Hogger", "Hogger's Pup", "show all 2");
+    assertThat(asked).as("the search box then looks the kind's own hits up")
+        .containsExactly(java.util.Optional.of(NPC));
+    dropdown.kindChips().chips().get(0).doClick(); // All again: every hit given
+    assertThat(rows()).containsExactly("# Items", "Hogger Tusk", "Hog Snout", "# NPCs", "Hogger", "Hogger's Pup",
+        "show all 11");
+    assertThat(dropdown.isShowing()).isTrue();
   }
 
   @Test

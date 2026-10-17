@@ -27,6 +27,7 @@ import dev.wowforever.app.ui.widgets.MapView.Pin;
 import dev.wowforever.app.ui.widgets.MapView.PinKind;
 import dev.wowforever.app.ui.widgets.OriginChip;
 import dev.wowforever.app.ui.widgets.RateBarRenderer;
+import dev.wowforever.app.ui.widgets.SourceFilterControl;
 import dev.wowforever.app.ui.widgets.SourceSection;
 import java.awt.Rectangle;
 import java.awt.event.ActionEvent;
@@ -143,12 +144,13 @@ class NpcPageTest {
   void vanCleefsLootIsGroupedByItemClassAndRankedByRate() {
     var p = new NpcPage(vanCleef(), t -> {}, text -> {});
     JTable t = p.drops().table();
-    assertThat(column(t, 0)).containsExactly("Gear (1)", "Cruel Barb", "Quest items (1)", "An Unsent Letter",
+    // the quest item leads under Notable, then the item classes
+    assertThat(column(t, 0)).containsExactly("Notable (1)", "An Unsent Letter", "Gear (1)", "Cruel Barb",
         "Other (3)", "Unknown item #5202", "Unknown item #5193", "Unknown item #10399");
     assertThat(p.section("Drops").heading().text()).isEqualTo("Drops (5)");
     // group headings are dividers: muted, linking nowhere, not selectable, and the order is fixed
     assertThat(p.drops().model().refAt(0, 0)).isEmpty();
-    assertThat(p.drops().model().refAt(1, 0)).contains(new EntityRef(ITEM, 5191));
+    assertThat(p.drops().model().refAt(3, 0)).contains(new EntityRef(ITEM, 5191));
     assertThat(t.prepareRenderer(t.getCellRenderer(2, 0), 2, 0).getForeground())
         .isEqualTo(Theme.current().textMuted());
     t.changeSelection(2, 0, false, false);
@@ -185,7 +187,7 @@ class NpcPageTest {
   void worldDropsComeLastInACollapsedGroupThatAClickOpensAndEnterCloses() {
     var p = hoggerWithWorldDrops();
     JTable t = p.drops().table();
-    assertThat(column(t, 0)).containsExactly("Quest items (2)", "Huge Gnoll Claw", "Gold Pickup Schedule",
+    assertThat(column(t, 0)).containsExactly("Notable (2)", "Huge Gnoll Claw", "Gold Pickup Schedule",
         "Consumables (1)", "Rare Find", "World drops (2) ▸");
     assertThat(p.section("Drops").heading().text()).as("the heading counts every drop").isEqualTo("Drops (5)");
     Rectangle heading = t.getCellRect(5, 1, true);
@@ -228,8 +230,36 @@ class NpcPageTest {
         drop(5, "Murloc Eye", 40.0, "Trade Goods", many, null),
         drop(6, "Chunk of Boar Meat", ItemCategories.WORLD_DROP_MAX_PCT, "Trade Goods", many, null)), List.of(),
         List.of()), t -> {}, text -> {});
-    assertThat(column(p.drops().table(), 0)).containsExactly("Quest items (1)", "Huge Gnoll Claw",
+    assertThat(column(p.drops().table(), 0)).containsExactly("Notable (1)", "Huge Gnoll Claw",
         "Trade goods (3)", "Murloc Eye", "Chunk of Boar Meat", "Malachite", "World drops (2)" + GroupedRows.COLLAPSED);
+  }
+
+  /** A drop of item class {@code classId} ({@code className}) and {@code quality}. */
+  private static LootRow drop(long id, String name, Double pct, Integer classId, String className, Integer quality) {
+    return new LootRow(new EntityRef(ITEM, id), name, 60, pct, "questie", null, classId, className, null, false, 0,
+        quality, null, null, null, 1);
+  }
+
+  @Test
+  void notableDropsFirst() {
+    var p = new NpcPage(npc(HOGGER, List.of(drop(1, "Plain Sword", 30.0, 2, "Weapon", 2),
+        drop(2, "Epic Blade", 0.5, 2, "Weapon", 4), drop(3, "Head of Hogger", 100.0, 12, "Quest", 1),
+        drop(4, "Linen Cloth", 20.0, 7, "Trade Goods", 1), drop(5, "Legendary Hammer", null, 2, "Weapon", 5)),
+        List.of(), List.of()), t -> {}, text -> {});
+    // an epic (and the legendary) and the quest item lead under Notable, by rate; then the item classes
+    assertThat(column(p.drops().table(), 0)).containsExactly("Notable (3)", "Head of Hogger", "Epic Blade",
+        "Legendary Hammer", "Gear (1)", "Plain Sword", "Trade goods (1)", "Linen Cloth");
+    assertThat(ItemCategories.DROP_ORDER).startsWith(ItemCategories.NOTABLE).endsWith(ItemCategories.WORLD_DROPS);
+  }
+
+  @Test
+  void theFilterControlSitsBesideTheDropsHeading() {
+    List<SourceFilter> chosen = new ArrayList<>();
+    var p = new NpcPage(vanCleef(), null, null, Map.of(), SourceFilter.ALL, chosen::add, t -> {}, text -> {});
+    var control = (SourceFilterControl) p.section("Drops").heading().trailing();
+    assertThat(control.getToolTipText()).isEqualTo(SourceFilterControl.LEGEND);
+    control.setSelectedItem(SourceFilter.HIDE_QUESTIE_ONLY);
+    assertThat(chosen).containsExactly(SourceFilter.HIDE_QUESTIE_ONLY);
   }
 
   @Test
@@ -416,7 +446,7 @@ class NpcPageTest {
   void dropRowsLinkToTheirItem() {
     List<ViewTarget> opened = new ArrayList<>();
     var p = new NpcPage(vanCleef(), opened::add, text -> {});
-    p.drops().activateRow(1);
+    p.drops().activateRow(3); // under Gear, after the Notable group
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(ITEM, 5191)));
   }
 

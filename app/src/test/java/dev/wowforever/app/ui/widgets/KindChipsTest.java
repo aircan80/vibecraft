@@ -71,6 +71,37 @@ class KindChipsTest {
   }
 
   @Test
+  void theChipsWrapToTheWidthTheyAreGiven() {
+    KindChips chips = new KindChips();
+    chips.setCounts(Map.of(ITEM, 1_209, QUEST, 8));
+    int oneRow = chips.getPreferredSize().height;
+    int wide = chips.getPreferredSize().width;
+    assertThat(chips.heightAt(wide + 50)).as("room for all").isEqualTo(oneRow);
+    chips.setWrapWidth(wide / 2);
+    assertThat(chips.getPreferredSize().width).isEqualTo(wide / 2);
+    assertThat(chips.getPreferredSize().height).as("two or more rows").isGreaterThan(oneRow);
+    // laid out at that width, every chip is inside the panel
+    chips.setSize(chips.getPreferredSize());
+    chips.doLayout();
+    assertThat(chips.chips()).allSatisfy(c -> assertThat(c.getY() + c.getHeight()).isLessThanOrEqualTo(
+        chips.getHeight()));
+    chips.setWrapWidth(0);
+    assertThat(chips.getPreferredSize().height).isEqualTo(oneRow);
+  }
+
+  @Test
+  void theCountsShownCanBeRead() {
+    KindChips chips = new KindChips();
+    assertThat(chips.count(Optional.of(ITEM))).isEmpty();
+    chips.setCounts(Map.of(ITEM, 9, NPC, 2));
+    assertThat(chips.count(Optional.of(ITEM))).hasValue(9);
+    assertThat(chips.count(Optional.of(ZONE))).hasValue(0);
+    assertThat(chips.count(Optional.empty())).hasValue(11);
+    chips.clearCounts();
+    assertThat(chips.count(Optional.empty())).isEmpty();
+  }
+
+  @Test
   void pluralLabels() {
     assertThat(KindChips.label(ITEM)).isEqualTo("Items");
     assertThat(KindChips.label(INSTANCE)).isEqualTo("Dungeons & Raids");
