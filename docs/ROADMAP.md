@@ -1,19 +1,20 @@
 # Roadmap and ideas backlog
 
 Collected 2026-10-16 after v0.1 (the first working browser). Not committed to any order yet;
-the suggested sequence is at the bottom.
+the suggested sequence is at the bottom. Items marked *Done (v0.2.0)* shipped with phase 2A
+(client data) and phase 2B (UI overhaul); their text is kept as it was planned.
 
 ## A. Richer item data (client datamining)
 
-1. **Item stats, quality and a WoW-style tooltip.** Source: client DB2 tables for the Forever
-   build (`ItemSparse`, `Item`, `ItemEffect`, `Spell`/`SpellName`, `ItemSet`), via wago.tools CSV
-   exports or a local dump. New importer stage and tables (`item_stats`, `item_effect`,
-   `item_set`); tooltip panel with quality colours; quality colouring and slot/stat filters in
-   item lists.
-2. **Icons.** `ItemSparse`/`ItemAppearance` → icon FileDataID → BLP from CASC → PNG. ~6k unique
-   icons for 21k items; ship as a resource folder (a few MB).
-3. **Zone maps with spawn pins.** Client map tiles per zone; Questie spawn coordinates are map
-   percentages, so pins map directly. Click a pin to open the NPC/object.
+1. **Item stats, quality and a WoW-style tooltip.** *Done (v0.2.0).* Slot filters wait for D16.
+   Source: client DB2 tables for the Forever build (`ItemSparse`, `Item`, `ItemEffect`,
+   `Spell`/`SpellName`, `ItemSet`), via wago.tools CSV exports or a local dump. New importer stage
+   and tables (`item_stats`, `item_effect`, `item_set`); tooltip panel with quality colours;
+   quality colouring and slot/stat filters in item lists.
+2. **Icons.** *Done (v0.2.0).* `ItemSparse`/`ItemAppearance` → icon FileDataID → BLP from CASC →
+   PNG. ~6k unique icons for 21k items; ship as a resource folder (a few MB).
+3. **Zone maps with spawn pins.** *Done (v0.2.0).* Client map tiles per zone; Questie spawn
+   coordinates are map percentages, so pins map directly. Click a pin to open the NPC/object.
 4. **3D item models.** Tier 1: pre-rendered static or 36-frame turntable images (wow.export →
    glTF → batch render). Tier 2: live viewer with LWJGL/JOGL. Armour on a body needs the
    dressing-room machinery and is out of scope until Tier 1 exists.
@@ -53,16 +54,18 @@ both Questie's Wowhead table and AtlasLoot, 137 disagree by >1 point, 85 by >5 (
 where Wowhead's sample is players on the quest). AtlasLoot also omits 1,958 Questie drop rows on its
 bosses by design (quest items, grey junk, reagents).
 
-7. **Keep every competing value, not just the winner.** Replace the single `drop_pct`/`pct_source`
-   with a `drop_rate_source(npc_id, item_id, source, pct)` table (keep a denormalised "best"
-   column for list views). The UI shows the chosen value with its source and a disagreement marker
-   when sources differ by more than a few points; hover/expand shows the others.
-8. **Provenance on every fact.** Already on drop rows (`origin`). Extend to names and levels when
-   a second source for them (client data) arrives; prefer the client's value and report mismatches.
-9. **Conflict section in the import report.** List the top disagreements between sources and the
-   rows one source has that another omits, so a data refresh shows what moved.
-10. **Source filter in the UI.** Settings toggle to hide AtlasLoot-only or Questie-only rows for
-    users who trust one source more.
+7. **Keep every competing value, not just the winner.** *Done (v0.2.0).* Replace the single
+   `drop_pct`/`pct_source` with a `drop_rate_source(npc_id, item_id, source, pct)` table (keep a
+   denormalised "best" column for list views). The UI shows the chosen value with its source and a
+   disagreement marker when sources differ by more than a few points; hover/expand shows the
+   others.
+8. **Provenance on every fact.** *Done (v0.2.0).* Already on drop rows (`origin`). Extend to names
+   and levels when a second source for them (client data) arrives; prefer the client's value and
+   report mismatches.
+9. **Conflict section in the import report.** *Done (v0.2.0).* List the top disagreements between
+   sources and the rows one source has that another omits, so a data refresh shows what moved.
+10. **Source filter in the UI.** *Done (v0.2.0).* Settings toggle to hide AtlasLoot-only or
+    Questie-only rows for users who trust one source more.
 
 ## C. Verification
 
@@ -86,12 +89,19 @@ Collected 2026-10-17 at the end of the phase 2B UI overhaul.
     Slot column (and slot filters) waits for `inventory_type` in the loot queries (v0.5).
 17. **Pinned pages.** The settings can remember pinned entity pages (`UiState.pinned`), but no view lists
     them yet, so Ctrl+D is unbound and not advertised; bind it again with a pinned list on Home or the rail.
+18. **Remember column widths, sort order, last search kind and the monitor (P1.7 remainder).** Phase
+    2B stored these settings but nothing read them back, so the final review removed them; add them
+    again together with the code that restores them.
+19. **Home launch pad: Recent, Pinned, Dungeons & Raids by level band (spec §5.1).** Home still
+    shows the welcome text; the launch pad needs the pinned list of item 17.
+20. **Not-found and unknown-entity states with a Search/Back action and muted styling (review
+    §P1.8).** A missing entity still shows a plain "Not found" label.
 
 ## Suggested order
 
 1. A1 + A2 + B7–B10 together (stats, quality, tooltip, icons, provenance), since they all touch
-   the item page and the importer schema.
-2. A3 (maps).
+   the item page and the importer schema. *Done (v0.2.0).*
+2. A3 (maps). *Done (v0.2.0).*
 3. A4 Tier 1 (pre-rendered models).
 4. A5 (emulator drop rates), then A6 as small follow-ups.
 5. C11 whenever a data refresh makes it worth proving.
