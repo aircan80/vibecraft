@@ -2,7 +2,6 @@ package dev.wowforever.app.ui;
 
 import dev.wowforever.app.ui.widgets.MasterList;
 import java.awt.Frame;
-import java.awt.GraphicsConfiguration;
 import java.awt.GraphicsDevice;
 import java.awt.GraphicsEnvironment;
 import java.awt.Rectangle;
@@ -16,7 +15,7 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 /**
- * Saves the window's bounds, maximised state and screen to {@link UiState}: {@value #SAVE_DELAY_MILLIS} ms after
+ * Saves the window's bounds and maximised state to {@link UiState}: {@value #SAVE_DELAY_MILLIS} ms after
  * it last moved or resized, and at once when it closes. A maximised window keeps its earlier normal bounds; a
  * minimised one saves nothing; in compact mode the bounds go to the compact bounds, and the normal window's
  * maximised state is left as it was.
@@ -24,8 +23,8 @@ import java.util.function.Supplier;
 final class WindowStatePersistence {
   static final int SAVE_DELAY_MILLIS = 500;
 
-  /** What is saved of a window: its bounds, {@link Frame#getExtendedState()} and screen id. */
-  record Snapshot(Rectangle bounds, int extendedState, String screenDeviceId) {}
+  /** What is saved of a window: its bounds and {@link Frame#getExtendedState()}. */
+  record Snapshot(Rectangle bounds, int extendedState) {}
 
   private final UiState state;
   private final Supplier<Snapshot> window;
@@ -95,12 +94,10 @@ final class WindowStatePersistence {
         state.setBounds(s.bounds());
       }
     }
-    state.setScreenDeviceId(s.screenDeviceId());
   }
 
   private static Snapshot snapshot(Frame frame) {
-    GraphicsConfiguration gc = frame.getGraphicsConfiguration();
-    return new Snapshot(frame.getBounds(), frame.getExtendedState(), gc == null ? null : gc.getDevice().getIDstring());
+    return new Snapshot(frame.getBounds(), frame.getExtendedState());
   }
 
   /** The bounds of every screen, the default screen first. */

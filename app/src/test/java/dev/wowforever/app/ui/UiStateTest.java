@@ -3,18 +3,14 @@ package dev.wowforever.app.ui;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.formdev.flatlaf.util.UIScale;
-import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.SourceFilter;
 import java.awt.Rectangle;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.stream.IntStream;
 import java.util.UUID;
 import java.util.prefs.BackingStoreException;
 import java.util.prefs.Preferences;
 import org.junit.jupiter.api.AfterEach;
-import javax.swing.SortOrder;
 import org.junit.jupiter.api.Test;
 
 class UiStateTest {
@@ -116,14 +112,10 @@ class UiStateTest {
     UiState state = new UiState(node);
     assertThat(state.bounds()).isNull();
     assertThat(state.maximised()).isFalse();
-    assertThat(state.screenDeviceId()).isNull();
     assertThat(state.compactBounds()).isNull();
     assertThat(state.compactMode()).isFalse();
     assertThat(state.alwaysOnTop()).isFalse();
     assertThat(state.textSizePct()).isEqualTo(100);
-    assertThat(state.columnWidths("item-drops")).isEmpty();
-    assertThat(state.sort("item-drops")).isEmpty();
-    assertThat(state.lastSearchKind()).isEmpty();
     assertThat(state.pinned()).isEmpty();
     assertThat(state.listVisible()).isTrue();
   }
@@ -133,15 +125,11 @@ class UiStateTest {
     UiState state = new UiState(node);
     state.setBounds(new Rectangle(10, 20, 1100, 700));
     state.setMaximised(true);
-    state.setScreenDeviceId("\\Display2");
     state.setDividerLocation(377);
     state.setCompactBounds(new Rectangle(1900, 40, 420, 720));
     state.setCompactMode(true);
     state.setAlwaysOnTop(true);
     state.setTextSizePct(130);
-    state.setColumnWidths("item-drops", Map.of("Source", 240, "Rate", 80));
-    state.setSort("item-drops", new UiState.Sort("Rate", SortOrder.DESCENDING));
-    state.setLastSearchKind(Optional.of(EntityKind.NPC));
     state.setPinned(List.of("item:19019", "npc:448"));
     state.addRecentSearch("hogger");
     state.setListVisible(false);
@@ -149,37 +137,25 @@ class UiStateTest {
     UiState again = new UiState(node);
     assertThat(again.bounds()).isEqualTo(new Rectangle(10, 20, 1100, 700));
     assertThat(again.maximised()).isTrue();
-    assertThat(again.screenDeviceId()).isEqualTo("\\Display2");
     assertThat(again.dividerLocation()).isEqualTo(377);
     assertThat(again.compactBounds()).isEqualTo(new Rectangle(1900, 40, 420, 720));
     assertThat(again.compactMode()).isTrue();
     assertThat(again.alwaysOnTop()).isTrue();
     assertThat(again.textSizePct()).isEqualTo(130);
-    assertThat(again.columnWidths("item-drops")).isEqualTo(Map.of("Source", 240, "Rate", 80));
-    assertThat(again.columnWidths("npc-loot")).isEmpty();
-    assertThat(again.sort("item-drops")).contains(new UiState.Sort("Rate", SortOrder.DESCENDING));
-    assertThat(again.sort("npc-loot")).isEmpty();
-    assertThat(again.lastSearchKind()).contains(EntityKind.NPC);
     assertThat(again.pinned()).containsExactly("item:19019", "npc:448");
     assertThat(again.recentSearches()).containsExactly("hogger");
     assertThat(again.listVisible()).isFalse();
   }
 
   @Test
-  void clearingOptionalFieldsRemovesThem() {
+  void clearingTheBoundsRemovesThem() {
     UiState state = new UiState(node);
     state.setBounds(new Rectangle(1, 2, 300, 400));
-    state.setScreenDeviceId("screen");
-    state.setSort("t", new UiState.Sort("Name", SortOrder.ASCENDING));
-    state.setLastSearchKind(Optional.of(EntityKind.ITEM));
+    state.setCompactBounds(new Rectangle(5, 6, 300, 400));
     state.setBounds(null);
-    state.setScreenDeviceId(null);
-    state.setSort("t", null);
-    state.setLastSearchKind(Optional.empty());
+    state.setCompactBounds(null);
     assertThat(state.bounds()).isNull();
-    assertThat(state.screenDeviceId()).isNull();
-    assertThat(state.sort("t")).isEmpty();
-    assertThat(state.lastSearchKind()).isEmpty();
+    assertThat(state.compactBounds()).isNull();
   }
 
   @Test
@@ -198,12 +174,10 @@ class UiStateTest {
   @Test
   void garbledSavedValuesReadAsDefaults() {
     node.put(UiState.BOUNDS, "not,a,rectangle");
-    node.put(UiState.LAST_SEARCH_KIND, "DRAGON");
-    node.put(UiState.SORT_PREFIX + "t", "Rate\tSIDEWAYS");
+    node.put(UiState.COMPACT_BOUNDS, "1,2,3");
     UiState state = new UiState(node);
     assertThat(state.bounds()).isNull();
-    assertThat(state.lastSearchKind()).isEmpty();
-    assertThat(state.sort("t")).isEmpty();
+    assertThat(state.compactBounds()).isNull();
   }
 
   @Test
@@ -254,13 +228,53 @@ class UiStateTest {
   }
 
   @Test
-  void aWindowWhoseTitleBarPartlyShowsIsKept() {
+  void aWindowWhoseTitleBarPartlyShowsIsMovedWhollyOnScreen() {
     UiState state = new UiState(node);
     List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080));
     state.setBounds(new Rectangle(1800, 1050, 1000, 700)); // 120 × 30 px of the top strip on screen
-    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(1800, 1050, 1000, 700));
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(920, 380, 1000, 700));
     state.setBounds(new Rectangle(1800, 1085, 1000, 700)); // the top strip starts below the screen
     assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(320, 140, 1280, 800));
+  }
+
+  @Test
+  void aWindowSavedOnABiggerScreenIsShrunkToTheScreenItReopensOn() {
+    UiState state = new UiState(node);
+    List<Rectangle> laptop = List.of(new Rectangle(0, 0, 1366, 768));
+    state.setBounds(new Rectangle(0, 0, 2560, 1400));
+    assertThat(state.windowBounds(laptop)).isEqualTo(new Rectangle(0, 0, 1366, 768));
+    state.setBounds(new Rectangle(300, 200, 2560, 1400)); // shrunk, then moved back to the screen's corner
+    assertThat(state.windowBounds(laptop)).isEqualTo(new Rectangle(0, 0, 1366, 768));
+    state.setBounds(new Rectangle(500, 100, 1000, 700)); // fits: moved up and left just enough to show it whole
+    assertThat(state.windowBounds(laptop)).isEqualTo(new Rectangle(366, 68, 1000, 700));
+  }
+
+  @Test
+  void aWindowAcrossTwoScreensGoesToTheOneItsTitleBarIsMostOn() {
+    UiState state = new UiState(node);
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080), new Rectangle(1920, 0, 1366, 768));
+    // 1,000 px of the title bar on the second (smaller) screen, 400 px on the first
+    state.setBounds(new Rectangle(1520, 100, 1400, 900));
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(1920, 0, 1366, 768));
+    // mostly on the first screen: it fits there, moved left just enough to leave the second
+    state.setBounds(new Rectangle(200, 100, 1800, 900));
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(120, 100, 1800, 900));
+  }
+
+  @Test
+  void aWindowOnAScreenLeftOfOrAboveTheMainOneIsKeptInside() {
+    UiState state = new UiState(node);
+    List<Rectangle> screens = List.of(new Rectangle(0, 0, 1920, 1080), new Rectangle(-1280, -1024, 1280, 1024));
+    state.setBounds(new Rectangle(-1300, -1000, 1400, 600));
+    assertThat(state.windowBounds(screens)).isEqualTo(new Rectangle(-1280, -1000, 1280, 600));
+  }
+
+  @Test
+  void aCompactWindowSavedOnABiggerScreenIsShrunkAndMovedInside() {
+    UiState state = new UiState(node);
+    List<Rectangle> laptop = List.of(new Rectangle(0, 0, 1366, 768));
+    state.setCompactBounds(new Rectangle(1300, 10, 460, 900)); // its title bar's left 66 px are on the screen
+    assertThat(state.compactWindowBounds(laptop, laptop.get(0))).isEqualTo(new Rectangle(906, 0, 460, 768));
   }
 
   @Test

@@ -15,7 +15,7 @@ class WindowStatePersistenceTest {
   private final UiState state = new UiState(node);
   private final ManualDelay delay = new ManualDelay();
   private WindowStatePersistence.Snapshot window =
-      new WindowStatePersistence.Snapshot(new Rectangle(10, 20, 1000, 700), Frame.NORMAL, "\\Display1");
+      new WindowStatePersistence.Snapshot(new Rectangle(10, 20, 1000, 700), Frame.NORMAL);
   private final WindowStatePersistence persistence = new WindowStatePersistence(state, () -> window, delay);
 
   @AfterEach
@@ -26,14 +26,13 @@ class WindowStatePersistenceTest {
   @Test
   void movesAndResizesAreSavedOnceTheWindowRests() {
     persistence.changed();
-    window = new WindowStatePersistence.Snapshot(new Rectangle(30, 40, 1100, 720), Frame.NORMAL, "\\Display2");
+    window = new WindowStatePersistence.Snapshot(new Rectangle(30, 40, 1100, 720), Frame.NORMAL);
     persistence.changed();
     assertThat(state.bounds()).isNull();
     assertThat(delay.pending()).isEqualTo(1); // the earlier save was dropped: one save per pause
     delay.fire();
     assertThat(state.bounds()).isEqualTo(new Rectangle(30, 40, 1100, 720));
     assertThat(state.maximised()).isFalse();
-    assertThat(state.screenDeviceId()).isEqualTo("\\Display2");
   }
 
   @Test
@@ -47,7 +46,7 @@ class WindowStatePersistenceTest {
   @Test
   void aMaximisedWindowKeepsItsNormalBounds() {
     persistence.saveNow();
-    window = new WindowStatePersistence.Snapshot(new Rectangle(0, 0, 1920, 1040), Frame.MAXIMIZED_BOTH, "\\Display1");
+    window = new WindowStatePersistence.Snapshot(new Rectangle(0, 0, 1920, 1040), Frame.MAXIMIZED_BOTH);
     persistence.saveNow();
     assertThat(state.maximised()).isTrue();
     assertThat(state.bounds()).isEqualTo(new Rectangle(10, 20, 1000, 700));
@@ -56,7 +55,7 @@ class WindowStatePersistenceTest {
   @Test
   void aMinimisedWindowSavesNothing() {
     persistence.saveNow();
-    window = new WindowStatePersistence.Snapshot(new Rectangle(-32000, -32000, 160, 28), Frame.ICONIFIED, "\\Display1");
+    window = new WindowStatePersistence.Snapshot(new Rectangle(-32000, -32000, 160, 28), Frame.ICONIFIED);
     persistence.saveNow();
     assertThat(state.bounds()).isEqualTo(new Rectangle(10, 20, 1000, 700));
     assertThat(state.maximised()).isFalse();
@@ -65,7 +64,7 @@ class WindowStatePersistenceTest {
   @Test
   void inCompactModeTheCompactBoundsAreSaved() {
     state.setCompactMode(true);
-    window = new WindowStatePersistence.Snapshot(new Rectangle(1900, 40, 420, 720), Frame.NORMAL, "\\Display2");
+    window = new WindowStatePersistence.Snapshot(new Rectangle(1900, 40, 420, 720), Frame.NORMAL);
     persistence.saveNow();
     assertThat(state.compactBounds()).isEqualTo(new Rectangle(1900, 40, 420, 720));
     assertThat(state.bounds()).isNull();
@@ -75,7 +74,7 @@ class WindowStatePersistenceTest {
   void inCompactModeTheFullWindowsMaximisedStateIsKept() {
     state.setMaximised(true);
     state.setCompactMode(true);
-    window = new WindowStatePersistence.Snapshot(new Rectangle(1900, 40, 420, 720), Frame.NORMAL, "\\Display2");
+    window = new WindowStatePersistence.Snapshot(new Rectangle(1900, 40, 420, 720), Frame.NORMAL);
     persistence.saveNow();
     assertThat(state.maximised()).isTrue();
     assertThat(state.compactBounds()).isEqualTo(new Rectangle(1900, 40, 420, 720));
@@ -85,7 +84,7 @@ class WindowStatePersistenceTest {
   void aMaximisedCompactWindowSavesNoBounds() {
     state.setCompactMode(true);
     persistence.saveNow();
-    window = new WindowStatePersistence.Snapshot(new Rectangle(0, 0, 1920, 1040), Frame.MAXIMIZED_BOTH, "\\Display1");
+    window = new WindowStatePersistence.Snapshot(new Rectangle(0, 0, 1920, 1040), Frame.MAXIMIZED_BOTH);
     persistence.saveNow();
     assertThat(state.compactBounds()).isEqualTo(new Rectangle(10, 20, 1000, 700));
     assertThat(state.maximised()).isFalse();

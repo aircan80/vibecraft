@@ -1,40 +1,31 @@
 package dev.wowforever.app.ui;
 
 import com.formdev.flatlaf.util.UIScale;
-import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.ui.widgets.MasterList;
 import java.awt.Rectangle;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.prefs.Preferences;
-import javax.swing.SortOrder;
 
 /**
  * Window layout, view settings, pinned pages and recent searches remembered between runs, all in one preferences
- * node (the one {@link ThemeManager} uses): the window bounds, maximised state and screen; the list | detail
- * divider and whether the list shows; the compact window's bounds and mode; always on top; the text size; column
- * widths and sort per table kind; the last search kind; pinned pages; the last searches; the drop source filter;
- * and whether zone maps pin quest givers. A value that cannot be read (say, edited by hand) reads as its default.
+ * node (the one {@link ThemeManager} uses): the window bounds and maximised state; the list | detail divider and
+ * whether the list shows; the compact window's bounds and mode; always on top; the text size; pinned pages; the
+ * last searches; the drop source filter; and whether zone maps pin quest givers. A value that cannot be read (say,
+ * edited by hand) reads as its default.
  */
 public final class UiState {
   static final String BOUNDS = "window.bounds";
   static final String MAXIMISED = "window.maximised";
-  static final String SCREEN = "window.screen";
   static final String ALWAYS_ON_TOP = "window.alwaysOnTop";
   static final String DIVIDER = "layout.dividerLocation";
   static final String LIST_VISIBLE = "layout.listVisible";
   static final String COMPACT_BOUNDS = "compact.bounds";
   static final String COMPACT_MODE = "compact.mode";
   static final String TEXT_SIZE = "view.textSizePct";
-  static final String WIDTHS_PREFIX = "table.widths.";
-  static final String SORT_PREFIX = "table.sort.";
-  static final String LAST_SEARCH_KIND = "search.lastKind";
   static final String PINNED = "pinned";
   static final String RECENT = "search.recent";
   static final String SOURCE_FILTER = "view.sourceFilter";
@@ -63,18 +54,7 @@ public final class UiState {
   public static final int RECENT_SEARCHES = 10;
   /** Longest recent search kept, in characters, so that the saved list stays far below a preference's limit. */
   static final int RECENT_MAX_LENGTH = 200;
-  /** Longest table kind: a preference key is at most 80 characters. */
-  static final int TABLE_KIND_MAX_LENGTH = 40;
   private static final String LINE = "\n";
-  private static final String FIELD = "\t";
-
-  /** How a table is sorted: by the column titled {@code column}, in {@code order}. */
-  public record Sort(String column, SortOrder order) {
-    public Sort {
-      Objects.requireNonNull(column, "column");
-      Objects.requireNonNull(order, "order");
-    }
-  }
 
   private final Preferences prefs;
 
@@ -100,16 +80,16 @@ public final class UiState {
 
   /**
    * Where to put the window on {@code screens} (each screen's bounds, the default screen first): the saved
-   * {@link #bounds()} when their top {@value #TITLE_STRIP} px (the title bar) overlap a screen, so the window can
-   * still be dragged; else a {@value #DEFAULT_WIDTH}×{@value #DEFAULT_HEIGHT} window (shrunk to fit) centred on
-   * the default screen.
+   * {@link #bounds()} when their top {@value #TITLE_STRIP} px (the title bar) overlap a screen, made to fit the
+   * screen the title bar overlaps most and moved inside it ({@link #onScreen}); else a
+   * {@value #DEFAULT_WIDTH}×{@value #DEFAULT_HEIGHT} window (shrunk to fit) centred on the default screen.
    */
   public Rectangle windowBounds(List<Rectangle> screens) {
     if (screens.isEmpty()) {
       throw new IllegalArgumentException("No screens");
     }
-    Rectangle saved = bounds();
-    if (reachable(saved, screens)) {
+    Rectangle saved = onScreen(bounds(), screens);
+    if (saved != null) {
       return saved;
     }
     Rectangle screen = screens.get(0);
@@ -120,12 +100,13 @@ public final class UiState {
 
   /**
    * Where to put the compact window on {@code screens}: the saved {@link #compactBounds()} when their title bar is
-   * on a screen (as for {@link #windowBounds}); else a {@value #COMPACT_WIDTH}×{@value #COMPACT_HEIGHT}
-   * logical-pixel window (shrunk to fit) at the top right of {@code current}, the screen the window is on.
+   * on a screen, fitted and moved inside it (as for {@link #windowBounds}); else a
+   * {@value #COMPACT_WIDTH}×{@value #COMPACT_HEIGHT} logical-pixel window (shrunk to fit) at the top right of
+   * {@code current}, the screen the window is on.
    */
   public Rectangle compactWindowBounds(List<Rectangle> screens, Rectangle current) {
-    Rectangle saved = compactBounds();
-    if (reachable(saved, screens)) {
+    Rectangle saved = onScreen(compactBounds(), screens);
+    if (saved != null) {
       return saved;
     }
     int w = Math.min(UIScale.scale(COMPACT_WIDTH), current.width);
@@ -133,13 +114,35 @@ public final class UiState {
     return new Rectangle(current.x + current.width - w, current.y, w, h);
   }
 
-  /** Whether {@code saved} is a window whose top {@value #TITLE_STRIP} px overlap one of {@code screens}. */
-  private static boolean reachable(Rectangle saved, List<Rectangle> screens) {
+  /**
+   * {@code saved} on the one of {@code screens} its top {@value #TITLE_STRIP} px (the title bar) overlap most, the
+   * first such screen on a tie: no wider or taller than that screen, and moved the least that puts it wholly inside,
+   * so a window saved on a bigger or since rearranged screen comes back whole. Null when {@code saved} is null or
+   * empty or its title bar is on no screen (it could not be dragged back).
+   */
+  static Rectangle onScreen(Rectangle saved, List<Rectangle> screens) {
     if (saved == null || saved.width <= 0 || saved.height <= 0) {
-      return false;
+      return null;
     }
     Rectangle titleBar = new Rectangle(saved.x, saved.y, saved.width, Math.min(TITLE_STRIP, saved.height));
-    return screens.stream().anyMatch(titleBar::intersects);
+    Rectangle best = null;
+    long bestArea = 0;
+    for (Rectangle screen : screens) {
+      Rectangle overlap = titleBar.intersection(screen);
+      long area = overlap.isEmpty() ? 0 : (long) overlap.width * overlap.height;
+      if (area > bestArea) {
+        best = screen;
+        bestArea = area;
+      }
+    }
+    if (best == null) {
+      return null;
+    }
+    int w = Math.min(saved.width, best.width);
+    int h = Math.min(saved.height, best.height);
+    int x = Math.max(best.x, Math.min(saved.x, best.x + best.width - w));
+    int y = Math.max(best.y, Math.min(saved.y, best.y + best.height - h));
+    return new Rectangle(x, y, w, h);
   }
 
   /** Whether the normal (not compact) window was maximised. */
@@ -149,16 +152,6 @@ public final class UiState {
 
   public void setMaximised(boolean maximised) {
     prefs.putBoolean(MAXIMISED, maximised);
-  }
-
-  /** The id of the screen the window was on ({@link java.awt.GraphicsDevice#getIDstring()}); null when unknown. */
-  public String screenDeviceId() {
-    return prefs.get(SCREEN, null);
-  }
-
-  /** Saves the window's screen id; null removes it. */
-  public void setScreenDeviceId(String id) {
-    putOrRemove(SCREEN, id);
   }
 
   /** The saved bounds of the compact window; null when none are saved. */
@@ -203,65 +196,6 @@ public final class UiState {
   public static int textSize(int pct) {
     int clamped = Math.max(TEXT_MIN, Math.min(TEXT_MAX, pct));
     return clamped - Math.floorMod(clamped - TEXT_MIN, TEXT_STEP);
-  }
-
-  /** The saved column widths of tables of {@code tableKind}, by column title; empty when none are saved. */
-  public Map<String, Integer> columnWidths(String tableKind) {
-    Map<String, Integer> widths = new LinkedHashMap<>();
-    String saved = prefs.get(WIDTHS_PREFIX + checkKind(tableKind), "");
-    for (String line : saved.split(LINE)) {
-      int tab = line.lastIndexOf(FIELD);
-      if (tab > 0) {
-        try {
-          widths.put(line.substring(0, tab), Integer.parseInt(line.substring(tab + 1)));
-        } catch (NumberFormatException e) {
-          // a garbled entry reads as no saved width
-        }
-      }
-    }
-    return Map.copyOf(widths);
-  }
-
-  /** Saves the column widths of tables of {@code tableKind} by column title; an empty map removes them. */
-  public void setColumnWidths(String tableKind, Map<String, Integer> widths) {
-    List<String> lines = new ArrayList<>();
-    widths.forEach((title, width) -> lines.add(oneLine(title) + FIELD + width));
-    putOrRemove(WIDTHS_PREFIX + checkKind(tableKind), lines.isEmpty() ? null : String.join(LINE, lines));
-  }
-
-  /** How tables of {@code tableKind} were last sorted; empty when unsorted. */
-  public Optional<Sort> sort(String tableKind) {
-    String saved = prefs.get(SORT_PREFIX + checkKind(tableKind), null);
-    int tab = saved == null ? -1 : saved.lastIndexOf(FIELD);
-    if (tab <= 0) {
-      return Optional.empty();
-    }
-    try {
-      return Optional.of(new Sort(saved.substring(0, tab), SortOrder.valueOf(saved.substring(tab + 1))));
-    } catch (IllegalArgumentException e) {
-      return Optional.empty();
-    }
-  }
-
-  /** Saves how tables of {@code tableKind} are sorted; null removes it. */
-  public void setSort(String tableKind, Sort sort) {
-    putOrRemove(SORT_PREFIX + checkKind(tableKind),
-        sort == null ? null : oneLine(sort.column()) + FIELD + sort.order().name());
-  }
-
-  /** The kind chip of the last search; empty for All. */
-  public Optional<EntityKind> lastSearchKind() {
-    String saved = prefs.get(LAST_SEARCH_KIND, null);
-    try {
-      return saved == null ? Optional.empty() : Optional.of(EntityKind.valueOf(saved));
-    } catch (IllegalArgumentException e) {
-      return Optional.empty();
-    }
-  }
-
-  /** Saves the kind chip of the last search; empty (All) removes it. */
-  public void setLastSearchKind(Optional<EntityKind> kind) {
-    putOrRemove(LAST_SEARCH_KIND, kind.map(Enum::name).orElse(null));
   }
 
   /** The pinned pages' keys (such as {@code "item:19019"}), oldest first. */
@@ -405,12 +339,5 @@ public final class UiState {
 
   private static String oneLine(String s) {
     return s.replaceAll("[\r\n\t]+", " ").strip();
-  }
-
-  private static String checkKind(String tableKind) {
-    if (tableKind == null || tableKind.isBlank() || tableKind.length() > TABLE_KIND_MAX_LENGTH) {
-      throw new IllegalArgumentException("Bad table kind: " + tableKind);
-    }
-    return tableKind;
   }
 }

@@ -72,7 +72,7 @@ class LayoutSwitchTest {
     /** The frame's root pane, whose content pane each layout shown becomes (as on the real frame). */
     final JRootPane root = new JRootPane();
     final WindowStatePersistence persistence = new WindowStatePersistence(state,
-        () -> new WindowStatePersistence.Snapshot(bounds, extendedState, "\\Display1"), new ManualDelay());
+        () -> new WindowStatePersistence.Snapshot(bounds, extendedState), new ManualDelay());
 
     @Override
     public void saveBounds() {
@@ -270,6 +270,15 @@ class LayoutSwitchTest {
         .isEqualTo(new Rectangle(320, 140, 1280, 800));
     state.setBounds(FULL);
     assertThat(LayoutSwitch.boundsFor(false, state, SCREENS, SCREENS.get(0))).isEqualTo(FULL);
+  }
+
+  @Test
+  void windowsSavedOnABigScreenReopenWholeOnASmallOne() {
+    List<Rectangle> laptop = List.of(new Rectangle(0, 0, 1366, 768));
+    state.setBounds(new Rectangle(0, 0, 2560, 1400));
+    state.setCompactBounds(new Rectangle(1000, 0, 420, 1400));
+    assertThat(LayoutSwitch.boundsFor(false, state, laptop, laptop.get(0))).isEqualTo(new Rectangle(0, 0, 1366, 768));
+    assertThat(LayoutSwitch.boundsFor(true, state, laptop, laptop.get(0))).isEqualTo(new Rectangle(946, 0, 420, 768));
   }
 
   @Test
