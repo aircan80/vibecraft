@@ -299,7 +299,8 @@ class ListPageTest {
     levels.fire();
     assertThat(filters).last().isEqualTo(new NpcFilter(2717L, 3, null, 63));
     assertThat(column(p.results().table(), 0)).hasSize(15);
-    assertThat(columnNames(p.results().table())).containsExactly("Name", "Title", "Level", "Rank", "Friendly to", "Zone");
+    assertThat(columnNames(p.results().table()))
+        .containsExactly("Name", "Title", "Level", "Rank", "Friendly to", "Zone");
   }
 
   @Test

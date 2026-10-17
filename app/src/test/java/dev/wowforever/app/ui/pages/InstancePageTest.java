@@ -227,6 +227,24 @@ class InstancePageTest {
   }
 
   @Test
+  void aPageBuiltAgainSelectsTheSameEncounterInTheSameDifficulty() {
+    BossSummary first = new BossSummary(7, "Onyxia", 10184L, 63, null, false);
+    BossSummary trash = new BossSummary(8, "Trash", null, null, null, true);
+    var d = new InstanceDetail(new InstanceSummary(9, "Onyxia's Lair", "RAID40", 60, 60, null, null),
+        List.of(first, trash), List.of("NORMAL", "HEROIC"));
+    BossLoot loot = (bossId, difficulty) -> List.of(new LootRow(new EntityRef(ITEM, bossId), bossId + " " + difficulty,
+        60, null, "atlasloot", 1, 2, "Weapon", 7));
+    var before = new InstancePage(d, loot, t -> {});
+    before.selectBoss(1);
+    ((JToggleButton) before.difficultyControl().getComponent(1)).doClick();
+    var after = new InstancePage(d, loot, t -> {});
+    after.restoreState(before.saveState());
+    assertThat(after.extraLists().getSelectedIndex()).isZero();
+    assertThat(column(after.lootTable().table(), 0)).contains("8 HEROIC");
+    assertThat(((JToggleButton) after.difficultyControl().getComponent(1)).isSelected()).isTrue();
+  }
+
+  @Test
   void twoDifficultiesShowASwitchThatReloadsTheLoot() {
     BossSummary boss = new BossSummary(7, "Onyxia", 10184L, 63, null, false);
     var d = new InstanceDetail(new InstanceSummary(9, "Onyxia's Lair", "RAID40", 60, 60, null, null), List.of(boss),

@@ -12,6 +12,7 @@ import dev.wowforever.app.ui.detail.DetailPanels;
 import dev.wowforever.app.ui.pages.ListOptions;
 import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.pages.ListRows;
+import dev.wowforever.app.ui.pages.PageState;
 import dev.wowforever.app.ui.widgets.ListEntries;
 import dev.wowforever.app.ui.widgets.ListEntry;
 import dev.wowforever.app.ui.widgets.MasterList;
@@ -74,6 +75,18 @@ public final class AppController implements Navigator {
   private ViewTarget lastPage;
   /** The last status message the page on screen wrote ({@link #pageStatus}); null for none. */
   private String pageMessage;
+  /** The component in the detail area. */
+  private JComponent page;
+  /** The entity page record last loaded ({@link DetailPanels#load}), which a rerender builds the page from. */
+  private Loaded loaded;
+  /** The view state a rerender saved for the page of a target that has to load again. */
+  private PendingState pendingState;
+
+  /** A loaded entity record and the entity it is of. */
+  private record Loaded(EntityRef ref, Object detail) {}
+
+  /** The view state ({@link PageState#saveState}) saved for the page of {@code target}. */
+  private record PendingState(ViewTarget target, Object state) {}
 
   /** One list to show: its title and rows; {@code page} is the row limit of the query, 0 for none. */
   private record Listing(String title, List<ListEntry> entries, int page) {
@@ -197,19 +210,64 @@ public final class AppController implements Navigator {
 
   /**
    * Shows the current target again without touching the history, say after the window switched between its full
-   * and compact layouts or the drop source filter changed; nothing happens before the first {@link #open}. A search
-   * shown where there is a master list leaves the detail area as a search does: the last page shown there comes back
-   * (the home page when there was none), and the search runs again into the list.
+   * and compact layouts or the drop source filter changed; nothing happens before the first {@link #open}. An entity
+   * page is built again from what it loaded (no new query), and a page keeps its view state ({@link PageState}: how
+   * far it was scrolled, the selected encounter). A search shown where there is a master list leaves the detail area
+   * as a search does: the last page shown there comes back, and the list keeps the results it has (the search does
+   * not run again).
    */
   public void rerender() {
     ViewTarget t = current();
     if (t == null) {
       return;
     }
+    Object state = page instanceof PageState p ? p.saveState() : null;
     if (t instanceof ViewTarget.Search && view.showsMasterList()) {
-      show(lastPage != null ? lastPage : new ViewTarget.Home());
+      if (lastPage == null || lastPage instanceof ViewTarget.Home) {
+        detailGeneration++; // the welcome page behind the search; the list keeps its results
+        leaveListPage();
+        setPage(welcome(meta), null);
+      } else {
+        reshow(lastPage, state);
+      }
+      view.setHistoryState(history.canBack(), history.canForward());
+      view.selectRail(railSection(t));
+      return;
     }
+    reshow(t, state);
+  }
+
+  /** Shows {@code t} again, its page restored to {@code state}: an entity page from what it loaded, if it is that. */
+  private void reshow(ViewTarget t, Object state) {
+    if (t instanceof ViewTarget.Entity e && loaded != null && loaded.ref().equals(e.ref())) {
+      lastPage = t;
+      view.setHistoryState(history.canBack(), history.canForward());
+      view.selectRail(railSection(t));
+      int generation = ++detailGeneration; // a load still in flight for an older page is dropped
+      leaveListPage();
+      setPage(DetailPanels.render(loaded.detail(), repos, this, worker, pageStatus(generation), view.sourceFilter(),
+          view.questPins()), state);
+      view.setTitleSuffix(DetailPanels.name(loaded.detail()));
+      return;
+    }
+    pendingState = new PendingState(t, state);
     show(t);
+  }
+
+  /** Puts {@code p} in the detail area, restored to {@code state} when it keeps one. */
+  private void setPage(JComponent p, Object state) {
+    page = p;
+    view.setDetail(p);
+    if (state != null && p instanceof PageState s) {
+      s.restoreState(state);
+    }
+  }
+
+  /** {@link #setPage} for the page of {@code t}, restored to the state a rerender left for it, if any. */
+  private void setPage(ViewTarget t, JComponent p) {
+    PendingState pending = pendingState;
+    pendingState = null;
+    setPage(p, pending != null && pending.target().equals(t) ? pending.state() : null);
   }
 
   /** Re-shows the previous target, if any. */
@@ -288,7 +346,7 @@ public final class AppController implements Navigator {
           view.masterList().selectQuietly(opened);
         } else {
           if (!view.showsMasterList() && detail == detailGeneration) {
-            view.setDetail(resultsPage(listing));
+            setPage(resultsPage(listing), null);
           }
           view.setTitleSuffix(cappedTitle(listing.title(), listing.entries().size(), listing.page()));
         }
@@ -317,11 +375,13 @@ public final class AppController implements Navigator {
     Async.run(worker, () -> DetailPanels.load(ref, repos), detail -> {
       if (generation == detailGeneration) {
         if (detail.isPresent()) {
-          view.setDetail(DetailPanels.render(detail.get(), repos, this, worker, pageStatus(generation),
-              view.sourceFilter(), view.questPins()));
+          loaded = new Loaded(ref, detail.get());
+          setPage(new ViewTarget.Entity(ref), DetailPanels.render(detail.get(), repos, this, worker,
+              pageStatus(generation), view.sourceFilter(), view.questPins()));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
         } else {
-          view.setDetail(DetailPanels.notFound(ref));
+          loaded = null;
+          setPage(new ViewTarget.Entity(ref), DetailPanels.notFound(ref));
         }
       }
     }, e -> {
@@ -336,7 +396,7 @@ public final class AppController implements Navigator {
     detailGeneration++;
     leaveListPage();
     view.masterList().clear();
-    view.setDetail(welcome(meta));
+    setPage(new ViewTarget.Home(), welcome(meta));
     view.setTitleSuffix("");
     view.status().setMessage("Ready");
   }
@@ -354,7 +414,7 @@ public final class AppController implements Navigator {
         self.set(page);
         listPage = page;
         listTarget = t;
-        view.setDetail(page);
+        setPage(t, page);
         showCount(loaded.rows().size());
       }
     }, e -> {

@@ -19,6 +19,7 @@ import dev.wowforever.app.model.ListFilter;
 import dev.wowforever.app.model.NpcFilter;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.pages.FilterBar;
+import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.pages.NpcPage;
@@ -704,6 +705,40 @@ class AppControllerTest {
     assertThat(c.history().size()).isEqualTo(2);
     assertThat(view.canBack).isTrue();
     assertThat(view.canForward).isFalse();
+  }
+
+  @Test
+  void rerenderingAnEntityPageBuildsItFromWhatItLoadedAndKeepsItsSelection() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    c.open(new ViewTarget.Entity(new EntityRef(INSTANCE, 2)));
+    queued.remove(0).run();
+    InstancePage before = (InstancePage) view.detail;
+    int last = before.encounters().getModel().getSize() - 1;
+    before.selectBoss(last);
+    c.rerender();
+    assertThat(queued).as("no query runs again").isEmpty();
+    InstancePage after = (InstancePage) view.detail;
+    assertThat(after).isNotSameAs(before);
+    assertThat(after.encounters().getSelectedIndex()).as("the selected encounter stays").isEqualTo(last);
+    assertThat(c.history().size()).isEqualTo(1);
+  }
+
+  @Test
+  void rerenderingUnderASearchShowsThePageBehindAgainAndLeavesTheResults() {
+    List<Runnable> queued = new ArrayList<>();
+    AppController c = new AppController(repos, view, queued::add);
+    c.open(new ViewTarget.Entity(new EntityRef(NPC, 639)));
+    queued.remove(0).run();
+    c.open(new ViewTarget.Search("hogger", Optional.empty()));
+    queued.remove(0).run();
+    var results = view.masterList().entries();
+    NpcPage before = (NpcPage) view.detail;
+    c.rerender();
+    assertThat(queued).as("neither the page nor the search loads again").isEmpty();
+    assertThat(view.detail).isInstanceOf(NpcPage.class).isNotSameAs(before);
+    assertThat(view.masterList().entries()).isEqualTo(results);
+    assertThat(c.current()).isEqualTo(new ViewTarget.Search("hogger", Optional.empty()));
   }
 
   @Test

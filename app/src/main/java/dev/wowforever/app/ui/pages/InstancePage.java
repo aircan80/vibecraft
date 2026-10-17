@@ -50,7 +50,7 @@ import javax.swing.ListSelectionModel;
  * window); the layout follows the width as the page is resized. A difficulty switch shows only when the instance's
  * loot has more than one difficulty. The first encounter is selected on construction.
  */
-public final class InstancePage extends JPanel {
+public final class InstancePage extends JPanel implements PageState {
   /** The page width, in logical pixels, below which the encounters stack above the loot in one column. */
   public static final int STACK_BELOW = 600;
   /** The share of a stacked page's height the encounters start with. */
@@ -257,6 +257,40 @@ public final class InstancePage extends JPanel {
     int at = (boss.extraList() ? extraBosses : mainBosses).indexOf(boss);
     list.setSelectedIndex(at);
     list.ensureIndexIsVisible(at);
+  }
+
+  /** The selected encounter (by {@link #selectBoss} index, -1 for none) and difficulty. */
+  private record Selection(int boss, String difficulty) {}
+
+  @Override
+  public Object saveState() {
+    int index = shown == null ? -1 : mainBosses.contains(shown) ? mainBosses.indexOf(shown)
+        : mainBosses.size() + extraBosses.indexOf(shown);
+    return new Selection(index, difficulty);
+  }
+
+  /** Selects the saved encounter in the saved difficulty (when this instance has them). */
+  @Override
+  public void restoreState(Object state) {
+    if (!(state instanceof Selection s)) {
+      return;
+    }
+    if (s.difficulty() != null && difficulties.contains(s.difficulty()) && !s.difficulty().equals(difficulty)) {
+      difficulty = s.difficulty();
+      if (difficultyControl != null) {
+        for (Component c : difficultyControl.getComponents()) {
+          if (c instanceof JToggleButton b) {
+            b.setSelected(b.getText().equals(capitalised(difficulty)));
+          }
+        }
+      }
+      if (shown != null) {
+        showLoot(shown);
+      }
+    }
+    if (s.boss() >= 0) {
+      selectBoss(s.boss());
+    }
   }
 
   private BossSummary bossAt(int index) {

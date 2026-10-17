@@ -446,6 +446,23 @@ class ItemPageTest {
   }
 
   @Test
+  void aPageBuiltAgainScrollsToWhereTheOldOneWas() {
+    var before = new ItemPage(everything(), t -> {});
+    before.scrollPane().setSize(400, 120);
+    layOut(before.scrollPane());
+    before.scrollPane().getVerticalScrollBar().setValue(90);
+    Object state = before.saveState();
+    var after = new ItemPage(everything(), t -> {});
+    after.scrollPane().setSize(400, 120);
+    layOut(after.scrollPane());
+    after.restoreState(state);
+    assertThat(after.scrollPane().getViewport().getViewPosition().y).isEqualTo(90);
+    after.restoreState("not a page state"); // ignored
+    after.restoreState(null);
+    assertThat(after.scrollPane().getViewport().getViewPosition().y).isEqualTo(90);
+  }
+
+  @Test
   void cardShownWithoutAnIconShowsAnEmptyOneOfTheSameSize() {
     var p = new ItemPage(repos.items().detail(17204).get(), t -> {});
     assertThat(p.card().icon().getIcon()).isSameAs(IconCache.empty(IconCache.CARD));

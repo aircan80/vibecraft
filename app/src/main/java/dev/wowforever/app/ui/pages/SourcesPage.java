@@ -22,13 +22,14 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
+import javax.swing.SwingUtilities;
 
 /**
  * An entity page that scrolls as a whole: whatever the page puts at the top (its header), then one
  * {@link SourceSection} per kind of row it has. Ctrl+1 to Ctrl+6 jump to the first six sections once the page
  * calls {@link #bindJumpKeys()} after adding them.
  */
-abstract class SourcesPage extends JPanel {
+abstract class SourcesPage extends JPanel implements PageState {
   private static final int MAX_JUMP_KEYS = 6;
 
   final Navigator nav;
@@ -164,5 +165,31 @@ abstract class SourcesPage extends JPanel {
 
   public JScrollPane scrollPane() {
     return scroll;
+  }
+
+  /** How far the page is scrolled down, in pixels. */
+  private record Scrolled(int y) {}
+
+  @Override
+  public Object saveState() {
+    return new Scrolled(scroll.getViewport().getViewPosition().y);
+  }
+
+  /**
+   * Scrolls to where the saved page was: at once when the page is laid out, else once it is (a page just put on
+   * screen is laid out on the next pass).
+   */
+  @Override
+  public void restoreState(Object state) {
+    if (state instanceof Scrolled s && s.y() > 0) {
+      scrollTo(s.y());
+      if (!isValid() || content.getHeight() < s.y()) {
+        SwingUtilities.invokeLater(() -> scrollTo(s.y()));
+      }
+    }
+  }
+
+  private void scrollTo(int y) {
+    scroll.getVerticalScrollBar().setValue(y);
   }
 }
