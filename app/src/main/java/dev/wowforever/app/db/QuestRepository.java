@@ -4,16 +4,18 @@ import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.QuestDetail;
+import dev.wowforever.app.model.QuestFilter;
 import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.QuestSummary;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
-/** Quests: detail pages, zone lists and the quests an entity starts or ends. */
+/** Quests: detail pages, filtered lists, zone lists and the quests an entity starts or ends. */
 public final class QuestRepository {
   /** Quest columns; {@code zone_or_sort} names a zone only when positive (negative values are quest sorts). */
   private static final String COLUMNS = """
@@ -36,7 +38,8 @@ public final class QuestRepository {
       }
       List<QuestGiver> givers = Sql.list(c, """
           SELECT g.kind, g.entity_id, g.role,
-                 CASE g.kind WHEN 'npc' THEN n.name WHEN 'object' THEN o.name WHEN 'item' THEN i.name END AS giver_name
+                 CASE g.kind WHEN 'npc' THEN n.name WHEN 'object' THEN o.name WHEN 'item' THEN i.name END AS giver_name,
+                 i.quality, i.icon_id
           FROM quest_giver g
           LEFT JOIN npc n ON g.kind = 'npc' AND n.id = g.entity_id
           LEFT JOIN game_object o ON g.kind = 'object' AND o.id = g.entity_id
@@ -45,19 +48,19 @@ public final class QuestRepository {
           ORDER BY g.role <> 'start', g.kind, giver_name IS NULL, giver_name COLLATE NOCASE, g.entity_id""",
           QuestRepository::giver, id).stream().filter(Objects::nonNull).toList();
       return Optional.of(new QuestDetail(head.get().summary(), head.get().objectivesText(), givers,
-          Sql.list(c, """
-              SELECT r.item_id, i.name, i.item_level
-              FROM quest_reward_item r LEFT JOIN item i ON i.id = r.item_id
+          Sql.list(c, "SELECT r.item_id, " + NpcRepository.ITEM_COLUMNS
+              + " FROM quest_reward_item r " + NpcRepository.itemJoin("r") + """
+
               WHERE r.quest_id = ?
               ORDER BY i.name IS NULL, i.name COLLATE NOCASE, r.item_id""",
               NpcRepository::plainLoot, id),
           Sql.list(c, """
-              SELECT r.item_id, i.name
+              SELECT r.item_id, i.name, i.quality, i.icon_id
               FROM item_related_quest r LEFT JOIN item i ON i.id = r.item_id
               WHERE r.quest_id = ?
               ORDER BY i.name IS NULL, i.name COLLATE NOCASE, r.item_id""",
               rs -> new ItemSource(ItemSource.RELATED, new EntityRef(EntityKind.ITEM, rs.getLong("item_id")),
-                  rs.getString("name")),
+                  rs.getString("name"), Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id")),
               id)));
     });
   }
@@ -72,6 +75,34 @@ public final class QuestRepository {
     return Sql.list(c, "SELECT " + COLUMNS + " FROM quest q " + ZONE_JOIN
             + " WHERE q.zone_or_sort = ? ORDER BY q.name IS NULL, q.name COLLATE NOCASE, q.id LIMIT ?",
         QuestRepository::summary, zoneId, limit);
+  }
+
+  /**
+   * Every quest {@code filter} lets through, by name. Quests without a known level (null, or 0 and below as for
+   * quests that scale with the player) drop out once a level bound is set; a zone filter matches the zone a quest
+   * is filed under.
+   */
+  public List<QuestSummary> list(QuestFilter filter) {
+    StringBuilder where = new StringBuilder(" WHERE 1 = 1");
+    List<Object> params = new ArrayList<>();
+    if (filter.zoneId() != null) {
+      where.append(" AND q.zone_or_sort = ?");
+      params.add(filter.zoneId());
+    }
+    if (filter.minLevel() != null || filter.maxLevel() != null) {
+      where.append(" AND q.quest_level > 0");
+    }
+    if (filter.minLevel() != null) {
+      where.append(" AND q.quest_level >= ?");
+      params.add(filter.minLevel());
+    }
+    if (filter.maxLevel() != null) {
+      where.append(" AND q.quest_level <= ?");
+      params.add(filter.maxLevel());
+    }
+    String sql = "SELECT " + COLUMNS + " FROM quest q " + ZONE_JOIN + where
+        + " ORDER BY q.name IS NULL, q.name COLLATE NOCASE, q.id";
+    return db.read(c -> Sql.list(c, sql, QuestRepository::summary, params.toArray()));
   }
 
   /** Quests that the {@code kind} ({@code npc}, {@code object}) entity {@code id} gives in {@code role}. */
@@ -90,7 +121,7 @@ public final class QuestRepository {
       return null;
     }
     return new QuestGiver(new EntityRef(kind.get(), rs.getLong("entity_id")), rs.getString("giver_name"),
-        rs.getString("role"));
+        rs.getString("role"), Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id"));
   }
 
   private static QuestSummary summary(ResultSet rs) throws SQLException {

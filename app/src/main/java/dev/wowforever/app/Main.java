@@ -7,9 +7,9 @@ import dev.wowforever.app.db.Sql;
 import dev.wowforever.app.db.UserDataDir;
 import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.Async;
-import dev.wowforever.app.ui.BrowseTree;
 import dev.wowforever.app.ui.MainFrame;
 import dev.wowforever.app.ui.ThemeManager;
+import dev.wowforever.app.ui.widgets.IconCache;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.IOException;
@@ -34,7 +34,7 @@ public final class Main {
   private Main() {}
 
   /** The open database and everything the window needs from it, loaded off the EDT. */
-  private record Loaded(Database db, Repositories repos, Map<String, String> meta, BrowseTree.Data tree) {}
+  private record Loaded(Database db, Repositories repos, Map<String, String> meta) {}
 
   public static void main(String[] args) {
     if (args.length == 1 && args[0].equals("--self-test")) {
@@ -91,8 +91,9 @@ public final class Main {
     frame.setVisible(true);
     Async.run(Main::load, loaded -> runOrFail(() -> {
       open.set(loaded.db());
+      IconCache.install(new IconCache(loaded.repos().assets()));
       AppController controller = new AppController(loaded.repos(), frame, Async.SWING_WORKER, loaded.meta());
-      frame.attach(controller, new BrowseTree(loaded.tree(), controller, controller::openZoneList));
+      frame.attach(controller);
       controller.start();
     }, e -> startupFailed(frame, "The browser could not start:\n", e)),
         e -> startupFailed(frame, "The database could not be opened:\n", e));
@@ -128,7 +129,7 @@ public final class Main {
       Database db = Database.open(file);
       try {
         Repositories repos = Repositories.of(db);
-        return new Loaded(db, repos, db.meta(), BrowseTree.Data.load(repos));
+        return new Loaded(db, repos, db.meta());
       } catch (RuntimeException e) {
         db.close();
         throw e;

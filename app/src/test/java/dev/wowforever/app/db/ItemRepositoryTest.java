@@ -8,11 +8,19 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.ItemCard;
 import dev.wowforever.app.model.ItemClassNode;
 import dev.wowforever.app.model.ItemDetail;
+import dev.wowforever.app.model.ItemFilter;
 import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.TooltipLine;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.Statement;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.io.TempDir;
 
 @ExtendWith(FixtureDb.class)
 class ItemRepositoryTest {
@@ -48,6 +56,38 @@ class ItemRepositoryTest {
         assertThat(repos.items().list(cls.classId(), sub.subclassId(), 1, 0)).isNotEmpty();
       }
     }
+  }
+
+  @Test
+  void sourcesListEveryRateInQuestieThenAtlasLootOrder() {
+    assertThat(repos.items().sources(639, 2874)).containsExactly(
+        new RateSource("questie-wowhead", 56.07), new RateSource("questie-correction", 60.0),
+        new RateSource("atlasloot", 56.07), new RateSource("atlasloot-override", 57.0));
+    assertThat(repos.items().sources(11520, 14149)).containsExactly(new RateSource("atlasloot", 33.3));
+    assertThat(repos.items().sources(126, 730)).as("a drop without rates").isEmpty();
+  }
+
+  @Test
+  void anNpcsSourcesComeBackByPairForTheItemsAskedForOnly() {
+    var letter = new RateSource.Key(639, 2874);
+    var barb = new RateSource.Key(639, 5191);
+    // 5193 has sources too, but the page did not ask for it; 730 has none
+    assertThat(repos.items().sourcesOfNpc(639, List.of(2874L, 5191L, 730L)))
+        .containsOnlyKeys(letter, barb)
+        .hasEntrySatisfying(letter, l -> assertThat(l).extracting(RateSource::source).containsExactly(
+            "questie-wowhead", "questie-correction", "atlasloot", "atlasloot-override"))
+        .hasEntrySatisfying(barb, l -> assertThat(l).containsExactly(new RateSource("atlasloot", 15.7)));
+    assertThat(repos.items().sourcesOfNpc(639, List.of())).isEmpty();
+    assertThat(repos.items().sourcesOfNpc(126, List.of(730L))).isEmpty();
+  }
+
+  @Test
+  void anItemsSourcesComeBackByPairForTheNpcsAskedForOnly() {
+    assertThat(repos.items().sourcesOfItem(14149, List.of(11520L, 639L)))
+        .containsOnlyKeys(new RateSource.Key(11520, 14149))
+        .containsEntry(new RateSource.Key(11520, 14149), List.of(new RateSource("atlasloot", 33.3)));
+    assertThat(repos.items().sourcesOfItem(2874, List.of(1L))).as("an NPC without sources").isEmpty();
+    assertThat(repos.items().sourcesOfItem(2874, List.of())).isEmpty();
   }
 
   @Test
@@ -88,6 +128,40 @@ class ItemRepositoryTest {
   }
 
   @Test
+  void listWithLevelRange() {
+    assertThat(repos.items().list(new ItemFilter(null, null, 10, 20, null))).extracting(ItemSummary::name)
+        .containsExactly("An Unsent Letter", "Crystalline Cuffs", "Cursed Felblade", "Murloc Eye", "Subterranean Cape");
+    assertThat(repos.items().list(new ItemFilter(4, null, 10, 20, null))).extracting(ItemSummary::name)
+        .containsExactly("Crystalline Cuffs", "Subterranean Cape");
+    assertThat(repos.items().list(new ItemFilter(null, null, 66, null, null))).extracting(ItemSummary::name)
+        .containsExactly("Arcanist Boots", "Thunderfury, Blessed Blade of the Windseeker");
+    // the client-data fixture gives item levels to the low quest and consumable items as well
+    assertThat(repos.items().list(new ItemFilter(null, null, null, 8, null))).extracting(ItemSummary::name)
+        .containsExactly("Avelina's Heart", "Gold Pickup Schedule", "Illari's Key", "Refreshing Spring Water",
+            "Smelling Salts", "Tough Jerky", "Worn Shortsword");
+    assertThat(repos.items().list(new ItemFilter(4, null, 30, 20, null))).isEmpty();
+  }
+
+  @Test
+  void listByFilterMatchesTheClassListAndKeepsUnknownLevelsWithoutABound() {
+    assertThat(repos.items().list(ItemFilter.ALL)).isEqualTo(repos.items().list(null, null, null, 0));
+    assertThat(repos.items().list(new ItemFilter(4, 1, null, null, null)))
+        .isEqualTo(repos.items().list(4, 1, null, 0)).isNotEmpty();
+    assertThat(repos.items().list(new ItemFilter(2, ItemClassNode.OTHER_SUBCLASSES, null, null, null)))
+        .isEqualTo(repos.items().list(2, ItemClassNode.OTHER_SUBCLASSES, null, 0));
+    assertThat(repos.items().list(ItemFilter.ALL)).extracting(ItemSummary::itemLevel).containsNull();
+  }
+
+  @Test
+  void aQualityFilterKeepsItemsOfThatQualityOnly() {
+    List<ItemSummary> rare = repos.items().list(new ItemFilter(null, null, null, null, 3));
+    assertThat(rare).isNotEmpty().allSatisfy(i -> assertThat(i.quality()).isEqualTo(3))
+        .extracting(ItemSummary::id).contains(19682L).doesNotContain(1176L);
+    assertThat(repos.items().list(new ItemFilter(4, null, null, null, 3)))
+        .isSubsetOf(rare).allSatisfy(i -> assertThat(i.className()).isEqualTo("Armor"));
+  }
+
+  @Test
   void cardCarriesQualityIconAndTooltipLinesInOrdinalOrder() {
     ItemDetail d = repos.items().detail(17204).get();
     assertThat(d.summary().quality()).isEqualTo(5);
@@ -114,6 +188,10 @@ class ItemRepositoryTest {
     assertThat(card.lines()).extracting(TooltipLine::kind).contains("set_name", "set_item", "set_bonus");
     assertThat(card.lines()).filteredOn(l -> l.kind().equals("set_name")).singleElement()
         .satisfies(l -> assertThat(l.text()).isEqualTo("Bloodvine Garb (0/3)"));
+    assertThat(card.lines()).filteredOn(l -> l.kind().equals("set_item") && l.text().equals("Bloodvine Vest"))
+        .singleElement().as("a set piece names its item").extracting(TooltipLine::itemId).isEqualTo(19682L);
+    assertThat(card.lines()).filteredOn(l -> !l.kind().equals("set_item"))
+        .allSatisfy(l -> assertThat(l.itemId()).isNull());
   }
 
   @Test
@@ -136,6 +214,28 @@ class ItemRepositoryTest {
     assertThat(d.summary().iconId()).isEqualTo(134236L);
     assertThat(d.card()).isEqualTo(ItemCard.none());
     assertThat(repos.assets().icon(134236L)).isPresent();
+  }
+
+  @Test
+  void containerSourcesCarryTheContainersQualityAndIconAndOtherSourcesNone(@TempDir Path tmp) throws Exception {
+    Path copy = tmp.resolve("db.sqlite");
+    Files.copy(FixtureDb.path(), copy);
+    try (Connection conn = DriverManager.getConnection("jdbc:sqlite:" + copy); Statement st = conn.createStatement()) {
+      st.executeUpdate("insert into item_container_drop(item_id, container_item_id) values (2874, 17204)");
+      st.executeUpdate("insert into item_vendor(item_id, npc_id) values (2874, 639)");
+    }
+    try (Database db = Database.open(copy)) {
+      ItemDetail d = Repositories.of(db).items().detail(2874).orElseThrow();
+      assertThat(d.containedInItems()).singleElement().satisfies(s -> {
+        assertThat(s.ref()).isEqualTo(new EntityRef(EntityKind.ITEM, 17204));
+        assertThat(s.quality()).isEqualTo(5);
+        assertThat(s.iconId()).isEqualTo(134124L);
+      });
+      assertThat(d.soldBy()).singleElement().satisfies(s -> {
+        assertThat(s.quality()).isNull();
+        assertThat(s.iconId()).isNull();
+      });
+    }
   }
 
   @Test

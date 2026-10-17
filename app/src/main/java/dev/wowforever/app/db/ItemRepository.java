@@ -7,21 +7,25 @@ import dev.wowforever.app.model.InstanceLoot;
 import dev.wowforever.app.model.ItemCard;
 import dev.wowforever.app.model.ItemClassNode;
 import dev.wowforever.app.model.ItemDetail;
+import dev.wowforever.app.model.ItemFilter;
 import dev.wowforever.app.model.ItemSource;
 import dev.wowforever.app.model.ItemSummary;
+import dev.wowforever.app.model.RateSource;
 import dev.wowforever.app.model.TooltipLine;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.ToLongFunction;
 
-/** Items: detail pages, class-filtered lists and the class tree. */
+/** Items: detail pages, filtered lists, the class tree and drop rate sources. */
 public final class ItemRepository {
   /** Summary columns over an {@code item i} row source joined with {@link #JOINS}. */
   private static final String COLUMNS = """
@@ -63,19 +67,19 @@ public final class ItemRepository {
           droppedBy(c, id),
           inInstanceLoot(c, id),
           sources(c, ItemSource.OBJECT, EntityKind.OBJECT, """
-              SELECT d.object_id AS ref_id, o.name FROM item_object_drop d
+              SELECT d.object_id AS ref_id, o.name, NULL AS quality, NULL AS icon_id FROM item_object_drop d
               LEFT JOIN game_object o ON o.id = d.object_id WHERE d.item_id = ?""", id),
           sources(c, ItemSource.CONTAINER, EntityKind.ITEM, """
-              SELECT d.container_item_id AS ref_id, ci.name FROM item_container_drop d
+              SELECT d.container_item_id AS ref_id, ci.name, ci.quality, ci.icon_id FROM item_container_drop d
               LEFT JOIN item ci ON ci.id = d.container_item_id WHERE d.item_id = ?""", id),
           sources(c, ItemSource.VENDOR, EntityKind.NPC, """
-              SELECT v.npc_id AS ref_id, n.name FROM item_vendor v
+              SELECT v.npc_id AS ref_id, n.name, NULL AS quality, NULL AS icon_id FROM item_vendor v
               LEFT JOIN npc n ON n.id = v.npc_id WHERE v.item_id = ?""", id),
           sources(c, ItemSource.REWARD, EntityKind.QUEST, """
-              SELECT r.quest_id AS ref_id, q.name FROM quest_reward_item r
+              SELECT r.quest_id AS ref_id, q.name, NULL AS quality, NULL AS icon_id FROM quest_reward_item r
               LEFT JOIN quest q ON q.id = r.quest_id WHERE r.item_id = ?""", id),
           sources(c, ItemSource.RELATED, EntityKind.QUEST, """
-              SELECT r.quest_id AS ref_id, q.name FROM item_related_quest r
+              SELECT r.quest_id AS ref_id, q.name, NULL AS quality, NULL AS icon_id FROM item_related_quest r
               LEFT JOIN quest q ON q.id = r.quest_id WHERE r.item_id = ?""", id),
           card(c, id)));
     });
@@ -88,6 +92,24 @@ public final class ItemRepository {
    * missing from the subclass table.
    */
   public List<ItemSummary> list(Integer classId, Integer subclassId, Integer limit, int offset) {
+    return query(classId, subclassId, null, null, null, limit, offset);
+  }
+
+  /**
+   * Every item {@code filter} lets through, ordered by name (nameless stubs last). Lists are not capped, as in
+   * v0.1. A quality filter matches {@code item.quality}, so items without client data (no quality) drop out.
+   */
+  public List<ItemSummary> list(ItemFilter filter) {
+    return query(filter.classId(), filter.subclassId(), filter.minLevel(), filter.maxLevel(), filter.quality(),
+        null, 0);
+  }
+
+  /**
+   * {@link #list(Integer, Integer, Integer, int)} with item level bounds (null: none; unknown levels fail any) and a
+   * quality (null: any).
+   */
+  private List<ItemSummary> query(Integer classId, Integer subclassId, Integer minLevel, Integer maxLevel,
+      Integer quality, Integer limit, int offset) {
     StringBuilder where = new StringBuilder(" WHERE 1 = 1");
     List<Object> params = new ArrayList<>();
     if (classId != null) {
@@ -99,6 +121,18 @@ public final class ItemRepository {
     } else if (subclassId != null) {
       where.append(" AND subclass_id = ?");
       params.add(subclassId);
+    }
+    if (minLevel != null) {
+      where.append(" AND item_level >= ?");
+      params.add(minLevel);
+    }
+    if (maxLevel != null) {
+      where.append(" AND item_level <= ?");
+      params.add(maxLevel);
+    }
+    if (quality != null) {
+      where.append(" AND quality = ?");
+      params.add(quality);
     }
     params.add(limit == null ? -1 : limit); // a negative LIMIT is no limit in SQLite
     params.add(offset);
@@ -140,6 +174,61 @@ public final class ItemRepository {
     });
   }
 
+  /**
+   * Every drop rate source's value for NPC {@code npcId} dropping item {@code itemId}, Questie's first, then
+   * AtlasLoot's ({@link RateSource#ORDER}); empty when no source gave a rate.
+   */
+  public List<RateSource> sources(long npcId, long itemId) {
+    return db.read(c -> sources(c, npcId, itemId));
+  }
+
+  /**
+   * The rate sources of NPC {@code npcId}'s drops of the items in {@code itemIds} (a page's rated rows), by pair, each
+   * in {@link RateSource#ORDER}: one query over the NPC's sources ({@code WHERE npc_id = ?}). Pairs of other items
+   * and pairs without sources are left out; no items, no query.
+   */
+  public Map<RateSource.Key, List<RateSource>> sourcesOfNpc(long npcId, Collection<Long> itemIds) {
+    return grouped("npc_id", npcId, itemIds, RateSource.Key::itemId);
+  }
+
+  /**
+   * The rate sources of item {@code itemId} dropped by the NPCs in {@code npcIds} (a page's rated rows), by pair, as
+   * {@link #sourcesOfNpc}: one query over the item's sources ({@code WHERE item_id = ?}).
+   */
+  public Map<RateSource.Key, List<RateSource>> sourcesOfItem(long itemId, Collection<Long> npcIds) {
+    return grouped("item_id", itemId, npcIds, RateSource.Key::npcId);
+  }
+
+  /** The sources {@code WHERE <column> = id}, by pair, of the pairs whose other id ({@code otherId}) is wanted. */
+  private Map<RateSource.Key, List<RateSource>> grouped(String column, long id, Collection<Long> wanted,
+      ToLongFunction<RateSource.Key> otherId) {
+    if (wanted.isEmpty()) {
+      return Map.of();
+    }
+    Set<Long> keep = new HashSet<>(wanted);
+    record Row(RateSource.Key key, RateSource source) {}
+    List<Row> rows = db.read(c -> Sql.list(c,
+        "SELECT npc_id, item_id, source, pct FROM drop_rate_source WHERE " + column + " = ?",
+        rs -> new Row(new RateSource.Key(rs.getLong("npc_id"), rs.getLong("item_id")),
+            new RateSource(rs.getString("source"), Sql.doubleValue(rs, "pct"))), id));
+    Map<RateSource.Key, List<RateSource>> byPair = new LinkedHashMap<>();
+    for (Row r : rows) {
+      if (keep.contains(otherId.applyAsLong(r.key()))) {
+        byPair.computeIfAbsent(r.key(), k -> new ArrayList<>()).add(r.source());
+      }
+    }
+    byPair.replaceAll((k, sources) -> sources.stream().sorted(RateSource.ORDER).toList());
+    return Map.copyOf(byPair);
+  }
+
+  private static List<RateSource> sources(Connection c, long npcId, long itemId) throws SQLException {
+    List<RateSource> sources = new ArrayList<>(Sql.list(c,
+        "SELECT source, pct FROM drop_rate_source WHERE npc_id = ? AND item_id = ?",
+        rs -> new RateSource(rs.getString("source"), Sql.doubleValue(rs, "pct")), npcId, itemId));
+    sources.sort(RateSource.ORDER);
+    return List.copyOf(sources);
+  }
+
   private static List<DropSource> droppedBy(Connection c, long itemId) throws SQLException {
     return Sql.list(c, """
         SELECT d.npc_id, n.name, n.min_level, n.max_level, n.zone_id, z.name AS zone_name,
@@ -178,8 +267,8 @@ public final class ItemRepository {
   }
 
   /**
-   * The client data of item {@code itemId} with its tooltip lines in {@code ordinal} order, or
-   * {@link ItemCard#none()} when the item has none.
+   * The client data of item {@code itemId} with its tooltip lines in {@code ordinal} order (set pieces naming
+   * their items), or {@link ItemCard#none()} when the item has none.
    */
   private static ItemCard card(Connection c, long itemId) throws SQLException {
     Optional<ItemCard> head = Sql.one(c, """
@@ -191,18 +280,30 @@ public final class ItemRepository {
     if (head.isEmpty()) {
       return ItemCard.none();
     }
-    List<TooltipLine> lines = Sql.list(c,
-        "SELECT kind, text, colour FROM item_tooltip_line WHERE item_id = ? ORDER BY ordinal",
-        rs -> new TooltipLine(rs.getString("kind"), rs.getString("text"), rs.getString("colour")), itemId);
+    // a set piece line names its item: the piece of the item's set with that name
+    List<TooltipLine> lines = Sql.list(c, """
+        SELECT l.kind, l.text, l.colour,
+               CASE WHEN l.kind = 'set_item' THEN
+                 (SELECT si.item_id FROM item_set_item si JOIN item p ON p.id = si.item_id
+                  WHERE si.set_id = it.item_set_id AND p.name = l.text ORDER BY si.item_id LIMIT 1)
+               END AS piece_id
+        FROM item_tooltip_line l JOIN item it ON it.id = l.item_id
+        WHERE l.item_id = ? ORDER BY l.ordinal""",
+        rs -> new TooltipLine(rs.getString("kind"), rs.getString("text"), rs.getString("colour"),
+            Sql.longValue(rs, "piece_id")), itemId);
     ItemCard h = head.get();
     return new ItemCard(h.quality(), lines, h.iconId(), h.inventoryType(), h.bonding(), h.sellPrice());
   }
 
-  /** Runs {@code sql} (selecting {@code ref_id} and a nullable {@code name}) into sources ordered by name. */
+  /**
+   * Runs {@code sql} (selecting {@code ref_id} and a nullable {@code name}, {@code quality} and {@code icon_id})
+   * into sources ordered by name.
+   */
   private static List<ItemSource> sources(Connection c, String kind, EntityKind refKind, String sql, long itemId)
       throws SQLException {
     return Sql.list(c, sql + " ORDER BY name IS NULL, name COLLATE NOCASE, ref_id",
-        rs -> new ItemSource(kind, new EntityRef(refKind, rs.getLong("ref_id")), rs.getString("name")), itemId);
+        rs -> new ItemSource(kind, new EntityRef(refKind, rs.getLong("ref_id")), rs.getString("name"),
+            Sql.integer(rs, "quality"), Sql.longValue(rs, "icon_id")), itemId);
   }
 
   private static ItemSummary summary(ResultSet rs) throws SQLException {
