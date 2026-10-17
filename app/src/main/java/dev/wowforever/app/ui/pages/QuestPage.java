@@ -1,152 +1,177 @@
 package dev.wowforever.app.ui.pages;
 
-import dev.wowforever.app.model.MapCoordinates;
+import dev.wowforever.app.model.GiverSpot;
+import dev.wowforever.app.model.QuestChain;
 import dev.wowforever.app.model.QuestDetail;
-import dev.wowforever.app.model.QuestGiver;
-import dev.wowforever.app.model.QuestSummary;
-import dev.wowforever.app.model.SpawnPin;
+import dev.wowforever.app.model.QuestFacts;
+import dev.wowforever.app.model.QuestPageData;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Columns;
-import dev.wowforever.app.ui.Labels;
+import dev.wowforever.app.ui.detail.CompactColumns;
 import dev.wowforever.app.ui.detail.HeaderPanel;
-import dev.wowforever.app.ui.widgets.MapView;
-import dev.wowforever.app.ui.widgets.MapView.Pin;
+import dev.wowforever.app.ui.detail.LinkTable;
+import dev.wowforever.app.ui.pages.quest.ChainStepper;
+import dev.wowforever.app.ui.pages.quest.GiverSections;
+import dev.wowforever.app.ui.pages.quest.QuestHeader;
+import dev.wowforever.app.ui.pages.quest.QuestMapPanel;
+import dev.wowforever.app.ui.widgets.ClipboardPort;
 import dev.wowforever.app.ui.widgets.SourceSection;
+import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.image.BufferedImage;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.Set;
-import java.util.stream.Collectors;
+import java.util.Map;
 import javax.swing.BorderFactory;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JTextArea;
 
-/**
- * The quest page, one scrolling page: the header (name, level, required level and zone), the objectives text,
- * then the sections Given by, Turned in to, Rewards and Related items (those without rows are left out). Given the
- * zone map of a giver, Given by shows it above its table with the giver's {@code "!"} pins, and Turned in to its
- * own with the {@code "?"} pins; when those are all at the start pins' spots on the same map, Given by's map shows
- * both (a giver's {@code "!"} winning over its {@code "?"}) and Turned in to none.
- */
+/** Quest facts, chain navigation and a shared map, rendered entirely from loaded records. */
 public final class QuestPage extends SourcesPage {
-  /**
-   * The zone map of one of the page's sections: the decoded map of zone {@code zoneId} and the spawn points there
-   * of the section's first giver with a point on a zone map. The points are all {@linkplain MapCoordinates#onMap on
-   * the map}: {@link dev.wowforever.app.ui.detail.DetailPanels#load}, which picks the zone by them, keeps only those,
-   * and the page does not filter again.
-   */
-  public record GiverMap(long zoneId, BufferedImage map, List<SpawnPin> points) {
-    public GiverMap {
-      Objects.requireNonNull(map, "map");
-      points = List.copyOf(points);
-    }
-  }
-
-  private record Spot(double x, double y) {}
-
+  public static final int SIDE_BY_SIDE_PX = 900;
   private final HeaderPanel header;
-  private final MapView givenByMap;
-  private final MapView turnedInMap;
-  private final JTextArea objectives = new JTextArea() {
-    @Override
-    public Dimension getMaximumSize() { // never stretched taller than its text
-      return new Dimension(Integer.MAX_VALUE, getPreferredSize().height);
-    }
-  };
+  private final ChainStepper stepper;
+  private final QuestMapPanel mapPanel;
+  private final JPanel objectivesPanel = new JPanel(new BorderLayout());
+  private final JPanel chainPanel = new JPanel(new BorderLayout());
+  private final Body body = new Body();
+  private final JTextArea objectives = new JTextArea();
+  private final SourceSection objectiveSection;
 
-  /** The page without giver maps. */
-  public QuestPage(QuestDetail d, Navigator nav) {
-    this(d, null, null, nav);
-  }
-
-  /**
-   * The page with the zone maps of a start giver ({@code startMap}) and of an end giver ({@code endMap}); null for
-   * none.
-   */
-  public QuestPage(QuestDetail d, GiverMap startMap, GiverMap endMap, Navigator nav) {
+  public QuestPage(QuestPageData data, Map<Long, BufferedImage> maps, Navigator nav, ClipboardPort clipboard) {
     super(nav);
-    QuestSummary s = d.summary();
-    header = new HeaderPanel(s.displayName(), Labels.join("Quest #" + s.id(),
-        s.questLevel() == null ? null : "Level " + s.questLevel(),
-        s.requiredLevel() == null ? null : "Requires " + s.requiredLevel(), s.zoneName()));
-    header.setAlignmentX(LEFT_ALIGNMENT);
+    header = QuestHeader.create(data, nav);
+    stepper = new ChainStepper(data.chain(), nav);
+    mapPanel = new QuestMapPanel(data, maps, nav, clipboard);
     content.add(header);
-    String text = d.objectivesText() == null ? "" : d.objectivesText().strip();
-    objectives.setText(text);
-    objectives.setVisible(!text.isEmpty());
+    content.add(stepper);
+    objectives.setText(data.detail().objectivesText() == null ? "" : data.detail().objectivesText().strip());
+    objectives.setVisible(!objectives.getText().isBlank());
     objectives.setEditable(false);
     objectives.setLineWrap(true);
     objectives.setWrapStyleWord(true);
     objectives.setOpaque(false);
-    objectives.setBorder(BorderFactory.createEmptyBorder(0, 12, 4, 12));
-    objectives.setAlignmentX(LEFT_ALIGNMENT);
     objectives.setCaretPosition(0);
-    content.add(objectives);
-    List<QuestGiver> starts = byRole(d.givers(), "start");
-    List<QuestGiver> ends = byRole(d.givers(), "end");
-    addSection("Given by", starts.size(), VisibleColumns.of(Columns.questGivers(), starts, null), starts);
-    addSection("Turned in to", ends.size(), VisibleColumns.of(Columns.questGivers(), ends, null), ends);
-    List<Pin> startPins = giverPins(startMap, true);
-    List<Pin> endPins = giverPins(endMap, false);
-    if (!startPins.isEmpty() && !endPins.isEmpty() && startMap.zoneId() == endMap.zoneId()
-        && spots(startPins).containsAll(spots(endPins))) {
-      List<Pin> both = new ArrayList<>(startPins);
-      endPins.stream().filter(end -> startPins.stream().noneMatch(start -> start.ref().equals(end.ref())
-          && start.x() == end.x() && start.y() == end.y())).forEach(both::add);
-      givenByMap = addMap("Given by", startMap.map(), both);
-      turnedInMap = null;
-    } else {
-      givenByMap = addMap("Given by", startMap == null ? null : startMap.map(), startPins);
-      turnedInMap = addMap("Turned in to", endMap == null ? null : endMap.map(), endPins);
+    objectives.getAccessibleContext().setAccessibleName("Quest objectives");
+    objectivesPanel.setOpaque(false);
+    objectivesPanel.add(objectives, BorderLayout.CENTER);
+    objectiveSection = panelSection("Objectives", objectivesPanel);
+    addSection(objectiveSection);
+    content.remove(objectiveSection);
+    body.add(objectiveSection);
+    body.add(mapPanel);
+    content.add(body);
+    if (!data.starts().isEmpty()) {
+      addSection(GiverSections.create("Given by", data.starts(), nav));
     }
-    addLootSection("Rewards", d.rewards());
-    addSection("Related items", d.relatedItems().size(), Columns.itemSources(), d.relatedItems());
+    if (!data.ends().isEmpty()) {
+      addSection(GiverSections.create("Turned in to", data.ends(), nav));
+    }
+    chainPanel.setOpaque(false);
+    if (data.chain().standalone()) {
+      chainPanel.add(new JLabel("Standalone quest — no prerequisites or follow-ups."));
+    }
+    addSection(panelSection("Quest chain", chainPanel));
+    addLootSection("Rewards", data.detail().rewards());
+    addSection("Related items", data.detail().relatedItems().size(), Columns.itemSources(), data.detail().relatedItems());
+    SourceSection related = section("Related items");
+    if (related != null) {
+      related.setCollapsible(true);
+      related.setCollapsed(true);
+    }
     bindJumpKeys();
   }
 
-  /** The emphasised pins of {@code m}'s points (all on the map), each point once; none without a map. */
-  private static List<Pin> giverPins(GiverMap m, boolean starts) {
-    return m == null ? List.of() : m.points().stream()
-        .map(p -> Pin.giver(p.ref(), p.displayName(), p.x(), p.y(), starts)).distinct().toList();
+  /** Convenience for callers holding only old-style detail data, without locations or a chain. */
+  public QuestPage(QuestDetail detail, Navigator nav) {
+    this(new QuestPageData(detail, new QuestFacts(null, detail.summary().zoneName(), null, null, null, false),
+        List.of(), List.of(), givers(detail, "start"), givers(detail, "end"), QuestChain.EMPTY), Map.of(), nav,
+        ClipboardPort.system());
   }
 
-  private static Set<Spot> spots(List<Pin> pins) {
-    return pins.stream().map(p -> new Spot(p.x(), p.y())).collect(Collectors.toSet());
+  private static List<GiverSpot> givers(QuestDetail detail, String role) {
+    return detail.givers().stream().filter(g -> role.equals(g.role()))
+        .map(g -> new GiverSpot(g, List.of(), List.of())).toList();
   }
 
-  /** Puts a map pinning {@code pins} above the table of section {@code title}; null (no map) without pins. */
-  private MapView addMap(String title, BufferedImage image, List<Pin> pins) {
-    SourceSection section = section(title);
-    if (section == null || image == null || pins.isEmpty()) {
-      return null;
+  private SourceSection panelSection(String title, JPanel panel) {
+    LinkTable<String> table = LinkTable.inline(List.of(new Columns.Column<String>("Name", String.class, s -> s, null)), nav);
+    table.setRows(List.of());
+    table.setVisible(false);
+    SourceSection section = new SourceSection(title, 0, table);
+    section.addAboveTable(panel);
+    section.heading().label().setText(title);
+    return section;
+  }
+
+  @Override
+  public void doLayout() {
+    for (String title : List.of("Objectives", "Given by", "Turned in to")) {
+      SourceSection section = section(title);
+      if (section != null) {
+        section.setCollapsible(false);
+      }
     }
-    MapView map = new MapView(image, nav);
-    map.setPins(pins);
-    section.addAboveTable(map);
-    return map;
+    if (section("Related items") != null) {
+      section("Related items").setCollapsible(true);
+    }
+    super.doLayout();
   }
 
-  private static List<QuestGiver> byRole(List<QuestGiver> givers, String role) {
-    return givers.stream().filter(g -> role.equals(g.role())).toList();
-  }
+  public HeaderPanel header() { return header; }
+  public ChainStepper stepper() { return stepper; }
+  public QuestMapPanel mapPanel() { return mapPanel; }
+  public JPanel objectivesPanel() { return objectivesPanel; }
+  public JPanel chainPanel() { return chainPanel; }
+  public JPanel body() { return body; }
+  public JTextArea objectives() { return objectives; }
+  public boolean isSideBySide() { return getWidth() >= SIDE_BY_SIDE_PX && !CompactColumns.within(this); }
 
-  public HeaderPanel header() {
-    return header;
-  }
+  /** Width-aware layout keeps the map above the text in a narrow or compact window. */
+  private final class Body extends JPanel {
+    private static final int PAD = 10;
+    private static final int GAP = 16;
 
-  /** The map of the Given by section; null without one. */
-  public MapView givenByMap() {
-    return givenByMap;
-  }
+    Body() {
+      setLayout(null);
+      setOpaque(false);
+      setBorder(BorderFactory.createEmptyBorder(0, PAD, 8, PAD));
+    }
 
-  /** The map of the Turned in to section; null without one (or when Given by's map shows the end givers too). */
-  public MapView turnedInMap() {
-    return turnedInMap;
-  }
+    private int available() {
+      return Math.max(0, (getWidth() > 0 ? getWidth() : QuestPage.this.getWidth() > 0
+          ? QuestPage.this.getWidth() : 1200) - PAD * 2);
+    }
 
-  /** The read-only objectives text; hidden when the quest has none. */
-  public JTextArea objectives() {
-    return objectives;
+    private int mapWidth() {
+      return isSideBySide() ? (available() - GAP) / 2 : available();
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+      int mapWidth = mapWidth();
+      mapPanel.setSize(mapWidth, mapPanel.getHeight());
+      int mapHeight = mapPanel.getPreferredSize().height;
+      int objectiveWidth = isSideBySide() ? available() - mapWidth - GAP : available();
+      objectives.setSize(Math.max(1, objectiveWidth - 24), 1);
+      int textHeight = Math.max(30, objectivesPanel.getPreferredSize().height) + 44;
+      return new Dimension(available() + PAD * 2,
+          (isSideBySide() ? Math.max(mapHeight, textHeight) : mapHeight + GAP + textHeight) + 8);
+    }
+
+    @Override
+    public void doLayout() {
+      int mapWidth = mapWidth();
+      mapPanel.setSize(mapWidth, mapPanel.getHeight());
+      int mapHeight = mapPanel.getPreferredSize().height;
+      if (isSideBySide()) {
+        int left = available() - mapWidth - GAP;
+        objectiveSection.setBounds(PAD, 0, left, getHeight() - 8);
+        mapPanel.setBounds(PAD + left + GAP, 0, mapWidth, mapHeight);
+      } else {
+        mapPanel.setBounds(PAD, 0, mapWidth, mapHeight);
+        objectiveSection.setBounds(PAD, mapHeight + GAP, available(), Math.max(0, getHeight() - mapHeight - GAP - 8));
+      }
+    }
   }
 }

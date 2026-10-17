@@ -316,6 +316,7 @@ public final class MapView extends JComponent {
 
   private final BufferedImage image;
   private final Navigator nav;
+  private final java.util.function.BiConsumer<JPopupMenu, Point2D.Double> popupPresenter;
   private List<Pin> pins = List.of();
   private boolean bossesAndRaresOnly;
   private List<Cluster> clusters;
@@ -329,6 +330,17 @@ public final class MapView extends JComponent {
   private boolean grewLast;
 
   public MapView(BufferedImage image, Navigator nav) {
+    this(image, nav, null);
+  }
+
+  /** Headless interaction seam; production presents the requested menu at its marker when showing. */
+  MapView(BufferedImage image, Navigator nav,
+      java.util.function.BiConsumer<JPopupMenu, Point2D.Double> popupPresenter) {
+    this.popupPresenter = popupPresenter != null ? popupPresenter : (menu, at) -> {
+      if (isShowing()) {
+        menu.show(this, (int) at.x, (int) at.y);
+      }
+    };
     this.image = Objects.requireNonNull(image, "image");
     MapLayer.REGISTERED.stream().filter(layer -> !layer.defaultVisible())
         .forEach(layer -> hiddenKinds.addAll(layer.kinds()));
@@ -621,6 +633,21 @@ public final class MapView extends JComponent {
       }
       return menu;
     }
+    // Quest-page giver pins have no quest list: keep both roles when one giver starts and ends here.
+    List<Pin> roles = giverRoles(c);
+    if (!roles.isEmpty()) {
+      int shownRoles = 0;
+      for (Pin p : roles) {
+        if (shownRoles++ == LIST_CAP) {
+          menu.add(more());
+          break;
+        }
+        JMenuItem item = new JMenuItem(p.name());
+        item.addActionListener(a -> nav.open(new ViewTarget.Entity(p.ref())));
+        menu.add(item);
+      }
+      return menu;
+    }
     int shown = 0;
     for (Map.Entry<Pin, Integer> e : c.entities().entrySet()) {
       if (shown++ == LIST_CAP) {
@@ -637,6 +664,18 @@ public final class MapView extends JComponent {
       menu.add(item);
     }
     return menu;
+  }
+
+  /** Distinct entity/role pairs on a quest-page marker; zone quest markers retain their quest-list behavior. */
+  private static List<Pin> giverRoles(Cluster cluster) {
+    if (!cluster.quests().isEmpty()
+        || cluster.pins().stream().noneMatch(p -> p.emphasised() && p.kind().quest())) {
+      return List.of();
+    }
+    record Role(EntityRef ref, PinKind kind) {}
+    Map<Role, Pin> roles = new LinkedHashMap<>();
+    cluster.pins().forEach(p -> roles.putIfAbsent(new Role(p.ref(), p.kind()), p));
+    return List.copyOf(roles.values());
   }
 
   private static JMenuItem more() {
@@ -659,16 +698,18 @@ public final class MapView extends JComponent {
       List<QuestRef> quests = QuestPinText.distinctQuests(c);
       if (quests.size() == 1) {
         nav.open(new ViewTarget.Entity(quests.get(0).ref()));
-      } else if (isShowing()) {
-        menuFor(c).show(this, (int) c.position().x, (int) c.position().y);
+      } else {
+        popupPresenter.accept(menuFor(c), c.position());
       }
+    } else if (giverRoles(c).size() > 1) {
+      popupPresenter.accept(menuFor(c), c.position());
     } else if (entities.size() == 1) {
       Pin p = c.pins().get(0);
       if (p.kind() != PinKind.SELF) {
         nav.open(new ViewTarget.Entity(p.ref()));
       }
-    } else if (isShowing()) {
-      menuFor(c).show(this, (int) c.position().x, (int) c.position().y);
+    } else {
+      popupPresenter.accept(menuFor(c), c.position());
     }
   }
 

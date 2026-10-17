@@ -49,15 +49,15 @@ class QuestPageTest {
     List<ViewTarget> opened = new ArrayList<>();
     var p = new QuestPage(repos.quests().detail(2).get(), opened::add);
     assertThat(p.header().title()).isEqualTo("Sharptalon's Claw");
-    assertThat(p.header().subtitle()).isEqualTo("Quest #2 · Level 30 · Requires 20 · Ashenvale");
+    assertThat(p.header().facts()).isEqualTo("Lv 30 (req. 20)");
     assertThat(p.objectives().getText()).startsWith("Bring Sharptalon's Claw to Senani Thunderheart");
     assertThat(p.objectives().isEditable()).isFalse();
     assertThat(p.objectives().getLineWrap()).isTrue();
-    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Given by", "Turned in to");
+    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Objectives", "Given by", "Turned in to", "Quest chain");
     assertThat(p.section("Given by").table().model().refAt(0, 0)).contains(new EntityRef(ITEM, 16305));
     // each table holds one role: the Role column says nothing
-    assertThat(columnNames(p.section("Given by").table().table())).containsExactly("Name", "Type");
-    assertThat(columnNames(p.section("Turned in to").table().table())).containsExactly("Name", "Type");
+    assertThat(columnNames(p.section("Given by").table().table())).containsExactly("Name", "Zone", "Coordinates");
+    assertThat(columnNames(p.section("Turned in to").table().table())).containsExactly("Name", "Zone", "Coordinates");
     p.section("Turned in to").table().activateRow(0);
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 12696)));
   }
@@ -120,7 +120,7 @@ class QuestPageTest {
     layOut(p);
     int wide = p.objectives().getWidth();
     int wideHeight = p.objectives().getHeight();
-    assertThat(wide).isLessThanOrEqualTo(900).isGreaterThan(420);
+    assertThat(wide).isLessThanOrEqualTo(900).isGreaterThan(300);
     p.setSize(420, 700);
     layOut(p);
     assertThat(p.objectives().getWidth()).as("never wider than the page").isLessThanOrEqualTo(420);
@@ -139,36 +139,28 @@ class QuestPageTest {
     List<ViewTarget> opened = new ArrayList<>();
     // The People's Militia: Thor in Westfall starts it, The Last Guardian elsewhere in Westfall ends it
     QuestPage militia = loaded(spawns, 900101, opened);
-    MapView given = militia.givenByMap();
-    assertThat(given).isNotNull();
-    assertThat(given.image().getWidth()).as("Westfall's map").isEqualTo(1002);
-    assertThat(given.pins()).extracting(Pin::name, Pin::kind, Pin::emphasised, Pin::x)
-        .containsExactly(tuple("Thor", PinKind.QUEST_START, true, 56.6));
-    assertThat(SwingUtilities.isDescendingFrom(given, militia.section("Given by"))).isTrue();
-    MapView turnedIn = militia.turnedInMap();
-    assertThat(turnedIn).isNotNull().isNotSameAs(given);
-    // the object's two points; its second point at 52.4, 53.1 is the same pin
-    assertThat(turnedIn.pins()).extracting(Pin::name, Pin::kind, Pin::x).containsExactly(
-        tuple("The Last Guardian", PinKind.QUEST_END, 52.4), tuple("The Last Guardian", PinKind.QUEST_END, 52.5));
-    assertThat(SwingUtilities.isDescendingFrom(turnedIn, militia.section("Turned in to"))).isTrue();
-    // a giver's pin opens the giver
-    given.setSize(1002, 668);
-    given.dispatchEvent(new MouseEvent(given, MouseEvent.MOUSE_CLICKED, 0L, 0, 567, 351, 1, false,
+    MapView map = militia.mapPanel().mapView();
+    assertThat(map).isNotNull();
+    assertThat(map.image().getWidth()).as("Westfall's map").isEqualTo(1002);
+    assertThat(map.pins()).extracting(Pin::kind, Pin::emphasised, Pin::x).containsExactly(
+        tuple(PinKind.QUEST_START, true, 56.6), tuple(PinKind.QUEST_END, true, 52.4),
+        tuple(PinKind.QUEST_END, true, 52.5));
+    assertThat(SwingUtilities.isDescendingFrom(map, militia.body())).isTrue();
+    map.setSize(1002, 668);
+    map.dispatchEvent(new MouseEvent(map, MouseEvent.MOUSE_CLICKED, 0L, 0, 567, 351, 1, false,
         MouseEvent.BUTTON1));
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 900004)));
 
-    // Patrolling Westfall starts and ends with Thor, at the same spot: one map with his "!"
     QuestPage patrol = loaded(spawns, 900102, opened);
-    assertThat(patrol.givenByMap().pins()).extracting(Pin::name, Pin::kind)
-        .containsExactly(tuple("Thor", PinKind.QUEST_START));
-    assertThat(patrol.turnedInMap()).isNull();
-
-    // givers without a spawn point on a zone map: the tables alone
-    QuestPage claw = loaded(repos, 2, opened);
-    assertThat(claw.givenByMap()).isNull();
-    assertThat(claw.turnedInMap()).isNull();
-    assertThat(claw.sections()).extracting(SourceSection::title).containsExactly("Given by", "Turned in to");
-    assertThat(loaded(repos, 490, opened).givenByMap()).as("Teldrassil has no map").isNull();
+    MapView shared = patrol.mapPanel().mapView();
+    shared.setSize(1002, 668);
+    assertThat(shared.pins()).extracting(Pin::kind).containsExactly(PinKind.QUEST_START, PinKind.QUEST_END);
+    assertThat(shared.clusters()).hasSize(1);
+    var menu = shared.menuFor(shared.clusters().getFirst());
+    assertThat(menu.getComponentCount()).isEqualTo(2);
+    assertThat(((javax.swing.JMenuItem) menu.getComponent(0)).getText()).contains("Given by");
+    assertThat(((javax.swing.JMenuItem) menu.getComponent(1)).getText()).contains("Turned in to");
+    assertThat(loaded(repos, 490, opened).mapPanel().mapView()).as("Teldrassil has no map").isNull();
   }
 
   @Test
@@ -178,10 +170,91 @@ class QuestPageTest {
         List.of(new LootRow(new EntityRef(ITEM, 1), "Sword", 20, null, null, null, 2, "Weapon", 7)),
         List.of(new ItemSource(ItemSource.RELATED, claw, "Sharptalon's Claw")));
     var p = new QuestPage(d, t -> {});
-    assertThat(p.header().subtitle()).isEqualTo("Quest #9");
+    assertThat(p.header().facts()).isEmpty();
     assertThat(p.objectives().isVisible()).isFalse();
-    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Rewards", "Related items");
+    assertThat(p.sections()).extracting(SourceSection::title).containsExactly("Objectives", "Quest chain", "Rewards", "Related items");
     assertThat(columnNames(p.section("Rewards").table().table())).containsExactly("Item", "Item level");
     assertThat(column(p.section("Related items").table().table(), 0)).containsExactly("Sharptalon's Claw");
+  }
+  private QuestPage shipped(long id) {
+    var loaded = dev.wowforever.app.ui.pages.quest.QuestTestData.load(id);
+    return new QuestPage(loaded.data(), loaded.maps(), target -> {}, text -> {});
+  }
+
+  @Test
+  void hoggerHeader() {
+    var p = shipped(176);
+    assertThat(p.header().title()).isEqualTo("Wanted:  \"Hogger\"");
+    assertThat(p.header().facts()).isEqualTo("Lv 11 (req. 5)");
+    assertThat(p.stepper().isVisible()).isFalse();
+    assertThat(p.chainPanel()).isNotNull();
+    assertThat(p.header().chips()).anySatisfy(c -> {
+      assertThat(c).isInstanceOf(javax.swing.JButton.class);
+      assertThat(((javax.swing.JButton)c).getText()).isEqualTo("Elwynn Forest");
+    });
+    assertThat(p.header().chips()).noneMatch(c -> c instanceof dev.wowforever.app.ui.widgets.Chip chip
+        && chip.style() == dev.wowforever.app.ui.widgets.Chip.Style.REPEATABLE);
+  }
+
+  @Test
+  void repeatableChip() {
+    assertThat(shipped(7796).header().chips()).anySatisfy(c -> {
+      assertThat(c).isInstanceOf(dev.wowforever.app.ui.widgets.Chip.class);
+      var chip = (dev.wowforever.app.ui.widgets.Chip)c;
+      assertThat(chip.style()).isEqualTo(dev.wowforever.app.ui.widgets.Chip.Style.REPEATABLE);
+      assertThat(chip.getText()).isEqualTo("Repeatable");
+    });
+  }
+
+  @Test
+  void sortLabelChipAndItemStartLine() {
+    var page = shipped(7787);
+    assertThat(page.header().chips()).anySatisfy(c -> {
+      assertThat(c).isInstanceOf(javax.swing.JLabel.class);
+      assertThat(((javax.swing.JLabel)c).getText()).isEqualTo("Legendary");
+    });
+    assertThat(texts(page.section("Given by"))).contains(
+        "Starts from item: Dormant Wind Kissed Blade — drops from ›");
+  }
+
+  private static List<String> texts(java.awt.Container root) {
+    List<String> texts = new ArrayList<>();
+    for (var component : root.getComponents()) {
+      if (component instanceof javax.swing.AbstractButton button) texts.add(button.getText());
+      if (component instanceof java.awt.Container container) texts.addAll(texts(container));
+    }
+    return texts;
+  }
+
+  @Test
+  void giverTablesHaveZoneAndCoordinates() {
+    var page = shipped(176);
+    var given = page.section("Given by").table().table();
+    assertThat(column(given, 0)).contains("Wanted Poster");
+    assertThat(column(given, 1)).contains("Elwynn Forest");
+    assertThat(column(given, 2)).contains("24.6, 74.7");
+    var turned = page.section("Turned in to").table().table();
+    assertThat(column(turned, 0)).containsExactly("Marshal Dughan");
+    assertThat(column(turned, 1)).containsExactly("Elwynn Forest");
+    assertThat(column(turned, 2)).containsExactly("42.1, 65.9");
+  }
+
+  @Test
+  void compactLayout() {
+    var page = shipped(176);
+    var host = new javax.swing.JPanel(new java.awt.BorderLayout());
+    host.putClientProperty(dev.wowforever.app.ui.detail.CompactColumns.KEY, true);
+    host.add(page);
+    host.setSize(420, 700);
+    for (int i=0;i<4;i++) layOut(host);
+    assertThat(page.isSideBySide()).isFalse();
+    assertThat(page.mapPanel().zoneCombo().isVisible()).isTrue();
+    assertThat(page.mapPanel().mapView().getWidth()).isLessThanOrEqualTo(400);
+    assertThat(page.mapPanel().mapView().getHeight()).isEqualTo(
+        page.mapPanel().mapView().heightFor(page.mapPanel().mapView().getWidth()));
+    assertThat(Tables.boundsIn(page.mapPanel(), page).y).isLessThan(Tables.boundsIn(page.objectivesPanel(), page).y);
+    var table = page.section("Turned in to").table().table();
+    assertThat(column(table, 0)).containsExactly("Marshal Dughan · Elwynn Forest · 42.1, 65.9");
+    assertThat(page.section("Turned in to").isCollapsed()).isFalse();
   }
 }

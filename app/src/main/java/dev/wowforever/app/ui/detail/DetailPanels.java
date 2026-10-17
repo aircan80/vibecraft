@@ -12,7 +12,6 @@ import dev.wowforever.app.model.NpcDetail;
 import dev.wowforever.app.model.ObjectDetail;
 import dev.wowforever.app.model.QuestDetail;
 import dev.wowforever.app.model.QuestPageData;
-import dev.wowforever.app.model.GiverSpot;
 import dev.wowforever.app.model.QuestGiver;
 import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.model.RateSource;
@@ -208,23 +207,6 @@ public final class DetailPanels {
     return zoneId == null ? null : repos.zones().map(zoneId).flatMap(MapCache.shared()::decoded).orElse(null);
   }
 
-  /**
-   * Compatibility bridge for the current quest page until the full quest-page layout consumes the data.
-   */
-  private static QuestPage.GiverMap giverMap(List<GiverSpot> givers, Map<Long, BufferedImage> maps) {
-    for (GiverSpot spot : givers) {
-      QuestGiver g = spot.giver();
-      for (Spawn spawn : spot.spawns()) {
-        long zone = spawn.zoneId();
-        BufferedImage map = maps.get(zone);
-        if (map != null) {
-          return new QuestPage.GiverMap(zone, map, spot.spawns().stream().filter(s -> s.zoneId() == zone)
-              .map(s -> new SpawnPin(g.ref(), g.name(), null, s.x(), s.y())).toList());
-        }
-      }
-    }
-    return null;
-  }
 
   /** {@code detail}, once the {@value IconCache#ROW} px icons of the items in {@code lists} are cached. */
   @SafeVarargs
@@ -297,8 +279,7 @@ public final class DetailPanels {
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), p.bossNpcs(), filter,
           onFilterChange, nav, ClipboardPort.system(), p.routes());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
-      case LoadedQuest p -> new QuestPage(p.detail(), giverMap(p.data().starts(), p.maps()),
-          giverMap(p.data().ends(), p.maps()), nav);
+      case LoadedQuest p -> new QuestPage(p.data(), p.maps(), nav, ClipboardPort.system());
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
               worker, status, nav, questPins, routes), nav);
