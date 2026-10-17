@@ -18,6 +18,7 @@ import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Async;
+import dev.wowforever.app.ui.BooleanSetting;
 import dev.wowforever.app.ui.StatusSink;
 import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
@@ -85,11 +86,17 @@ public final class DetailPanels {
   public record LoadedObject(ObjectDetail detail, Long mapZoneId, BufferedImage map) {}
 
   /**
+   * What {@link #load} returns for a quest: the quest and the zone maps of its first start giver and first end giver
+   * (NPC or object) with a spawn point on a zone map, each null without such a giver.
+   */
+  public record LoadedQuest(QuestDetail detail, QuestPage.GiverMap starts, QuestPage.GiverMap ends) {}
+
+  /**
    * The detail record of {@code ref} ({@link LoadedItem}, {@link LoadedNpc}, {@link LoadedZone}, ...), or empty when
    * there is no such entity. Bosses have no page of their own (they are shown inside their instance), so they load
-   * empty. An item's icon (or the question-mark fallback), a zone's map and the pins of its bosses and rares, and
-   * the map of an NPC's or object's first spawn zone are read and decoded here, off the EDT (maps through the
-   * {@linkplain MapCache#shared shared map cache}, so a map shown again is not decoded again).
+   * empty. An item's icon (or the question-mark fallback), a zone's map and the pins of its bosses and rares, the
+   * map of an NPC's or object's first spawn zone and those of a quest's givers are read and decoded here, off the EDT
+   * (maps through the {@linkplain MapCache#shared shared map cache}, so a map shown again is not decoded again).
    * The icon id is the summary's, which an item with only an {@code Item} row (no tooltip card) has too. The item
    * icons the page's tables show first are loaded into the {@linkplain IconCache#shared shared cache} here too:
    * an NPC's drops and wares, an object's contents, a quest's item givers and rewards, an instance's first boss's
@@ -113,7 +120,8 @@ public final class DetailPanels {
         Long zone = mapZone(d.spawns());
         return new LoadedObject(d, zone, zoneMap(zone, repos));
       });
-      case QUEST -> repos.quests().detail(id).map(d -> warmed(warmedGivers(d), d.rewards()));
+      case QUEST -> repos.quests().detail(id).map(d -> warmed(warmedGivers(d), d.rewards()))
+          .map(d -> new LoadedQuest(d, giverMap(d, "start", repos), giverMap(d, "end", repos)));
       case ZONE -> repos.zones().detail(id).map(d -> loadedZone(d, repos));
       case INSTANCE -> repos.instances().detail(id).map(d -> warmed(d, firstBossLoot(d, repos)));
       case BOSS -> Optional.empty();
@@ -145,6 +153,28 @@ public final class DetailPanels {
   /** The decoded map of zone {@code zoneId}; null for a null id, a zone without a map or one that does not decode. */
   private static BufferedImage zoneMap(Long zoneId, Repositories repos) {
     return zoneId == null ? null : repos.zones().map(zoneId).flatMap(MapCache.shared()::decoded).orElse(null);
+  }
+
+  /**
+   * The zone map of quest {@code d}'s first giver in {@code role} ("start" or "end") that is an NPC or object with a
+   * spawn point on the map of a zone that has one (its points in that zone); null when none has.
+   */
+  private static QuestPage.GiverMap giverMap(QuestDetail d, String role, Repositories repos) {
+    for (QuestGiver g : d.givers()) {
+      if (!role.equals(g.role()) || g.ref().kind() == EntityKind.ITEM) {
+        continue;
+      }
+      List<Spawn> spawns = repos.zones().spawnsOf(g.ref()).stream()
+          .filter(s -> MapCoordinates.onMap(s.x(), s.y())).toList();
+      for (long zone : spawns.stream().map(Spawn::zoneId).distinct().toList()) {
+        BufferedImage map = zoneMap(zone, repos);
+        if (map != null) {
+          return new QuestPage.GiverMap(zone, map, spawns.stream().filter(s -> s.zoneId() == zone)
+              .map(s -> new SpawnPin(g.ref(), g.name(), null, s.x(), s.y())).toList());
+        }
+      }
+    }
+    return null;
   }
 
   /** {@code detail}, once the {@value IconCache#ROW} px icons of the items in {@code lists} are cached. */
@@ -199,19 +229,28 @@ public final class DetailPanels {
 
   /**
    * The page for a record from {@link #load}, as above; the item and NPC pages show the drop rows {@code filter}
-   * keeps.
+   * keeps. A zone map's "Quests" toggle is off and not remembered.
    */
   public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
       StatusSink status, SourceFilter filter) {
+    return render(detail, repos, nav, worker, status, filter, BooleanSetting.inMemory(false));
+  }
+
+  /**
+   * The page for a record from {@link #load}, as above; a zone map's "Quests" toggle starts as {@code questPins}
+   * says and saves its changes there.
+   */
+  public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
+      StatusSink status, SourceFilter filter, BooleanSetting questPins) {
     return switch (detail) {
       case LoadedItem p -> new ItemPage(p.detail(), p.icon(), p.rateSources(), filter, nav);
       case LoadedNpc p -> new NpcPage(p.detail(), p.mapZoneId(), p.map(), p.rateSources(), filter, nav,
           ClipboardPort.system());
       case LoadedObject p -> new ObjectPage(p.detail(), p.mapZoneId(), p.map(), nav, ClipboardPort.system());
-      case QuestDetail d -> new QuestPage(d, nav);
+      case LoadedQuest p -> new QuestPage(p.detail(), p.starts(), p.ends(), nav);
       case LoadedZone p -> new ZonePage(p.detail(), p.map() == null ? null
           : new ZoneMapPanel(p.detail().summary().id(), p.map(), p.pins(), ZoneMapPanel.PinSource.of(repos.zones()),
-              worker, status, nav), nav);
+              worker, status, nav, questPins), nav);
       case InstanceDetail d -> new InstancePage(d, repos, nav);
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
@@ -223,7 +262,7 @@ public final class DetailPanels {
       case LoadedItem p -> p.detail().summary().displayName();
       case LoadedNpc p -> p.detail().summary().displayName();
       case LoadedObject p -> p.detail().summary().displayName();
-      case QuestDetail d -> d.summary().displayName();
+      case LoadedQuest p -> p.detail().summary().displayName();
       case LoadedZone p -> p.detail().summary().displayName();
       case InstanceDetail d -> d.summary().displayName();
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());

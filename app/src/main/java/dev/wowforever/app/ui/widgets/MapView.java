@@ -3,6 +3,8 @@ package dev.wowforever.app.ui.widgets;
 import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.QuestPin;
+import dev.wowforever.app.model.QuestRef;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.nav.ViewTarget;
@@ -33,6 +35,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Stream;
 import javax.swing.JComponent;
 import javax.swing.JMenuItem;
 import javax.swing.JPopupMenu;
@@ -44,7 +47,9 @@ import javax.swing.ToolTipManager;
  * of the drawn image ({@link Projection}). Pins within {@value #CLUSTER_PX} px of each other are drawn as one marker
  * with a count badge, in the colour of its most important member ({@link PinKind} order). Hovering a marker tells
  * its name (and count) in a tooltip; clicking it opens its entity, or, for a marker of several entities, a menu of
- * them. The page's own pins ({@link PinKind#SELF}) open nothing. Hit testing uses the painting maths.
+ * them. The page's own pins ({@link PinKind#SELF}) open nothing. Quest givers' pins are a layer of their own, drawn
+ * above the others as {@code "!"} and {@code "?"} glyphs ({@link PinGlyphs}) and clustered only among themselves;
+ * they tell and open their quests. Hit testing uses the painting maths, the quest layer first.
  */
 public final class MapView extends JComponent {
   /** Pins closer than this (logical px, inclusive) share one marker. */
@@ -60,15 +65,55 @@ public final class MapView extends JComponent {
   private static final Color SILVER = new Color(0xC9CED6);
   private static final Color HOVER = new Color(0xFFFFFF);
 
-  /** What a pin stands for, most important first: a marker of several pins takes the first kind among them. */
-  public enum PinKind { SELF, BOSS, RARE, OBJECT, NPC }
+  /**
+   * What a pin stands for, most important first: a marker of several pins takes the first kind among them. The
+   * quest kinds are quest givers, drawn as glyphs ({@link PinGlyphs}) in a layer of their own above the others.
+   */
+  public enum PinKind {
+    SELF, BOSS, RARE, OBJECT, NPC, QUEST_START, QUEST_END;
 
-  /** A pin: the entity it opens, the name its tooltip tells and its place as map percentages (0 to 100). */
-  public record Pin(EntityRef ref, String name, double x, double y, PinKind kind) {
+    /** Whether pins of this kind are quest givers, which cluster only among themselves. */
+    public boolean quest() {
+      return this == QUEST_START || this == QUEST_END;
+    }
+  }
+
+  /**
+   * A pin: the entity it opens, the name its tooltip tells and its place as map percentages (0 to 100). A quest
+   * giver's pin also has the quests it starts and ends there (the starts first), which its tooltip lists and a click
+   * opens; an {@code emphasised} one is drawn larger.
+   */
+  public record Pin(EntityRef ref, String name, double x, double y, PinKind kind, List<QuestRef> quests,
+      boolean emphasised) {
     public Pin {
       Objects.requireNonNull(ref, "ref");
       Objects.requireNonNull(name, "name");
       Objects.requireNonNull(kind, "kind");
+      quests = List.copyOf(quests);
+    }
+
+    /** A pin without quests, not emphasised. */
+    public Pin(EntityRef ref, String name, double x, double y, PinKind kind) {
+      this(ref, name, x, y, kind, List.of(), false);
+    }
+
+    /**
+     * The pin of a quest giver's spawn point: {@link PinKind#QUEST_START} when it starts any of its quests there
+     * (starts win), else {@link PinKind#QUEST_END}; its quests with the starts first.
+     */
+    public static Pin of(QuestPin p) {
+      List<QuestRef> quests = Stream.concat(p.quests().stream().filter(QuestRef::starts),
+          p.quests().stream().filter(q -> !q.starts())).toList();
+      return new Pin(p.giver(), p.displayName(), p.x(), p.y(), p.starts() ? PinKind.QUEST_START : PinKind.QUEST_END,
+          quests, false);
+    }
+
+    /**
+     * A quest page's pin of a giver of its quest: emphasised, a {@code "!"} when the giver starts it
+     * ({@code starts}), else a {@code "?"}; it lists no quests and opens the giver.
+     */
+    public static Pin giver(EntityRef ref, String name, double x, double y, boolean starts) {
+      return new Pin(ref, name, x, y, starts ? PinKind.QUEST_START : PinKind.QUEST_END, List.of(), true);
     }
 
     /**
@@ -129,6 +174,16 @@ public final class MapView extends JComponent {
       return pins.get(0).kind();
     }
 
+    /** Whether the marker is drawn larger: its first pin is emphasised. */
+    public boolean emphasised() {
+      return pins.get(0).emphasised();
+    }
+
+    /** The quests of the pins, each once, in pin order. */
+    public List<QuestRef> quests() {
+      return pins.stream().flatMap(p -> p.quests().stream()).distinct().toList();
+    }
+
     /** Each entity among the pins once, in pin order, with its number of pins. */
     public Map<Pin, Integer> entities() {
       Map<EntityRef, Pin> first = new LinkedHashMap<>();
@@ -150,8 +205,10 @@ public final class MapView extends JComponent {
   private List<Cluster> clusters;
   private int clustersWidth = -1;
   private Cluster hovered;
-  private Font badgeBase;
+  private Font fontBase;
   private Font badgeFont;
+  private Font glyphFont;
+  private Font largeGlyphFont;
 
   public MapView(BufferedImage image, Navigator nav) {
     this.image = Objects.requireNonNull(image, "image");
@@ -240,12 +297,21 @@ public final class MapView extends JComponent {
   }
 
   /**
-   * {@code pins} drawn by {@code projection} as markers: taking the pins the most important first ({@link PinKind}
-   * order, else in order), each joins the first marker within {@code threshold} px of it, else starts a marker of
-   * its own there.
+   * {@code pins} drawn by {@code projection} as markers, the quest givers' layer first (it is drawn on top) and
+   * clustered apart from the other pins: in each layer, taking the pins the most important first ({@link PinKind}
+   * order, emphasised pins first, else in order), each joins the first marker within {@code threshold} px of it,
+   * else starts a marker of its own there.
    */
   public static List<Cluster> cluster(List<Pin> pins, Projection projection, double threshold) {
-    List<Pin> ordered = pins.stream().sorted(Comparator.comparing(Pin::kind)).toList();
+    List<Cluster> out = new ArrayList<>(
+        clusterLayer(pins.stream().filter(p -> p.kind().quest()).toList(), projection, threshold));
+    out.addAll(clusterLayer(pins.stream().filter(p -> !p.kind().quest()).toList(), projection, threshold));
+    return out;
+  }
+
+  private static List<Cluster> clusterLayer(List<Pin> pins, Projection projection, double threshold) {
+    List<Pin> ordered = pins.stream()
+        .sorted(Comparator.comparing(Pin::kind).thenComparing(p -> !p.emphasised())).toList();
     List<Point2D.Double> anchors = new ArrayList<>();
     List<List<Pin>> members = new ArrayList<>();
     Map<Long, List<Integer>> grid = new HashMap<>(); // cell -> marker indexes, cells threshold px wide
@@ -283,7 +349,10 @@ public final class MapView extends JComponent {
     return (cx << 32) ^ (cy & 0xFFFFFFFFL);
   }
 
-  /** The marker nearest to component point {@code x}, {@code y} within {@value #HIT_PX} px; null when none is. */
+  /**
+   * The marker nearest to component point {@code x}, {@code y} within {@value #HIT_PX} px, a quest giver's (the top
+   * layer) before any other; null when none is.
+   */
   public Cluster clusterAt(int x, int y) {
     Point2D.Double at = new Point2D.Double(x, y);
     double limit = UIScale.scale(HIT_PX);
@@ -291,7 +360,9 @@ public final class MapView extends JComponent {
     double bestDistance = Double.MAX_VALUE;
     for (Cluster c : clusters()) {
       double d = c.position().distance(at);
-      if (d <= limit && d < bestDistance) {
+      boolean above = best != null && c.kind().quest() && !best.kind().quest();
+      boolean below = best != null && !c.kind().quest() && best.kind().quest();
+      if (d <= limit && !below && (above || d < bestDistance)) {
         best = c;
         bestDistance = d;
       }
@@ -306,13 +377,16 @@ public final class MapView extends JComponent {
 
   /**
    * {@code "Hogger"}, {@code "Hogger (5)"} for five pins of one entity, or for several entities a list headed
-   * {@code "<n> pins"}; null away from the markers.
+   * {@code "<n> pins"}; null away from the markers. Quest givers tell their quests ({@link QuestPinText#tooltip}).
    */
   @Override
   public String getToolTipText(MouseEvent e) {
     Cluster c = clusterAt(e.getX(), e.getY());
     if (c == null) {
       return null;
+    }
+    if (!c.quests().isEmpty()) {
+      return QuestPinText.tooltip(c);
     }
     Map<Pin, Integer> entities = c.entities();
     if (entities.size() == 1) {
@@ -330,15 +404,35 @@ public final class MapView extends JComponent {
     return html.append("</html>").toString();
   }
 
-  /** The menu a marker of several entities opens: one entry per entity, opening it. */
+  /**
+   * The menu a marker of several entities opens: one entry per entity, opening it. A quest givers' marker lists its
+   * quests instead (each opening its quest), then {@code "Giver: <name>"} for each giver, opening the giver.
+   */
   public JPopupMenu menuFor(Cluster c) {
     JPopupMenu menu = new JPopupMenu();
+    if (!c.quests().isEmpty()) {
+      List<QuestRef> quests = QuestPinText.distinctQuests(c);
+      for (int i = 0; i < quests.size(); i++) {
+        if (i == LIST_CAP) {
+          menu.add(more());
+          break;
+        }
+        QuestRef q = quests.get(i);
+        JMenuItem item = new JMenuItem(q.label());
+        item.addActionListener(a -> nav.open(new ViewTarget.Entity(q.ref())));
+        menu.add(item);
+      }
+      for (Pin giver : c.entities().keySet().stream().limit(LIST_CAP).toList()) {
+        JMenuItem item = new JMenuItem("Giver: " + giver.name());
+        item.addActionListener(a -> nav.open(new ViewTarget.Entity(giver.ref())));
+        menu.add(item);
+      }
+      return menu;
+    }
     int shown = 0;
     for (Map.Entry<Pin, Integer> e : c.entities().entrySet()) {
       if (shown++ == LIST_CAP) {
-        JMenuItem more = new JMenuItem("…");
-        more.setEnabled(false);
-        menu.add(more);
+        menu.add(more());
         break;
       }
       Pin p = e.getKey();
@@ -353,18 +447,34 @@ public final class MapView extends JComponent {
     return menu;
   }
 
+  private static JMenuItem more() {
+    JMenuItem more = new JMenuItem("…");
+    more.setEnabled(false);
+    return more;
+  }
+
   private static String entryText(Pin p, int count) {
     return count > 1 ? p.name() + " (" + count + ")" : p.name();
   }
 
   private static String escape(String s) {
-    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    return QuestPinText.escape(s);
   }
 
-  /** Opens the marker's entity, or shows the menu of a marker of several (when the map is on screen). */
+  /**
+   * Opens the marker's entity (a quest giver's: its one quest), or shows the menu of a marker of several (when the
+   * map is on screen).
+   */
   private void activate(Cluster c) {
     Map<Pin, Integer> entities = c.entities();
-    if (entities.size() == 1) {
+    if (!c.quests().isEmpty()) {
+      List<QuestRef> quests = QuestPinText.distinctQuests(c);
+      if (quests.size() == 1) {
+        nav.open(new ViewTarget.Entity(quests.get(0).ref()));
+      } else if (isShowing()) {
+        menuFor(c).show(this, (int) c.position().x, (int) c.position().y);
+      }
+    } else if (entities.size() == 1) {
       Pin p = c.pins().get(0);
       if (p.kind() != PinKind.SELF) {
         nav.open(new ViewTarget.Entity(p.ref()));
@@ -389,9 +499,13 @@ public final class MapView extends JComponent {
     }
   }
 
-  /** The area marker {@code c} paints in: its dot, the hover ring and the count badge, with a pixel to spare. */
+  /**
+   * The area marker {@code c} paints in: its dot (or glyph), the hover ring and the count badge, with a pixel to
+   * spare.
+   */
   Rectangle markerBounds(Cluster c) {
-    double ring = radius(c.kind()) + UIScale.scale(2) + UIScale.scale(1.5f);
+    double r = radius(c);
+    double ring = r + UIScale.scale(2) + UIScale.scale(1.5f);
     double x = c.position().x;
     double y = c.position().y;
     double right = x + ring;
@@ -400,8 +514,8 @@ public final class MapView extends JComponent {
       FontMetrics fm = getFontMetrics(badgeFont());
       double h = fm.getAscent() + UIScale.scale(1);
       double w = Math.max(fm.stringWidth(String.valueOf(c.count())) + 2 * UIScale.scale(3), h);
-      double badgeX = x + radius(c.kind()) * 0.6;
-      double badgeY = y - radius(c.kind()) * 0.6;
+      double badgeX = x + r * 0.6;
+      double badgeY = y - r * 0.6;
       right = Math.max(right, badgeX + w + UIScale.scale(1));
       top = Math.min(top, badgeY - h - UIScale.scale(1));
     }
@@ -410,22 +524,36 @@ public final class MapView extends JComponent {
     return new Rectangle(x0, y0, (int) Math.ceil(right) + 1 - x0, (int) Math.ceil(y + ring) + 1 - y0);
   }
 
-  private static double radius(PinKind kind) {
-    return UIScale.scale(switch (kind) {
+  /** How far marker {@code c}'s dot (or a quest giver's glyph) reaches from its centre. */
+  private static double radius(Cluster c) {
+    return UIScale.scale(switch (c.kind()) {
       case SELF -> SELF_RADIUS;
       case BOSS -> BOSS_RADIUS;
+      case QUEST_START, QUEST_END -> c.emphasised() ? PinGlyphs.EMPHASISED_RADIUS : PinGlyphs.RADIUS;
       default -> RADIUS;
     });
   }
 
   /** The badge font, derived from the component's font once per font. */
   private Font badgeFont() {
-    Font base = getFont() != null ? getFont() : new Font(Font.SANS_SERIF, Font.PLAIN, 12);
-    if (base != badgeBase) {
-      badgeBase = base;
-      badgeFont = base.deriveFont(Font.BOLD, base.getSize2D() * 0.75f);
-    }
+    deriveFonts();
     return badgeFont;
+  }
+
+  /** The quest glyph font (an emphasised pin's when {@code emphasised}), derived once per font. */
+  private Font glyphFont(boolean emphasised) {
+    deriveFonts();
+    return emphasised ? largeGlyphFont : glyphFont;
+  }
+
+  private void deriveFonts() {
+    Font base = getFont() != null ? getFont() : new Font(Font.SANS_SERIF, Font.PLAIN, 12);
+    if (base != fontBase) {
+      fontBase = base;
+      badgeFont = base.deriveFont(Font.BOLD, base.getSize2D() * 0.75f);
+      glyphFont = PinGlyphs.font(base, false);
+      largeGlyphFont = PinGlyphs.font(base, true);
+    }
   }
 
   private void invalidateClusters() {
@@ -469,16 +597,22 @@ public final class MapView extends JComponent {
   }
 
   private void paintCluster(Graphics2D g2, Cluster c, Stroke outline, Stroke ring, FontMetrics fm) {
-    double r = radius(c.kind());
+    double r = radius(c);
     double x = c.position().x;
     double y = c.position().y;
-    Ellipse2D.Double dot = new Ellipse2D.Double(x - r, y - r, 2 * r, 2 * r);
-    Color fill = colour(c.kind());
-    g2.setColor(fill);
-    g2.fill(dot);
-    g2.setStroke(outline);
-    g2.setColor(OUTLINE);
-    g2.draw(dot);
+    Color fill;
+    if (c.kind().quest()) {
+      fill = PinGlyphs.fill(c.kind());
+      PinGlyphs.paint(g2, glyphFont(c.emphasised()), c.kind(), x, y);
+    } else {
+      Ellipse2D.Double dot = new Ellipse2D.Double(x - r, y - r, 2 * r, 2 * r);
+      fill = colour(c.kind());
+      g2.setColor(fill);
+      g2.fill(dot);
+      g2.setStroke(outline);
+      g2.setColor(OUTLINE);
+      g2.draw(dot);
+    }
     if (c == hovered) {
       double h = r + UIScale.scale(2);
       g2.setColor(HOVER);
@@ -514,6 +648,7 @@ public final class MapView extends JComponent {
       case RARE -> SILVER;
       case OBJECT -> t.link();
       case NPC -> t.textMuted();
+      case QUEST_START, QUEST_END -> PinGlyphs.fill(kind);
     };
   }
 }

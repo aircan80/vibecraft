@@ -218,6 +218,11 @@ public final class MainFrame extends JFrame implements MainView {
     return uiState.sourceFilter();
   }
 
+  @Override
+  public BooleanSetting questPins() {
+    return uiState.questPinsSetting();
+  }
+
   /** Wires in the controller once the database is open, and enables searching and type-ahead. */
   public void attach(AppController controller) {
     this.controller = controller;

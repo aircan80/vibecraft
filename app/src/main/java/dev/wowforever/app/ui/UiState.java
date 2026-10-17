@@ -19,8 +19,8 @@ import javax.swing.SortOrder;
  * Window layout, view settings, pinned pages and recent searches remembered between runs, all in one preferences
  * node (the one {@link ThemeManager} uses): the window bounds, maximised state and screen; the list | detail
  * divider and whether the list shows; the compact window's bounds and mode; always on top; the text size; column
- * widths and sort per table kind; the last search kind; pinned pages; the last searches; and the drop source
- * filter. A value that cannot be read (say, edited by hand) reads as its default.
+ * widths and sort per table kind; the last search kind; pinned pages; the last searches; the drop source filter;
+ * and whether zone maps pin quest givers. A value that cannot be read (say, edited by hand) reads as its default.
  */
 public final class UiState {
   static final String BOUNDS = "window.bounds";
@@ -38,6 +38,7 @@ public final class UiState {
   static final String PINNED = "pinned";
   static final String RECENT = "search.recent";
   static final String SOURCE_FILTER = "view.sourceFilter";
+  static final String QUEST_PINS = "map.questPins";
   /** The smallest text size, in percent of the theme's font. */
   public static final int TEXT_MIN = 90;
   /** The text size when none is saved. */
@@ -327,6 +328,20 @@ public final class UiState {
   /** Saves the drop source filter; {@link SourceFilter#ALL} removes it. */
   public void setSourceFilter(SourceFilter filter) {
     putOrRemove(SOURCE_FILTER, filter == SourceFilter.ALL ? null : filter.name());
+  }
+
+  /** Whether zone maps pin quest givers (their "Quests" toggle); off unless set. */
+  public boolean questPinsShown() {
+    return prefs.getBoolean(QUEST_PINS, false);
+  }
+
+  public void setQuestPinsShown(boolean shown) {
+    prefs.putBoolean(QUEST_PINS, shown);
+  }
+
+  /** {@link #questPinsShown()} as a setting a zone map reads and writes. */
+  public BooleanSetting questPinsSetting() {
+    return BooleanSetting.of(this::questPinsShown, this::setQuestPinsShown);
   }
 
   /** The last {@value #RECENT_SEARCHES} searches, most recent first. */

@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui;
 
 import static dev.wowforever.app.model.EntityKind.NPC;
+import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.wowforever.app.db.FixtureDb;
@@ -8,6 +9,7 @@ import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.pages.NpcPage;
+import dev.wowforever.app.ui.pages.ZonePage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.prefs.BackingStoreException;
@@ -81,6 +83,20 @@ class WindowMenusTest {
     item(menu, "All sources").doClick();
     assertThat(new UiState(node).sourceFilter()).isEqualTo(SourceFilter.ALL);
     assertThat(((NpcPage) view.detail).section("Drops").note()).isNull();
+  }
+
+  @Test
+  void aZoneMapsQuestsToggleIsSavedAndTheNextZonePageStartsWithIt() {
+    StubView view = new StubView();
+    view.questPins = state.questPinsSetting();
+    AppController c = new AppController(FixtureDb.repositories(), view, Runnable::run);
+    c.open(new ViewTarget.Entity(new EntityRef(ZONE, 12)));
+    var elwynn = (ZonePage) view.detail;
+    assertThat(elwynn.mapPanel().questsToggle().isSelected()).isFalse();
+    elwynn.mapPanel().questsToggle().doClick();
+    assertThat(new UiState(node).questPinsShown()).as("saved").isTrue();
+    c.open(new ViewTarget.Entity(new EntityRef(ZONE, 40)));
+    assertThat(((ZonePage) view.detail).mapPanel().questsToggle().isSelected()).isTrue();
   }
 
   @Test

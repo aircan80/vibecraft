@@ -37,4 +37,9 @@ public interface MainView {
   default SourceFilter sourceFilter() {
     return SourceFilter.ALL;
   }
+
+  /** Whether zone maps pin quest givers, which their "Quests" toggle changes; off and not remembered unless set. */
+  default BooleanSetting questPins() {
+    return BooleanSetting.inMemory(false);
+  }
 }

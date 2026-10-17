@@ -3,6 +3,9 @@ package dev.wowforever.app.db;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.MapCoordinates;
+import dev.wowforever.app.model.QuestPin;
+import dev.wowforever.app.model.QuestRef;
+import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
@@ -10,8 +13,13 @@ import dev.wowforever.app.model.ZoneSummary;
 import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /** Zones: the zone list and zone pages. */
 public final class ZoneRepository {
@@ -122,6 +130,63 @@ public final class ZoneRepository {
 
         ORDER BY s.rowid LIMIT ?""",
         rs -> pin(rs, EntityKind.OBJECT, null), zoneId, PIN_CAP));
+  }
+
+  /**
+   * The spawn points in zone {@code zoneId} on its map of the NPCs and objects that start or end quests: one pin per
+   * giver and point (two spawn rows of a giver at the same point are one pin), each with the giver's name and the
+   * quests it starts and ends, by quest level; the pins by giver name. Item givers have no spawn point and are not
+   * pinned. Reads at most {@link #PIN_CAP} giver rows (a quest of a point each), one query: each spawn table by zone
+   * ({@code idx_*_spawn_zone}) joined to {@code quest_giver} by giver ({@code idx_quest_giver_entity}).
+   */
+  public List<QuestPin> questGiversInZone(long zoneId) {
+    record Key(EntityRef giver, double x, double y) {}
+    record Row(Key key, String giverName, QuestRef quest) {}
+    List<Row> rows = db.read(c -> Sql.list(c, """
+        SELECT * FROM (
+          SELECT 'npc' AS kind, s.npc_id AS id, n.name AS giver_name, s.x, s.y,
+                 g.quest_id, q.name AS quest_name, q.quest_level, g.role
+          FROM npc_spawn s
+          JOIN quest_giver g ON g.kind = 'npc' AND g.entity_id = s.npc_id
+          LEFT JOIN npc n ON n.id = s.npc_id
+          LEFT JOIN quest q ON q.id = g.quest_id
+          WHERE s.zone_id = ?""" + ON_MAP + """
+
+          UNION ALL
+          SELECT 'object', s.object_id, o.name, s.x, s.y, g.quest_id, q.name, q.quest_level, g.role
+          FROM object_spawn s
+          JOIN quest_giver g ON g.kind = 'object' AND g.entity_id = s.object_id
+          LEFT JOIN game_object o ON o.id = s.object_id
+          LEFT JOIN quest q ON q.id = g.quest_id
+          WHERE s.zone_id = ?""" + ON_MAP + """
+
+        )
+        ORDER BY giver_name IS NULL, giver_name COLLATE NOCASE, kind, id, x, y,
+                 quest_level IS NULL, quest_level, quest_name COLLATE NOCASE, quest_id, role <> 'start'
+        LIMIT ?""",
+        rs -> new Row(new Key(new EntityRef("npc".equals(rs.getString("kind")) ? EntityKind.NPC : EntityKind.OBJECT,
+            rs.getLong("id")), rs.getDouble("x"), rs.getDouble("y")), rs.getString("giver_name"),
+            new QuestRef(rs.getLong("quest_id"), rs.getString("quest_name"), Sql.integer(rs, "quest_level"),
+                "start".equals(rs.getString("role")))),
+        zoneId, zoneId, PIN_CAP));
+    Map<Key, String> names = new LinkedHashMap<>();
+    Map<Key, Set<QuestRef>> quests = new LinkedHashMap<>();
+    for (Row r : rows) {
+      names.putIfAbsent(r.key(), r.giverName());
+      quests.computeIfAbsent(r.key(), k -> new LinkedHashSet<>()).add(r.quest());
+    }
+    List<QuestPin> pins = new ArrayList<>(names.size());
+    names.forEach((k, name) -> pins.add(new QuestPin(k.giver(), name, k.x(), k.y(), List.copyOf(quests.get(k)))));
+    return pins;
+  }
+
+  /** The spawn points of NPC or object {@code ref} with coordinates, in import order; none for other kinds. */
+  public List<Spawn> spawnsOf(EntityRef ref) {
+    return switch (ref.kind()) {
+      case NPC -> db.read(c -> NpcRepository.spawns(c, "npc_spawn", "npc_id", ref.id()));
+      case OBJECT -> db.read(c -> NpcRepository.spawns(c, "object_spawn", "object_id", ref.id()));
+      default -> List.of();
+    };
   }
 
   private static SpawnPin pin(ResultSet rs, EntityKind kind, Integer rank) throws SQLException {

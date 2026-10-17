@@ -29,6 +29,8 @@ final class StubView implements MainView {
   BooleanSupplier masterListShown = () -> true;
   /** What {@link #sourceFilter()} answers. */
   Supplier<SourceFilter> sourceFilter = () -> SourceFilter.ALL;
+  /** What {@link #questPins()} answers. */
+  BooleanSetting questPins = BooleanSetting.inMemory(false);
 
   @Override
   public MasterList masterList() {
@@ -71,5 +73,10 @@ final class StubView implements MainView {
   @Override
   public SourceFilter sourceFilter() {
     return sourceFilter.get();
+  }
+
+  @Override
+  public BooleanSetting questPins() {
+    return questPins;
   }
 }

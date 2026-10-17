@@ -62,6 +62,19 @@ class UiStateTest {
   }
 
   @Test
+  void questPinsShownDefaultsToOffAndRoundTrips() {
+    assertThat(new UiState(node).questPinsShown()).isFalse();
+    new UiState(node).setQuestPinsShown(true);
+    assertThat(new UiState(node).questPinsShown()).isTrue();
+    BooleanSetting setting = new UiState(node).questPinsSetting();
+    assertThat(setting.isOn()).isTrue();
+    setting.set(false);
+    assertThat(new UiState(node).questPinsShown()).isFalse();
+    new UiState(node).questPinsSetting().set(true);
+    assertThat(setting.isOn()).as("reads the saved value").isTrue();
+  }
+
+  @Test
   void aGarbledSourceFilterReadsAsAll() {
     node.put(UiState.SOURCE_FILTER, "HIDE_EVERYTHING");
     assertThat(new UiState(node).sourceFilter()).isEqualTo(SourceFilter.ALL);

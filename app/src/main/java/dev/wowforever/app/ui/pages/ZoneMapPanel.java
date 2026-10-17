@@ -1,9 +1,11 @@
 package dev.wowforever.app.ui.pages;
 
 import dev.wowforever.app.db.ZoneRepository;
+import dev.wowforever.app.model.QuestPin;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.nav.Navigator;
 import dev.wowforever.app.ui.Async;
+import dev.wowforever.app.ui.BooleanSetting;
 import dev.wowforever.app.ui.StatusSink;
 import dev.wowforever.app.ui.detail.CompactColumns;
 import dev.wowforever.app.ui.widgets.MapView;
@@ -31,10 +33,11 @@ import javax.swing.JToggleButton;
 
 /**
  * The zone page's map: toggles over a {@link MapView} of the zone. The map pins the zone's bosses and rares, loaded
- * with the page. "All NPCs" (paired with "Bosses & rares") and "Objects" load their spawn points on the worker the
- * first time they are asked for, showing {@code "Loading pins…"} meanwhile; a newer load drops an older one still in
- * flight. A load that fails is reported to the {@link StatusSink} and its toggle goes back to what the map shows.
- * In the compact window the toggles collapse into a "Pins ▾" menu.
+ * with the page. "All NPCs" (paired with "Bosses & rares"), "Objects" and "Quests" (the quest givers, off unless
+ * its remembered setting is on) load their pins on the worker the first time they are asked for, showing
+ * {@code "Loading pins…"} meanwhile; a newer load drops an older one still in flight. A load that fails is reported
+ * to the {@link StatusSink} and its toggle goes back to what the map shows. In the compact window the toggles
+ * collapse into a "Pins ▾" menu.
  */
 public final class ZoneMapPanel extends JPanel {
   /** The status shown while pins load. */
@@ -48,6 +51,9 @@ public final class ZoneMapPanel extends JPanel {
     /** The object spawn points in the zone. */
     List<SpawnPin> objects(long zoneId);
 
+    /** The spawn points of the zone's quest givers, with their quests. */
+    List<QuestPin> questPins(long zoneId);
+
     /** The spawn queries of {@code zones}. */
     static PinSource of(ZoneRepository zones) {
       return new PinSource() {
@@ -60,12 +66,20 @@ public final class ZoneMapPanel extends JPanel {
         public List<SpawnPin> objects(long zoneId) {
           return zones.objectSpawnsInZone(zoneId);
         }
+
+        @Override
+        public List<QuestPin> questPins(long zoneId) {
+          return zones.questGiversInZone(zoneId);
+        }
       };
     }
   }
 
-  /** What one pin load brought: the pins of every NPC and of the objects, each null when not asked for. */
-  private record LoadedPins(List<Pin> npcs, List<Pin> objects) {}
+  /**
+   * What one pin load brought: the pins of every NPC, of the objects and of the quest givers, each null when not
+   * asked for.
+   */
+  private record LoadedPins(List<Pin> npcs, List<Pin> objects, List<Pin> quests) {}
 
   private final long zoneId;
   private final PinSource pinSource;
@@ -76,22 +90,35 @@ public final class ZoneMapPanel extends JPanel {
   private final JToggleButton bossesToggle = new JToggleButton("Bosses & rares", true);
   private final JToggleButton allNpcsToggle = new JToggleButton("All NPCs");
   private final JToggleButton objectsToggle = new JToggleButton("Objects");
+  private final JToggleButton questsToggle = new JToggleButton("Quests");
   private final JButton pinsMenuButton = new JButton("Pins ▾");
   private final JPopupMenu pinsMenu = new JPopupMenu();
   private final List<Pin> defaultPins;
   private List<Pin> allNpcPins;
   private List<Pin> objectPins;
+  private List<Pin> questPins;
   private int pinGeneration;
   /** While a failed load puts its toggles back: their changes load nothing. */
   private boolean reverting;
 
   /**
    * The map of zone {@code zoneId}, decoded ({@code map}), pinning {@code pins} (its bosses and rares) at first; the
-   * toggles load the other pins from {@code pinSource} on {@code worker} and report to {@code status}.
+   * toggles load the other pins from {@code pinSource} on {@code worker} and report to {@code status}. "Quests" is off
+   * and is not remembered.
    */
   public ZoneMapPanel(long zoneId, BufferedImage map, List<SpawnPin> pins, PinSource pinSource, Executor worker,
       StatusSink status, Navigator nav) {
+    this(zoneId, map, pins, pinSource, worker, status, nav, BooleanSetting.inMemory(false));
+  }
+
+  /**
+   * The map as above, whose "Quests" toggle starts as {@code questsShown} says (loading the quest givers at once
+   * when it is on) and saves every change to it there.
+   */
+  public ZoneMapPanel(long zoneId, BufferedImage map, List<SpawnPin> pins, PinSource pinSource, Executor worker,
+      StatusSink status, Navigator nav, BooleanSetting questsShown) {
     super(new BorderLayout());
+    Objects.requireNonNull(questsShown, "questsShown");
     this.zoneId = zoneId;
     this.pinSource = Objects.requireNonNull(pinSource, "pinSource");
     this.worker = Objects.requireNonNull(worker, "worker");
@@ -105,9 +132,11 @@ public final class ZoneMapPanel extends JPanel {
     toggleRow.add(bossesToggle);
     toggleRow.add(allNpcsToggle);
     toggleRow.add(objectsToggle);
+    toggleRow.add(questsToggle);
     pinsMenu.add(sharing(new JRadioButtonMenuItem(bossesToggle.getText()), bossesToggle));
     pinsMenu.add(sharing(new JRadioButtonMenuItem(allNpcsToggle.getText()), allNpcsToggle));
     pinsMenu.add(sharing(new JCheckBoxMenuItem(objectsToggle.getText()), objectsToggle));
+    pinsMenu.add(sharing(new JCheckBoxMenuItem(questsToggle.getText()), questsToggle));
     pinsMenuButton.setVisible(false);
     pinsMenuButton.addActionListener(e -> {
       if (pinsMenuButton.isShowing()) {
@@ -117,6 +146,10 @@ public final class ZoneMapPanel extends JPanel {
     // one of the pair always changes when the selection moves between them
     allNpcsToggle.addItemListener(e -> pinsChanged());
     objectsToggle.addItemListener(e -> pinsChanged());
+    questsToggle.addItemListener(e -> {
+      questsShown.set(questsToggle.isSelected());
+      pinsChanged();
+    });
     JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
     controls.setOpaque(false);
     controls.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0));
@@ -135,6 +168,9 @@ public final class ZoneMapPanel extends JPanel {
       }
     });
     showPins();
+    if (questsShown.isOn()) {
+      questsToggle.setSelected(true);
+    }
   }
 
   /** {@code item} driven by {@code toggle}'s model, so either changes both. */
@@ -147,6 +183,10 @@ public final class ZoneMapPanel extends JPanel {
     return spawns.stream().map(p -> Pin.of(p, false)).toList();
   }
 
+  private static List<Pin> questPins(List<QuestPin> givers) {
+    return givers.stream().map(Pin::of).toList();
+  }
+
   /** Shows the pins the toggles ask for, loading on the worker those not loaded yet. */
   private void pinsChanged() {
     if (reverting) {
@@ -154,14 +194,16 @@ public final class ZoneMapPanel extends JPanel {
     }
     boolean needNpcs = allNpcsToggle.isSelected() && allNpcPins == null;
     boolean needObjects = objectsToggle.isSelected() && objectPins == null;
+    boolean needQuests = questsToggle.isSelected() && questPins == null;
     showPins();
-    if (!needNpcs && !needObjects) {
+    if (!needNpcs && !needObjects && !needQuests) {
       return;
     }
     int generation = ++pinGeneration;
     status.message(LOADING);
     Async.run(worker, () -> new LoadedPins(needNpcs ? pins(pinSource.npcs(zoneId, false)) : null,
-        needObjects ? pins(pinSource.objects(zoneId)) : null), loaded -> {
+        needObjects ? pins(pinSource.objects(zoneId)) : null,
+        needQuests ? questPins(pinSource.questPins(zoneId)) : null), loaded -> {
           if (generation == pinGeneration) {
             if (loaded.npcs() != null) {
               allNpcPins = loaded.npcs();
@@ -169,18 +211,25 @@ public final class ZoneMapPanel extends JPanel {
             if (loaded.objects() != null) {
               objectPins = loaded.objects();
             }
+            if (loaded.quests() != null) {
+              questPins = loaded.quests();
+            }
             showPins();
             int n = mapView.visiblePins().size();
             status.message(n == 1 ? "1 pin on the map" : String.format(Locale.ROOT, "%,d pins on the map", n));
           }
         }, e -> {
           if (generation == pinGeneration) {
-            // back to what the map shows: those pins did not load (asking again retries). Objects goes off before
-            // the bosses come back, and neither change loads anything, so a combined load leaves no stray one
+            // back to what the map shows: those pins did not load (asking again retries). Objects and Quests go
+            // off before the bosses come back, and none of the changes loads anything, so a combined load leaves
+            // no stray one
             reverting = true;
             try {
               if (needObjects) {
                 objectsToggle.setSelected(false);
+              }
+              if (needQuests) {
+                questsToggle.setSelected(false);
               }
               if (needNpcs) {
                 bossesToggle.setSelected(true);
@@ -196,12 +245,15 @@ public final class ZoneMapPanel extends JPanel {
 
   /**
    * The NPC pins (every NPC once loaded, else the bosses and rares; the map hides the plain NPCs unless "All NPCs"
-   * is on) and, with "Objects" on and loaded, the object pins.
+   * is on), with "Objects" on and loaded the object pins, and with "Quests" on and loaded the quest givers' pins.
    */
   private void showPins() {
     List<Pin> shown = new ArrayList<>(allNpcPins != null ? allNpcPins : defaultPins);
     if (objectsToggle.isSelected() && objectPins != null) {
       shown.addAll(objectPins);
+    }
+    if (questsToggle.isSelected() && questPins != null) {
+      shown.addAll(questPins);
     }
     mapView.setPins(shown);
     mapView.setFilter(!allNpcsToggle.isSelected());
@@ -230,12 +282,17 @@ public final class ZoneMapPanel extends JPanel {
     return objectsToggle;
   }
 
+  /** "Quests": adds the quest givers' pins. */
+  public JToggleButton questsToggle() {
+    return questsToggle;
+  }
+
   /** The compact window's "Pins ▾" button, shown in place of the toggles. */
   public JButton pinsMenuButton() {
     return pinsMenuButton;
   }
 
-  /** The menu of the "Pins ▾" button: the three toggles. */
+  /** The menu of the "Pins ▾" button: the four toggles. */
   public JPopupMenu pinsMenu() {
     return pinsMenu;
   }

@@ -301,7 +301,8 @@ public final class AppController implements Navigator {
 
   /**
    * Shows the detail page of {@code ref}: the repository call runs on the worker ({@link DetailPanels#load}), the
-   * panel is built on the EDT ({@link DetailPanels#render}) under the view's drop source filter.
+   * panel is built on the EDT ({@link DetailPanels#render}) under the view's drop source filter, a zone map's
+   * "Quests" toggle as the view's setting says.
    */
   private void showEntity(EntityRef ref) {
     int generation = ++detailGeneration;
@@ -310,7 +311,8 @@ public final class AppController implements Navigator {
     Async.run(worker, () -> DetailPanels.load(ref, repos), detail -> {
       if (generation == detailGeneration) {
         if (detail.isPresent()) {
-          view.setDetail(DetailPanels.render(detail.get(), repos, this, worker, pageStatus, view.sourceFilter()));
+          view.setDetail(DetailPanels.render(detail.get(), repos, this, worker, pageStatus, view.sourceFilter(),
+              view.questPins()));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
         } else {
           view.setDetail(DetailPanels.notFound(ref));

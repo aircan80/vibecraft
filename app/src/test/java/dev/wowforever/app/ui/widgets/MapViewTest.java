@@ -2,10 +2,13 @@ package dev.wowforever.app.ui.widgets;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatNullPointerException;
+import static org.assertj.core.api.Assertions.tuple;
 
 import dev.wowforever.app.db.FixtureDb;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.QuestPin;
+import dev.wowforever.app.model.QuestRef;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.theme.Theme;
@@ -221,5 +224,162 @@ class MapViewTest {
     assertThat(b.height).isLessThan(40);
     var single = v.markerBounds(new Cluster(List.of(twelve.get(0)), c.position()));
     assertThat(b.contains(single)).isTrue();
+  }
+
+  private static final EntityRef DUGHAN = new EntityRef(EntityKind.NPC, 240);
+  private static final QuestRef HOGGER = new QuestRef(176, "Wanted: Hogger", 11, true);
+  private static final QuestRef BUNDLE = new QuestRef(5, "A Bundle of Trouble", 5, true);
+  private static final QuestRef REPORT = new QuestRef(9, "Report to Gryan", 10, false);
+
+  private static Pin questPin(double x, double y, QuestRef... quests) {
+    return Pin.of(new QuestPin(DUGHAN, "Marshal Dughan", x, y, List.of(quests)));
+  }
+
+  private static BufferedImage painted(MapView v) {
+    BufferedImage canvas = new BufferedImage(v.getWidth(), v.getHeight(), BufferedImage.TYPE_INT_ARGB);
+    Graphics2D g = canvas.createGraphics();
+    v.paint(g);
+    g.dispose();
+    return canvas;
+  }
+
+  /**
+   * Whether a pixel within 2 px of {@code x}, {@code y} is {@code rgb}, give or take {@value #BLEND} per channel (a
+   * glyph's stem may cover no pixel whole, so its pixels blend a little with the outline).
+   */
+  private static boolean paintedNear(BufferedImage canvas, int x, int y, int rgb) {
+    for (int dx = -2; dx <= 2; dx++) {
+      for (int dy = -2; dy <= 2; dy++) {
+        int p = canvas.getRGB(x + dx, y + dy);
+        boolean close = true;
+        for (int shift = 0; shift <= 16; shift += 8) {
+          close &= Math.abs((p >> shift & 0xFF) - (rgb >> shift & 0xFF)) <= BLEND;
+        }
+        if (close) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private static final int BLEND = 24;
+
+  @Test
+  void questPinsTakeTheirKindFromTheirQuestsStartsWinning() {
+    assertThat(questPin(1, 2, HOGGER).kind()).isEqualTo(PinKind.QUEST_START);
+    assertThat(questPin(1, 2, REPORT).kind()).isEqualTo(PinKind.QUEST_END);
+    Pin both = questPin(1, 2, REPORT, HOGGER);
+    assertThat(both.kind()).isEqualTo(PinKind.QUEST_START);
+    assertThat(both.quests()).as("starts first").containsExactly(HOGGER, REPORT);
+    assertThat(both.ref()).isEqualTo(DUGHAN);
+    assertThat(both.name()).isEqualTo("Marshal Dughan");
+    assertThat(both.emphasised()).isFalse();
+    assertThat(PinKind.QUEST_START.quest()).isTrue();
+    assertThat(PinKind.SELF.quest()).isFalse();
+  }
+
+  @Test
+  void questGlyphsArePaintedInTheirColoursAtTheirPins() {
+    var v = new MapView(westfall, opened::add);
+    v.setSize(501, 334);
+    v.setPins(List.of(questPin(50, 50, HOGGER), questPin(20, 20, REPORT)));
+    BufferedImage canvas = painted(v);
+    // 50 % is (250.5, 167), 20 % (100.2, 66.8)
+    assertThat(paintedNear(canvas, 250, 167, 0xFFD100)).as("the yellow !").isTrue();
+    assertThat(paintedNear(canvas, 100, 67, 0xB8B8B8)).as("the grey ?").isTrue();
+    assertThat(paintedNear(canvas, 100, 67, 0xFFD100)).isFalse();
+    assertThat(paintedNear(canvas, 400, 280, 0xFFD100)).as("nowhere else").isFalse();
+  }
+
+  @Test
+  void questPinsClusterOnlyWithQuestPinsAndAreOnTop() {
+    // the NPC at (501, 334), Dughan's pin 4 px and Gryan's 2 px right of it
+    Pin gryan = Pin.of(new QuestPin(new EntityRef(EntityKind.NPC, 234), "Gryan Stoutmantle", 50.2, 50,
+        List.of(BUNDLE)));
+    var v = natural(List.of(pin(1, "Hogger", 50, 50, PinKind.NPC), questPin(50.4, 50, HOGGER), gryan));
+    assertThat(v.clusters()).extracting(Cluster::count, Cluster::kind)
+        .containsExactly(tuple(2, PinKind.QUEST_START), tuple(1, PinKind.NPC));
+    assertThat(MapView.cluster(v.pins(), new Projection(1002, 668, 1002), 8)).hasSize(2);
+    // the quest layer is hit first, even where the NPC's marker is nearer
+    assertThat(v.clusterAt(501, 334).kind()).isEqualTo(PinKind.QUEST_START);
+    assertThat(v.clusterAt(495, 334).kind()).as("10 px from the quest marker").isEqualTo(PinKind.NPC);
+    // and painted over the NPC's dot
+    BufferedImage canvas = painted(v);
+    assertThat(paintedNear(canvas, (int) Math.round(0.504 * 1002), 334, 0xFFD100)).isTrue();
+    // a cluster of quest pins lists its givers with their quests
+    assertThat(v.getToolTipText(mouse(v, MouseEvent.MOUSE_MOVED, 503, 334))).isEqualTo(
+        "<html>2 pins<br>Marshal Dughan — Wanted: Hogger (11)<br>Gryan Stoutmantle — A Bundle of Trouble (5)"
+            + "</html>");
+    JPopupMenu menu = v.menuFor(v.clusterAt(503, 334));
+    assertThat(menu.getComponents()).extracting(item -> ((JMenuItem) item).getText()).containsExactly(
+        "Wanted: Hogger (11)", "A Bundle of Trouble (5)", "Giver: Marshal Dughan", "Giver: Gryan Stoutmantle");
+  }
+
+  @Test
+  void clickingAPinOfOneQuestOpensTheQuest() {
+    var v = natural(List.of(questPin(50, 50, HOGGER)));
+    assertThat(v.getToolTipText(mouse(v, MouseEvent.MOUSE_MOVED, 501, 334)))
+        .isEqualTo("Marshal Dughan — Wanted: Hogger (11)");
+    v.dispatchEvent(mouse(v, MouseEvent.MOUSE_CLICKED, 501, 334));
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(EntityKind.QUEST, 176)));
+  }
+
+  @Test
+  void aPinOfSeveralQuestsListsThemAndItsGiverInAMenu() {
+    var v = natural(List.of(questPin(50, 50, HOGGER, BUNDLE)));
+    assertThat(v.getToolTipText(mouse(v, MouseEvent.MOUSE_MOVED, 501, 334)))
+        .isEqualTo("Marshal Dughan — Wanted: Hogger (11), A Bundle of Trouble (5)");
+    Cluster c = v.clusterAt(501, 334);
+    JPopupMenu menu = v.menuFor(c);
+    assertThat(menu.getComponents()).extracting(item -> ((JMenuItem) item).getText())
+        .containsExactly("Wanted: Hogger (11)", "A Bundle of Trouble (5)", "Giver: Marshal Dughan");
+    ((JMenuItem) menu.getComponent(1)).doClick();
+    ((JMenuItem) menu.getComponent(2)).doClick();
+    assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(EntityKind.QUEST, 5)),
+        new ViewTarget.Entity(DUGHAN));
+    // clicking the pin (headless: not showing, so no menu) opens nothing directly
+    v.dispatchEvent(mouse(v, MouseEvent.MOUSE_CLICKED, 501, 334));
+    assertThat(opened).hasSize(2);
+  }
+
+  @Test
+  void aGiverThatStartsAndEndsQuestsListsItsStartsFirst() {
+    var v = natural(List.of(questPin(50, 50, REPORT, HOGGER)));
+    assertThat(v.getToolTipText(mouse(v, MouseEvent.MOUSE_MOVED, 501, 334))).isEqualTo(
+        "<html>Marshal Dughan<br>Starts: Wanted: Hogger (11)<br>Ends: Report to Gryan (10)</html>");
+    assertThat(v.menuFor(v.clusterAt(501, 334)).getComponents()).extracting(item -> ((JMenuItem) item).getText())
+        .containsExactly("Wanted: Hogger (11)", "Report to Gryan (10)", "Giver: Marshal Dughan");
+    BufferedImage canvas = painted(natural(v.pins()));
+    assertThat(paintedNear(canvas, 501, 334, 0xFFD100)).as("a ! where starts and ends meet").isTrue();
+  }
+
+  @Test
+  void aLongQuestListWrapsInItsTooltip() {
+    List<QuestRef> many = new ArrayList<>();
+    for (int i = 1; i <= 8; i++) {
+      many.add(new QuestRef(i, "The Jasperlode Mine " + i, 10, true));
+    }
+    var v = natural(List.of(Pin.of(new QuestPin(DUGHAN, "Marshal Dughan", 50, 50, many))));
+    String tip = v.getToolTipText(mouse(v, MouseEvent.MOUSE_MOVED, 501, 334));
+    assertThat(tip).startsWith("<html><body style='width: ").endsWith("</body></html>")
+        .contains("Marshal Dughan — The Jasperlode Mine 1 (10), ").contains("The Jasperlode Mine 8 (10)");
+  }
+
+  @Test
+  void anEmphasisedGiverPinOpensTheGiverAndIsDrawnLarger() {
+    Pin giver = Pin.giver(DUGHAN, "Marshal Dughan", 50, 50, true);
+    assertThat(giver.kind()).isEqualTo(PinKind.QUEST_START);
+    assertThat(giver.emphasised()).isTrue();
+    assertThat(giver.quests()).isEmpty();
+    assertThat(Pin.giver(DUGHAN, "Marshal Dughan", 50, 50, false).kind()).isEqualTo(PinKind.QUEST_END);
+    var v = natural(List.of(giver));
+    assertThat(v.getToolTipText(mouse(v, MouseEvent.MOUSE_MOVED, 501, 334))).isEqualTo("Marshal Dughan");
+    v.dispatchEvent(mouse(v, MouseEvent.MOUSE_CLICKED, 501, 334));
+    assertThat(opened).containsExactly(new ViewTarget.Entity(DUGHAN));
+    Cluster large = v.clusters().get(0);
+    Cluster plain = new Cluster(List.of(questPin(50, 50, HOGGER)), large.position());
+    assertThat(v.markerBounds(large).contains(v.markerBounds(plain))).isTrue();
+    assertThat(v.markerBounds(large).width).isGreaterThan(v.markerBounds(plain).width);
   }
 }

@@ -14,7 +14,11 @@ import java.sql.Statement;
  * The {@link FixtureDb} with Westfall (zone 40) spawns added, since the importer fixture has no NPC spawning in a
  * zone with a map except Hogger (an elite): Foe Reaper 4000 (900001, rare elite) at 51.8, 49.6, Vultros (900002,
  * rare) at 61.2, 65.9, a boss (900003) at 30.0, 30.0 and Thor (900004, the Sentinel Hill flight master, normal) at
- * 56.6, 52.6, plus two points of his off the map (-1, -1 and 100.5, 50). Built once per JVM into a copy of the fixture file; {@link #repositories()} reads it.
+ * 56.6, 52.6, plus two points of his off the map (-1, -1 and 100.5, 50). Quest givers there too: Thor starts The
+ * People's Militia (900101, level 18) and Patrolling Westfall (900102, level 14) and ends Patrolling Westfall; the
+ * fixture's The Last Guardian (object 175740, at 52.4, 53.1 and 52.5, 53.1 in Westfall, plus a second point at
+ * 52.4, 53.1) ends The People's Militia; an item (16305) starts Sealed Orders (900105, level 10). Built once per JVM
+ * into a copy of the fixture file; {@link #repositories()} reads it.
  */
 public final class SpawnFixtureDb {
   private SpawnFixtureDb() {}
@@ -43,6 +47,17 @@ public final class SpawnFixtureDb {
               INSERT INTO npc_spawn(npc_id, zone_id, x, y) VALUES
                 (900001, 40, 51.8, 49.6), (900002, 40, 61.2, 65.9), (900003, 40, 30.0, 30.0),
                 (900004, 40, 56.6, 52.6), (900004, 40, -1, -1), (900004, 40, 100.5, 50)""");
+          s.executeUpdate("""
+              INSERT INTO quest(id, name, required_level, quest_level) VALUES
+                (900101, 'The People''s Militia', 15, 18),
+                (900102, 'Patrolling Westfall', 10, 14),
+                (900105, 'Sealed Orders', 5, 10)""");
+          s.executeUpdate("""
+              INSERT INTO quest_giver(quest_id, kind, entity_id, role) VALUES
+                (900101, 'npc', 900004, 'start'), (900101, 'object', 175740, 'end'),
+                (900102, 'npc', 900004, 'start'), (900102, 'npc', 900004, 'end'),
+                (900105, 'item', 16305, 'start')""");
+          s.executeUpdate("INSERT INTO object_spawn(object_id, zone_id, x, y) VALUES (175740, 40, 52.4, 53.1)");
         }
         Database db = Database.open(copy);
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

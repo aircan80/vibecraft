@@ -5,6 +5,9 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
+import dev.wowforever.app.model.QuestPin;
+import dev.wowforever.app.model.QuestRef;
+import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.model.ZoneMap;
@@ -111,5 +114,43 @@ class ZoneRepositoryTest {
         .allSatisfy(p -> assertThat(p.name()).isEqualTo("Battered Chest"));
     assertThat(elwynn).extracting(SpawnPin::name).contains("Storage Chest", "Library Book");
     assertThat(repos.zones().objectSpawnsInZone(-5)).isEmpty();
+  }
+
+  @Test
+  void questGiversInZone() {
+    ZoneRepository zones = SpawnFixtureDb.repositories().zones();
+    EntityRef guardian = new EntityRef(EntityKind.OBJECT, 175740);
+    EntityRef thor = new EntityRef(EntityKind.NPC, 900004);
+    List<QuestPin> pins = zones.questGiversInZone(40);
+    // by giver name: the object's two points (its second point at 52.4, 53.1 is the same pin) and Thor's one point
+    // on the map (his points at -1, -1 and 100.5, 50 are not)
+    assertThat(pins).extracting(QuestPin::giver, QuestPin::giverName, QuestPin::x, QuestPin::y).containsExactly(
+        tuple(guardian, "The Last Guardian", 52.4, 53.1), tuple(guardian, "The Last Guardian", 52.5, 53.1),
+        tuple(thor, "Thor", 56.6, 52.6));
+    assertThat(pins.get(0).quests()).containsExactly(new QuestRef(900101, "The People's Militia", 18, false));
+    // both roles, by quest level
+    assertThat(pins.get(2).quests()).containsExactly(new QuestRef(900102, "Patrolling Westfall", 14, true),
+        new QuestRef(900102, "Patrolling Westfall", 14, false), new QuestRef(900101, "The People's Militia", 18, true));
+    assertThat(pins.get(2).starts()).isTrue();
+    assertThat(pins.get(0).starts()).isFalse();
+    // Sealed Orders is started by an item, which has no spawn point
+    assertThat(pins).flatExtracting(QuestPin::quests).extracting(QuestRef::questId).doesNotContain(900105L);
+    // an NPC without a name in the plain fixture, in a zone without a map
+    assertThat(repos.zones().questGiversInZone(141)).singleElement().satisfies(p -> {
+      assertThat(p.displayName()).isEqualTo("Unknown NPC #2155");
+      assertThat(p.quests()).extracting(QuestRef::label, QuestRef::starts)
+          .containsExactly(tuple("Bounty: Gnarlpine Furbolg (8)", true), tuple("Bounty: Gnarlpine Furbolg (8)", false));
+    });
+    assertThat(zones.questGiversInZone(-5)).isEmpty();
+  }
+
+  @Test
+  void spawnsOfAnNpcOrObject() {
+    ZoneRepository zones = SpawnFixtureDb.repositories().zones();
+    assertThat(zones.spawnsOf(new EntityRef(EntityKind.NPC, 900004))).extracting(Spawn::zoneId, Spawn::x)
+        .containsExactly(tuple(40L, 56.6), tuple(40L, -1.0), tuple(40L, 100.5));
+    assertThat(zones.spawnsOf(new EntityRef(EntityKind.OBJECT, 175740))).extracting(Spawn::zoneName)
+        .contains("Westfall", "Loch Modan");
+    assertThat(zones.spawnsOf(new EntityRef(EntityKind.ITEM, 16305))).isEmpty();
   }
 }
