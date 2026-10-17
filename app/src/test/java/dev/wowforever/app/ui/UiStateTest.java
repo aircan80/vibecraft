@@ -14,7 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
 class UiStateTest {
-  /** A throw-away node, so the test never touches the user's real settings. */
+  /** A throw-away node of its own, so tests never share settings (all preferences are in memory in tests). */
   static Preferences testNode() {
     return Preferences.userRoot().node("dev/wowforever/test/ui-state-" + UUID.randomUUID());
   }

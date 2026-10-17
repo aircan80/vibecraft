@@ -60,6 +60,16 @@
     <plugins>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <systemPropertyVariables>
+            <!-- tests keep their settings in memory, never in the user's real preferences (the registry) -->
+            <java.util.prefs.PreferencesFactory>dev.wowforever.app.InMemoryPreferencesFactory</java.util.prefs.PreferencesFactory>
+          </systemPropertyVariables>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-shade-plugin</artifactId>
         <executions>
           <execution>
