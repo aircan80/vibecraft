@@ -18,7 +18,6 @@ import dev.wowforever.app.model.Spawn;
 import dev.wowforever.app.model.SpawnPin;
 import dev.wowforever.app.model.ZoneDetail;
 import dev.wowforever.app.nav.Navigator;
-import dev.wowforever.app.ui.Async;
 import dev.wowforever.app.ui.BooleanSetting;
 import dev.wowforever.app.ui.StatusSink;
 import dev.wowforever.app.ui.pages.InstancePage;
@@ -221,32 +220,10 @@ public final class DetailPanels {
     return summary != null ? summary : d.card().iconId();
   }
 
-  /** The page for a record from {@link #load}; a zone map loads more pins in a SwingWorker and reports nothing. */
-  public static JComponent render(Object detail, Repositories repos, Navigator nav) {
-    return render(detail, repos, nav, Async.SWING_WORKER, StatusSink.NONE);
-  }
-
   /**
-   * The page for a record from {@link #load}. Work a page does once shown (a zone map loading more pins) runs on
-   * {@code worker} and reports to {@code status}.
-   */
-  public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
-      StatusSink status) {
-    return render(detail, repos, nav, worker, status, SourceFilter.ALL);
-  }
-
-  /**
-   * The page for a record from {@link #load}, as above; the item and NPC pages show the drop rows {@code filter}
-   * keeps. A zone map's "Quests" toggle is off and not remembered.
-   */
-  public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
-      StatusSink status, SourceFilter filter) {
-    return render(detail, repos, nav, worker, status, filter, BooleanSetting.inMemory(false));
-  }
-
-  /**
-   * The page for a record from {@link #load}, as above; a zone map's "Quests" toggle starts as {@code questPins}
-   * says and saves its changes there.
+   * The page for a record from {@link #load}. The item and NPC pages show the drop rows {@code filter} keeps. Work a
+   * page does once shown (a zone map loading more pins) runs on {@code worker} and reports to {@code status}; a zone
+   * map's "Quests" toggle starts as {@code questPins} says and saves its changes there.
    */
   public static JComponent render(Object detail, Repositories repos, Navigator nav, Executor worker,
       StatusSink status, SourceFilter filter, BooleanSetting questPins) {
@@ -275,11 +252,6 @@ public final class DetailPanels {
       case InstanceDetail d -> d.summary().displayName();
       default -> throw new IllegalArgumentException("No detail page for " + detail.getClass().getName());
     };
-  }
-
-  /** {@link #load} then {@link #render} on the calling thread, or {@link #notFound} for a missing entity. */
-  public static JComponent build(EntityRef ref, Repositories repos, Navigator nav) {
-    return load(ref, repos).map(d -> render(d, repos, nav)).orElseGet(() -> notFound(ref));
   }
 
   /** The detail shown for an entity the database does not have: {@code "Not found: <kind> #<id>"}. */

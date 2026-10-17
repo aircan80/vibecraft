@@ -46,7 +46,7 @@ class DetailPanelsTest {
 
   private JComponent render(EntityKind kind, long id) {
     Object detail = DetailPanels.load(new EntityRef(kind, id), repos).orElseThrow();
-    return DetailPanels.render(detail, repos, t -> {});
+    return TestPages.render(detail, repos, t -> {});
   }
 
   @Test
@@ -93,7 +93,7 @@ class DetailPanelsTest {
     assertThat(page.icon().getType()).isEqualTo(BufferedImage.TYPE_INT_ARGB);
     assertThat(page.detail().card().quality()).isEqualTo(5);
     assertThat(page.detail().card().lines()).hasSize(5);
-    assertThat(DetailPanels.render(page, repos, t -> {})).isInstanceOf(ItemPage.class);
+    assertThat(TestPages.render(page, repos, t -> {})).isInstanceOf(ItemPage.class);
   }
 
   /** Runs {@code body} with an empty shared icon cache over the fixture database; returns the cache. */
@@ -140,7 +140,7 @@ class DetailPanelsTest {
       // the fixture has no boss or rare spawning in Westfall
       assertThat(page.pins()).isEmpty();
     });
-    assertThat(DetailPanels.render(loaded, repos, t -> {})).isInstanceOf(ZonePage.class);
+    assertThat(TestPages.render(loaded, repos, t -> {})).isInstanceOf(ZonePage.class);
   }
 
   @Test
@@ -148,7 +148,7 @@ class DetailPanelsTest {
     Object loaded = DetailPanels.load(new EntityRef(ZONE, 2437), repos).orElseThrow();
     assertThat(((DetailPanels.LoadedZone) loaded).map()).isNull();
     assertThat(((DetailPanels.LoadedZone) loaded).pins()).isEmpty();
-    assertThat(DetailPanels.render(loaded, repos, t -> {})).isInstanceOf(ZonePage.class);
+    assertThat(TestPages.render(loaded, repos, t -> {})).isInstanceOf(ZonePage.class);
   }
 
   private BufferedImage decoded(long iconId) {
@@ -171,7 +171,7 @@ class DetailPanelsTest {
     // the loot list's boss is an NPC too: its rate is the same pair
     var bag = (DetailPanels.LoadedItem) DetailPanels.load(new EntityRef(ITEM, 14149), repos).orElseThrow();
     assertThat(bag.rateSources()).containsOnlyKeys(new RateSource.Key(11520, 14149));
-    var page = (ItemPage) DetailPanels.render(letter, repos, t -> {});
+    var page = (ItemPage) TestPages.render(letter, repos, t -> {});
     JTable drops = page.droppedBy().table();
     assertThat(tooltipAt(drops, 0, drops.getColumnModel().getColumnIndex("Rate"))).isEqualTo(
         "Questie 56.07 %  ·  Questie correction 60.00 %  ·  AtlasLoot 56.07 %  ·  AtlasLoot override 57.00 %");
@@ -190,14 +190,14 @@ class DetailPanelsTest {
   @Test
   void renderAppliesTheSourceFilterToItemAndNpcPages() {
     Object vanCleef = DetailPanels.load(new EntityRef(NPC, 639), repos).orElseThrow();
-    var all = (NpcPage) DetailPanels.render(vanCleef, repos, t -> {});
+    var all = (NpcPage) TestPages.render(vanCleef, repos, t -> {});
     assertThat(all.section("Drops").heading().getText()).isEqualTo("Drops (5)");
-    var filtered = (NpcPage) DetailPanels.render(vanCleef, repos, t -> {}, Runnable::run, StatusSink.NONE,
+    var filtered = (NpcPage) TestPages.render(vanCleef, repos, t -> {}, Runnable::run, StatusSink.NONE,
         SourceFilter.HIDE_ATLASLOOT_ONLY);
     assertThat(filtered.section("Drops").heading().getText()).isEqualTo("Drops (2)");
     assertThat(filtered.section("Drops").note().getText()).isEqualTo("3 rows hidden by the source filter");
     Object atlasOnly = DetailPanels.load(new EntityRef(ITEM, 16800), repos).orElseThrow();
-    var item = (ItemPage) DetailPanels.render(atlasOnly, repos, t -> {}, Runnable::run, StatusSink.NONE,
+    var item = (ItemPage) TestPages.render(atlasOnly, repos, t -> {}, Runnable::run, StatusSink.NONE,
         SourceFilter.HIDE_ATLASLOOT_ONLY);
     assertThat(item.section("Dropped by").heading().getText()).isEqualTo("Dropped by (0)");
   }
@@ -217,7 +217,7 @@ class DetailPanelsTest {
 
   @Test
   void buildFallsBackToNotFound() {
-    JComponent c = DetailPanels.build(new EntityRef(NPC, -7), repos, t -> {});
+    JComponent c = TestPages.build(new EntityRef(NPC, -7), repos, t -> {});
     assertThat(c).isInstanceOfSatisfying(JLabel.class, l -> assertThat(l.getText()).isEqualTo("Not found: NPC #-7"));
   }
 
@@ -227,7 +227,7 @@ class DetailPanelsTest {
     var loaded = (DetailPanels.LoadedZone) DetailPanels.load(new EntityRef(ZONE, 40), spawns).orElseThrow();
     assertThat(loaded.pins()).extracting(SpawnPin::name)
         .containsExactlyInAnyOrder("Foe Reaper 4000", "Vultros", "Test Boss");
-    assertThat(DetailPanels.render(loaded, spawns, t -> {}))
+    assertThat(TestPages.render(loaded, spawns, t -> {}))
         .isInstanceOfSatisfying(ZonePage.class, p -> assertThat(p.mapPanel().mapView().pins()).hasSize(3));
   }
 
@@ -240,14 +240,14 @@ class DetailPanelsTest {
       assertThat(page.map()).as("decoded in load, off the EDT").isNotNull();
       assertThat(page.map().getWidth()).isEqualTo(1002);
     });
-    assertThat(DetailPanels.render(loaded, repos, t -> {}))
+    assertThat(TestPages.render(loaded, repos, t -> {}))
         .isInstanceOfSatisfying(NpcPage.class, p -> assertThat(p.spawnMap().pins()).hasSize(5));
     assertThat(DetailPanels.name(loaded)).isEqualTo("Hogger");
     // Edwin VanCleef spawns only inside his instance (no coordinates): no map
     var vanCleef = (DetailPanels.LoadedNpc) DetailPanels.load(new EntityRef(NPC, 639), repos).orElseThrow();
     assertThat(vanCleef.mapZoneId()).isNull();
     assertThat(vanCleef.map()).isNull();
-    assertThat(((NpcPage) DetailPanels.render(vanCleef, repos, t -> {})).spawnMap()).isNull();
+    assertThat(((NpcPage) TestPages.render(vanCleef, repos, t -> {})).spawnMap()).isNull();
   }
 
   @Test
@@ -255,7 +255,7 @@ class DetailPanelsTest {
     var loaded = (DetailPanels.LoadedObject) DetailPanels.load(new EntityRef(OBJECT, 386759), repos).orElseThrow();
     assertThat(loaded.mapZoneId()).isEqualTo(12L);
     assertThat(loaded.map()).isNotNull();
-    assertThat(((ObjectPage) DetailPanels.render(loaded, repos, t -> {})).spawnMap().pins()).hasSize(1);
+    assertThat(((ObjectPage) TestPages.render(loaded, repos, t -> {})).spawnMap().pins()).hasSize(1);
     assertThat(DetailPanels.name(loaded)).isEqualTo("Library Book");
   }
 
@@ -284,7 +284,7 @@ class DetailPanelsTest {
       public void fail(Exception e) {}
     };
     Object loaded = DetailPanels.load(new EntityRef(ZONE, 12), repos).orElseThrow();
-    var page = (ZonePage) DetailPanels.render(loaded, repos, t -> {}, Runnable::run, status);
+    var page = (ZonePage) TestPages.render(loaded, repos, t -> {}, Runnable::run, status);
     page.mapPanel().allNpcsToggle().doClick();
     assertThat(messages).containsExactly(ZoneMapPanel.LOADING, "5 pins on the map");
     assertThat(page.mapPanel().mapView().visiblePins()).extracting(Pin::name).containsOnly("Hogger");

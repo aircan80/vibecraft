@@ -17,6 +17,7 @@ import dev.wowforever.app.ui.MainView;
 import dev.wowforever.app.ui.StatusBar;
 import dev.wowforever.app.ui.StatusSink;
 import dev.wowforever.app.ui.detail.DetailPanels;
+import dev.wowforever.app.ui.detail.TestPages;
 import dev.wowforever.app.ui.pages.InstancePage;
 import dev.wowforever.app.ui.pages.ItemPage;
 import dev.wowforever.app.ui.pages.ListPage;
@@ -193,7 +194,7 @@ class ShippedDataTest {
     BufferedImage canvas = new BufferedImage(1100, 900, BufferedImage.TYPE_INT_ARGB);
     pages.forEach((ref, kind) -> {
       Object loaded = DetailPanels.load(ref, repos).orElseThrow(() -> new AssertionError("no page for " + ref));
-      JComponent page = DetailPanels.render(loaded, repos, t -> {}, Runnable::run, StatusSink.NONE);
+      JComponent page = TestPages.render(loaded, repos, t -> {}, Runnable::run, StatusSink.NONE);
       assertThat(page).as(ref.toString()).isInstanceOf(kind);
       for (int width : new int[] {1100, 420}) { // the full window and the compact one
         page.setSize(width, 900);
@@ -210,14 +211,14 @@ class ShippedDataTest {
 
   @Test
   void theShippedPagesReadAsReviewed() {
-    var thunderfury = (ItemPage) DetailPanels.build(new EntityRef(EntityKind.ITEM, 19019), repos, t -> {});
+    var thunderfury = (ItemPage) TestPages.build(new EntityRef(EntityKind.ITEM, 19019), repos, t -> {});
     assertThat(thunderfury.card().name().getText()).isEqualTo("Thunderfury, Blessed Blade of the Windseeker");
-    assertThat(((ZonePage) DetailPanels.build(new EntityRef(ZONE, 12), repos, t -> {})).header().subtitle())
+    assertThat(((ZonePage) TestPages.build(new EntityRef(ZONE, 12), repos, t -> {})).header().subtitle())
         .isEqualTo("Zone #12 · Level 1–10");
-    assertThat(((ZonePage) DetailPanels.build(new EntityRef(ZONE, 40), repos, t -> {})).header().subtitle())
+    assertThat(((ZonePage) TestPages.build(new EntityRef(ZONE, 40), repos, t -> {})).header().subtitle())
         .startsWith("Zone #40 · Level 10–20");
     // Hogger's drops: his claw and the quest note, then the generic pool hundreds of NPCs drop, collapsed
-    var hogger = (NpcPage) DetailPanels.build(new EntityRef(NPC, 448), repos, t -> {});
+    var hogger = (NpcPage) TestPages.build(new EntityRef(NPC, 448), repos, t -> {});
     List<Object> rows = new ArrayList<>();
     for (int r = 0; r < hogger.drops().table().getRowCount(); r++) {
       rows.add(hogger.drops().table().getValueAt(r, 0));
@@ -225,14 +226,14 @@ class ShippedDataTest {
     assertThat(rows).last().asString().startsWith("World drops (").endsWith(")" + " ▸");
     assertThat(rows).contains("Huge Gnoll Claw").hasSizeLessThan(8);
     // a quest item 22 NPCs drop at an unknown rate stays in the table, not in the world drops
-    var horror = (NpcPage) DetailPanels.build(new EntityRef(NPC, 3642), repos, t -> {});
+    var horror = (NpcPage) TestPages.build(new EntityRef(NPC, 3642), repos, t -> {});
     List<Object> horrorRows = new ArrayList<>();
     for (int r = 0; r < horror.drops().table().getRowCount(); r++) {
       horrorRows.add(horror.drops().table().getValueAt(r, 0));
     }
     assertThat(horrorRows).contains("Deviate Hide");
     // Edwin VanCleef is a boss, whatever Questie's rank
-    assertThat(((NpcPage) DetailPanels.build(new EntityRef(NPC, 639), repos, t -> {})).rankChip().getText())
+    assertThat(((NpcPage) TestPages.build(new EntityRef(NPC, 639), repos, t -> {})).rankChip().getText())
         .isEqualTo("Boss");
     // the Dire Maul floors (sub-zones named like their zone) are one zone hit
     assertThat(repos.search().search("Dire Maul", Optional.of(ZONE), 50)).extracting(SearchHit::name)

@@ -23,6 +23,7 @@ import dev.wowforever.app.model.QuestSummary;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.LinkRenderer;
 import dev.wowforever.app.ui.detail.DetailPanels;
+import dev.wowforever.app.ui.detail.TestPages;
 import dev.wowforever.app.ui.theme.QualityColors;
 import dev.wowforever.app.ui.widgets.IconCache;
 import dev.wowforever.app.ui.widgets.MapView;
@@ -129,7 +130,7 @@ class QuestPageTest {
 
   private static QuestPage loaded(Repositories repos, long questId, List<ViewTarget> opened) {
     Object loaded = DetailPanels.load(new EntityRef(QUEST, questId), repos).orElseThrow();
-    return (QuestPage) DetailPanels.render(loaded, repos, opened::add);
+    return (QuestPage) TestPages.render(loaded, repos, opened::add);
   }
 
   @Test

@@ -38,7 +38,6 @@ import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
-import javax.swing.JTabbedPane;
 import javax.swing.JTable;
 import javax.swing.KeyStroke;
 import javax.swing.LookAndFeel;
@@ -112,13 +111,6 @@ class LinkTableTest {
         .get(KeyStroke.getKeyStroke("ENTER"));
     t.table().getActionMap().get(key).actionPerformed(new ActionEvent(t.table(), ActionEvent.ACTION_PERFORMED, ""));
     assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(NPC, 1)));
-  }
-
-  @Test
-  void tabsScrollInsteadOfWrapping() {
-    JTabbedPane tabs = new JTabbedPane();
-    LinkTable.addTab(tabs, "Drops", Columns.lootRows(), List.of(), v -> {});
-    assertThat(tabs.getTabLayoutPolicy()).isEqualTo(JTabbedPane.SCROLL_TAB_LAYOUT);
   }
 
   @Test

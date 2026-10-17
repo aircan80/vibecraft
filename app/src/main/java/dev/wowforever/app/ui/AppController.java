@@ -213,10 +213,12 @@ public final class AppController implements Navigator {
   /**
    * Shows the current target again without touching the history, say after the window switched between its full
    * and compact layouts or the drop source filter changed; nothing happens before the first {@link #open}. An entity
-   * page is built again from what it loaded (no new query), and a page keeps its view state ({@link PageState}: how
-   * far it was scrolled, the selected encounter). A search shown where there is a master list leaves the detail area
-   * as a search does: the last page shown there comes back, and the list keeps the results it has (the search does
-   * not run again).
+   * page is built again from what it loaded, without loading the entity again, but building it runs the queries a
+   * page runs as it is built: an instance page reads its first boss's loot again (and the restored encounter's when
+   * another one was selected), and a zone map with "Quests" on loads its quest givers' pins again on the worker. A
+   * page keeps its view state ({@link PageState}: how far it was scrolled, the selected encounter). A search shown
+   * where there is a master list leaves the detail area as a search does: the last page shown there comes back, and
+   * the list keeps the results it has (the search does not run again).
    */
   public void rerender() {
     ViewTarget t = current();

@@ -7,7 +7,7 @@ import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.nav.ViewTarget;
-import dev.wowforever.app.ui.detail.DetailPanels;
+import dev.wowforever.app.ui.detail.TestPages;
 import dev.wowforever.app.ui.pages.ListOptions;
 import dev.wowforever.app.ui.pages.ListPage;
 import dev.wowforever.app.ui.pages.ListRows;
@@ -138,7 +138,7 @@ class AccessibilityTest {
         new EntityRef(EntityKind.ITEM, 14149), new EntityRef(EntityKind.NPC, 639),
         new EntityRef(EntityKind.OBJECT, 386759), new EntityRef(EntityKind.QUEST, 2),
         new EntityRef(EntityKind.ZONE, 40), new EntityRef(EntityKind.INSTANCE, 1))) {
-      pages.add(DetailPanels.build(ref, repos, t -> {}));
+      pages.add(TestPages.build(ref, repos, t -> {}));
     }
     ListOptions options = ListOptions.load(repos);
     for (EntityKind kind : List.of(EntityKind.ITEM, EntityKind.NPC, EntityKind.QUEST, EntityKind.ZONE,
