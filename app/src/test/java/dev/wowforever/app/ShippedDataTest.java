@@ -4,9 +4,7 @@ import static dev.wowforever.app.model.EntityKind.NPC;
 import static dev.wowforever.app.model.EntityKind.ZONE;
 import static org.assertj.core.api.Assertions.assertThat;
 
-import dev.wowforever.app.db.Database;
 import dev.wowforever.app.db.DatabaseInstaller;
-import dev.wowforever.app.db.Repositories;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.model.InstanceSummary;
 import dev.wowforever.app.model.SearchHit;
@@ -15,14 +13,8 @@ import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.MainView;
 import dev.wowforever.app.ui.ResultsPanel;
 import dev.wowforever.app.ui.StatusBar;
-import java.awt.image.BufferedImage;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -31,67 +23,18 @@ import java.util.Optional;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import javax.imageio.ImageIO;
 import javax.swing.JComponent;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 /**
  * Sanity checks against the real committed database. It is extracted from the classpath resource by the
- * production {@link DatabaseInstaller}, so these tests also cover the extraction path on the shipped file.
- * Skip them with {@code -DexcludedGroups=shipped-data}.
+ * production {@link DatabaseInstaller}, so these tests also cover the extraction path on the shipped file
+ * ({@link ShippedDataSupport}). The quest data checks are in {@link ShippedQuestDataTest}, the crafting and drop rate
+ * provenance checks in {@link ShippedProvenanceDataTest}. Skip them with {@code -DexcludedGroups=shipped-data}.
  */
 @Tag("shipped-data")
-class ShippedDataTest {
-  static Database db;
-  static Repositories repos;
-
-  @BeforeAll
-  static void open(@TempDir Path dir) throws Exception {
-    Path file = new DatabaseInstaller(dir).install();
-    db = Database.open(file);
-    repos = Repositories.of(db);
-  }
-
-  @AfterAll
-  static void close() {
-    if (db != null) {
-      db.close();
-    }
-  }
-
-  private static long scalar(String sql) {
-    synchronized (db) {
-      try (Statement st = db.connection().createStatement(); ResultSet rs = st.executeQuery(sql)) {
-        rs.next();
-        return rs.getLong(1);
-      } catch (SQLException e) {
-        throw new IllegalStateException(sql, e);
-      }
-    }
-  }
-
-  private static List<Object> column(String sql) {
-    synchronized (db) {
-      try (Statement st = db.connection().createStatement(); ResultSet rs = st.executeQuery(sql)) {
-        List<Object> out = new ArrayList<>();
-        while (rs.next()) {
-          out.add(rs.getObject(1));
-        }
-        return out;
-      } catch (SQLException e) {
-        throw new IllegalStateException(sql, e);
-      }
-    }
-  }
-
-  private static long count(String table) {
-    return scalar("select count(*) from " + table);
-  }
-
+class ShippedDataTest extends ShippedDataSupport {
   @Test
   void minimumCounts() {
     assertThat(count("item")).isGreaterThan(15_000);
@@ -169,7 +112,12 @@ class ShippedDataTest {
     var sulfuras = repos.items().detail(17204).get().droppedBy().stream()
         .filter(s -> s.ref().id() == 11502L).findFirst();
     assertThat(sulfuras).isPresent();
-    assertThat(sulfuras.get().dropPct()).isNotNull().isBetween(7.5, 8.6);
+    // VMaNGOS (3 %) outranks AtlasLoot (8.05 %, kept as a source); the two disagree
+    assertThat(sulfuras.get().dropPct()).isNotNull().isBetween(2.5, 3.5);
+    assertThat(sulfuras.get().pctSource()).isEqualTo("vmangos");
+    assertThat(sulfuras.get().disagrees()).isTrue();
+    assertThat(column("select pct from drop_rate_source where npc_id = 11502 and item_id = 17204"
+        + " and source = 'atlasloot'")).singleElement().satisfies(p -> assertThat((Double) p).isBetween(7.5, 8.6));
     assertThat(repos.npcs().detail(639).get().drops())
         .anyMatch(l -> l.item().id() == 2874 && l.dropPct() != null && l.dropPct() > 50);
     assertThat(repos.search().search("hogger", Optional.empty(), 5)).extracting(SearchHit::ref)
@@ -215,13 +163,6 @@ class ShippedDataTest {
     assertThat(report).as("the Conflicts section").containsPattern("(?m)^== Conflicts ==\\s*$");
     assertThat(report).as("Era effects whose spell Forever lacks")
         .containsPattern("(?m)^clientdata\\.era\\.effectUnresolved = \\d+\\s*$");
-  }
-
-  private static String committedReport() throws Exception {
-    try (InputStream in = ShippedDataTest.class.getResourceAsStream("/data/import-report.txt")) {
-      assertThat(in).as("/data/import-report.txt").isNotNull();
-      return new String(in.readAllBytes(), StandardCharsets.UTF_8);
-    }
   }
 
   @Test
@@ -291,171 +232,6 @@ class ShippedDataTest {
   void everyRatedDropHasItsSources() {
     assertThat(count("drop_rate_source"))
         .isGreaterThanOrEqualTo(scalar("select count(*) from item_npc_drop where drop_pct is not null"));
-  }
-
-  // --- quest data (phase 3A, schema v3) ---------------------------------------------------------------------------
-
-  @Test
-  void schemaVersionIsThree() {
-    assertThat(db.meta().get("schema_version")).isEqualTo("3");
-  }
-
-  @Test
-  void questTableMinimumCounts() {
-    assertThat(count("quest_objective")).isGreaterThan(5_000);
-    assertThat(count("quest_objective_point")).isGreaterThan(100);
-    assertThat(count("quest_source_item")).isGreaterThan(1_000);
-    assertThat(count("quest_relation")).isGreaterThan(7_000);
-    assertThat(column("select distinct kind from quest_objective"))
-        .containsExactlyInAnyOrder("creature", "object", "item", "reputation", "spell", "explore");
-    assertThat(column("select distinct kind from quest_source_item")).containsExactlyInAnyOrder("provided", "required");
-    assertThat(column("select distinct kind from quest_relation")).containsExactlyInAnyOrder("pre_single", "pre_group",
-        "next", "child", "parent", "exclusive", "group", "breadcrumb_for", "breadcrumb");
-  }
-
-  @Test
-  void questObjectivesNameKnownEntities() {
-    assertThat(scalar("select count(*) from quest_objective o where o.kind = 'item'"
-        + " and not exists (select 1 from item i where i.id = o.entity_id)")).isZero();
-    assertThat(scalar("select count(*) from quest_objective o where o.kind = 'creature'"
-        + " and not exists (select 1 from npc n where n.id = o.entity_id)")).isZero();
-    assertThat(scalar("select count(*) from quest_objective o where o.kind = 'object'"
-        + " and not exists (select 1 from game_object g where g.id = o.entity_id)")).isZero();
-    // every point belongs to an explore objective
-    assertThat(scalar("select count(*) from quest_objective_point p where not exists (select 1 from quest_objective o"
-        + " where o.quest_id = p.quest_id and o.ordinal = p.ordinal and o.kind = 'explore')")).isZero();
-  }
-
-  @Test
-  void wantedHogger() {
-    // Questie records no creature objective for Hogger: the one objective is the Huge Gnoll Claw
-    assertThat(rows("select ordinal, kind, entity_id from quest_objective where quest_id = 176"))
-        .singleElement().satisfies(r -> {
-          assertThat(((Number) r[0]).intValue()).isZero();
-          assertThat(r[1]).isEqualTo("item");
-          assertThat(((Number) r[2]).longValue()).isEqualTo(1931L);
-        });
-    assertThat(column("select name from item where id = 1931")).containsExactly("Huge Gnoll Claw");
-    assertThat(column("select kind || ' ' || entity_id || ' ' || role from quest_giver where quest_id = 176"))
-        .containsExactlyInAnyOrder("object 68 start", "object 156561 start", "npc 240 end");
-    assertThat(column("select name from game_object where id in (68, 156561)")).containsOnly("Wanted Poster");
-    assertThat(column("select name from npc where id = 240")).containsExactly("Marshal Dughan");
-  }
-
-  @Test
-  void riseThunderfuryNeedsTheVesselChain() {
-    // 7787 Rise, Thunderfury! <- 7786 Thunderaan the Windseeker <- 7785 Examine the Vessel
-    assertThat(longs("select related_id from quest_relation where quest_id = 7787 and kind = 'pre_single'"))
-        .containsExactly(7786L);
-    assertThat(longs("select related_id from quest_relation where quest_id = 7786 and kind = 'pre_single'"))
-        .containsExactly(7785L);
-    assertThat(prerequisiteClosure(7787)).containsExactlyInAnyOrder(7786L, 7785L);
-  }
-
-  @Test
-  void drakefireAmuletChain() {
-    // 6502 Drakefire Amulet: one prerequisite (6501), whose pre chain walks back 15 quests to 4182 Dragonkin Menace
-    assertThat(column("select related_id || ' ' || kind from quest_relation where quest_id = 6502"))
-        .containsExactly("6501 pre_single");
-    List<Long> chain = prerequisiteClosure(6502);
-    assertThat(chain).hasSize(15).contains(6501L, 6403L, 4322L, 4182L);
-    String members = chain.stream().map(String::valueOf).reduce("6502", (a, b) -> a + ", " + b);
-    assertThat(scalar("select count(*) from quest_relation where quest_id in (" + members + ")"))
-        .isGreaterThanOrEqualTo(10);
-    // the relation graph does not join it to the Horde chain's 6602 Blood of the Black Dragon Champion; the two
-    // share their one objective, the item Blood of the Black Dragon Champion (16663)
-    assertThat(column("select kind || ' ' || entity_id from quest_objective where quest_id in (6502, 6602)"))
-        .containsExactly("item 16663", "item 16663");
-  }
-
-  @Test
-  void negativePreQuestGroupIdsAreStoredAbsolute() {
-    // 4964's corrected preQuestGroup is {4976, -4962}
-    assertThat(longs("select related_id from quest_relation where quest_id = 4964 and kind = 'pre_group'"))
-        .containsExactlyInAnyOrder(4976L, 4962L);
-    assertThat(scalar("select count(*) from quest_relation where related_id <= 0")).isZero();
-  }
-
-  @Test
-  void repeatableFollowsTheSpecialFlag() {
-    assertThat(scalar("select count(*) from quest where repeatable <> (coalesce(special_flags, 0) & 1)")).isZero();
-    assertThat(scalar("select count(*) from quest where repeatable = 1")).isGreaterThan(500);
-    assertThat(scalar("select repeatable from quest where id = 16")).as("Give Gerard a Drink").isEqualTo(1);
-    assertThat(scalar("select repeatable from quest where id = 176")).as("Wanted: Hogger").isZero();
-  }
-
-  @Test
-  void questSortLabels() {
-    assertThat(scalar("select count(*) from quest where sort_label is not null")).isGreaterThan(1_000);
-    assertThat(scalar("select count(*) from quest where sort_label is not null and zone_or_sort >= 0")).isZero();
-    assertThat(column("select distinct sort_label from quest"))
-        .contains("Warlock", "Camping", "Darkmoon Faire", "Lunar Festival", "Blacksmithing", "Legendary");
-  }
-
-  @Test
-  void committedImportReportShowsTheQuestCounters() throws Exception {
-    String report = committedReport();
-    // 4604's preQuestSingle 2955 is not a quest of the database; the row is kept
-    assertThat(reportCounter(report, "quest.relation.missing")).isEqualTo(1);
-    assertThat(scalar("select count(*) from quest_relation r where not exists (select 1 from quest q"
-        + " where q.id = r.related_id)")).isEqualTo(1);
-    assertThat(column("select quest_id || ' ' || related_id || ' ' || kind from quest_relation r"
-        + " where not exists (select 1 from quest q where q.id = r.related_id)")).containsExactly("4604 2955 pre_single");
-    long kinds = 0;
-    for (Object kind : column("select distinct kind from quest_objective")) {
-      long n = reportCounter(report, "quest.objective.kinds." + kind);
-      assertThat(n).as("quest.objective.kinds.%s", kind)
-          .isEqualTo(scalar("select count(*) from quest_objective where kind = '" + kind + "'"));
-      kinds += n;
-    }
-    assertThat(kinds).isEqualTo(count("quest_objective"));
-    assertThat(reportCounter(report, "quest.objective.unknownKind")).isZero();
-    assertThat(reportCounter(report, "quest.sourceItems")).isEqualTo(count("quest_source_item"));
-    assertThat(reportCounter(report, "clientdata.uiAssets")).isEqualTo(6);
-  }
-
-  @Test
-  void railIconsAreEmbedded() throws Exception {
-    List<String> names = new ArrayList<>();
-    for (String icon : List.of("home", "items", "npcs", "quests", "zones", "instances")) {
-      names.add("rail." + icon);
-      names.add("rail." + icon + "@24");
-    }
-    assertThat(column("select name from ui_asset")).containsExactlyInAnyOrderElementsOf(names);
-    for (String name : names) {
-      byte[] png;
-      synchronized (db) {
-        try (var ps = db.connection().prepareStatement("select png from ui_asset where name = ?")) {
-          ps.setString(1, name);
-          try (ResultSet rs = ps.executeQuery()) {
-            rs.next();
-            png = rs.getBytes(1);
-          }
-        }
-      }
-      BufferedImage image = ImageIO.read(new ByteArrayInputStream(png));
-      assertThat(image).as(name).isNotNull();
-      if (name.endsWith("@24")) {
-        assertThat(image.getWidth() + "x" + image.getHeight()).as(name).isEqualTo("24x24");
-      }
-    }
-  }
-
-  /** The quests reachable from {@code quest} over pre_single and pre_group rows, the quest itself excluded. */
-  private static List<Long> prerequisiteClosure(long quest) {
-    return longs("with recursive c(id) as (select " + quest + " union select r.related_id from quest_relation r"
-        + " join c on r.quest_id = c.id where r.kind in ('pre_single', 'pre_group')) select id from c where id <> "
-        + quest);
-  }
-
-  private static List<Long> longs(String sql) {
-    return column(sql).stream().map(o -> ((Number) o).longValue()).toList();
-  }
-
-  private static long reportCounter(String report, String key) {
-    Matcher m = Pattern.compile("(?m)^" + Pattern.quote(key) + " = (\\d+)\\s*$").matcher(report);
-    assertThat(m.find()).as("%s in import-report.txt", key).isTrue();
-    return Long.parseLong(m.group(1));
   }
 
   /**
@@ -551,24 +327,5 @@ class ShippedDataTest {
       }
     }
     return out;
-  }
-
-  private static List<Object[]> rows(String sql) {
-    synchronized (db) {
-      try (Statement st = db.connection().createStatement(); ResultSet rs = st.executeQuery(sql)) {
-        List<Object[]> out = new ArrayList<>();
-        int n = rs.getMetaData().getColumnCount();
-        while (rs.next()) {
-          Object[] row = new Object[n];
-          for (int i = 0; i < n; i++) {
-            row[i] = rs.getObject(i + 1);
-          }
-          out.add(row);
-        }
-        return out;
-      } catch (SQLException e) {
-        throw new IllegalStateException(sql, e);
-      }
-    }
   }
 }
