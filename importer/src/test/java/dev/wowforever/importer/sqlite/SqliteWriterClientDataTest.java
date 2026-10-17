@@ -337,8 +337,9 @@ class SqliteWriterClientDataTest {
         report);
     var icons = dev.wowforever.importer.clientdata.IconLoader.load(source, client.values(), report);
     Path db = tmp.resolve("t.sqlite");
+    var uiAssets = dev.wowforever.importer.clientdata.UiAssetLoader.load(source, report);
     SqliteWriter.write(db, model, report, new dev.wowforever.importer.clientdata.ClientDataBundle(client, null,
-        Map.of(), ItemTooltips.empty(), icons, maps, source.lock()));
+        Map.of(), ItemTooltips.empty(), icons, maps, source.lock(), uiAssets));
 
     try (Connection c = open(db)) {
       byte[] png = (byte[]) scalar(c, "select png from icon where id = 134124");
@@ -355,6 +356,10 @@ class SqliteWriterClientDataTest {
       assertThat(map.getWidth()).isEqualTo(1002);
       assertThat(map.getHeight()).isEqualTo(668);
       assertThat(scalar(c, "select count(*) from zone_map")).isEqualTo(1);
+
+      assertThat(column(c, "select name from ui_asset order by name")).containsExactly("rail.quests", "rail.quests@24");
+      assertThat((byte[]) scalar(c, "select png from ui_asset where name = 'rail.quests@24'"))
+          .isEqualTo(uiAssets.get("rail.quests@24"));
 
       assertThat(scalar(c, "select value from meta where key = 'client_product'")).isEqualTo("wow_classic_beta");
       assertThat(scalar(c, "select value from meta where key = 'client_build'")).isEqualTo("1.60.1.70425");

@@ -84,7 +84,7 @@ The shipped database uses product `wow_classic_beta`, build 1.60.1.70425, with t
 
 ```
 python tools/clientdata/fetch.py --product wow_classic_beta --build $B --base-url https://wago.tools --cache $C \
-    --fallback-product wow_classic_era --fallback-build 1.15.9.70003 --maps \
+    --fallback-product wow_classic_era --fallback-build 1.15.9.70003 --maps --ui-icons \
     --fdids "$(python tools/clientdata/needed_icons.py --db app/src/main/resources/data/wowforever.sqlite --cache $C --build $B)"
 python tools/clientdata/convert.py --cache $C --build $B --out $C/out/current
 java -jar importer/target/importer.jar --out app/src/main/resources/data/wowforever.sqlite --fail-on-unsupported \
@@ -93,11 +93,13 @@ java -jar importer/target/importer.jar --out app/src/main/resources/data/wowfore
 
 `needed_icons.py` lists the icons of the items already in the database, so on a fresh item set run the import once with `--skip-client-data` first. Its `Item.csv` must be in the cache, so the first fetch without `--fdids` comes before it. Every fetch run merges into the build's `build.lock`, so the tables, maps and icons may be fetched in separate runs. After the import, copy `$C/out/current/build.lock` to `tools/clientdata/build.lock` and commit it with the database.
 
+**UI icons.** The navigation rail's six icons are client textures too (spec section 5; client art is used for icons only). `--ui-icons` resolves each icon's texture path to a FileDataID with the client's own `ManifestInterfaceData` table, falls back to a second choice when the first is missing, fetches the files and records the choices in `build.lock` under `ui_icons`. `convert.py` writes each one twice into `ui_icons/`, at native size and at 24 px, and the importer embeds both in the `ui_asset` table under names like `rail.quests` and `rail.quests@24` (report counter `clientdata.uiAssets`). Build 1.60.1.70425 uses the first choice of all six. The tools README, "UI icons", lists them.
+
 **Sizes.**
 
 | What | Size |
 |---|---|
-| Fetch cache (46 tables, 6,311 BLP files) | 210 MB |
+| Fetch cache (47 tables, 6,313 BLP files) | 218 MB |
 | Converted output (`out/current`) | 58 MB |
 | Shipped database | 66 MB, of which icons 13 MB and zone maps 11 MB |
 

@@ -118,7 +118,7 @@ class ImportPipelineTest {
   /** Tables the client-data stage and drop-rate provenance fill. */
   private static final List<String> CLIENT_TABLES = List.of("item_stat", "item_damage", "item_armor", "item_effect",
       "item_set", "item_set_item", "item_set_bonus", "item_tooltip_line", "icon", "zone_map", "drop_rate_source",
-      "item_alt_value");
+      "item_alt_value", "ui_asset");
 
   @Test
   void endToEndWithClientDataFixture(@TempDir Path tmp) throws Exception {
@@ -149,7 +149,10 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select has_client_data from item where id = 212347")).isEqualTo(0);
       assertThat(scalar(c, "select icon_id from item where id = 212347")).isEqualTo(134236);
       assertThat(scalar(c, "select count(*) from icon where id = 134236")).isEqualTo(1);
+      assertThat(strings(c, "select name from ui_asset order by name"))
+          .containsExactly("rail.quests", "rail.quests@24");
     }
+    assertThat(r.get("clientdata.uiAssets")).isEqualTo(1);
     long named = r.get("clientdata.items.named");
     assertThat(named).isPositive();
     long namedMatched = r.get("clientdata.items.named.matched");
@@ -186,7 +189,8 @@ class ImportPipelineTest {
       assertThat(scalar(c, "select count(*) from zone where ui_map_id is not null")).isEqualTo(0);
     }
     assertThat(r.get("clientdata.skipped")).isEqualTo(1);
-    assertThat(r.counters()).doesNotContainKeys("clientdata.items.matched", "clientdata.coverage.pct");
+    assertThat(r.counters()).doesNotContainKeys("clientdata.items.matched", "clientdata.coverage.pct",
+        "clientdata.uiAssets");
   }
 
   /** Runs the import into {@code dir}; asserts build-id.txt equals meta.build_id of the written DB. */

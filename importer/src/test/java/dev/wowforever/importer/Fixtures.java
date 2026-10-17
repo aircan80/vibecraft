@@ -32,7 +32,7 @@ public final class Fixtures {
     return Holder.ROOT.resolve("atlasloot");
   }
 
-  /** A converted client-data output directory in miniature (csv/, icons/, maps/, maps.json, build.lock). */
+  /** A converted client-data output directory in miniature (csv/, icons/, maps/, maps.json, ui_icons/, build.lock). */
   public static Path clientDataRoot() {
     return Holder.ROOT.resolve("clientdata");
   }

@@ -12,6 +12,7 @@ import java.util.Map;
  * @param icons       PNG bytes by icon id (id 0 the fallback)
  * @param zoneMaps    zone to UiMap assignments and the map images
  * @param lock        the client build the data came from; null skips the {@code client_*} meta keys
+ * @param uiAssets    client UI textures (PNG) by {@code ui_asset} name, see {@link UiAssetLoader}
  */
 public record ClientDataBundle(
     Map<Long, ClientItem> clientItems,
@@ -20,11 +21,12 @@ public record ClientDataBundle(
     ItemTooltips tooltips,
     Map<Long, byte[]> icons,
     ZoneMaps zoneMaps,
-    BuildLock lock) {
+    BuildLock lock,
+    Map<String, byte[]> uiAssets) {
 
   /** No client data at all: writes what a Questie-only import writes. */
   public static final ClientDataBundle EMPTY =
-      new ClientDataBundle(Map.of(), null, Map.of(), ItemTooltips.empty(), Map.of(), ZoneMaps.EMPTY, null);
+      new ClientDataBundle(Map.of(), null, Map.of(), ItemTooltips.empty(), Map.of(), ZoneMaps.EMPTY, null, Map.of());
 
   public ClientDataBundle {
     clientItems = clientItems == null ? Map.of() : clientItems;
@@ -32,5 +34,6 @@ public record ClientDataBundle(
     tooltips = tooltips == null ? ItemTooltips.empty() : tooltips;
     icons = icons == null ? Map.of() : icons;
     zoneMaps = zoneMaps == null ? ZoneMaps.EMPTY : zoneMaps;
+    uiAssets = uiAssets == null ? Map.of() : uiAssets;
   }
 }

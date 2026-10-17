@@ -119,13 +119,13 @@ public final class SqliteWriter {
       ItemClassNames classNames, Map<Long, ItemValues> values, ItemTooltips tooltips)
       throws IOException, SQLException {
     write(out, model, report, new ClientDataBundle(clientItems, classNames, values, tooltips, Map.of(),
-        ZoneMaps.EMPTY, null));
+        ZoneMaps.EMPTY, null, Map.of()));
   }
 
   /**
    * Writes the model with everything the client-data stages produced, see {@link ClientDataBundle}. Icons and
-   * zone maps fill {@code icon} and {@code zone_map} and set {@code zone.ui_map_id}; with a build lock the
-   * {@code client_*} meta keys are written too.
+   * zone maps fill {@code icon} and {@code zone_map} and set {@code zone.ui_map_id}, UI textures fill
+   * {@code ui_asset}; with a build lock the {@code client_*} meta keys are written too.
    */
   public static void write(Path out, ImportModel model, ImportReport report, ClientDataBundle client)
       throws IOException, SQLException {
@@ -179,6 +179,7 @@ public final class SqliteWriter {
       writeZones(c, model.zones(), spawnZones, client.zoneMaps().zoneToMap(), report);
       writeIcons(c, client.icons());
       writeZoneMaps(c, client.zoneMaps());
+      writeUiAssets(c, client.uiAssets());
       writeClientMeta(c, client);
 
       execute(c, List.of(SEARCH_INDEX));
@@ -192,6 +193,14 @@ public final class SqliteWriter {
   private static void writeIcons(Connection c, Map<Long, byte[]> icons) throws SQLException {
     try (Batch rows = new Batch(c, "INSERT INTO icon(id, png) VALUES (?, ?)")) {
       for (Map.Entry<Long, byte[]> e : new TreeMap<>(icons).entrySet()) {
+        rows.add(e.getKey(), e.getValue());
+      }
+    }
+  }
+
+  private static void writeUiAssets(Connection c, Map<String, byte[]> assets) throws SQLException {
+    try (Batch rows = new Batch(c, "INSERT INTO ui_asset(name, png) VALUES (?, ?)")) {
+      for (Map.Entry<String, byte[]> e : new TreeMap<>(assets).entrySet()) {
         rows.add(e.getKey(), e.getValue());
       }
     }

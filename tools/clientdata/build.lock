@@ -1,7 +1,7 @@
 {
   "product": "wow_classic_beta",
   "build": "1.60.1.70425",
-  "fetched_at": "2026-10-17T00:11:28Z",
+  "fetched_at": "2026-10-17T04:53:16Z",
   "base_url": "https://wago.tools",
   "tables": {
     "AreaTable": "0dd594a9b4f6eb80ddcf793f40b4d1d74b332363b76dfd06f73b0515a20830e8",
@@ -31,6 +31,7 @@
     "ItemSparse.era": "eef48b88d1af6ea23872155819dc59342204b2f34c0b613df0405ef06f7a5145",
     "ItemSubClass": "b780c3fd8b6ef227c31164f42db2ee8ba94454461fa858b8590c98a1929e6c6f",
     "ItemXItemEffect": "399dfdee2d68f96178a2108b51c7bae7efb850e6bb2a39f678411eb092370493",
+    "ManifestInterfaceData": "71b82f75741b87ad38c82bb73cba99b3e3bdeb6c0c00e09dde1298dafce31441",
     "Map": "63e3681e1d37c2860ed4744511201121dd1391b8351ecb97d41ece33dc7b4f24",
     "RandPropPoints": "e4a41af2ea8dc344c0c1ce36b26cba741b7f393cb74197e52d9893e6cb223db5",
     "SkillLine": "72715f0f750d222f5e907e84b91dd81f85999a2e901489946b8db1e4adfaaae7",
@@ -51,8 +52,46 @@
     "WorldMapOverlay": "d8c884864504ab54d7dc1e048fd4e49e41177bee5cce3d43d8ee3c339e284d85",
     "WorldMapOverlayTile": "31d8b8c4cae7a1afd312f13a74ba75a461042e00b6e69e2b63809ce9809df02f"
   },
-  "file_count": 6311,
+  "file_count": 6313,
   "missing_count": 0,
   "fallback_product": "wow_classic_era",
-  "fallback_build": "1.15.9.70003"
+  "fallback_build": "1.15.9.70003",
+  "ui_icons": [
+    {
+      "name": "rail.home",
+      "path": "Interface/Icons/INV_Misc_Rune_01",
+      "fdid": 134414,
+      "choice": "first"
+    },
+    {
+      "name": "rail.items",
+      "path": "Interface/Icons/INV_Misc_Bag_08",
+      "fdid": 133633,
+      "choice": "first"
+    },
+    {
+      "name": "rail.npcs",
+      "path": "Interface/GossipFrame/GossipGossipIcon",
+      "fdid": 132053,
+      "choice": "first"
+    },
+    {
+      "name": "rail.quests",
+      "path": "Interface/GossipFrame/AvailableQuestIcon",
+      "fdid": 132049,
+      "choice": "first"
+    },
+    {
+      "name": "rail.zones",
+      "path": "Interface/Icons/INV_Misc_Map_01",
+      "fdid": 134269,
+      "choice": "first"
+    },
+    {
+      "name": "rail.instances",
+      "path": "Interface/Icons/INV_Misc_Head_Dragon_01",
+      "fdid": 134153,
+      "choice": "first"
+    }
+  ]
 }

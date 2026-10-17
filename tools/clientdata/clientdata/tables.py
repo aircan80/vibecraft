@@ -13,6 +13,8 @@ REQUIRED_TABLES = (
     "UiMap", "UiMapArt", "UiMapArtTile", "UiMapArtStyleLayer", "UiMapXMapArt",
     "UiMapAssignment", "WorldMapOverlay", "WorldMapOverlayTile",
     "AreaTable", "Map", "ChrRaces", "ChrClasses", "SkillLine", "Faction",
+    # the client's interface file listing, read by fetch.py --ui-icons to resolve the rail icons' FileDataIDs
+    "ManifestInterfaceData",
 )
 
 # The tables fetched from the fallback product (ruling 17 and the 2A fix wave): its ItemSparse, read only for items
