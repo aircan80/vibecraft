@@ -6,7 +6,8 @@ identity and browser compatibility. It copies the candidate into a fresh applica
 `libraries/versions/<build-id>-<uuid>/wowforever.sqlite` directory. The candidate and any open database
 remain untouched. No controller or open browser session switches databases.
 
-After validating and flushing the copy, activation atomically replaces `libraries/selection.properties`.
+After revalidating the copied database against the full candidate policy and receipt, rechecking its hash,
+and flushing the copy, activation atomically replaces `libraries/selection.properties`.
 The bounded pointer contains the active and previous validated selections, exact hashes, native
 product/build/locale, ingestion identity, core entity counts and coverage warnings. A failed or cancelled
 operation leaves the previous pointer intact and removes its unpublished copy. Unsupported atomic moves

@@ -62,8 +62,14 @@ public final class LibraryActivation {
           output.force(true);
         }
         if(!candidate.sha256().equals(LibraryRegistry.hash(target,cancelled)))throw new IOException("Candidate changed while being copied; activation aborted");
+        LibraryCandidateValidator.Validated copiedValidation;
+        try {copiedValidation=new LibraryCandidateValidator().validate(target,plan,validated.ingestionId(),cancelled);}
+        catch(java.sql.SQLException failure) {throw new IOException("Managed copy failed activation validation",failure);}
+        if(!copiedValidation.equals(validated))throw new IOException("Managed copy differs from the reviewed validation receipt");
         DatabaseInstaller.validateExternal(target);
-        var selected=new LibraryRegistry.Selection(target,candidate.sha256(),validated);
+        if(!candidate.sha256().equals(LibraryRegistry.hash(target,cancelled)))
+          throw new IOException("Managed copy changed during final validation; activation aborted");
+        var selected=new LibraryRegistry.Selection(target,candidate.sha256(),copiedValidation);
         registry.publish(selected,previous,cancelled);published=true;
         return selected;
       } finally {
