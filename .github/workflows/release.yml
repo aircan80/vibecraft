@@ -84,7 +84,9 @@ jobs:
         run: |
           set -euo pipefail
           python -m unittest discover -s tools/releases -p test_source_release.py
-          bash ./mvnw -B -Psource-only clean verify -Dwowforever.music.enabled=false -Dwowforever.sound.enabled=false
+          bash ./mvnw -B clean verify -Dwowforever.music.enabled=false -Dwowforever.sound.enabled=false
+          # Tests use authored checkout fixtures and metadata; production staging is a separate clean build.
+          bash ./mvnw -B -Psource-only -pl app -am clean package -DskipTests
           java packaging/ArchiveAudit.java app/target/wow-forever-browser.jar
       - name: Package native Linux or macOS app-image
         if: runner.os != 'Windows'
