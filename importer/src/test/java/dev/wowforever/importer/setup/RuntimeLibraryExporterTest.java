@@ -1,0 +1,68 @@
+package dev.wowforever.importer.setup;
+
+import static org.assertj.core.api.Assertions.*;
+import java.nio.file.*;
+import java.sql.*;
+import java.util.*;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class RuntimeLibraryExporterTest {
+  @TempDir Path root;
+  private Path source()throws Exception {
+    Path source=root.resolve("staged.sqlite");
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+source);var s=c.createStatement()) {
+      s.execute("CREATE TABLE meta(key TEXT PRIMARY KEY,value TEXT)");
+      s.execute("INSERT INTO meta VALUES('schema_version','4'),('build_id','"+"a".repeat(64)+"'),('client_product','wow_classic_beta'),('client_build','1.60.1.70450')");
+      s.execute("CREATE TABLE source_record(id INTEGER PRIMARY KEY,payload BLOB)");s.execute("INSERT INTO source_record VALUES(1,zeroblob(8192))");
+      s.execute("CREATE TABLE source_archive_blob(sha256 TEXT PRIMARY KEY,bytes BLOB NOT NULL)");s.execute("INSERT INTO source_archive_blob VALUES('native-sha',zeroblob(32768))");
+      s.execute("CREATE TABLE source_archive_file(id INTEGER PRIMARY KEY,blob_sha256 TEXT REFERENCES source_archive_blob(sha256))");s.execute("INSERT INTO source_archive_file VALUES(1,'native-sha')");
+      s.execute("CREATE TABLE field_knowledge_assertion(id INTEGER,edition TEXT,value TEXT,source TEXT)");s.execute("CREATE UNIQUE INDEX field_knowledge_assertion_identity ON field_knowledge_assertion(id,edition)");
+      s.execute("INSERT INTO field_knowledge_assertion VALUES(1,'forever','conflictA','native'),(2,'forever','conflictB','collector'),(1,'era','comparison','era')");
+      s.execute("CREATE TABLE typed_values(i INTEGER,r REAL,t TEXT,b BLOB,n TEXT)");s.execute("INSERT INTO typed_values VALUES(1,1.25,'text',x'0001',NULL),(1,1.25,'text',x'0001',NULL)");
+    }return source;
+  }
+  private SetupStorage storage()throws Exception{return new SetupStorage(root,List.of(root.resolve("game")),Optional.of(root.resolve("active.sqlite")));}
+  private RuntimeLibraryExporter.Receipt export(Path source,Path output)throws Exception{return new RuntimeLibraryExporter().export(source,output,storage(),Files.size(source),RuntimeLibraryExporter.hashFile(source,()->false),()->false);}
+  @Test void retainsAllRuntimeTablesAndMetadataAndSourceIsUnchanged()throws Exception {
+    Path source=source(),out=root.resolve("runtime.sqlite");String original=RuntimeLibraryExporter.hashFile(source,()->false);
+    var receipt=export(source,out);
+    assertThat(receipt.omittedRawRecords()).isEqualTo(1);assertThat(receipt.omittedArchiveBytes()).isEqualTo(32768);
+    assertThat(receipt.retainedTables().get("field_knowledge_assertion").rows()).isEqualTo(3);
+    assertThat(receipt.retainedTables().get("typed_values").rows()).isEqualTo(2);
+    assertThat(RuntimeLibraryExporter.hashFile(source,()->false)).isEqualTo(original);
+    assertThat(receipt.outputSha256()).isEqualTo(RuntimeLibraryExporter.hashFile(out,()->false));
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+out);var s=c.createStatement()) {
+      try(var r=s.executeQuery("SELECT bytes,original_size,storage_state FROM source_archive_blob")){assertThat(r.next()).isTrue();assertThat(r.getBytes(1)).isNull();assertThat(r.getInt(2)).isEqualTo(32768);assertThat(r.getString(3)).isEqualTo("omitted-release");}
+      try(var r=s.executeQuery("SELECT count(*) FROM source_record")){r.next();assertThat(r.getInt(1)).isZero();}
+      try(var r=s.executeQuery("SELECT value FROM meta WHERE key='client_build'")){r.next();assertThat(r.getString(1)).isEqualTo("1.60.1.70450");}
+    }
+    assertThatThrownBy(()->export(out,root.resolve("again.sqlite"))).isInstanceOf(java.io.IOException.class).hasMessageContaining("already a runtime");
+  }
+  @Test void refusesIncorrectSourceIdentityAndCleansTemporary()throws Exception {
+    Path source=source(),out=root.resolve("runtime.sqlite");
+    assertThatThrownBy(()->new RuntimeLibraryExporter().export(source,out,storage(),Files.size(source),"0".repeat(64),()->false)).isInstanceOf(java.io.IOException.class);
+    assertThat(out).doesNotExist();assertNoTemporary();
+    assertThatThrownBy(()->new RuntimeLibraryExporter().export(source,out,storage(),Files.size(source)+1,RuntimeLibraryExporter.hashFile(source,()->false),()->false)).isInstanceOf(java.io.IOException.class);
+    assertNoTemporary();
+  }
+  @Test void refusesExistingActiveGameAndSidecarDestinations()throws Exception {
+    Path source=source(),existing=root.resolve("existing.sqlite");Files.writeString(existing,"keep");
+    assertThatThrownBy(()->export(source,existing)).isInstanceOf(java.io.IOException.class);assertThat(Files.readString(existing)).isEqualTo("keep");
+    assertThatThrownBy(()->export(source,root.resolve("active.sqlite"))).isInstanceOf(java.io.IOException.class);
+    Files.createDirectories(root.resolve("game"));assertThatThrownBy(()->export(source,root.resolve("game/output.sqlite"))).isInstanceOf(java.io.IOException.class);
+    Files.writeString(source.resolveSibling("staged.sqlite-wal"),"pending");assertThatThrownBy(()->export(source,root.resolve("runtime.sqlite"))).isInstanceOf(java.io.IOException.class).hasMessageContaining("sidecars");
+  }
+  @Test void cancellationAfterCopyNeverPublishesOutput()throws Exception {
+    Path source=source(),out=root.resolve("runtime.sqlite");String hash=RuntimeLibraryExporter.hashFile(source,()->false);var polls=new AtomicInteger();
+    assertThatThrownBy(()->new RuntimeLibraryExporter().export(source,out,storage(),Files.size(source),hash,()->polls.incrementAndGet()>8)).isInstanceOf(CancellationException.class);
+    assertThat(out).doesNotExist();assertNoTemporary();
+  }
+  @Test void foreignKeyFailureNeverPublishes()throws Exception {
+    Path source=source();try(var c=DriverManager.getConnection("jdbc:sqlite:"+source);var s=c.createStatement()){s.execute("INSERT INTO source_archive_file VALUES(2,'missing')");}
+    assertThatThrownBy(()->export(source,root.resolve("runtime.sqlite"))).isInstanceOf(java.io.IOException.class).hasMessageContaining("foreign keys");assertNoTemporary();
+  }
+  private void assertNoTemporary()throws Exception {try(var files=Files.list(root)){assertThat(files.map(p->p.getFileName().toString()).filter(n->n.startsWith(".runtime-")).toList()).isEmpty();}}
+}
