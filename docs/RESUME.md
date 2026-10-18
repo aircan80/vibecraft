@@ -6,6 +6,30 @@
 
 # Resume development — current checkpoint
 
+## Latest running release preview — complete portable Vibecraft
+
+Linux 0.4.1-preview.1 is built and launched on the owner desktop through its bundled
+native launcher, service wowforever-browser, PID368936 at 2026-10-17 22:07:09 EDT.
+External workspace `vibecraft-work/development/portable-release-acceptance` contains
+`bundle/vibecraft-0.4.1-preview.1-Linux-x86_64-with-data.tar.gz` (163412349 bytes,
+SHA256 54e5bd64bf75df5d207a035dfdb36539b7d6541aec72cdec828dd20338c4f219),
+and relocated/Vibecraft/bin/Vibecraft. Extracted size 1242483170 bytes.
+It includes Java21.0.12.1, compact DB and exact five reviewed support data files.
+Frozen source-only JAR SHA256 0dbc143a89c2452bb50f1aa9cd82c17f3501a4362b7d4ab059bf0cc250c08d35.
+149 component assertions/65 captures passed against frozen private QA JAR + exact compact DB;
+actual relocated source-only native launcher passed separately (66th capture). Fresh XDG,
+empty PATH and no manual database/JVM flags passed; DB hash unchanged. Root inspected
+actual native branded Home. Evidence native/acceptance-summary.txt and packaging-evidence.json;
+candidate-inventory contains manifest/SHA256SUMS. User can close desktop app normally.
+Missing optional Marcellus fonts fall back successfully; long item title at420 remains minor.
+No renderer/process dependency in production; static portraits only. Full Maven2011/6skip0fail.
+
+Windows cross-build now in progress via portable_java_packaging/windows_launcher agents:
+official Windows Temurin runtime + real Launch4j-generated Vibecraft.exe; native Windows
+launch remains NOT RUN (owner can test). Mac builds not done. release_coordination is preparing
+manual-only GitHub Actions native Windows/macOS workflow; do not push or dispatch.
+User's NO PUSH instruction remains active; all history is local in the new repository.
+
 ## Repository moved after successful branded build
 
 Canonical app repository is now `/home/aircan/Development/vibecraft`.

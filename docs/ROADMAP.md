@@ -5,7 +5,7 @@
 A World of Warcraft companion for exploration, loot, crafting, and lore.
 
 Owner-approved product name: **Vibecraft**. Branding passed full Maven verification (2,011 tests, six skipped, zero failures/errors);
-native acceptance and launch are pending. The existing running artifact predates the rename. Game names and historical evidence
+the branded Linux portable preview is now running. Final native acceptance passed 149 assertions and 66 captures. Game names and historical evidence
 remain unchanged: the installed gameplay catalog is still WoW Forever.
 
 The application repository is now `/home/aircan/Development/vibecraft`. Migration
@@ -25,7 +25,7 @@ mean every feature in a later release is complete.
 | Foundation through v0.4.1 | Search, quests, maps, provenance and Forever systems/content | Development verified; not released; genuine collector capture acceptance remains external |
 | Explorer Journal | Mockup fidelity, persistent list/detail, compact navigation and fast loads | Journal-only startup running; Original interface and chooser retired; further polish remains |
 | Cities | Native city guides, districts and source-backed soundtracks | Six-city baseline running; recorded vendor/giver directory running; geography/service coverage partial |
-| NPC portraits | Static 2D images and Java PNG provider/cache | Portrait-only update in progress; current running artifact retains older preview behavior; 3D models/viewers/rotation out of scope |
+| NPC portraits | Static 2D images and Java PNG provider/cache | Static portrait path running in Linux portable preview; 3D models/viewers/rotation out of scope |
 | v0.5 | Loot research and preparation | Filters, source-reported shared lists and recorded quest preparation running; full release acceptance remains |
 | v0.6 | Crafting and economy | Native crafting guide and native teaching-item navigation running; recorded object geography ready in isolation, not integrated; profession browser, graph, source resolver, trainers, economics, gathering and disenchanting remain |
 | v0.7 | Lore and exploration | City baseline running; reward trails and quest-text search running; full gazetteer, storylines, pets, rares and fishing remain |
@@ -71,9 +71,8 @@ listening acceptance.
 ## NPC portraits: accepted scope
 
 **Static 2D portraits only.** 3D models, interactive viewers and rotation are out of
-scope for now. A Java static-PNG provider/cache is integrated in source and awaits final verification;
-the current launched artifact still has the older preview behavior until the next
-verified build. End users must not need Python, Node or Blender. Developer-only
+scope for now. The Java static-PNG provider/cache passed native static portrait acceptance;
+the current launched Linux portable preview uses the Java-only static portrait path. End users must not need Python, Node or Blender. Developer-only
 offline generation can remain reference tooling and does not define the runtime
 product. Missing exact Forever portrait links remain explicit; Auntie Bernice (246)
 is unmapped. Neither an Era substitute nor a constrained humanoid lab prototype
@@ -82,7 +81,7 @@ establishes production portrait coverage.
 Acceptance: load/cache supported static portraits asynchronously in the Java app,
 handle missing or failed images without blocking navigation, and verify startup
 and portrait use without developer renderer toolchains. Java-only native audio
-asset fetching is integrated in source; final packaged acceptance remains pending.
+asset fetching is included in the launched package; final sound-suite checks passed.
 
 ## Source-only preparation and asset boundaries
 
@@ -97,17 +96,17 @@ The normal runnable portable release **must include the compact gameplay databas
 and its Java runtime, ready to browse without database setup. The GitHub source
 export remains data-free; source and end-user delivery are separate artifacts.
 
-Current source-only measurements are 20.4 MB for the application JAR and 76 MiB
+Historical code-only measurements were 20.4 MB for the application JAR and 76 MiB
 archive / 184 MiB extracted for Linux code plus runtime. They exclude the gameplay
 database and are **not complete end-user release sizes**. Total Windows/macOS sizes
 are unknown; earlier 75–120 MB estimates excluded data and must not be presented as
 release totals. Empty-PATH self-test and native GUI smoke validate the packaging
-slice, not unfinished runtime or release acceptance.
+slice; the current complete Linux preview measurements are recorded below.
 
-Native Java audio fetching and static portraits are integrated in source, with final
-packaged verification pending. External database
+Native Java audio fetching and static portraits are included in the launched preview.
+Final instance and sound checks passed. External database
 selection is an optional advanced/source-build flow, not required normal release setup.
-Complete release sizing depends on database compaction and asset review. End users
+Final release readiness still depends on open capture and asset-review gates. End users
 must not need developer toolchains or separately installed Java for portable delivery.
 
 The existing Git history includes game assets, so it cannot be published unchanged.
@@ -118,20 +117,32 @@ validation are recorded below; complete packaged release acceptance remains pend
 
 ## Current portable preview candidate
 
-Proposed version: **0.4.1-preview.1**, not an RC. Static Java portraits, Java-only
+Launched version: **0.4.1-preview.1**, not an RC. Static Java portraits, Java-only
 asset/audio support, complete packaging, preview notes and manifest tooling are
 integrated in source. Fresh full Maven verification passed after correcting the UI-default restoration
-test: 2,011 tests, six skipped, zero failures/errors. Final packaged/native acceptance
-and launch remain pending. The older verified artifact remains the running baseline.
-Do not claim the latest source passed or was launched.
+test: 2,011 tests, six skipped, zero failures/errors. The rebuilt Linux portable
+preview is now running; native core/static/research acceptance passed. Final native acceptance passed 149 assertions and 66 captures.
 
 The derived database measures 1,050,083,328 bytes versus 2,283,749,376 bytes, a
 54.02% reduction, with approximately 58.8 MB xz compression. All 81 retained table
 digests, foreign-key/integrity checks, icons, maps and conflict data are preserved;
 the shared development database is unchanged. These are database measurements,
-not final full-release size. An obsolete preliminary 156 MiB gzip bundle passed a
-relocated self-test; it is not the final candidate. Final rebuilt packaged acceptance
-and complete release sizing remain pending.
+not a substitute for complete package measurements. The final launched archive
+size is recorded below; obsolete preliminary package measurements are superseded.
+
+## Launched Linux portable preview
+
+The real desktop is running **Vibecraft 0.4.1-preview.1**, including its own Java
+21.0.12.1 runtime and compact gameplay database. The verified archive is 163,412,349
+bytes (155.84 MiB), with 1,242,483,170 bytes extracted. Archive SHA-256:
+`54e5bd64bf75df5d207a035dfdb36539b7d6541aec72cdec828dd20338c4f219`.
+Fresh-location, fresh-user-data and empty-PATH self-tests passed, with no external
+renderer runtimes included. Native home inspection confirmed branding, maps and
+icons; all final native suites passed 149 assertions and 66 captures. Windows cross-build
+is in progress using a verified Temurin Windows runtime and Launch4j-generated PE
+executable; **native Windows testing has not run**. macOS is not built. Manual
+native Windows/macOS CI workflow preparation is local only, with no push or run
+claimed. This is a preview, not an RC or final release; genuine capture gates remain open.
 
 ## Accepted future exploration: map zoom and pan
 
