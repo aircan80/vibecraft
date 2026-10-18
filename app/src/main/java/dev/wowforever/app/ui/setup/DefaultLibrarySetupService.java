@@ -148,7 +148,7 @@ public final class DefaultLibrarySetupService implements LibrarySetupService {
     Phase phase=switch(event.phase()){
       case COMMUNITY,NATIVE_TABLES,HOTFIX,SCHEMA->Phase.DOWNLOAD;
       case PREFLIGHT,OVERLAY->Phase.PREPARE;
-      case CATALOGUE->Phase.BUILD;
+      case CATALOGUE,MAPS->Phase.BUILD;
       case RUNTIME->Phase.TRIM;
       case VERIFY,READY->Phase.CHECK;
     };
@@ -159,6 +159,7 @@ public final class DefaultLibrarySetupService implements LibrarySetupService {
       case SCHEMA->"Downloading the disclosed pinned schema from GitHub/WoWDBDefs.";
       case OVERLAY->"Preparing supported same-build item details.";
       case CATALOGUE->"Building a fresh catalogue from the reviewed sources.";
+      case MAPS->"Adding native world hierarchy and recorded zone links.";
       case RUNTIME->"Trimming raw source records from the runtime copy.";
       case VERIFY,READY->"Checking the compact library and its source receipts.";
       case PREFLIGHT->"Checking the reviewed source plan and protected storage.";
