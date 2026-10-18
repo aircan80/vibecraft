@@ -4,282 +4,161 @@
 
 A World of Warcraft companion for exploration, loot, crafting, and lore.
 
-Owner-approved product name: **Vibecraft**. Branding passed full Maven verification (2,011 tests, six skipped, zero failures/errors);
-the branded Linux portable preview is now running. Final native acceptance passed 149 assertions and 66 captures. Game names and historical evidence
-remain unchanged: the installed gameplay catalog is still WoW Forever.
+## Current status
 
-The application repository is now `/home/aircan/Development/vibecraft`. Migration
-preserved all 362 commits and references and repaired 41 linked worktrees. Task and
-development folders remain external under `vibecraft-work/development`; the owner-authorized initial source push is complete; later changes are not
-claimed pushed.
+The current desktop development launch is the accepted search-cleanup artifact
+(`96b554ac…`, service `vibecraft-search-ui`), using reviewed existing data. It passed
+79 focused tests and 55 native assertions across four captures. The rounded-header
+artifact (`4cc6…`, 111 assertions/four captures) is an earlier accepted milestone,
+not the currently active artifact. Original portable preview 2 bundles remain
+unchanged: approximately 156 MiB Linux and 147 MiB Windows. Windows application
+launch testing has not run; macOS portable delivery is not built.
 
-## Current high-level direction (2026-10-17)
+Source checkpoint `3fdb808` is pushed to
+[GitHub](https://github.com/aircan80/vibecraft). Its [CI run](https://github.com/aircan80/vibecraft/actions/runs/39093624739)
+passed source verification and source-only packaging/audit on **Linux, macOS and
+Windows**. The preceding combined clean-source run reported 1,959 tests, 55 explicit
+skips and zero failures. Later local setup work is not claimed pushed, accepted or
+running. Source CI success does not establish native Windows application acceptance.
+No gameplay database, portable release assets or tags were uploaded with the source.
+
+## Active setup and import work
+
+[#1 Sources & Updates setup](https://github.com/aircan80/vibecraft/issues/1) is the
+current priority. Approved setup/provider mockups passed 28 checks. The new
+database-independent first-run Java UI, persistence/metadata workers, immutable
+plans/storage safeguards ([#6](https://github.com/aircan80/vibecraft/issues/6)) and
+exact-build reader/transport work ([#7](https://github.com/aircan80/vibecraft/issues/7))
+are in isolated implementation/verification. They are not the currently running app.
+
+Bounded read-only local WoW detection is integrated (10 focused tests), as is
+optional AtlasLoot support (29 focused tests). These completed slices do not create
+a full importer. **Zero-database bootstrap is not ready**: production importer
+integration, staged validation/activation and native CASC/DB2 extraction remain open.
+Existing-data launches do not demonstrate empty-installation database creation.
+
+Setup must support **multiple game versions** in shared edition-scoped catalogs,
+with an active-game switcher ([#9](https://github.com/aircan80/vibecraft/issues/9)).
+Only Forever is currently installed. Each optional provider explains **Adds,
+Needs, and If omitted** coverage ([#11](https://github.com/aircan80/vibecraft/issues/11)).
+Wago exports are explicit; VMaNGOS is comparison evidence. Local WoW folders are
+optional and read-only. Any selected missing-asset CDN retrieval writes only to
+app data, never into the WoW folder.
+
+Source-icon and breadcrumb-dropdown mockups are complete; Java implementation
+remains open under [#2](https://github.com/aircan80/vibecraft/issues/2) and
+[#3](https://github.com/aircan80/vibecraft/issues/3). The Zephras Isle visibility
+correction is already included in preview 2; nested scrolling is removed and More
+Destinations appears above map art.
+
+## Product scope and remaining releases
 
 The original release train remains in the [product backlog](superpowers/specs/2026-10-17-product-backlog.md).
-Current scope and corrected acceptance are reconciled in the [product/project review](roadmap-product-reconciliation-2026-10-17.md).
-Later owner requests bring selected UI, city and rendering work forward; they do not
-mean every feature in a later release is complete.
+The [product/project review](roadmap-product-reconciliation-2026-10-17.md) reconciles
+scope. Pulled-forward slices never imply completion of an entire later release.
 
-| Stage | Focus | Current position |
+| Stage | Current position | Remaining scope |
 | --- | --- | --- |
-| Foundation through v0.4.1 | Search, quests, maps, provenance and Forever systems/content | Development verified; not released; genuine collector capture acceptance remains external |
-| Explorer Journal | Mockup fidelity, persistent list/detail, compact navigation and fast loads | Journal-only startup running; Original interface and chooser retired; further polish remains |
-| Cities | Native city guides, districts and source-backed soundtracks | Six-city baseline running; recorded vendor/giver directory running; geography/service coverage partial |
-| NPC portraits | Static 2D images and Java PNG provider/cache | Static portrait path running in Linux portable preview; 3D models/viewers/rotation out of scope |
-| v0.5 | Loot research and preparation | Filters, source-reported shared lists and recorded quest preparation running; full release acceptance remains |
-| v0.6 | Crafting and economy | Native crafting guide and native teaching-item navigation running; recorded object geography ready in isolation, not integrated; profession browser, graph, source resolver, trainers, economics, gathering and disenchanting remain |
-| v0.7 | Lore and exploration | City baseline running; reward trails and quest-text search running; full gazetteer, storylines, pets, rares and fishing remain |
-| v0.8 | Glance and compare | Pinned-reference slice running; item compare, wishlist/export, compact pinned tabs and two-build changes remain |
-| Multiple games | Edition-scoped catalogs and selector | Foundation and picker running; only Forever installed; Classic, Retail and Anniversary/TBC data not imported |
+| Foundation through v0.4.1 | Development verified; not a final release | Genuine collector acceptance and documented coverage limits |
+| Explorer Journal | Sole interface; Original GUI/chooser retired; palette/header/search/map inspector and legend accepted | Setup implementation and further usability work |
+| Cities | Six guides/music, recorded vendor/giver directory running | Geography and service coverage remain partial |
+| NPC portraits | Java static PNG provider/cache running | Exact Forever portrait coverage; missing links remain explicit |
+| v0.5 loot/preparation | Filters, source-reported shared lists and recorded quest preparation running | Complete release-wide acceptance and broader evidence coverage |
+| v0.6 crafting/economy | Crafting guides and native teaching-item navigation running | Profession browser, recursive graph, source resolver, trainers, economics, gathering and disenchanting; object geography remains isolated |
+| v0.7 lore/exploration | Cities, reward trails and attributed quest-text search running | Gazetteer, storylines, contextual mentions, pets, rares and fishing |
+| v0.8 glance/compare | Scoped pinned references running | Item comparison, wishlist/export, compact pinned tabs and verified two-build changes |
+| Multiple games | Context foundation/picker; only Forever installed | Approved multi-version setup/import and other catalogs |
 
-The owner has superseded the earlier requirement to retain both interfaces: Explorer
-Journal is the sole interface in the current launched artifact. The Original GUI and
-startup chooser are retired; starting the app with no arguments opens Journal.
+Forever gameplay facts never silently borrow Era values. Explicit Era comparisons
+remain available. Missing class/slot/resistance fields are counted as unknown;
+the original Felheart Belt must-show criterion is superseded by source-correct
+filter results. Molten Core Warlock/Waist currently partitions 0 shown, 209 excluded
+and 15 unknown. Unrecorded keys/attunements remain unknown; a recorded area quest
+is not proof of an access requirement.
 
-“Integrated, in verification” means source implementation exists, not that the new artifact
-is running or that the whole release is accepted. The dashboard records the exact running
-artifact and completed evidence independently. The owner uses it to monitor status: reconcile
-it after every meaningful batch, launch, acceptance result or blocker change. Product management
-owns scope and acceptance; project management verifies actual implementation and evidence.
+## Portraits, audio and delivery boundaries
 
-The current launched research batch passed full verification (1,984 Java tests, six skipped,
-zero failures/errors) and six native suites: 153 assertions and 64 captures. Exact artifact identity and timestamps
-remain in the dashboard evidence; this does not close partial later releases.
+Portraits are **static 2D only**. 3D models, interactive viewers and rotation are out
+of scope. End users need no Python, Node or Blender. Developer-only generation is
+reference tooling. Auntie Bernice (246) remains unmapped; a humanoid lab prototype
+or an Era substitute does not establish production Forever coverage.
 
-The strict Forever boundary supersedes the original v0.5 Felheart Belt must-show example:
-class/slot/resistance filters use recorded Forever facts. Missing fields remain unknown and
-are counted separately. Archived Era values are available only through explicit comparison;
-they cannot satisfy Forever filters. Molten Core Warlock/Waist currently yields 0 shown,
-209 excluded and 15 unknown, which is a source-coverage result, not a reason to borrow Era data.
+Optional native interface audio is asynchronous, with separate mute/volume controls
+from city music. Typing does not trigger sounds. Five packaged clips decoded with
+nonzero audio; output-device playback was exercised. Human listening acceptance is
+not claimed. Optional assets use exact-build verified retrieval/cache without
+blocking navigation.
 
-Owner-authorized native previews and city music may download verified assets on demand
-and then reuse an offline cache. The research database remains local and self-contained.
-This extends the older backlog's runtime-network principle for these optional asset
-features; it does not permit cross-build or Era fallback. Missing appearance mappings,
-unsupported materials and audio failures must remain visible, without blocking navigation.
+Normal portable delivery includes its Java runtime and compact gameplay database,
+ready to browse. GitHub source is data-free; source and runnable release artifacts
+are distinct. A code GPL licence does not confer redistribution rights to game art.
+Bulk game assets must not enter the source export. External database selection is
+an advanced/source-build option, not required normal-release setup.
 
+## Historical artifact evidence
 
-## Native WoW interface sounds
+Evidence below belongs to the named earlier milestone, not current source HEAD.
 
-**Running, optional.** Native Forever-build sound-kit feedback covers key interface
-open/close, confirmation and tab actions, with asynchronous loading/playback and
-separate persistent mute/volume controls. City music remains independent; typing
-does not trigger sounds. All five packaged clips decoded correctly with nonzero
-audio, and output-device playback was exercised at 22% volume. This is not human
-listening acceptance.
+- Research baseline: 1,984 tests, six skipped; 153 native assertions/64 captures.
+- Preview 1: 2,011 tests, six skipped; 149 native assertions/66 captures. Linux
+  archive 163,412,349 bytes (155.84 MiB), extracted 1,242,483,170 bytes, SHA-256
+  `54e5bd64bf75df5d207a035dfdb36539b7d6541aec72cdec828dd20338c4f219`.
+  Fresh-location/fresh-data/empty-PATH checks passed with bundled Java 21.0.12.1.
+- Preview 2 GUI batch: 2,025 reported tests, six skipped; original packaged GUI
+  acceptance 95 assertions/22 captures. Later rounded/search development artifacts
+  have separate acceptance recorded in Current status above.
+- Compact derived database: 1,050,083,328 bytes versus 2,283,749,376 bytes (54.02%
+  smaller), approximately 58.8 MB xz. All 81 retained table digests, integrity/FK
+  checks, icons, maps and conflict data preserved; development database unchanged.
+- Historical code-only sizes (20.4 MB JAR; 76 MiB Linux runtime archive) exclude data
+  and must never be presented as complete release sizes.
 
-## NPC portraits: accepted scope
+## Repository and continuity
 
-**Static 2D portraits only.** 3D models, interactive viewers and rotation are out of
-scope for now. The Java static-PNG provider/cache passed native static portrait acceptance;
-the current launched Linux portable preview uses the Java-only static portrait path. End users must not need Python, Node or Blender. Developer-only
-offline generation can remain reference tooling and does not define the runtime
-product. Missing exact Forever portrait links remain explicit; Auntie Bernice (246)
-is unmapped. Neither an Era substitute nor a constrained humanoid lab prototype
-establishes production portrait coverage.
+Main checkout: `/home/aircan/Development/vibecraft`; task/development folders are
+external. History cleanup preserved all 370 original commits and 51 references,
+with external Git/data backups. Independent inspection covered 371 commits,
+3,448 blobs and 376 administrative files with zero requested identity/secret
+findings. Dataset binaries were removed from reachable history; Git was about
+24 MiB with largest blob 1.37 MB at that inspection.
 
-Acceptance: load/cache supported static portraits asynchronously in the Java app,
-handle missing or failed images without blocking navigation, and verify startup
-and portrait use without developer renderer toolchains. Java-only native audio
-asset fetching is included in the launched package; final sound-suite checks passed.
+The owner monitors the published dashboard. Reconcile it after meaningful work,
+acceptance, launch or blocker changes. Distinguish running artifacts, isolated
+implementation, completed evidence and external gates. Product management owns
+scope; project management reconciles implementation/evidence. Features,
+enhancements and bugs must have issues updated while work proceeds.
 
-## Source-only preparation and asset boundaries
+- [#1 Zero-data setup](https://github.com/aircan80/vibecraft/issues/1): active.
+- [#2 Source-icon Java](https://github.com/aircan80/vibecraft/issues/2): pending.
+- [#3 Breadcrumb Java](https://github.com/aircan80/vibecraft/issues/3): pending.
+- [#4 Search-pane removal](https://github.com/aircan80/vibecraft/issues/4): closed; accepted and running.
+- [#5 Windows launch](https://github.com/aircan80/vibecraft/issues/5): not run.
+- [#6 Staged import jobs](https://github.com/aircan80/vibecraft/issues/6): active.
+- [#7 Native data reading](https://github.com/aircan80/vibecraft/issues/7): active.
+- [#8 Cross-platform source CI](https://github.com/aircan80/vibecraft/issues/8): closed; all three platforms green.
+- [#9 Multi-version setup](https://github.com/aircan80/vibecraft/issues/9): accepted design, implementation incomplete.
+- [#10 Separate vibeMiner](https://github.com/aircan80/vibecraft/issues/10): planning only.
+- [#11 Provider coverage](https://github.com/aircan80/vibecraft/issues/11): accepted design, implementation active.
 
-A source-only export/bootstrap plan is in preparation locally. Code licensing and
-Blizzard art attribution/rights are separate questions: a code GPL licence does not
-confer redistribution rights to game art. Do not include bulk game assets in a GitHub
-source export. The owner-authorized initial source push is complete at
-https://github.com/aircan80/vibecraft. No database, packages, releases or tags were uploaded.
+## Separate vibeMiner plan
 
-## Portable Java-only delivery and release data
-
-The normal runnable portable release **must include the compact gameplay database**
-and its Java runtime, ready to browse without database setup. The GitHub source
-export remains data-free; source and end-user delivery are separate artifacts.
-
-Historical code-only measurements were 20.4 MB for the application JAR and 76 MiB
-archive / 184 MiB extracted for Linux code plus runtime. They exclude the gameplay
-database and are **not complete end-user release sizes**. Total Windows/macOS sizes
-are unknown; earlier 75–120 MB estimates excluded data and must not be presented as
-release totals. Empty-PATH self-test and native GUI smoke validate the packaging
-slice; the current complete Linux preview measurements are recorded below.
-
-Native Java audio fetching and static portraits are included in the launched preview.
-Final instance and sound checks passed. External database
-selection is an optional advanced/source-build flow, not required normal release setup.
-Final release readiness still depends on open capture and asset-review gates. End users
-must not need developer toolchains or separately installed Java for portable delivery.
-
-The existing Git history includes game assets, so it cannot be published unchanged.
-The cleaned source was pushed with owner authorization; no gameplay database or
-portable release assets were uploaded.
-A separate derived release database removes raw development archives while
-preserving selected facts, provenance and conflicts. Measured reduction and current
-validation are recorded below; complete packaged release acceptance remains pending.
-
-## Current portable preview candidate
-
-Launched version: **0.4.1-preview.1**, not an RC. Static Java portraits, Java-only
-asset/audio support, complete packaging, preview notes and manifest tooling are
-integrated in source. Fresh full Maven verification passed after correcting the UI-default restoration
-test: 2,011 tests, six skipped, zero failures/errors. The rebuilt Linux portable
-preview is now running; native core/static/research acceptance passed. Final native acceptance passed 149 assertions and 66 captures.
-
-The derived database measures 1,050,083,328 bytes versus 2,283,749,376 bytes, a
-54.02% reduction, with approximately 58.8 MB xz compression. All 81 retained table
-digests, foreign-key/integrity checks, icons, maps and conflict data are preserved;
-the shared development database is unchanged. These are database measurements,
-not a substitute for complete package measurements. The final launched archive
-size is recorded below; obsolete preliminary package measurements are superseded.
-
-## Launched Linux portable preview
-
-The real desktop is running **Vibecraft 0.4.1-preview.1**, including its own Java
-21.0.12.1 runtime and compact gameplay database. The verified archive is 163,412,349
-bytes (155.84 MiB), with 1,242,483,170 bytes extracted. Archive SHA-256:
-`54e5bd64bf75df5d207a035dfdb36539b7d6541aec72cdec828dd20338c4f219`.
-Fresh-location, fresh-user-data and empty-PATH self-tests passed, with no external
-renderer runtimes included. Native home inspection confirmed branding, maps and
-icons; all final native suites passed 149 assertions and 66 captures. Windows ZIP is cross-built at approximately 147 MiB using a verified Temurin
-Windows runtime and Launch4j-generated PE executable; **native Windows testing has not run**. macOS is not built. Manual
-native Windows/macOS workflow source may be present in the pushed repository;
-no native workflow run or binary release publication is claimed. This is a preview, not an RC or final release; genuine capture gates remain open.
-
-## Vibemining: in-app data rebuilding
-
-**Owner-approved, in progress; not yet running.** Add a dedicated main-navigation
-area to rebuild gameplay data within Vibecraft. Source selection uses optional
-checkboxes, with AtlasLoot optional. Discover local WoW folders automatically using
-read-only inspection, and discover official Blizzard builds/preloads directly.
-The initial official discovery backend is integrated in main with nine passing
-focused tests. Vibemining UI is ready in isolation, not integrated in main or the
-running app. The complete in-app builder remains future work. Combined dataset
-verification has not been rerun after the backend addition. Keep selected source/build attribution and
-missing-data behavior explicit; discovery does not imply an import or write.
-
-The Windows portable ZIP is cross-built at approximately 147 MiB, including its
-Windows runtime and PE launcher. **Native Windows launch testing has not run.**
-
-Repository history cleanup is complete locally: 370 commits rewritten one-to-one,
-51 references and 42 worktree indexes reconciled, dates/topology and pending work
-preserved. Database files are removed from reachable history; external Git/data
-backups remain. The Git directory is about 24 MiB, with no reachable file above
-100 MiB. Existing artifact hashes are unchanged. The owner-authorized initial source push is complete and remotely verified;
-later source changes are not claimed pushed.
-
-## Verified clean-source baseline
-
-Clean-source verification passed with **1,939 reported tests, 55 explicit skips and
-zero failures**. Source-only packaging and archive audit passed; both CI workflows
-passed actionlint and all 15 release-helper tests passed. The earlier isolated
-dataset-profile run remains **2,011 tests, six skipped**; it predates the nine new
-discovery backend tests. Do not sum these into an unexecuted full-data total.
-Ordinary CI verifies the data-free source/package/audit and does not automatically
-upload artifacts. Manual native workflow requires a dataset. The polished README and actual app screenshot are integrated; relative file links
-and keymap checks passed. Local main is technically ready, with the owner-authorized initial source push now complete. No gameplay database,
-portable packages, releases or tags were uploaded. Later work and CI results are
-not claimed published or passed without verification. Future commits use
-the requested noreply identity.
-
-Independent history/privacy inspection covered 371 commits, 3,448 blobs and 376
-administrative files, with zero requested identity or secret findings. Dataset
-binaries are absent from history; Git is about 24 MiB and the largest blob is
-1.37 MB. All 370 original commits and 51 references are preserved through the
-rewrite, with external backups retained. The current Linux portable artifact and
-its historical acceptance remain separate from these source-baseline checks.
-
-## Current GUI refresh batch
-
-**Integrated, in verification; preview 1 remains running.** The next batch includes
-the updated palette, main-only header/search/theme controls, map inspector and bottom
-legend. Combined local-data clean verification passed **2,025 reported tests, six
-skipped, zero failures**. Native acceptance and a rebuilt portable artifact remain
-pending; this evidence does not replace the current preview 1 artifact acceptance
-and does not mean preview 2 is released.
-
-The World Map nested-scroll issue hiding Zephras Isle is fixed in source; twelve
-focused tests passed, including 420/1280-width destination visibility. Updated
-source/provenance and WoW-style map breadcrumb dropdown mockups are available
-for review. Those two interaction designs are not yet implemented in Java.
-The initial source push is complete; no new binary release is claimed.
-
-## Current setup and import priority
-
-The rounded-header candidate passed native acceptance: **111 assertions, four
-captures, zero severe errors**. It is running in a desktop development launch using
-the development JDK and existing reviewed data. Exact accepted JAR SHA-256:
-`4cc6dad8794f557d68dd233ada8fdbf19905c778c3c5658fae3b4bd647e781aa`.
-The original portable preview 2 bundles are unchanged; this is not a new portable
-release or a Windows launch test.
-
-The next focus is a polished **Sources & Updates** experience for an installation
-with no data: setup, WoW-folder selection/detection, optional sources and an import
-flow. Setup/source mockups are in progress; bounded read-only local detection and
-optional AtlasLoot refactoring are being implemented. **Full zero-database bootstrap
-is not ready.** Production importer dependency integration, staged validation and
-activation, and native extraction remain missing. Existing-data review launches do
-not prove that an empty installation can build its gameplay database.
-
-## Initial source publication
-
-The owner explicitly authorized the initial source push, now complete and remotely
-verified at https://github.com/aircan80/vibecraft. Pushed source checkpoint:
-`623f91e789e137e5188808dff8a6eccf34fc12b4`. No gameplay database, portable packages,
-release assets or tags were uploaded. Later development changes are not claimed
-pushed unless separately verified; initial CI results are not yet claimed.
-
-Local WoW detection is source-integrated with 10 passing tests, and optional
-AtlasLoot support with 29 focused passing tests. Setup mockups and GUI work continue.
-These backend slices do not close zero-data bootstrap, staging/activation or native
-extraction requirements.
-
-## Durable issue tracking
-
-Owner requirement: features, enhancements and bugs must have GitHub issues, updated
-while work proceeds so status survives sessions. The current verified source push
-remains `623f91e789e137e5188808dff8a6eccf34fc12b4`; later local commits are not implied
-pushed by this roadmap.
-
-- [#1 Zero-data setup](https://github.com/aircan80/vibecraft/issues/1)
-- [#2 Source-icon Java implementation](https://github.com/aircan80/vibecraft/issues/2)
-- [#3 Breadcrumb Java implementation](https://github.com/aircan80/vibecraft/issues/3)
-- [#4 Remove legacy search pane](https://github.com/aircan80/vibecraft/issues/4): completed: 79 focused tests, 55 native assertions and four captures passed; accepted development artifact running, portable archives unchanged.
-- [#5 Windows launch acceptance](https://github.com/aircan80/vibecraft/issues/5): not yet run.
-- [#6 Staged import jobs](https://github.com/aircan80/vibecraft/issues/6)
-- [#7 Native Vibemining](https://github.com/aircan80/vibecraft/issues/7)
-- [#8 Cross-platform CI](https://github.com/aircan80/vibecraft/issues/8): Linux passed; initial Windows/macOS fixture-path and symlink failures are being fixed.
-- [#9 Multiple game-version selection and switching](https://github.com/aircan80/vibecraft/issues/9)
-
-- [#10 VibeMiner future exploration](https://github.com/aircan80/vibecraft/issues/10): separate CDN-only app plan, with game/build selection and on-demand caching; no local-folder or Vibecraft connection.
-
-Setup must select **multiple game versions**, building shared edition-scoped catalogs
-with an active-game switcher. Only Forever is currently installed; this requirement
-is accepted scope, not completed multi-game import functionality.
-
-## Separate vibeMiner app plan
-
-**Owner decision: separate app, issue #10.** The project is **vibeMiner**, planned
-in `~/Development/vibeminer`. Its scope is CDN-only discovery, game/build selection
-and on-demand cache retrieval. It must not require a local WoW folder or connect to
-Vibecraft's database. Planning is underway in the separate folder; implementation
-is not started. Current Vibecraft no-data setup/import stays within Vibecraft and
-is not replaced by this project.
-
-Windows fixture-path and macOS CI helper corrections are integrated. Full combined
-source verification and the next push remain pending; no new all-platform CI green
-result or native Windows launch is claimed.
+vibeMiner is a separate project in `~/Development/vibeminer`; README and plan exist
+locally. Scope is CDN-only game/build discovery and on-demand caching, without a
+local WoW folder or connection to Vibecraft's database. Implementation has not
+started. Vibecraft no-data setup/import stays in Vibecraft.
 
 ## Accepted future exploration: map zoom and pan
 
-**Planned, owner-approved; not implemented.** Add city and zone map zoom/pan as a
-v0.7 exploration slice after current portrait and loot/preparation work. Support
-mouse-wheel zoom, pinch where the platform supports it, drag pan, Reset/Fit and
-keyboard equivalents. Keep markers aligned with the map while transforming,
-preserve marker hit-testing and selection, and retain geographic breadcrumbs,
-map hierarchy and source attribution. Compact layouts must keep controls reachable.
-Zoom enlarges the existing source raster; it does not invent finer map detail.
-Higher-resolution assets, new tiles and new district geography require separate
-source acquisition and are outside this interaction slice.
+**Planned, not implemented.** City/zone wheel zoom, pinch where supported, drag pan,
+Reset/Fit and keyboard equivalents must preserve marker positioning/hit-testing,
+selection, breadcrumbs, geographic hierarchy and attribution, including compact
+controls. Zoom enlarges source raster detail; higher-resolution asset acquisition
+or invented district geography is outside this interaction slice.
+
+## Historical ideas backlog
+
+The following original planning notes are retained as historical input. Their old
+future tense does not override the current scope/status above.
 
 Collected 2026-10-16 after v0.1 (the first working browser). Not committed to any order yet;
 the suggested sequence is at the bottom. Items marked *Done (v0.2.0)* shipped with phase 2A
