@@ -36,6 +36,15 @@ class LibrarySetupCoordinatorTest {
     SwingUtilities.invokeAndWait(()->{ref.get().cancel();assertThat(ref.get().snapshot().state()).isEqualTo(LibrarySetupCoordinator.State.CANCELLING);assertThat(ref.get().snapshot().result()).isNull();});
     release.countDown();await(()->ref.get().snapshot().state()==LibrarySetupCoordinator.State.CANCELLED);SwingUtilities.invokeAndWait(()->ref.get().close());
   }
+  @Test void confirmedRegistrationRemainsReadyWhenCancellationArrivesAfterPublication()throws Exception{
+    var committed=new CountDownLatch(1);var release=new CountDownLatch(1);
+    var service=new AuthoredService(){@Override public Result build(Review review,Mode mode,Control control)throws Exception{committed.countDown();release.await(4,TimeUnit.SECONDS);return new Result(Path.of("registered.sqlite"),"Registration committed",true);}};
+    var ref=coordinator(service);await(()->ref.get().snapshot().state()==LibrarySetupCoordinator.State.REVIEWED);
+    SwingUtilities.invokeAndWait(()->ref.get().build(draft()));assertThat(committed.await(3,TimeUnit.SECONDS)).isTrue();
+    SwingUtilities.invokeAndWait(()->ref.get().cancel());release.countDown();
+    await(()->ref.get().snapshot().state()==LibrarySetupCoordinator.State.READY);
+    SwingUtilities.invokeAndWait(()->{assertThat(ref.get().snapshot().result().nextStartupRegistered()).isTrue();ref.get().close();});
+  }
   @Test void closeAndInvalidationSuppressLateReviewCallbacks()throws Exception{
     var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var finished=new CountDownLatch(1);var callbacks=new AtomicInteger();
     var service=new AuthoredService(){@Override public Review review(LibrarySetupDraft draft,Control control)throws Exception{entered.countDown();try{release.await(4,TimeUnit.SECONDS);return super.review(draft,control);}finally{finished.countDown();}}};
