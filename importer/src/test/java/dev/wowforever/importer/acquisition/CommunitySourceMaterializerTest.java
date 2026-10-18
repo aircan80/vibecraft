@@ -42,6 +42,18 @@ class CommunitySourceMaterializerTest {
     try(var materializer=new CommunitySourceMaterializer(specs(),limits(),(u,f,m,c,p)->{throw new IOException("unavailable");})){assertThrows(IOException.class,()->materializer.materialize(plan,job,()->false,p->{}));}
     assertArrayEquals(before,Files.readAllBytes(pointer));assertTrue(Files.isRegularFile(firstPath.resolve("data/Forever/items.lua")));
   }
+  @Test void malformedCachedPointerCanBeRebuiltWithoutManualDeletion()throws Exception{
+    var plan=plan(Set.of(QUESTIE),specs());var job=job(plan,"metadata-recovery");List<URI> requests=new ArrayList<>();
+    try(var materializer=new CommunitySourceMaterializer(specs(),limits(),fake(requests))){
+      var first=materializer.materialize(plan,job,()->false,p->{});
+      Files.writeString(job.paths().cache().resolve("community/current-input.properties"),"directory="+"\\"+"uZZZZ\n");
+      var restored=materializer.materialize(plan,job,()->false,p->{});
+      assertFalse(restored.reused());assertNotEquals(first.questie(),restored.questie());assertEquals(4,requests.size());
+      assertTrue(Files.isRegularFile(first.questie().resolve("data/Forever/items.lua")));
+      assertTrue(materializer.materialize(plan,job,()->false,p->{}).reused());
+      assertEquals(4,requests.size());
+    }
+  }
   @Test void changedOrFloatingPinsFailBeforeDownloadsOrCacheWrites()throws Exception{
     var valid=plan(Set.of(QUESTIE),specs());var job=job(valid,"pins");var altered=new SetupPlan(Set.of(QUESTIE),Set.of(),Optional.empty(),List.of(),Map.of(QUESTIE,"d".repeat(40)));
     AtomicInteger requests=new AtomicInteger();try(var materializer=new CommunitySourceMaterializer(specs(),limits(),(u,f,m,c,p)->requests.incrementAndGet())){assertThrows(IOException.class,()->materializer.materialize(altered,job,()->false,p->{}));}

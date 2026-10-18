@@ -114,11 +114,11 @@ public final class CommunitySourceMaterializer implements AutoCloseable {
     }finally{if(!published)remove(storage,stage);}
   }
   private Result reuse(SetupStorage storage,Path root,Path pointer,List<Spec> selected,String id,BooleanSupplier cancelled)throws IOException {
-    if(!Files.isRegularFile(pointer)||Files.size(pointer)>4096)return null;Properties current=read(pointer);
+    if(!Files.isRegularFile(pointer)||Files.size(pointer)>4096)return null;Properties current=readCached(pointer);if(current==null)return null;
     if(!id.equals(current.getProperty("manifest")))return null;String directory=current.getProperty("directory","");if(!directory.matches("input-[a-f0-9]{64}-[a-f0-9-]{36}"))return null;
     Path stage=checked(storage,root.resolve(directory)),receiptPath=checked(storage,stage.resolve("acquisition.properties"));
     if(!Files.isRegularFile(receiptPath)||Files.size(receiptPath)>2L*1024*1024||!hash(receiptPath,cancelled).equals(current.getProperty("receiptSha256")))return null;
-    Properties receipt=read(receiptPath);if(!id.equals(receipt.getProperty("manifest")))return null;
+    Properties receipt=readCached(receiptPath);if(receipt==null||!id.equals(receipt.getProperty("manifest")))return null;
     Set<Path> expected=new HashSet<>();expected.add(receiptPath);List<FileEvidence> evidence=new ArrayList<>();long total=0;int index=0;
     for(Spec spec:selected)for(String relative:spec.paths()){
       check(cancelled);String prefix="file."+index+++".";Path file=checked(storage,stage.resolve(spec.key()).resolve(relative));expected.add(file);
@@ -150,7 +150,10 @@ public final class CommunitySourceMaterializer implements AutoCloseable {
   }
   private static URI url(Spec spec,String relative)throws IOException{try{return new URI("https","raw.githubusercontent.com","/"+spec.owner()+"/"+spec.repository()+"/"+spec.commit()+"/"+relative,null);}catch(java.net.URISyntaxException malformed){throw new IOException("Invalid pinned community URL",malformed);}}
   private static Path checked(SetupStorage storage,Path path)throws IOException{Path actual=storage.verifyDestination(path);if(!actual.equals(path))throw new IOException("Community storage alias changed");return actual;}
-  private static Properties read(Path path)throws IOException{Properties result=new Properties();try(var in=Files.newInputStream(path)){result.load(in);}return result;}
+  private static Properties readCached(Path path)throws IOException{
+    Properties result=new Properties();try(var in=Files.newInputStream(path)){result.load(in);return result;}
+    catch(IllegalArgumentException|NoSuchFileException invalid){return null;}
+  }
   private static void write(Path path,Properties values)throws IOException{try(var out=Files.newOutputStream(path,StandardOpenOption.CREATE_NEW)){values.store(out,"Pinned raw GitHub community acquisition");}}
   private static String digest(byte[] bytes){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}catch(NoSuchAlgorithmException impossible){throw new AssertionError(impossible);}}
   private static String hash(Path path,BooleanSupplier cancelled)throws IOException{try{MessageDigest hash=MessageDigest.getInstance("SHA-256");try(var in=Files.newInputStream(path)){byte[] buffer=new byte[65536];int n;while((n=in.read(buffer))!=-1){check(cancelled);hash.update(buffer,0,n);}}return HexFormat.of().formatHex(hash.digest());}catch(NoSuchAlgorithmException impossible){throw new AssertionError(impossible);}}
