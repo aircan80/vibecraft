@@ -102,6 +102,18 @@ class SetupPlanTest {
     Files.writeString(data.resolve("hotfix.json"),"{}");
     assertThatIOException().isThrownBy(() -> plan.prepareCapture(job.storage(),job.paths(),inputs(questie,data,Acquisition.WAGO_EXPORT)));
   }
+  @Test void unselectedDeclaredHotfixTableWithoutLegacyMetadataIsRejectedBeforeCapture() throws Exception {
+    var plan=nativePlan(Acquisition.WAGO_EXPORT);
+    var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"unselected-declared",List.of());
+    Path data=client("https://wago.tools",BUILD.build(),false);
+    Path overlay=data.resolve("csv/ItemSparse.hotfix.csv");Files.writeString(overlay,"ID,Name\n1,Unselected\n");
+    String sha=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(overlay)));
+    String lock=Files.readString(data.resolve("build.lock"));
+    Files.writeString(data.resolve("build.lock"),lock.substring(0,lock.length()-2)+",\"ItemSparse.hotfix\":\""+sha+"\"}}");
+    assertThatIOException().isThrownBy(()->plan.prepareCapture(job.storage(),job.paths(),inputs(
+        dev.wowforever.importer.Fixtures.questieDbRoot(),data,Acquisition.WAGO_EXPORT))).withMessageContaining("Hotfix inputs");
+    assertThat(job.paths().archiveDatabase()).doesNotExist();
+  }
   @Test void communityOnlyDraftDoesNotPretendToBeAnActivatableForeverCatalog() throws Exception {
     SetupPlan plan=plan(Set.of(Source.QUESTIE),Set.of(),List.of());
     var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"job",List.of());

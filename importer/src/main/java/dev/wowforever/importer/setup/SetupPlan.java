@@ -263,7 +263,9 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
       throw new IOException("Unselected fallback game data is not permitted in a setup job");
     if (lock.tableSha().keySet().stream().anyMatch(name -> name.endsWith(".era")))
       throw new IOException("Unselected Era tables are not permitted in a setup job");
-    if (!selectedHotfix && (lock.hotfixSha256() != null || Files.exists(client.directory().resolve("hotfix.json"))))
+    if (!selectedHotfix && (lock.hotfixSha256() != null || Files.exists(client.directory().resolve("hotfix.json"))
+        || lock.tableSha().keySet().stream().anyMatch(name->name.endsWith(".hotfix"))
+        || Files.exists(client.directory().resolve("overlay-policy.properties"))))
       throw new IOException("Hotfix inputs require separately selected acquisition support; no implicit overlay is permitted");
     Path csvDirectory = client.directory().resolve("csv");
     if (Files.isDirectory(csvDirectory)) try (var files = Files.list(csvDirectory)) {
