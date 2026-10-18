@@ -2,7 +2,10 @@ package dev.wowforever.app.ui.setup;
 
 import dev.wowforever.app.db.LibraryActivation;
 import dev.wowforever.importer.setup.*;
-import java.nio.file.Path;
+import java.nio.file.*;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.io.*;
 import java.util.*;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,11 +15,16 @@ import javax.swing.SwingUtilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Exact Forever bootstrap adapter. Construction does no I/O; no default GUI binding is provided here. */
+/** Exact Forever bootstrap adapter. Construction does no I/O; preparation and publication run on a worker. */
 public final class DefaultLibrarySetupService implements LibrarySetupService {
   private static final Logger LOG=LoggerFactory.getLogger(DefaultLibrarySetupService.class);
   private static final Map<String,SetupPlan.Source> SOURCE_IDS=Map.of("questie",SetupPlan.Source.QUESTIE,"native",SetupPlan.Source.NATIVE_DATA,"atlas",SetupPlan.Source.ATLASLOOT,"att",SetupPlan.Source.ALL_THE_THINGS,"raidbots-hotfix",SetupPlan.Source.RAIDBOTS_HOTFIX);
   private static final Set<String> REQUIRED=Set.of("questie","native","wago","raidbots-hotfix");
+  record Publication(Path database,String storageSummary) {
+    Publication {Objects.requireNonNull(database);Objects.requireNonNull(storageSummary);}
+  }
+  @FunctionalInterface interface CleanupAttempt {CompletedLibraryJobCleanup.Report run()throws Exception;}
+  @FunctionalInterface interface CleanupOutcomeWriter {void save(Properties outcome)throws Exception;}
   interface Session {}
   interface Prepared {}
   interface Operations {
@@ -24,7 +32,7 @@ public final class DefaultLibrarySetupService implements LibrarySetupService {
     List<String> review(SetupPlan plan)throws Exception;
     Session begin(SetupPlan plan)throws Exception;
     Prepared prepare(Session session,BooleanSupplier cancelled,Consumer<LibraryPreparationWorkflow.Progress> progress)throws Exception;
-    Path publish(Prepared prepared,SetupPlan plan,BooleanSupplier cancelled)throws Exception;
+    Publication publish(Prepared prepared,SetupPlan plan,BooleanSupplier cancelled)throws Exception;
   }
   private record Context(UUID owner,LibrarySetupDraft draft,SetupPlan plan,Session session) implements PreparedPlan {}
   private final UUID owner=UUID.randomUUID();
@@ -72,13 +80,56 @@ public final class DefaultLibrarySetupService implements LibrarySetupService {
     try{
       var prepared=operations.prepare(context.session(),control.cancellationRequested(),progress->report(progress,control));control.boundary();
       control.progress().accept(new Progress(Phase.OPEN,"Registering the verified compact library for the next startup."));control.boundary();
-      Path registered=operations.publish(prepared,context.plan(),control.cancellationRequested());
-      // Publication may have committed its atomic selection pointer. Do not delete staging or claim a rollback.
-      return new Result(registered,"The checked compact Forever library is registered for next startup. Your current session is unchanged. Full source, logs and acquisition evidence remain in app-owned storage.",true);
+      Publication registered=operations.publish(prepared,context.plan(),control.cancellationRequested());
+      // Registration is already durable; a late cancellation or cleanup warning cannot undo it.
+      return new Result(registered.database(),"The checked compact Forever library is registered for next startup. Your current session is unchanged. "+registered.storageSummary(),true);
     }catch(CancellationException stopped){throw stopped;}catch(Exception failure){
       LOG.error("Library preparation/publication failed",failure);
       boolean coverage=false;for(Throwable cause=failure;cause!=null;cause=cause.getCause())if(Objects.toString(cause.getMessage(),"").toLowerCase(Locale.ROOT).contains("coverage"))coverage=true;
       throw new JobFailure(coverage?"Some item details are still missing. The required data checks did not pass; review sources or retry verified downloads. No other edition or provider was selected.":"The library could not be prepared or registered. Your current session is unchanged. Review sources, storage and the retained job log before retrying.",failure);
+    }
+  }
+  /** Runs only after activation returned its registered path. Cleanup never changes that result. */
+  static Publication finishPublication(Path registered,String runtimeSha,CleanupAttempt cleanup,CleanupOutcomeWriter writer) {
+    var outcome=new Properties();outcome.setProperty("format","library-cleanup-outcome-v1");
+    outcome.setProperty("registeredPath",registered.toString());outcome.setProperty("runtimeSha256",runtimeSha);
+    outcome.setProperty("recordedAt",java.time.Instant.now().toString());String summary;
+    try {
+      var report=cleanup.run();outcome.setProperty("status",report.complete()?"complete":"partial");
+      outcome.setProperty("deletedBytes",Long.toString(report.deletedBytes()));outcome.setProperty("deletedFiles",report.deleted().stream().map(path->path.getFileName().toString()).collect(java.util.stream.Collectors.joining(",")));
+      outcome.setProperty("warningCount",Integer.toString(report.warnings().size()));
+      for(int i=0;i<report.warnings().size();i++)outcome.setProperty("warning."+i,report.warnings().get(i));
+      summary=report.complete()?"Removed "+storageSize(report.deletedBytes())+" of temporary build databases.":"Storage warning: temporary build cleanup was incomplete; removed "+storageSize(report.deletedBytes())+". Some staging files remain for review.";
+      if(!report.warnings().isEmpty())summary+=" "+String.join(" ",report.warnings());
+    }catch(CancellationException stopped){
+      outcome.setProperty("status","cancelled");summary="Storage warning: temporary build cleanup was cancelled. Staging files remain for review.";
+      LOG.info("Library registration succeeded; staging cleanup was cancelled");
+    }catch(Exception failure){
+      outcome.setProperty("status","failed");summary="Storage warning: temporary build cleanup could not be completed. Some staging files may remain for review.";
+      LOG.warn("Library registration succeeded; staging cleanup was refused or failed",failure);
+    }
+    summary+=" Runtime copies, reusable downloads, logs and support receipts are retained.";
+    outcome.setProperty("summary",summary);
+    try {writer.save(outcome);}catch(Exception failure){
+      LOG.warn("Library registration succeeded; cleanup outcome could not be saved",failure);
+      summary+=" Storage warning: the cleanup report could not be saved.";
+    }
+    return new Publication(registered,summary);
+  }
+  private static String storageSize(long bytes) {
+    if(bytes>=1_000_000_000L)return String.format(Locale.ROOT,"%.2f GB",bytes/1_000_000_000d);
+    if(bytes>=1_000_000L)return String.format(Locale.ROOT,"%.1f MB",bytes/1_000_000d);
+    if(bytes>=1000)return String.format(Locale.ROOT,"%.1f KB",bytes/1000d);
+    return bytes+" bytes";
+  }
+  static void saveCleanupOutcome(SetupPlan.JobContext job,Properties outcome)throws IOException {
+    job.storage().verifyJob(job.paths());
+    Path requested=job.paths().directory().resolve("cleanup-outcome-"+UUID.randomUUID()+".properties"),file=job.storage().verifyDestination(requested);
+    if(!file.equals(requested))throw new IOException("Cleanup outcome storage alias changed");
+    var bytes=new ByteArrayOutputStream();outcome.store(bytes,"Registration succeeded; post-activation staging cleanup outcome");
+    if(bytes.size()>65536)throw new IOException("Cleanup outcome exceeds its bound");
+    try(var channel=FileChannel.open(file,StandardOpenOption.CREATE_NEW,StandardOpenOption.WRITE)) {
+      var buffer=ByteBuffer.wrap(bytes.toByteArray());while(buffer.hasRemaining())channel.write(buffer);channel.force(true);
     }
   }
   private static SetupPlan plan(Set<String> ids){return plan(new LibrarySetupDraft.Profile(ids,Optional.empty(),false));}
@@ -128,6 +179,14 @@ public final class DefaultLibrarySetupService implements LibrarySetupService {
     public List<String> review(SetupPlan plan)throws Exception{return workflow.review(plan).warnings();}
     public Session begin(SetupPlan plan)throws Exception{return new WorkflowSession(workflow.begin(plan,storage,active,"setup-"+UUID.randomUUID(),protectedRoots));}
     public Prepared prepare(Session session,BooleanSupplier cancelled,Consumer<LibraryPreparationWorkflow.Progress> progress)throws Exception{return new WorkflowPrepared(workflow.prepare(((WorkflowSession)session).value(),cancelled,progress));}
-    public Path publish(Prepared prepared,SetupPlan plan,BooleanSupplier cancelled)throws Exception{var value=((WorkflowPrepared)prepared).value();return new LibraryActivation(storage,protectedRoots,active).activateExportedForNextStartup(value.fullCandidate(),value.runtime().runtime(),value.runtime().receipt(),plan,cancelled).database();}
+    public Publication publish(Prepared prepared,SetupPlan plan,BooleanSupplier cancelled)throws Exception {
+      var value=((WorkflowPrepared)prepared).value();
+      Path registered=new LibraryActivation(storage,protectedRoots,active).activateExportedForNextStartup(value.fullCandidate(),value.runtime().runtime(),value.runtime().receipt(),plan,cancelled).database();
+      return finishPublication(registered,value.runtime().receipt().outputSha256(),()->{
+        Path archive=value.catalogueJob().paths().archiveDatabase();
+        var identity=new CompletedLibraryJobCleanup.ArchiveIdentity(Files.size(archive),RuntimeLibraryExporter.hashFile(archive,cancelled));
+        return new CompletedLibraryJobCleanup().cleanupCompleted(value.catalogueJob(),value.runtime().receipt(),identity,cancelled);
+      },outcome->saveCleanupOutcome(value.catalogueJob(),outcome));
+    }
   }
 }

@@ -26,7 +26,7 @@ class DefaultLibrarySetupServiceTest {
     public List<String> review(SetupPlan plan){this.plan=plan;return List.of("Authored review warning.");}
     public DefaultLibrarySetupService.Session begin(SetupPlan plan){begins.incrementAndGet();return new Session();}
     public DefaultLibrarySetupService.Prepared prepare(DefaultLibrarySetupService.Session session,BooleanSupplier cancelled,Consumer<LibraryPreparationWorkflow.Progress> progress)throws Exception{prepares.incrementAndGet();order.add("prepare");progress.accept(new LibraryPreparationWorkflow.Progress(LibraryPreparationWorkflow.Phase.NATIVE_TABLES,"raw-source-path",12,20,2,51));return new Prepared();}
-    public Path publish(DefaultLibrarySetupService.Prepared prepared,SetupPlan plan,BooleanSupplier cancelled){publishes.incrementAndGet();order.add("publish");return Path.of("managed/version/runtime.sqlite");}
+    public DefaultLibrarySetupService.Publication publish(DefaultLibrarySetupService.Prepared prepared,SetupPlan plan,BooleanSupplier cancelled){publishes.incrementAndGet();order.add("publish");return new DefaultLibrarySetupService.Publication(Path.of("managed/version/runtime.sqlite"),"Authored storage summary.");}
   }
   @Test void missingWagoAndHotfixAreExplicitBlockersWithoutStagingOrOptIn()throws Exception{
     var ops=new Ops();var service=new DefaultLibrarySetupService(ops);var draft=draft(Set.of("questie","native"));var review=service.review(draft,CONTROL);
@@ -55,7 +55,7 @@ class DefaultLibrarySetupServiceTest {
   @Test void prepareThenPublishReturnsOnlyTheRegisteredVersionWithRealReportedCounts()throws Exception{
     var ops=new Ops();var service=new DefaultLibrarySetupService(ops);var review=service.review(draft(REQUIRED),CONTROL);var events=new ArrayList<LibrarySetupService.Progress>();
     var result=service.build(review,LibrarySetupService.Mode.MANAGEMENT,new LibrarySetupService.Control(()->false,events::add));
-    assertThat(ops.order).containsExactly("prepare","publish");assertThat(result.database()).isEqualTo(Path.of("managed/version/runtime.sqlite"));assertThat(result.nextStartupRegistered()).isTrue();assertThat(result.summary()).contains("current session is unchanged");
+    assertThat(ops.order).containsExactly("prepare","publish");assertThat(result.database()).isEqualTo(Path.of("managed/version/runtime.sqlite"));assertThat(result.nextStartupRegistered()).isTrue();assertThat(result.summary()).contains("current session is unchanged","Authored storage summary.").doesNotContain("Full source");
     assertThat(events).anyMatch(event->event.phase()==LibrarySetupService.Phase.DOWNLOAD&&event.completed()==12&&event.total()==20&&event.unit().equals("bytes"));assertThat(events).allMatch(event->!event.detail().contains("raw-source-path"));
   }
   @Test void preparationFailureAndCancellationNeverPublishAnActiveSelection()throws Exception{
@@ -66,14 +66,57 @@ class DefaultLibrarySetupServiceTest {
   }
   @Test void confirmedAtomicPublicationResultWinsALateCancellationRequest()throws Exception{
     var stop=new java.util.concurrent.atomic.AtomicBoolean();
-    var ops=new Ops(){@Override public Path publish(DefaultLibrarySetupService.Prepared prepared,SetupPlan plan,BooleanSupplier cancelled){
-      assertThat(cancelled.getAsBoolean()).isFalse();Path registered=super.publish(prepared,plan,cancelled);
+    var ops=new Ops(){@Override public DefaultLibrarySetupService.Publication publish(DefaultLibrarySetupService.Prepared prepared,SetupPlan plan,BooleanSupplier cancelled){
+      assertThat(cancelled.getAsBoolean()).isFalse();var registered=super.publish(prepared,plan,cancelled);
       // Models cancellation arriving after the atomic selection pointer has committed.
       stop.set(true);return registered;
     }};
     var service=new DefaultLibrarySetupService(ops);var review=service.review(draft(REQUIRED),CONTROL);
     var result=service.build(review,LibrarySetupService.Mode.MANAGEMENT,new LibrarySetupService.Control(stop::get,event->{}));
     assertThat(stop).isTrue();assertThat(result.nextStartupRegistered()).isTrue();assertThat(result.database()).isEqualTo(Path.of("managed/version/runtime.sqlite"));assertThat(ops.publishes).hasValue(1);
+  }
+  @Test void completedCleanupSummaryAndOutcomePreserveRegisteredPath() {
+    var outcome=new java.util.concurrent.atomic.AtomicReference<Properties>();Path registered=Path.of("managed/runtime.sqlite");
+    var result=DefaultLibrarySetupService.finishPublication(registered,"a".repeat(64),()->new CompletedLibraryJobCleanup.Report(1_284_538_368L,List.of(Path.of("source-archive.sqlite"),Path.of("candidate.sqlite")),List.of(),true),outcome::set);
+    assertThat(result.database()).isEqualTo(registered);assertThat(result.storageSummary()).contains("1.28 GB","reusable downloads","support receipts").doesNotContain("Full source");
+    assertThat(outcome.get()).containsEntry("status","complete").containsEntry("deletedBytes","1284538368").containsEntry("runtimeSha256","a".repeat(64));
+  }
+  @Test void partialCleanupWarningReportsActualRemovedBytesWithoutHidingRegistration() {
+    var outcome=new java.util.concurrent.atomic.AtomicReference<Properties>();Path registered=Path.of("managed/runtime.sqlite");
+    var result=DefaultLibrarySetupService.finishPublication(registered,"a".repeat(64),()->new CompletedLibraryJobCleanup.Report(642_269_184L,List.of(Path.of("source-archive.sqlite")),List.of("Inspect remaining candidate before retry."),false),outcome::set);
+    assertThat(result.database()).isEqualTo(registered);assertThat(result.storageSummary()).contains("Storage warning","incomplete","642.3 MB","Inspect remaining candidate");assertThat(outcome.get()).containsEntry("status","partial").containsEntry("deletedFiles","source-archive.sqlite");
+  }
+  @Test void refusedCleanupAndFailedOutcomePersistenceRemainNonfatal() {
+    var outcome=new java.util.concurrent.atomic.AtomicReference<Properties>();Path registered=Path.of("managed/runtime.sqlite");
+    var refused=DefaultLibrarySetupService.finishPublication(registered,"a".repeat(64),()->{throw new IOException("Protected job or live sidecars");},outcome::set);
+    assertThat(refused.database()).isEqualTo(registered);assertThat(refused.storageSummary()).contains("Storage warning","may remain");assertThat(outcome.get()).containsEntry("status","failed");
+    var unsaved=DefaultLibrarySetupService.finishPublication(registered,"a".repeat(64),()->new CompletedLibraryJobCleanup.Report(42,List.of(),List.of(),true),p->{throw new IOException("Outcome directory unavailable");});
+    assertThat(unsaved.database()).isEqualTo(registered);assertThat(unsaved.storageSummary()).contains("Removed 42 bytes","cleanup report could not be saved");
+  }
+  @Test void cancellationAlreadyRequestedAfterRegistrationReturnsRegisteredResultWithStorageWarning()throws Exception {
+    var stop=new java.util.concurrent.atomic.AtomicBoolean();var outcome=new java.util.concurrent.atomic.AtomicReference<Properties>();
+    var ops=new Ops(){@Override public DefaultLibrarySetupService.Publication publish(DefaultLibrarySetupService.Prepared prepared,SetupPlan plan,BooleanSupplier cancelled){
+      var registered=super.publish(prepared,plan,cancelled);stop.set(true);
+      return DefaultLibrarySetupService.finishPublication(registered.database(),"a".repeat(64),()->{assertThat(cancelled.getAsBoolean()).isTrue();throw new CancellationException("Cleanup cancelled after durable selection");},outcome::set);
+    }};
+    var service=new DefaultLibrarySetupService(ops);var review=service.review(draft(REQUIRED),CONTROL);
+    var result=service.build(review,LibrarySetupService.Mode.MANAGEMENT,new LibrarySetupService.Control(stop::get,event->{}));
+    assertThat(result.nextStartupRegistered()).isTrue();assertThat(result.database()).isEqualTo(Path.of("managed/version/runtime.sqlite"));assertThat(result.summary()).contains("registered for next startup","cleanup was cancelled");assertThat(outcome.get()).containsEntry("status","cancelled");
+  }
+  @Test void cleanupDoesNotSwallowVirtualMachineErrors() {
+    assertThatThrownBy(()->DefaultLibrarySetupService.finishPublication(Path.of("managed/runtime.sqlite"),"a".repeat(64),()->{throw new OutOfMemoryError("Authored error; no allocation failure");},p->{})).isInstanceOf(OutOfMemoryError.class);
+  }
+  @Test void cleanupOutcomeIsPersistedOnlyWithinOwnedOriginalJob(@org.junit.jupiter.api.io.TempDir Path root)throws Exception {
+    var storage=new SetupStorage(root,List.of(root.resolve("game")),Optional.of(root.resolve("active.sqlite")));var job=new SetupPlan.JobContext(storage,storage.createJob("completed"));
+    var outcome=new Properties();outcome.setProperty("status","cancelled");outcome.setProperty("registeredPath",root.resolve("libraries/runtime.sqlite").toString());
+    DefaultLibrarySetupService.saveCleanupOutcome(job,outcome);
+    try(var files=java.nio.file.Files.list(job.paths().directory())){
+      var reports=files.filter(path->path.getFileName().toString().startsWith("cleanup-outcome-")).toList();assertThat(reports).hasSize(1);
+      var actual=new Properties();try(var in=java.nio.file.Files.newInputStream(reports.getFirst())){actual.load(in);}assertThat(actual).containsEntry("status","cancelled");
+    }
+    Path protectedJob=root.resolve("game/jobs/blocked");java.nio.file.Files.createDirectories(protectedJob);
+    var paths=new SetupStorage.JobPaths(protectedJob,protectedJob.resolve("source-archive.sqlite"),protectedJob.resolve("candidate.sqlite"),protectedJob.resolve("cache"),protectedJob.resolve("build-id.txt"),protectedJob.resolve("import-report.txt"));
+    assertThatThrownBy(()->DefaultLibrarySetupService.saveCleanupOutcome(new SetupPlan.JobContext(storage,paths),outcome)).isInstanceOf(IOException.class);
   }
   @Test void productionCapabilityPreflightDoesNotCreateStorageOrAdvertiseUnsupportedSources()throws Exception{
     Path root=java.nio.file.Files.createTempDirectory("vibecraft-adapter-capabilities-");
