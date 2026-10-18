@@ -13,6 +13,12 @@ public interface MainView {
   /** A committed page changed; the Journal shell updates its location and labelled navigation. */
   default void viewTargetChanged(dev.wowforever.app.nav.ViewTarget target) {}
 
+  /** Invalidates actions that require a committed page while the next page is loading. */
+  default void navigationStarted() {}
+
+  default void configureResearchScope(String scope) {}
+  default javax.swing.JComponent pinnedResearchPage(java.util.function.Consumer<dev.wowforever.app.nav.ViewTarget> open) { return new javax.swing.JLabel("Research references unavailable in this interface."); }
+
   /** The committed entity is a verified city; preserve geography while highlighting Cities. */
   default void highlightCitySection() {}
 

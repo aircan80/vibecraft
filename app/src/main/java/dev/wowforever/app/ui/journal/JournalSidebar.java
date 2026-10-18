@@ -56,6 +56,7 @@ public final class JournalSidebar extends JPanel {
         new ViewTarget[]{new ViewTarget.ItemContent("recipes"), new ViewTarget.ItemContent("sets"),
           new ViewTarget.ItemContent("trinkets"), new ViewTarget.ItemContent("xp-food"),
           new ViewTarget.ItemContent("comprehension"), new ViewTarget.ItemContent("stats")});
+    addEntry("Pinned research", RailTarget.HOME, new ViewTarget.Forever("pinned"));
     addEntry("What's changed", RailTarget.FOREVER, new ViewTarget.Forever("hub"));
     add(Box.createVerticalGlue()); add(Box.createVerticalStrut(18)); add(footer);
     setCollapsed(false);
@@ -146,6 +147,7 @@ public final class JournalSidebar extends JPanel {
   }
 
   static boolean matches(ViewTarget route, ViewTarget target) {
+    if(route instanceof ViewTarget.Forever f && f.section().equals("pinned")) return target instanceof ViewTarget.Forever actual && actual.section().equals("pinned");
     if (route instanceof ViewTarget.Forever city && city.section().equals("cities")) return target instanceof ViewTarget.Forever f && f.section().equals("cities");
     if (route instanceof ViewTarget.Home) return target instanceof ViewTarget.Home;
     if (route instanceof ViewTarget.WorldMap) return target instanceof ViewTarget.WorldMap

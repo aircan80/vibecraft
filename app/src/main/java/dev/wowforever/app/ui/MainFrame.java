@@ -93,6 +93,10 @@ public final class MainFrame extends JFrame implements MainView {
   private final WindowStatePersistence persistence;
   private final LayoutSwitch layout;
   private AppController controller;
+  private dev.wowforever.app.ui.journal.PinnedResearch research;
+  private ViewTarget researchTarget;
+  private String researchLabel;
+
 
   public MainFrame() { this(UiExperience.CLASSIC); }
 
@@ -171,6 +175,18 @@ public final class MainFrame extends JFrame implements MainView {
     menuBar = menuBar();
     compactShell.setMenu(compactMenu());
     KeyMap.install(getRootPane(), handlers());
+    if (experience == UiExperience.JOURNAL) {
+      getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_D, java.awt.event.InputEvent.CTRL_DOWN_MASK), "pin-research");
+      getRootPane().getActionMap().put("pin-research", new AbstractAction() {
+        @Override public void actionPerformed(java.awt.event.ActionEvent event) {
+          if(research==null || researchTarget==null || researchLabel==null || researchLabel.isBlank()
+              || dev.wowforever.app.ui.journal.PinnedResearch.key(researchTarget).isEmpty()) {
+            status.setMessage("Open a loaded entity, map or catalog to pin it.");return;
+          }
+          status.setMessage(research.toggle(researchTarget,researchLabel)?"Saved to Pinned research":"Removed from Pinned research");
+        }
+      });
+    }
     setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
     persistence = WindowStatePersistence.install(this, uiState);
     compactShell.setOnTop(isAlwaysOnTop());
@@ -669,6 +685,7 @@ public final class MainFrame extends JFrame implements MainView {
 
   @Override
   public void setDetail(JComponent c) {
+    researchTarget=null;
     Component owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
     boolean keepFocusInPage = focusStaysInPage(owner, detailHolder);
     detailHolder.removeAll();
@@ -708,6 +725,7 @@ public final class MainFrame extends JFrame implements MainView {
 
   @Override
   public void setTitleSuffix(String s) {
+    researchLabel=s;
     String app = experience == UiExperience.JOURNAL ? "WoW Forever — Explorer Journal" : APP_NAME;
     setTitle(s == null || s.isEmpty() ? app : app + " — " + s);
     if (journalBreadcrumbs != null) journalBreadcrumbs.setPageTitle(s);
@@ -719,7 +737,16 @@ public final class MainFrame extends JFrame implements MainView {
 
   @Override public UiExperience uiExperience() { return experience; }
 
+  @Override public void navigationStarted() { researchTarget=null; }
+
+  @Override public void configureResearchScope(String scope) { research=new dev.wowforever.app.ui.journal.PinnedResearch(uiState,scope); }
+
+  @Override public JComponent pinnedResearchPage(java.util.function.Consumer<ViewTarget> open) {
+    return new dev.wowforever.app.ui.journal.PinnedResearchPage(research,open);
+  }
+
   @Override public void viewTargetChanged(ViewTarget target) {
+    researchTarget=target;
     if (journalSidebar != null && target != null) {
       journalSidebar.select(target);
       journalBreadcrumbs.showTarget(target);

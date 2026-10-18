@@ -178,6 +178,7 @@ public final class AppController implements Navigator {
     this.meta = Map.copyOf(meta);
     String buildId = meta.get("build_id");
     view.status().setBuild(buildId);
+    view.configureResearchScope("forever:"+java.util.Objects.requireNonNullElse(buildId,"unknown-build"));
     view.status().setProvenance(this.meta);
     view.masterList().onPreview(e -> preview(e.ref()));
     view.masterList().onCommit(e -> commit(e.ref()));
@@ -457,6 +458,7 @@ public final class AppController implements Navigator {
   }
 
   private void show(ViewTarget t, boolean captureSearchEdit) {
+    view.navigationStarted();
     rememberJournalState();
     if(journal()) dev.wowforever.app.music.CityMusicService.shared().leaveCity();
     loadingDelay.cancel(); // the loading page of a page left behind
@@ -691,6 +693,15 @@ public final class AppController implements Navigator {
 
   /** Content catalogs follow the same worker/EDT split and stale-load protection as entity pages. */
   private void showCatalog(ViewTarget target) {
+    if(journal() && target instanceof ViewTarget.Forever f && f.section().equals("pinned")) {
+      ++detailGeneration;
+      loadingDelay.cancel();
+      leaveListPage();
+      view.setTitleSuffix("Pinned research");
+      setPage(target,view.pinnedResearchPage(this::open));
+      view.status().setMessage("Ready");
+      return;
+    }
     if (journal() && target instanceof ViewTarget.Forever f && (f.section().equals("ladder") || f.section().equals("cities"))) {
       showJournalCatalog(target);
       return;
