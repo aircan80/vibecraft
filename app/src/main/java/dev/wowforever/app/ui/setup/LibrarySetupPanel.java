@@ -64,6 +64,9 @@ public final class LibrarySetupPanel extends JPanel {
   private LibrarySetupCoordinator coordinator;
   private LibrarySetupCoordinator.Snapshot job;
   private JTabbedPane navigation;
+  private WrappingText jobDetail,jobCounts;
+  private final Map<LibrarySetupService.Phase,WrappingText> jobPhases=new EnumMap<>(LibrarySetupService.Phase.class);
+  private LibrarySetupCoordinator.State renderedJobState;
 
   public LibrarySetupPanel(Preferences preferences, Consumer<Path> openDatabase, String error) {
     this(preferences,openDatabase,error,LibrarySetupPanel::discover,LibrarySetupPanel::inspect,false,null);
@@ -122,7 +125,7 @@ public final class LibrarySetupPanel extends JPanel {
     String rememberedGame=preferences.get("active-game","forever");
     for(int i=0;i<activeGame.getItemCount();i++)if(activeGame.getItemAt(i).id().equals(rememberedGame))activeGame.setSelectedIndex(i);
     if(management)nav.setSelectedIndex(1);
-    if(service!=null)coordinator=new LibrarySetupCoordinator(service,management?LibrarySetupService.Mode.MANAGEMENT:LibrarySetupService.Mode.FIRST_RUN,value->{job=value;status.setText(value.message());render();});
+    if(service!=null)coordinator=new LibrarySetupCoordinator(service,management?LibrarySetupService.Mode.MANAGEMENT:LibrarySetupService.Mode.FIRST_RUN,this::jobChanged);
     render();
   }
   private void refreshGames(){
@@ -140,7 +143,17 @@ public final class LibrarySetupPanel extends JPanel {
     }
     cancel();step=Math.max(0,Math.min(4,step+direction));status.setText("");render();scrollTop();
   }
+  private void jobChanged(LibrarySetupCoordinator.Snapshot value){
+    var previous=job;job=value;
+    if(!status.getText().equals(value.message()))status.setText(value.message());
+    boolean running=value.state()==LibrarySetupCoordinator.State.BUILDING||value.state()==LibrarySetupCoordinator.State.CANCELLING;
+    if(running&&page.equals("setup")&&renderedJobState==value.state()&&previous!=null
+        &&Objects.equals(previous.draft(),value.draft())&&Objects.equals(previous.review(),value.review())
+        &&Objects.equals(previous.message(),value.message())){updateJobProgress();return;}
+    render();
+  }
   private void render(){
+    renderedJobState=null;jobDetail=null;jobCounts=null;jobPhases.clear();
     body.removeAll();
     boolean activeJob=job!=null&&(job.state()==LibrarySetupCoordinator.State.BUILDING||job.state()==LibrarySetupCoordinator.State.CANCELLING);
     navigation.setEnabled(!activeJob);
@@ -251,13 +264,24 @@ public final class LibrarySetupPanel extends JPanel {
       return;
     }
     body.add(title(job.state()==LibrarySetupCoordinator.State.FAILED?"The library needs attention":job.state()==LibrarySetupCoordinator.State.CANCELLED?"Stopped safely":"Building your library",32));
-    if(job.progress()!=null){body.add(copy(job.progress().detail()));if(job.progress().completed()>=0)body.add(copy(job.progress().completed()+(job.progress().total()>=0?" / "+job.progress().total():"")+" "+job.progress().unit()+" in this step"));}
-    for(var phase:LibrarySetupService.Phase.values())body.add(copy((job.progress()!=null&&phase==job.progress().phase()?"→ ":"· ")+(management&&phase==LibrarySetupService.Phase.OPEN?"Ready for next startup":phase.label())));
+    renderedJobState=job.state();
+    jobDetail=copy("");jobDetail.setName("setup-job-detail");body.add(jobDetail);
+    jobCounts=copy("");jobCounts.setName("setup-job-counts");body.add(jobCounts);
+    for(var phase:LibrarySetupService.Phase.values()){var label=copy("");jobPhases.put(phase,label);body.add(label);}
+    updateJobProgress();
     body.add(notice(job.message()));
     boolean running=job.state()==LibrarySetupCoordinator.State.BUILDING||job.state()==LibrarySetupCoordinator.State.CANCELLING;
     if(running){var bar=new JProgressBar();bar.setIndeterminate(true);bar.setStringPainted(false);body.add(bar);var stop=button("Stop after current step");stop.setName("setup-stop-build");stop.setEnabled(job.state()!=LibrarySetupCoordinator.State.CANCELLING);stop.addActionListener(event->coordinator.cancel());body.add(stop);}
     else{var retry=button("Review sources");retry.setName("setup-review-after-job");retry.addActionListener(event->{coordinator.invalidate();step=2;render();scrollTop();});body.add(retry);}
   }
+  private void updateJobProgress(){
+    var progress=job.progress();
+    updateText(jobDetail,progress==null?"":progress.detail());
+    String counts=progress!=null&&progress.completed()>=0?progress.completed()+(progress.total()>=0?" / "+progress.total():"")+" "+progress.unit()+" in this step":"";
+    updateText(jobCounts,counts);
+    for(var entry:jobPhases.entrySet()){var phase=entry.getKey();updateText(entry.getValue(),(progress!=null&&phase==progress.phase()?"→ ":"· ")+(management&&phase==LibrarySetupService.Phase.OPEN?"Ready for next startup":phase.label()));}
+  }
+  private static void updateText(WrappingText component,String text){if(!component.getText().equals(text))component.setText(text);component.setVisible(!text.isEmpty());}
   private void addDataTools(){
     var nativeCard=card("Your WoW installation");
     nativeCard.add(copy("Find common installation folders first, or browse. This inspects metadata only; it does not extract assets or modify WoW."));
