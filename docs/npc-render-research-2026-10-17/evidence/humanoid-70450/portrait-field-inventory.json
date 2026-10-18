@@ -1,0 +1,426 @@
+{
+  "schema": "native-portrait-field-inventory-v1",
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "catalogId": "f88360231c3415f897008459dee4b15faf21466b32a8f961b18257b4a8a12aef",
+  "catalogNpcCount": 184,
+  "catalogDisplaySlots": 193,
+  "displayTableRows": 14218,
+  "fields": {
+    "PortraitTextureFileDataID": {
+      "positiveRecords": 96,
+      "mappedDisplayRecords": 0,
+      "records": [
+        {
+          "displayId": 104966,
+          "value": 134902
+        },
+        {
+          "displayId": 106257,
+          "value": 136138
+        },
+        {
+          "displayId": 113922,
+          "value": 136137
+        },
+        {
+          "displayId": 114769,
+          "value": 237298
+        },
+        {
+          "displayId": 115932,
+          "value": 136221
+        },
+        {
+          "displayId": 117364,
+          "value": 136221
+        },
+        {
+          "displayId": 121659,
+          "value": 133655
+        },
+        {
+          "displayId": 121756,
+          "value": 133016
+        },
+        {
+          "displayId": 123307,
+          "value": 236214
+        },
+        {
+          "displayId": 126301,
+          "value": 136133
+        },
+        {
+          "displayId": 126302,
+          "value": 136133
+        },
+        {
+          "displayId": 126421,
+          "value": 134943
+        },
+        {
+          "displayId": 126422,
+          "value": 134943
+        },
+        {
+          "displayId": 126423,
+          "value": 134943
+        },
+        {
+          "displayId": 126424,
+          "value": 134943
+        },
+        {
+          "displayId": 126425,
+          "value": 134943
+        },
+        {
+          "displayId": 126426,
+          "value": 134943
+        },
+        {
+          "displayId": 126431,
+          "value": 134943
+        },
+        {
+          "displayId": 127760,
+          "value": 133975
+        },
+        {
+          "displayId": 127827,
+          "value": 132622
+        },
+        {
+          "displayId": 128088,
+          "value": 132763
+        },
+        {
+          "displayId": 128138,
+          "value": 236874
+        },
+        {
+          "displayId": 128267,
+          "value": 1109508
+        },
+        {
+          "displayId": 128388,
+          "value": 135331
+        },
+        {
+          "displayId": 128514,
+          "value": 134956
+        },
+        {
+          "displayId": 128616,
+          "value": 136241
+        },
+        {
+          "displayId": 128897,
+          "value": 252172
+        },
+        {
+          "displayId": 128898,
+          "value": 252172
+        },
+        {
+          "displayId": 129134,
+          "value": 252185
+        },
+        {
+          "displayId": 129639,
+          "value": 133908
+        },
+        {
+          "displayId": 129640,
+          "value": 134048
+        },
+        {
+          "displayId": 130536,
+          "value": 133738
+        },
+        {
+          "displayId": 136453,
+          "value": 237293
+        },
+        {
+          "displayId": 136489,
+          "value": 133001
+        },
+        {
+          "displayId": 136517,
+          "value": 133001
+        },
+        {
+          "displayId": 137130,
+          "value": 132330
+        },
+        {
+          "displayId": 137286,
+          "value": 135805
+        },
+        {
+          "displayId": 137907,
+          "value": 1029585
+        },
+        {
+          "displayId": 138103,
+          "value": 132330
+        },
+        {
+          "displayId": 138224,
+          "value": 133749
+        },
+        {
+          "displayId": 138447,
+          "value": 132507
+        },
+        {
+          "displayId": 138481,
+          "value": 237280
+        },
+        {
+          "displayId": 138487,
+          "value": 133743
+        },
+        {
+          "displayId": 139566,
+          "value": 133743
+        },
+        {
+          "displayId": 139567,
+          "value": 133743
+        },
+        {
+          "displayId": 139568,
+          "value": 133743
+        },
+        {
+          "displayId": 139570,
+          "value": 133743
+        },
+        {
+          "displayId": 139571,
+          "value": 133743
+        },
+        {
+          "displayId": 139572,
+          "value": 133743
+        },
+        {
+          "displayId": 139573,
+          "value": 133743
+        },
+        {
+          "displayId": 139574,
+          "value": 133743
+        },
+        {
+          "displayId": 139575,
+          "value": 133743
+        },
+        {
+          "displayId": 139576,
+          "value": 133743
+        },
+        {
+          "displayId": 139577,
+          "value": 133743
+        },
+        {
+          "displayId": 139578,
+          "value": 133743
+        },
+        {
+          "displayId": 139579,
+          "value": 133743
+        },
+        {
+          "displayId": 139580,
+          "value": 133743
+        },
+        {
+          "displayId": 139715,
+          "value": 132765
+        },
+        {
+          "displayId": 139716,
+          "value": 132765
+        },
+        {
+          "displayId": 139718,
+          "value": 132765
+        },
+        {
+          "displayId": 139815,
+          "value": 132765
+        },
+        {
+          "displayId": 139816,
+          "value": 132765
+        },
+        {
+          "displayId": 141876,
+          "value": 656444
+        },
+        {
+          "displayId": 141935,
+          "value": 571319
+        },
+        {
+          "displayId": 141936,
+          "value": 571318
+        },
+        {
+          "displayId": 141939,
+          "value": 134052
+        },
+        {
+          "displayId": 142049,
+          "value": 571319
+        },
+        {
+          "displayId": 142050,
+          "value": 571318
+        },
+        {
+          "displayId": 142051,
+          "value": 571319
+        },
+        {
+          "displayId": 142052,
+          "value": 571318
+        },
+        {
+          "displayId": 143353,
+          "value": 441148
+        },
+        {
+          "displayId": 143356,
+          "value": 441148
+        },
+        {
+          "displayId": 143357,
+          "value": 441148
+        },
+        {
+          "displayId": 143358,
+          "value": 441148
+        },
+        {
+          "displayId": 143359,
+          "value": 441148
+        },
+        {
+          "displayId": 143361,
+          "value": 441148
+        },
+        {
+          "displayId": 143362,
+          "value": 441148
+        },
+        {
+          "displayId": 143363,
+          "value": 441148
+        },
+        {
+          "displayId": 143365,
+          "value": 4882765
+        },
+        {
+          "displayId": 143366,
+          "value": 4882765
+        },
+        {
+          "displayId": 143368,
+          "value": 4882765
+        },
+        {
+          "displayId": 143369,
+          "value": 4882765
+        },
+        {
+          "displayId": 143370,
+          "value": 4882765
+        },
+        {
+          "displayId": 143371,
+          "value": 4882765
+        },
+        {
+          "displayId": 143372,
+          "value": 4882765
+        },
+        {
+          "displayId": 143373,
+          "value": 4882765
+        },
+        {
+          "displayId": 144486,
+          "value": 133655
+        },
+        {
+          "displayId": 144700,
+          "value": 612962
+        },
+        {
+          "displayId": 145219,
+          "value": 237290
+        },
+        {
+          "displayId": 145450,
+          "value": 512902
+        },
+        {
+          "displayId": 145661,
+          "value": 133436
+        },
+        {
+          "displayId": 146718,
+          "value": 442743
+        },
+        {
+          "displayId": 146866,
+          "value": 1029585
+        },
+        {
+          "displayId": 148738,
+          "value": 237225
+        },
+        {
+          "displayId": 149047,
+          "value": 135741
+        },
+        {
+          "displayId": 149143,
+          "value": 4624631
+        }
+      ]
+    },
+    "PortraitCreatureDisplayInfoID": {
+      "positiveRecords": 4,
+      "mappedDisplayRecords": 0,
+      "records": [
+        {
+          "displayId": 121410,
+          "value": 5047
+        },
+        {
+          "displayId": 121807,
+          "value": 121810
+        },
+        {
+          "displayId": 127953,
+          "value": 127954
+        },
+        {
+          "displayId": 146706,
+          "value": 1061
+        }
+      ]
+    }
+  },
+  "conclusion": "Native portrait fields do not establish missing NPC-to-display relationships. A portrait texture also needs exact-root asset validation before use.",
+  "displayCsvSha256": "1a3ba3b5f1e3126bb0e6d906536455b9b1e6deaf78f97b64636b23084821e880",
+  "displayCsvSourceUrl": "https://wago.tools/db2/CreatureDisplayInfo/csv?build=1.60.1.70450"
+}
