@@ -21,9 +21,27 @@ class JournalAppearanceTest {
           assertThat(javax.swing.UIManager.get(key)).isInstanceOf(javax.swing.plaf.ColorUIResource.class);
       }
     } finally {
-      javax.swing.UIManager.getLookAndFeelDefaults().clear();
-      javax.swing.UIManager.getLookAndFeelDefaults().putAll(defaults);
+      // FlatLaf observes font changes synchronously. Clearing the live table and
+      // restoring entries individually exposes a half-restored font dependency
+      // graph to UIScale and can recurse through ActiveFont. Restore atomically.
+      var live=javax.swing.UIManager.getLookAndFeelDefaults();
+      Object[] restored=new Object[defaults.size()*2];int index=0;
+      for(var entry:defaults.entrySet()){restored[index++]=entry.getKey();restored[index++]=entry.getValue();}
+      live.putDefaults(restored);
+      for(Object key:new java.util.HashSet<>(live.keySet()))if(!defaults.containsKey(key))live.remove(key);
       Theme.setCurrent(previous);
+    }
+  }
+  @Test void flatLafFontDefaultsRemainUsableAfterPaletteRestoration() throws Exception {
+    var previous=javax.swing.UIManager.getLookAndFeel();
+    try {
+      javax.swing.UIManager.setLookAndFeel(new com.formdev.flatlaf.FlatDarkLaf());
+      var font=javax.swing.UIManager.getFont("Label.font");
+      swingDefaultsCanBeReplacedWhenThemeChanges();
+      assertThat(javax.swing.UIManager.getFont("Label.font")).isEqualTo(font);
+      assertThat(new javax.swing.JLabel("After palette restoration").getFont()).isNotNull();
+    } finally {
+      javax.swing.UIManager.setLookAndFeel(previous);
     }
   }
   @Test void journalTextAndActionsRemainReadableInBothPalettes() {
