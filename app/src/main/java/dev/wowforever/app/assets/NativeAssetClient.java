@@ -36,6 +36,8 @@ public final class NativeAssetClient implements AutoCloseable {
     private boolean sharedRuntime;
     private final RangeTransport rangeTransport;
     private final ArchiveBudget archiveBudget;
+    private final KnownMediaArchiveHints knownHints;
+    private String encodingContentKey;
     private List<String> archives=List.of();
     private boolean cdnPrepared;
     private int scannedIndexes,newIndexes;
@@ -91,7 +93,7 @@ public final class NativeAssetClient implements AutoCloseable {
     public NativeAssetClient(Path cache,BlizzardBuildDescriptor descriptor,TransportPolicy policy,ArchiveBudget archiveBudget) {
         this.cache=Objects.requireNonNull(cache).toAbsolutePath().normalize();
         this.descriptor=Objects.requireNonNull(descriptor);this.policy=Objects.requireNonNull(policy);
-        this.archiveBudget=Objects.requireNonNull(archiveBudget);
+        this.archiveBudget=Objects.requireNonNull(archiveBudget);this.knownHints=null;
         http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).followRedirects(HttpClient.Redirect.NEVER).build();
         transport=this::download; rangeTransport=this::downloadRange;
     }
@@ -100,9 +102,13 @@ public final class NativeAssetClient implements AutoCloseable {
     }
     NativeAssetClient(Path cache,BlizzardBuildDescriptor descriptor,TransportPolicy policy,Transport transport,
                       RangeTransport rangeTransport,ArchiveBudget archiveBudget) {
+        this(cache,descriptor,policy,transport,rangeTransport,archiveBudget,null);
+    }
+    NativeAssetClient(Path cache,BlizzardBuildDescriptor descriptor,TransportPolicy policy,Transport transport,
+                      RangeTransport rangeTransport,ArchiveBudget archiveBudget,KnownMediaArchiveHints knownHints) {
         this.cache=Objects.requireNonNull(cache).toAbsolutePath().normalize();this.descriptor=Objects.requireNonNull(descriptor);
         this.policy=Objects.requireNonNull(policy);this.transport=Objects.requireNonNull(transport);http=null;
-        this.rangeTransport=Objects.requireNonNull(rangeTransport);this.archiveBudget=Objects.requireNonNull(archiveBudget);
+        this.rangeTransport=Objects.requireNonNull(rangeTransport);this.archiveBudget=Objects.requireNonNull(archiveBudget);this.knownHints=knownHints;
     }
     /** Cancellation is checked during cache reads, transport and metadata parsing. */
     public Asset fetch(long fileDataId, BooleanSupplier cancelled) throws IOException, InterruptedException {
@@ -132,7 +138,7 @@ public final class NativeAssetClient implements AutoCloseable {
         byte[] bytes;
         usedArchive="";usedArchiveOffset=0;usedArchiveBytes=0;
         String usedTransport="official CDN or verified content cache";
-        try { bytes = content(key, entry.keys(), cancelled, maxAssetBytes); }
+        try { bytes = content(key, entry.keys(), cancelled, maxAssetBytes, fileDataId); }
         catch (IOException officialUnavailable) {
             if(policy==TransportPolicy.OFFICIAL_ONLY)throw officialUnavailable;
             // Separate opt-in transport only: exact root MD5 and encoding size remain mandatory.
@@ -191,7 +197,7 @@ public final class NativeAssetClient implements AutoCloseable {
         byte[] candidate = content(candidateRoot, rootEncoding.keys(), cancelled);
         if (candidate.length != rootEncoding.size()) throw new IOException("Root encoded size mismatch");
         atomic(configPath, config);
-        encoding = candidateEncoding; root = candidate; rootKey = candidateRoot;
+        encoding = candidateEncoding; root = candidate; rootKey = candidateRoot;encodingContentKey=pair[0];
     }
     private void prepareCdn(BooleanSupplier cancelled)throws IOException,InterruptedException {
         if(cdnPrepared||descriptor.cdnConfigMd5().isBlank())return;
@@ -205,6 +211,9 @@ public final class NativeAssetClient implements AutoCloseable {
         return content(key, keys, cancelled, LIMIT);
     }
     private byte[] content(String key, List<String> keys, BooleanSupplier cancelled, int limit) throws IOException, InterruptedException {
+        return content(key,keys,cancelled,limit,0);
+    }
+    private byte[] content(String key,List<String> keys,BooleanSupplier cancelled,int limit,long fileDataId)throws IOException,InterruptedException {
         validKey(key);
         Path path = cache.resolve("content/" + key + ".bin");
         if (Files.exists(path)) { byte[] bytes = read(path, limit, cancelled); verify(bytes, key); return bytes; }
@@ -218,7 +227,7 @@ public final class NativeAssetClient implements AutoCloseable {
                 else {
                     try{encoded=official("data/"+keyPath(encodedKey),encodedBound(limit),cancelled);}
                     catch(IOException looseMissing){
-                        try{encoded=archiveContent(encodedKey,cancelled,encodedBound(limit));}
+                        try{encoded=archiveContent(encodedKey,cancelled,encodedBound(limit),fileDataId,key);}
                         catch(IOException missing){missing.addSuppressed(looseMissing);throw missing;}
                     }
                 }
@@ -266,7 +275,7 @@ public final class NativeAssetClient implements AutoCloseable {
         }
         throw unavailable;
     }
-    private byte[] archiveContent(String encodedKey,BooleanSupplier cancelled,int encodedLimit)throws IOException,InterruptedException {
+    private byte[] archiveContent(String encodedKey,BooleanSupplier cancelled,int encodedLimit,long fileDataId,String contentKey)throws IOException,InterruptedException {
         prepareCdn(cancelled);
         Path location=cache.resolve("archive-locations/"+descriptor.cdnConfigMd5()+"/"+encodedKey);
         if(Files.exists(location)) {
@@ -276,6 +285,23 @@ public final class NativeAssetClient implements AutoCloseable {
             var entry=CdnArchiveIndex.find(index,archive,encodedKey,cancelled);
             if(entry==null)throw new IOException("Cached archive location lacks exact EKey membership");
             return archiveRange(archive,entry,encodedKey,cancelled,encodedLimit);
+        }
+        // Reviewed hints select an index only. Root/encoding and the complete selected index still prove the actual entry.
+        Optional<String> reviewed=Optional.empty();
+        try {
+            if(fileDataId>0)reviewed=(knownHints==null?KnownMediaArchiveHints.reviewed():knownHints)
+                    .archive(descriptor,rootKey,encodingContentKey,fileDataId,contentKey,encodedKey);
+        }catch(IOException invalidMetadata){/* unavailable routing metadata retains the ordinary bounded path */}
+        if(reviewed.isPresent()&&archives.contains(reviewed.get())) {
+            String archive=reviewed.get();
+            try {
+                byte[] index=archiveIndex(archive,cancelled);var entry=CdnArchiveIndex.find(index,archive,encodedKey,cancelled);
+                check(cancelled);Path indexPath=cache.resolve("indexes/"+archive+".index");if(!Files.exists(indexPath))atomic(indexPath,index);
+                if(entry!=null) {
+                    byte[] encoded=archiveRange(archive,entry,encodedKey,cancelled,encodedLimit);
+                    check(cancelled);atomic(location,archive.getBytes(java.nio.charset.StandardCharsets.US_ASCII));return encoded;
+                }
+            }catch(IOException staleHint){/* a hint cannot grant content or provider trust; retain bounded selected fallback */}
         }
         for(String archive:archives) {
             check(cancelled);byte[] index=archiveIndex(archive,cancelled);

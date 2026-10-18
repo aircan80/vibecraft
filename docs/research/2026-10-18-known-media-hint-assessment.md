@@ -1,5 +1,7 @@
 # Known-media archive hints
 
+This assessment was followed by the [runtime implementation and measured control](2026-10-18-known-media-hint-runtime.md).
+
 Recommendation for [#7](https://github.com/aircan80/vibecraft/issues/7) and
 [#15](https://github.com/aircan80/vibecraft/issues/15): implement small reviewed
 exact-build archive hints before wiring the background coordinator into the shared
