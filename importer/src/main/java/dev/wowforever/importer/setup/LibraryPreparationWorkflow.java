@@ -49,6 +49,7 @@ public final class LibraryPreparationWorkflow {
   preflight(plan);List<String> warnings=new ArrayList<>();
   if(plan.allows(SetupPlan.Acquisition.LOCAL_INSTALLATION)||plan.allows(SetupPlan.Acquisition.BLIZZARD_CDN))warnings.add("Catalogue tables come from selected Wago exports; this build does not extract catalogue tables from WoW folders or Blizzard CDN. Those additional permissions are preserved.");
   if(!plan.sources().contains(SetupPlan.Source.RAIDBOTS_HOTFIX))warnings.add("The selected native-table-only preset measured 73% named item detail coverage, below the unchanged 85% gate; the current projection may be rejected. No additional source will be selected automatically.");
+  warnings.add("This first library includes items, NPCs, quests, zones and native instance records. Map pictures, flight routes, instance floor maps and collector observations are not imported yet; expanded source comparisons come later.");
   warnings.add("The source preset is pinned to beta build 1.60.1.70450; verified details do not establish complete beta content, media or playable availability.");
   return new Review(Forever70450Bootstrap.wagoManifest().identity(),warnings);
  }
