@@ -250,24 +250,24 @@ pushed by this roadmap.
 - [#8 Cross-platform CI](https://github.com/aircan80/vibecraft/issues/8): Linux passed; initial Windows/macOS fixture-path and symlink failures are being fixed.
 - [#9 Multiple game-version selection and switching](https://github.com/aircan80/vibecraft/issues/9)
 
-- [#10 VibeMiner future exploration](https://github.com/aircan80/vibecraft/issues/10): broader Blizzard/other-game/our-database exploration, build comparisons and new-item discovery. Future work; separate-app architecture is undecided.
+- [#10 VibeMiner future exploration](https://github.com/aircan80/vibecraft/issues/10): separate CDN-only app plan, with game/build selection and on-demand caching; no local-folder or Vibecraft connection.
 
 Setup must select **multiple game versions**, building shared edition-scoped catalogs
 with an active-game switcher. Only Forever is currently installed; this requirement
 is accepted scope, not completed multi-game import functionality.
 
-## Future VibeMiner concept
+## Separate vibeMiner app plan
 
-**Future exploration, issue #10.** The broader database/build exploration concept is
-named **VibeMiner**: Blizzard and potentially other games, our database, build
-comparison and newly added items. A separate app is a possibility, not an accepted
-architecture decision. The owner explicitly placed this work later. Current
-Vibecraft no-data setup and import remain within Vibecraft; this concept does not
-re-scope that active work.
+**Owner decision: separate app, issue #10.** The project is **vibeMiner**, planned
+in `~/Development/vibeminer`. Its scope is CDN-only discovery, game/build selection
+and on-demand cache retrieval. It must not require a local WoW folder or connect to
+Vibecraft's database. Planning is underway in the separate folder; implementation
+is not started. Current Vibecraft no-data setup/import stays within Vibecraft and
+is not replaced by this project.
 
-Current Windows CI fixture correction passed 13 focused checks; macOS helper work
-and combined CI acceptance remain pending. No new all-platform green CI result is
-claimed.
+Windows fixture-path and macOS CI helper corrections are integrated. Full combined
+source verification and the next push remain pending; no new all-platform CI green
+result or native Windows launch is claimed.
 
 ## Accepted future exploration: map zoom and pan
 
