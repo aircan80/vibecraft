@@ -31,9 +31,8 @@ final class JournalSurface {
     JPanel panel=new JPanel(new Stack()) {
       @Override protected void paintComponent(Graphics graphics){
         Graphics2D g=(Graphics2D)graphics.create();g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
-        g.setColor(Theme.current().bgRaised());g.fillRoundRect(0,0,getWidth()-1,getHeight()-1,18,18);
-        Color base=Theme.current().bgRaised(),line=Theme.current().textMuted();
-        g.setColor(new Color((base.getRed()*3+line.getRed())/4,(base.getGreen()*3+line.getGreen())/4,(base.getBlue()*3+line.getBlue())/4));
+        g.setColor(Theme.current().bgSurface());g.fillRoundRect(0,0,getWidth()-1,getHeight()-1,18,18);
+        g.setColor(Theme.current().hairline());
         g.drawRoundRect(0,0,getWidth()-1,getHeight()-1,18,18);g.dispose();
       }
     };
@@ -48,6 +47,7 @@ final class JournalSurface {
     pane.setBorder(BorderFactory.createEmptyBorder());pane.getVerticalScrollBar().setUnitIncrement(24);return pane;
   }
   static final class Body extends JPanel implements Scrollable {
+    @Override public Color getBackground(){Theme theme=Theme.current();return theme==null?super.getBackground():theme.bgBase();}
     Body(){super(new Stack());setBorder(BorderFactory.createEmptyBorder(24,24,30,24));}
     public Dimension getPreferredScrollableViewportSize(){return getPreferredSize();}
     public int getScrollableUnitIncrement(Rectangle r,int orientation,int direction){return 24;}

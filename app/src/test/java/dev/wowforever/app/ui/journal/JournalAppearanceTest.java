@@ -50,7 +50,8 @@ class JournalAppearanceTest {
       for(Color text:new Color[]{journal.textPrimary(),journal.textMuted(),journal.goldText(),journal.link()})
         for(Color background:new Color[]{journal.bgBase(),journal.bgSurface(),journal.bgRaised(),journal.selection()})
           assertThat(Contrast.ratio(text,background)).isGreaterThanOrEqualTo(4.5);
-      assertThat(journal.cardBg()).isEqualTo(original.cardBg());
+      assertThat(journal.cardBg()).isEqualTo(journal.bgSurface());
+      assertThat(journal.cardBorder()).isEqualTo(journal.hairline());
       assertThat(journal.plate()).isEqualTo(original.plate());
     }
   }

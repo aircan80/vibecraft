@@ -128,16 +128,18 @@ public final class JournalSidebar extends JPanel {
 
   public void refreshTheme() {
     Theme t = Theme.current();
-    setBackground(t.bgRaised());
-    brand.setForeground(t.textPrimary());
+    setBackground(t.bgBase());
+    setBorder(BorderFactory.createCompoundBorder(
+        BorderFactory.createMatteBorder(0, 0, 0, 1, t.hairline()), new EmptyBorder(20, 10, 12, 10)));
+    brand.setForeground(t.goldText());
     edition.setForeground(t.goldText()); browse.setForeground(t.textMuted()); footer.setForeground(t.textMuted());
     for (Entry entry : entries) {
       boolean active = matches(entry.target, selected);
-      entry.button.setBackground(active ? t.selection() : t.bgRaised());
-      entry.button.setForeground(t.textPrimary());
+      entry.button.setBackground(active ? t.selection() : t.bgBase());
+      entry.button.setForeground(active ? t.link() : t.textPrimary());
       entry.button.setSelected(active);
       entry.button.setBorder(BorderFactory.createCompoundBorder(
-          BorderFactory.createLineBorder(entry.button.hasFocus() || active ? t.goldText() : t.bgRaised()),
+          BorderFactory.createLineBorder(entry.button.hasFocus() ? t.goldText() : active ? t.selection() : t.bgBase()),
           new EmptyBorder(10, 7, 10, 5)));
       entry.button.getAccessibleContext().setAccessibleDescription(
           active ? "Current section: " + entry.label : "Open " + entry.label);

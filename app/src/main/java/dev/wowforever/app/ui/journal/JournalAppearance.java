@@ -20,7 +20,7 @@ public final class JournalAppearance {
     Color gold=color(dark?0xdab776:0x826025),accent=color(dark?0xa8d7cc:0x236c60);
     Color selected=color(dark?0x263d38:0xdce8de);
     return new Theme(dark,base,surface,raised,text,muted,gold,gold,accent,
-        previous.cardBg(),previous.cardBorder(),previous.warn(),previous.plate(),line,
+        surface,line,previous.warn(),previous.plate(),line,
         previous.barStart(),previous.barEnd(),raised,selected);
   }
   public static void apply() {
