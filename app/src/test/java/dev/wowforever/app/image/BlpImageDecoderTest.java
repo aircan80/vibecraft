@@ -12,6 +12,10 @@ import org.junit.jupiter.api.io.TempDir;
 /** Authored format vectors, never Blizzard payloads. Pixel expectations are independent BC/palette values. */
 class BlpImageDecoderTest {
   @TempDir Path temporary;
+  @Test void acceptsAdvisoryMipByteWithoutTrustingIt() throws Exception {
+    byte[] bytes=blp2(4,4,2,1,0,new byte[8]);bytes[11]=0x11;
+    assertThat(BlpImageDecoder.decode(bytes).getWidth()).isEqualTo(4);
+  }
   @Test void paletteIgnoresReservedAlphaWhenNoPlaneAndUsesBgraChannelOrder() throws Exception {
     var image=BlpImageDecoder.decode(blp2(2,1,1,0,0,new byte[]{4,1}));
     assertThat(image.getRGB(0,0)).isEqualTo(0xff112233);assertThat(image.getRGB(1,0)).isEqualTo(0xffff0000);

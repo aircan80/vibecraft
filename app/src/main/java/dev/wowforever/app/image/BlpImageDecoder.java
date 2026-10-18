@@ -70,8 +70,9 @@ public final class BlpImageDecoder {
       palette=fixed;
     } else {
       if(u32(bytes,4)!=1)throw new IOException("Unsupported BLP2 texture type");
-      int encoding=u8(bytes,8),alphaEncoding=u8(bytes,10),mips=u8(bytes,11);alpha=u8(bytes,9);
-      if(mips>1)throw new IOException("Invalid BLP mipmap flag");
+      int encoding=u8(bytes,8),alphaEncoding=u8(bytes,10);alpha=u8(bytes,9);
+      // Byte 11 is advisory (authenticated retail-format files also use 0x11).
+      // Actual mip presence and safety come from the fully validated range tables.
       if(encoding==1 && Set.of(0,1,4,8).contains(alpha) && alphaEncoding==0) {codec=Codec.PALETTE;palette=fixed;}
       else if(encoding==2 && alphaEncoding==0 && (alpha==0 || alpha==1))codec=Codec.DXT1;
       else if(encoding==2 && alphaEncoding==1 && (alpha==4 || alpha==8))codec=Codec.DXT3;
