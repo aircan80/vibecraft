@@ -52,7 +52,7 @@ public final class JournalCityPage extends JPanel implements PageState {
     JournalSurface.add(body,JournalSurface.copy("Recorded vendor stock and quest connections at "+data.city().name()+" placements. Questie NPC locations and quest relations, plus archived vendor relations, are separate from Forever native geography; this is not complete city service coverage. District-only placements remain in their district guides."));
     var snapshot=data.services();
     JournalSurface.add(body,JournalSurface.copy("Showing "+snapshot.people().size()+" recorded people"+(snapshot.more()?" · first "+dev.wowforever.app.db.CityServicesRepository.PEOPLE_LIMIT+" alphabetically":"")));
-    JPanel filters=new JPanel(new FlowLayout(FlowLayout.LEADING));filters.setOpaque(false);
+    JPanel filters=JournalSurface.grid(3,700);
     ButtonGroup group=new ButtonGroup();String[] names={"All recorded people","Vendors","Quest connections"};
     java.util.List<JPanel> cards=new java.util.ArrayList<>();
     for(int i=0;i<names.length;i++){final int mode=i;JToggleButton filter=new JToggleButton(names[i],i==0);group.add(filter);filters.add(filter);

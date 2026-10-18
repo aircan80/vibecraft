@@ -43,6 +43,12 @@ public final class JournalSnapshots {
       if(args[3].equals("headless")){coldCatalogs(Path.of(args[1]));headless(db);}else nativeRun(db,worker);
     }catch(Throwable t){report.add("FAIL: "+t);throw t;}finally{if(frame!=null)edt(()->{frame.dispose();return null;});worker.shutdownNow();Files.write(out.resolve("report.txt"),report);System.out.println(String.join("\n",report));}System.exit(0);
   }
+  static dev.wowforever.app.catalog.CatalogSession catalogSession;
+  static AppController wire(MainFrame window,Database db,java.util.concurrent.Executor worker){
+    var registry=dev.wowforever.app.catalog.EditionRegistry.fromLegacyMetadata(db.meta());
+    catalogSession=new dev.wowforever.app.catalog.CatalogSession(registry,java.util.prefs.Preferences.userNodeForPackage(dev.wowforever.app.Main.class).node("game-selection"));
+    var controller=new AppController(Repositories.of(db,catalogSession.token().context()),window,worker,db.meta());controller.configureCatalogSession(catalogSession);window.configureCatalogSelection(registry,catalogSession);window.attach(controller);return controller;
+  }
   static void coldCatalogs(Path database)throws Exception{
     for(ViewTarget target:List.of(new ViewTarget.ItemContent("set",2133),new ViewTarget.ItemContent("stats"),new ViewTarget.ItemContent("trinkets"),new ViewTarget.ItemContent("recipes"),new ViewTarget.ItemContent("xp-food"),new ViewTarget.ItemContent("comprehension"))){try(var fresh=Database.open(database)){long start=System.nanoTime();Object snapshot=CatalogPages.load(target,fresh);report.add("Fresh Database catalog cold load ms "+target+": "+(System.nanoTime()-start)/1e6+" ("+snapshot.getClass().getSimpleName()+")");}}
     report.add("Cold catalog timings use separate new Database instances per target; OS file cache may be warm; no baseline speedup inferred.");
@@ -65,7 +71,7 @@ public final class JournalSnapshots {
       AtomicReference<Optional<UiExperience>> selected=new AtomicReference<>();SwingUtilities.invokeLater(()->selected.set(ExperienceChooser.choose()));JButton choice=null;long end=System.nanoTime()+TimeUnit.SECONDS.toNanos(10);
       while(choice==null&&System.nanoTime()<end){choice=edt(()->Arrays.stream(Window.getWindows()).filter(Window::isShowing).flatMap(w->all(w).stream()).filter(c->c instanceof JButton b&&("choose-"+experience.name().toLowerCase(Locale.ROOT)).equals(b.getName())).map(c->(JButton)c).findFirst().orElse(null));robot.delay(100);}if(choice==null)throw new AssertionError("Chooser unavailable");click(choice);check(selected.get()!=null&&selected.get().orElseThrow()==experience,"Native chooser selected "+experience);
     }
-    edt(()->{frame=new MainFrame(UiExperience.JOURNAL);controller=new AppController(Repositories.of(db),frame,worker,db.meta());frame.attach(controller);frame.setBounds(20,20,1280,900);frame.setVisible(true);controller.open(new ViewTarget.Home());return null;});waitFor(JournalHomePage.class);
+    edt(()->{frame=new MainFrame(UiExperience.JOURNAL);controller=wire(frame,db,worker);frame.setBounds(20,20,1280,900);frame.setVisible(true);controller.open(new ViewTarget.Home());return null;});waitFor(JournalHomePage.class);
     for(ThemeManager.Mode mode:ThemeManager.Mode.values()){setNativeTheme(mode);for(int width:new int[]{1280,420}){edt(()->{frame.setMinimumSize(new Dimension(1,1));frame.setSize(width,900);return null;});snap("shell-home-"+mode.name().toLowerCase(Locale.ROOT)+"-"+width);if(width==420)check(edt(()->findUnchecked(JournalHomePage.class).getWidth())>=280,"Compact Journal leaves at least 280px for page content: "+mode);}}
     edt(()->{frame.setSize(1280,900);return null;});click(button("Find a dungeon"));waitFor(JournalDungeonPage.class);JournalDungeonPage d=find(JournalDungeonPage.class);var state=new JournalDungeonPage.State("Dalaran",1,0,0,0,0,null,0);edt(()->{d.restoreState(state);return null;});robot.delay(400);snap("journey-dalaran-filter");click(button("Open dungeon guide"));waitFor(JTabbedPane.class);click(button("Browse bosses & loot →"));JTabbedPane tabs=find(JTabbedPane.class);check(edt(()->tabs.getTitleAt(tabs.getSelectedIndex())).equals("Bosses & loot"),"Bosses & loot tab selected via native click");snap("journey-boss-loot");
     InstancePage instance=find(InstancePage.class);

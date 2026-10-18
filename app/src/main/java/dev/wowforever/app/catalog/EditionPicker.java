@@ -22,7 +22,11 @@ public final class EditionPicker extends JPanel {
       choice.setSelected(session.token().context().editionId().equals(edition.id()));
       choice.setToolTipText(edition.installed() ? "Uses this game's verified data only"
           : "A validated gameplay catalog must be installed before this game can be selected");
-      choice.addActionListener(event -> selected.accept(session.select(edition.id())));
+      choice.addActionListener(event -> {
+        if (!session.token().context().editionId().equals(edition.id())) {
+          selected.accept(session.select(edition.id()));
+        }
+      });
       group.add(choice); add(choice);
     }
     add(new JLabel("Other games need their own validated data. Era comparison data is not a Classic catalog."));

@@ -45,7 +45,7 @@ public final class NpcRepository {
       i.allowable_class, i.inventory_type, (SELECT t.text FROM item_tooltip_line t WHERE t.item_id = i.id AND t.kind = 'req_skill' \
       ORDER BY t.ordinal LIMIT 1) AS skill_line""";
 
-  /** Exact active Forever native slot, independent from masked Era ItemSparse metadata. */
+  /** Retained Forever/hotfix slot wins; exact active native Item fills only missing, including masked Era. */
   static String itemColumns(Connection c) throws SQLException {
     if (!Sql.hasTable(c,"client_table_row") || !Sql.hasTable(c,"client_table_dataset")) return ITEM_COLUMNS;
     String value="CAST(json_extract(native_item.payload,'$.InventoryType') AS TEXT)";
@@ -55,7 +55,7 @@ public final class NpcRepository {
         + " FROM client_table_dataset WHERE product='wow_classic_beta' AND locale='enUS'"
         + " AND build=(SELECT value FROM meta WHERE key='client_build') ORDER BY snapshot_id LIMIT 1)"
         + " AND native_item.table_name='Item' AND native_item.row_id=CAST(i.id AS TEXT))";
-    return ITEM_COLUMNS.replace("i.inventory_type", "COALESCE("+nativeSlot+",i.inventory_type) AS inventory_type");
+    return ITEM_COLUMNS.replace("i.inventory_type", "COALESCE(i.inventory_type,"+nativeSlot+") AS inventory_type");
   }
 
   /** How many NPC ids one {@link #bosses} query asks about, each bound once: under SQLite's classic 999 limit. */

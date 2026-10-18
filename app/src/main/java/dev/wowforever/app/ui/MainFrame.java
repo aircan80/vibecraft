@@ -96,6 +96,9 @@ public final class MainFrame extends JFrame implements MainView {
   private dev.wowforever.app.ui.journal.PinnedResearch research;
   private ViewTarget researchTarget;
   private String researchLabel;
+  private dev.wowforever.app.catalog.EditionRegistry editions;
+  private dev.wowforever.app.catalog.CatalogSession catalogSession;
+  private final JMenuItem gameCatalog = new JMenuItem("Game catalog…");
 
 
   public MainFrame() { this(UiExperience.CLASSIC); }
@@ -577,6 +580,10 @@ public final class MainFrame extends JFrame implements MainView {
         browse.add(item);
       }
       menu.add(browse);
+      JMenuItem catalog = new JMenuItem("Game catalog…");
+      catalog.setEnabled(catalogSession != null);
+      catalog.addActionListener(event -> showGameCatalog());
+      menu.add(catalog);
       menu.addSeparator();
     }
     menu.add(full);
@@ -608,10 +615,37 @@ public final class MainFrame extends JFrame implements MainView {
     WindowMenus.addHelpItems(help, menuActions());
     JMenuBar bar = new JMenuBar();
     bar.add(view);
+    if (experience == UiExperience.JOURNAL) {
+      JMenu settings = new JMenu("Settings");
+      gameCatalog.setName("game-catalog-menu");
+      gameCatalog.setEnabled(false);
+      gameCatalog.addActionListener(event -> showGameCatalog());
+      settings.add(gameCatalog);
+      bar.add(settings);
+    }
     bar.add(help);
     // F10 is compact mode (KeyMap), not the look and feel's "focus the menu bar"; Alt still reaches the menus
     bar.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("F10"), "none");
     return bar;
+  }
+
+  /** Called after worker-loaded catalog identity is verified, independently of interface selection. */
+  public void configureCatalogSelection(dev.wowforever.app.catalog.EditionRegistry editions,
+      dev.wowforever.app.catalog.CatalogSession session) {
+    this.editions = java.util.Objects.requireNonNull(editions);
+    this.catalogSession = java.util.Objects.requireNonNull(session);
+    gameCatalog.setEnabled(true);
+    gameCatalog.setToolTipText("Current game: WoW Forever · " + session.token().context().clientBuild());
+  }
+
+  private void showGameCatalog() {
+    if (experience != UiExperience.JOURNAL || catalogSession == null) return;
+    var picker = new dev.wowforever.app.catalog.EditionPicker(editions, catalogSession, token -> {
+      // Only Forever is installed. Future switching must rebuild scoped repositories and navigation.
+      status.setMessage("Game catalog: WoW Forever · " + token.context().clientBuild());
+    });
+    picker.setBorder(javax.swing.BorderFactory.createEmptyBorder(12, 12, 12, 12));
+    JOptionPane.showMessageDialog(this, picker, "Game catalog", JOptionPane.PLAIN_MESSAGE);
   }
 
   private void showShortcuts() {

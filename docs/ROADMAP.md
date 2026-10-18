@@ -3,20 +3,33 @@
 ## Current high-level direction (2026-10-17)
 
 The original release train remains in the [product backlog](superpowers/specs/2026-10-17-product-backlog.md).
+Current scope and corrected acceptance are reconciled in the [product/project review](roadmap-product-reconciliation-2026-10-17.md).
 Later owner requests bring selected UI, city and rendering work forward; they do not
 mean every feature in a later release is complete.
 
 | Stage | Focus | Current position |
 | --- | --- | --- |
-| Foundation through v0.4.1 | Search, quests, maps, provenance and Forever systems/content | Implemented development; genuine collector capture acceptance remains external |
-| Explorer Journal | Mockup fidelity, persistent list/detail, compact navigation and fast loads | Active integration; Original interface retained |
-| Cities | Native city index/guides, district navigation and source-backed soundtracks | Active integration; recorded geography is partial |
-| NPC previews | Exact appearance resolution, on-demand background renders and shared disk cache | Working generic pipeline; mapping/material coverage still limited |
-| v0.5 | Loot research, equipment filters and preparation views | Planned |
-| v0.6 | Crafting, professions, recipe sources, vendors and gathering | Planned |
-| v0.7 | World guides, factions, stories, rares, pets and fishing | Planned; cities pulled forward |
-| v0.8 | Comparison, pinned pages/lists, compact tools and build changes | Planned |
-| Multiple games | Edition-scoped catalogs and a persistent game selector | Architecture researched; not imported/implemented |
+| Foundation through v0.4.1 | Search, quests, maps, provenance and Forever systems/content | Development verified; not released; genuine collector capture acceptance remains external |
+| Explorer Journal | Mockup fidelity, persistent list/detail, compact navigation and fast loads | Running baseline; Original interface retained; further polish remains |
+| Cities | Native city guides, districts and source-backed soundtracks | Six-city baseline running; recorded vendor/giver directory integrated, in verification; geography/service coverage partial |
+| NPC previews | Exact appearance resolution, background renders and shared cache | Generic pipeline running; mapping/material coverage limited; metadata coverage is not successful-render coverage |
+| v0.5 | Loot research and preparation | Filters integrated, in verification; instance-wide pools and dungeon/raid preparation remain |
+| v0.6 | Crafting and economy | Native crafting-guide slice integrated, in verification; profession browser, graph, source resolver, trainers, economics, gathering and disenchanting remain |
+| v0.7 | Lore and exploration | City baseline running; reward trails and quest-text search integrated, in verification; full gazetteer, storylines, pets, rares and fishing remain |
+| v0.8 | Glance and compare | Pinned-reference slice integrated, in verification; item compare, wishlist/export, compact pinned tabs and two-build changes remain |
+| Multiple games | Edition-scoped catalogs and selector | Foundation and picker integrated, in verification; only Forever installed; Classic, Retail and Anniversary/TBC data not imported |
+
+“Integrated, in verification” means source implementation exists, not that the new artifact
+is running or that the whole release is accepted. The dashboard records the exact running
+artifact and completed evidence independently. The owner uses it to monitor status: reconcile
+it after every meaningful batch, launch, acceptance result or blocker change. Product management
+owns scope and acceptance; project management verifies actual implementation and evidence.
+
+The strict Forever boundary supersedes the original v0.5 Felheart Belt must-show example:
+class/slot/resistance filters use recorded Forever facts. Missing fields remain unknown and
+are counted separately. Archived Era values are available only through explicit comparison;
+they cannot satisfy Forever filters. Molten Core Warlock/Waist currently yields 0 shown,
+209 excluded and 15 unknown, which is a source-coverage result, not a reason to borrow Era data.
 
 Owner-authorized native previews and city music may download verified assets on demand
 and then reuse an offline cache. The research database remains local and self-contained.
@@ -110,10 +123,8 @@ Collected 2026-10-17 at the end of the phase 2B UI overhaul.
     the toolbar; they should fold into the "Kind ▾" menu as the compact window does.
 15. **Type-to-search zone combo.** The zone combo of the NPC and quest list pages lists hundreds of
     zones; an editable combo that filters as you type is more than a small change, so it waits.
-16. **Equipment slot column.** Instance loot shows AtlasLoot's order, not an equipment slot; a real
-    Slot column (and slot filters) waits for `inventory_type` in the loot queries (v0.5).
-17. **Pinned pages.** The settings can remember pinned entity pages (`UiState.pinned`), but no view lists
-    them yet, so Ctrl+D is unbound and not advertised; bind it again with a pinned list on Home or the rail.
+16. **Equipment slot column and filters.** Integrated for v0.5 verification: true native slots and class/resistance filters. AtlasLoot ordering is not an equipment slot; missing Forever fields remain explicit.
+17. **Pinned pages.** Scoped pinned-reference view and Ctrl+D are integrated for verification. Wishlist/export and compact pinned tabs remain separate v0.8 work.
 18. **Remember column widths, sort order, last search kind and the monitor (P1.7 remainder).** Phase
     2B stored these settings but nothing read them back, so the final review removed them; add them
     again together with the code that restores them.

@@ -103,6 +103,36 @@ class AppControllerJournalTest {
     assertThat(view.title).isEqualTo("Dungeons & raids");
   }
 
+  @Test void aChangedCatalogTokenSkipsAnOtherwiseCurrentQueuedPage() throws Exception {
+    var preferences=java.util.prefs.Preferences.userRoot().node("wowforever-catalog-controller/"+java.util.UUID.randomUUID());
+    try {
+      var registry=dev.wowforever.app.catalog.EditionRegistry.fromLegacyMetadata(FixtureDb.repositories().database().meta());
+      var session=new dev.wowforever.app.catalog.CatalogSession(registry,preferences);
+      List<Runnable> pending=new ArrayList<>();
+      var controller=new AppController(FixtureDb.repositories(),view,pending::add,Map.of(),new ManualDelay());
+      controller.configureCatalogSession(session);
+      controller.open(new ViewTarget.Home());
+      session.select("forever");
+      pending.removeFirst().run();
+      assertThat(view.detail).isNull();
+      controller.open(new ViewTarget.List(EntityKind.INSTANCE));
+      pending.removeFirst().run();
+      assertThat(view.detail).isInstanceOf(JournalDungeonPage.class);
+    } finally {preferences.removeNode();}
+  }
+
+  @Test void aCatalogSessionFromAnotherProjectionCannotAttach() throws Exception {
+    var preferences=java.util.prefs.Preferences.userRoot().node("wowforever-catalog-controller/"+java.util.UUID.randomUUID());
+    try {
+      var metadata=new java.util.HashMap<>(FixtureDb.repositories().database().meta());
+      metadata.put("build_id","different-projection");
+      var session=new dev.wowforever.app.catalog.CatalogSession(
+          dev.wowforever.app.catalog.EditionRegistry.fromLegacyMetadata(metadata),preferences);
+      org.assertj.core.api.Assertions.assertThatThrownBy(()->controller().configureCatalogSession(session))
+          .isInstanceOf(IllegalArgumentException.class);
+    } finally {preferences.removeNode();}
+  }
+
   private static JournalPage guide(java.awt.Component component) {
     if(component instanceof JournalPage page)return page;
     if(component instanceof java.awt.Container container)

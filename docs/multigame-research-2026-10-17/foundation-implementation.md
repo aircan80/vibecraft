@@ -15,7 +15,7 @@ var picker = new EditionPicker(registry, session, token -> {
 });
 ```
 
-The picker is a normal Swing panel for the game menu/settings. It is separate from Original/Explorer Journal interface selection. Disabled games explain that their own validated gameplay catalog is required. The panel does not implement downloading or pretend coverage exists.
+The picker is integrated into Explorer Journal under **Settings → Game catalog…** and the compact-window menu. Startup creates the validated registry/session and uses the context-aware repository factory. Selecting the current game does not invalidate active loads or reload the page. The picker is a normal Swing panel for the game menu/settings. It is separate from Original/Explorer Journal interface selection. Disabled games explain that their own validated gameplay catalog is required. The panel does not implement downloading or pretend coverage exists.
 
 Every worker must capture its immutable token before queuing, then combine `session.guard(token)` with the existing per-navigation generation guard in `Async.runIf`. A new selection invalidates queued work and late results, including an A-to-A reload. It cannot interrupt an already-running JDBC query.
 

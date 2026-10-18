@@ -1,5 +1,7 @@
 package dev.wowforever.app;
 
+import dev.wowforever.app.catalog.CatalogSession;
+import dev.wowforever.app.catalog.EditionRegistry;
 import dev.wowforever.app.db.Database;
 import dev.wowforever.app.db.DatabaseInstaller;
 import dev.wowforever.app.db.Repositories;
@@ -37,7 +39,8 @@ public final class Main {
   private Main() {}
 
   /** The open database and everything the window needs from it, loaded off the EDT. */
-  private record Loaded(Database db, Repositories repos, Map<String, String> meta) {}
+  private record Loaded(Database db, Repositories repos, Map<String, String> meta,
+      EditionRegistry editions, CatalogSession session) {}
 
   public static void main(String[] args) {
     if (args.length == 1 && args[0].equals("--self-test")) {
@@ -120,6 +123,8 @@ public final class Main {
       open.set(loaded.db());
       IconCache.install(new IconCache(loaded.repos().assets()));
       AppController controller = new AppController(loaded.repos(), frame, Async.SWING_WORKER, loaded.meta());
+      controller.configureCatalogSession(loaded.session());
+      frame.configureCatalogSelection(loaded.editions(), loaded.session());
       frame.attach(controller);
       controller.start();
     }, e -> startupFailed(frame, "The browser could not start:\n", e)),
@@ -155,8 +160,12 @@ public final class Main {
       Path file = new DatabaseInstaller(UserDataDir.resolve()).install();
       Database db = Database.open(file);
       try {
-        Repositories repos = Repositories.of(db);
-        return new Loaded(db, repos, db.meta());
+        Map<String, String> meta = db.meta();
+        EditionRegistry editions = EditionRegistry.fromLegacyMetadata(meta);
+        CatalogSession session = new CatalogSession(editions,
+            java.util.prefs.Preferences.userNodeForPackage(Main.class).node("game-selection"));
+        Repositories repos = Repositories.of(db, session.token().context());
+        return new Loaded(db, repos, meta, editions, session);
       } catch (RuntimeException e) {
         db.close();
         throw e;

@@ -1,4 +1,65 @@
+> Dashboard maintenance: the owner monitors status through the published development dashboard.
+> Reconcile release scope with actual source, completed tests and the exact running artifact after
+> each meaningful batch. Distinguish Running / Integrated in verification / Remaining / Waiting
+> for external input. Partial later-release slices never imply a whole release is complete.
+> See `docs/ROADMAP.md` and the adjacent `dashboard-refresh/README.md` maintenance policy.
+
 # Resume development — current checkpoint
+
+## Research integration launched — 2026-10-18 01:05 UTC
+
+The exact frozen research-layout artifact `4397a9f4debaef9e2117365f353f1a0cf86376515895d15abae69080a3d074af`
+is now launched via wowforever-browser.service with the normal Original/Explorer
+Journal chooser. Full Maven:1954tests,6skip,zero failures/errors. Native:44captures
+PASS; final visual review found only minor long-item heading clipping at420px.
+See docs/verification/research-integration.json. Running now includes loot filters,
+city services, connected reward trails, native crafting guide, quest-text search,
+scoped pins and the Forever-only catalog selector. SQLite unchanged.
+
+Next agents shared_loot_workspace and preparation_research own new components
+per docs/v0.5-remaining-slices-plan-2026-10-17.md. Root serializes JournalDetails
+integration and Maven. Dashboard must advance newly launched features to Running
+and track new slices In progress, while retaining partial release scope.
+
+
+## Readable dashboard published — 2026-10-18 00:59 UTC
+
+Public dashboard version20 is deployed successfully at the same URL, source
+`4d29ef80dc2ef018033aee5b5c2f0f250f311088` in `../dashboard-refresh`.
+User requested a dashboard specialist working with both managers: 18px readable
+body, Larger persistent option, current-work-first layout, explicit disjoint
+application/test code line counts. Auto-refresh checks published data every minute
+while visible, on focus/tab return, and manually; preserves expanded sections,
+search/filter and scroll. Offline checks retain prior snapshot. Refresh behavior
+regressions passed, Firefox desktop/mobile reviewed. New URL opened for owner.
+
+Meanwhile city layout fix full Maven verify85244 passed:1954tests,6skipped,
+zero failures/errors. Frozen `.local/research-integration-acceptance/app-review-layout.jar`
+SHA256 `4397a9f4debaef9e2117365f353f1a0cf86376515895d15abae69080a3d074af`.
+Acceptance agent reports44 exact-artifact native captures PASS (27core,11research,
+4cachedpreview,2unresolved). Agent is finishing visual review; await its final
+report, record verification, commit integration, launch exact frozen artifact,
+then advance dashboard from In verification to Running. Do not conflate earlier
+51captures/render generation with new44capture batch. App still runs652baseline.
+
+
+## Dashboard reconciliation — 2026-10-18 00:53 UTC
+
+Product and project managers jointly reconciled release scope in
+`docs/roadmap-product-reconciliation-2026-10-17.md`. Public dashboard version 19
+is deployed at https://wow-forever-progress.happystoat6.chatgpt.site from source
+commit `14bbbc52fd313a13ae50db6555a034744eb346c6` in `../dashboard-refresh`.
+Preserve this checkout and published audience. Dashboard is the owner’s status monitor;
+update after integrated batches, launch and blocker/scope changes.
+
+The dashboard records completed full Maven verification of frozen artifact
+`a1d0a7490ead6d63d51413f00336933300c00f5b2e2a63830a0efa9105f09121`:
+1953 tests, six skipped, zero failures/errors; GUI acceptance remains open and
+running artifact is still `652203...`. Acceptance found clipped compact city service
+filters; the layout fix and regression test are now under Maven verification
+(session 85244, `.local/research-layout-verify.log`). Do not claim final acceptance
+or relaunch until the replacement artifact passes the native journeys.
+
 
 ## Latest checkpoint: generic native previews and city guides/music
 

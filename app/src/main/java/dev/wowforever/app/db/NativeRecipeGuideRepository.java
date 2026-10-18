@@ -9,7 +9,11 @@ import static dev.wowforever.app.db.ClientTableRows.*;
 public final class NativeRecipeGuideRepository {
   public record Evidence(String table,String path,long line) {}
   public record Ingredient(long itemId,String name,Long count) {}
-  public record Skill(long id,String name,Long rank,Long trivialLow,Long trivialHigh) {}
+  public record Skill(long id,String name,Long rank,Long trivialLow,Long trivialHigh,Long category) {
+    public Skill(long id,String name,Long rank,Long trivialLow,Long trivialHigh){this(id,name,rank,trivialLow,trivialHigh,null);}
+    public boolean profession(){return Long.valueOf(9).equals(category)||Long.valueOf(11).equals(category);}
+    public String association(){return profession()?"Profession":Long.valueOf(7).equals(category)?"Class ability":"Skill line";}
+  }
   public record Recipe(long spellId,String name,long outputItemId,String outputName,String quantity,String variant,
       List<Ingredient> ingredients,List<Skill> skills,List<Evidence> evidence,String reagentCoverage) {
     public Recipe { ingredients=List.copyOf(ingredients);skills=List.copyOf(skills);evidence=List.copyOf(evidence); }
@@ -52,7 +56,7 @@ public final class NativeRecipeGuideRepository {
         for(Row ability:ItemContentRows.read(c,dataset,"SkillLineAbility"," AND CAST(json_extract(r.payload,'$.Spell') AS INTEGER)=?",List.of(spell))) {
           Long id=ability.number("SkillLine");if(id==null||id<=0)continue;
           Row skill=one(c,dataset,"SkillLine",id);evidence.add(evidence("SkillLineAbility",ability));if(skill!=null)evidence.add(evidence("SkillLine",skill));
-          skills.add(new Skill(id,text(skill,"DisplayName_lang","Skill #"+id),ability.number("MinSkillLineRank"),ability.number("TrivialSkillLineRankLow"),ability.number("TrivialSkillLineRankHigh")));
+          skills.add(new Skill(id,text(skill,"DisplayName_lang","Skill #"+id),ability.number("MinSkillLineRank"),ability.number("TrivialSkillLineRankLow"),ability.number("TrivialSkillLineRankHigh"),skill==null?null:skill.number("CategoryID")));
         }
         String coverage=reagents.isEmpty()?"Reagent record not retained; requirements unknown."
             :ingredients.isEmpty()?"Native reagent row has no positive item IDs; no listed item reagents.":"Native reagent slots retained, including explicit zero quantities.";
@@ -74,6 +78,17 @@ public final class NativeRecipeGuideRepository {
   private static Evidence evidence(String table,Row row){return new Evidence(table,row.sourcePath(),row.sourceLine());}
   private static String text(Row row,String field,String fallback){return row==null?fallback:row.text(field,fallback);}
   private static String quantity(Row effect) {
+    boolean missing=false,dependent=false;
+    // Flat create-item arithmetic is valid only when the archived effect excludes these context inputs.
+    for(String field:List.of("EffectRealPointsPerLevel","EffectPointsPerResource","Coefficient",
+        "EffectBonusCoefficient","BonusCoefficientFromAP","ResourceCoefficient","ScalingClass")) {
+      String cell=effect.text(field);
+      if(cell==null||cell.isBlank()){missing=true;continue;}
+      try {double value=Double.parseDouble(cell);if(!Double.isFinite(value))missing=true;else if(value!=0)dependent=true;}
+      catch(NumberFormatException ignored){missing=true;}
+    }
+    if(dependent)return "Context-dependent";
+    if(missing)return "Unknown";
     String base=effect.text("EffectBasePointsF"),variance=effect.text("Variance");
     if(base==null||variance==null)return "Unknown";
     try {

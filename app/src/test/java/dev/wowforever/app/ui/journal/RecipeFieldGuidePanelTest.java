@@ -20,6 +20,14 @@ class RecipeFieldGuidePanelTest {
       assertThat(toggles(page)).hasSize(1).allMatch(t->!t.isSelected());toggles(page).getFirst().doClick();assertThat(toggles(page).getFirst().getText()).isEqualTo("Hide recipe source evidence");
     });
   }
+  @Test void classCreationExplainsContextDependentYieldWithoutClaimingProfessionRank()throws Exception {
+    var recipe=new Recipe(5504,"Conjure Water",5350,"Conjured Water","Context-dependent","Effect #1",List.of(),List.of(new Skill(237,"Arcane",1L,0L,0L,7L)),List.of(),"Missing reagent record");
+    SwingUtilities.invokeAndWait(()->{
+      var page=new RecipeFieldGuidePanel(new Snapshot("f","70450",List.of(recipe)),t->{});
+      String text=text(page);assertThat(text).contains("Quantity Context-dependent","Class ability · Arcane","No fixed quantity is calculated").doesNotContain("Creates 2 ×","Required skill");
+    });
+  }
+  private static String text(Container root){StringBuilder result=new StringBuilder();for(Component child:root.getComponents()){if(child instanceof JTextArea area)result.append(area.getText()).append(' ');if(child instanceof JLabel label)result.append(label.getText()).append(' ');if(child instanceof Container c)result.append(text(c));}return result.toString();}
   private static List<JButton> buttons(Container root){List<JButton> found=new ArrayList<>();for(Component child:root.getComponents()){if(child instanceof JButton button)found.add(button);if(child instanceof Container c)found.addAll(buttons(c));}return found;}
   private static List<JToggleButton> toggles(Container root){List<JToggleButton> found=new ArrayList<>();for(Component child:root.getComponents()){if(child instanceof JToggleButton button)found.add(button);if(child instanceof Container c)found.addAll(toggles(c));}return found;}
 }

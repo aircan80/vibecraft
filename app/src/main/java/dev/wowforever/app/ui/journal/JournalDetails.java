@@ -121,6 +121,11 @@ public final class JournalDetails {
       page.tabs.addChangeListener(e->{if(page.tabs.getSelectedIndex()==trailIndex)trail.activate();});
       findResearchAction(item,()->page.tabs.setSelectedIndex(trailIndex));
     }
+    var crafting=new JournalRecipeGuide(()->new dev.wowforever.app.db.NativeRecipeGuideRepository(repos.database())
+        .forItem(p.detail().summary().id()),worker,nav,sink);
+    page.tab("Crafting guide",KeyEvent.VK_C,crafting);
+    int craftingIndex=page.tabs.getTabCount()-1;
+    page.tabs.addChangeListener(e->crafting.setActive(page.tabs.getSelectedIndex()==craftingIndex));
     return page;
   }
 

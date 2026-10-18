@@ -19,4 +19,9 @@ class ShippedRecipeGuideTest extends ShippedDataSupport {
       assertThat(recipe.evidence()).anyMatch(e->e.table().equals("SpellReagents")&&e.line()>0);
     });
   }
+  @Test void conjuredFoodAndWaterRemainContextDependentClassAbilities() {
+    var repo=new NativeRecipeGuideRepository(db);
+    for(long[] pair:new long[][]{{5350,5504},{5349,587},{281060,1310181}})assertThat(repo.forItem(pair[0]).recipes()).filteredOn(recipe->recipe.spellId()==pair[1]).isNotEmpty().allSatisfy(recipe->assertThat(recipe.quantity()).isEqualTo("Context-dependent"));
+    assertThat(repo.forItem(5350).recipes()).anySatisfy(recipe->{assertThat(recipe.spellId()).isEqualTo(5504);assertThat(recipe.skills()).anySatisfy(skill->{assertThat(skill.association()).isEqualTo("Class ability");assertThat(skill.profession()).isFalse();});});
+  }
 }

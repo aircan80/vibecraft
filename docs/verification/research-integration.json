@@ -1,0 +1,34 @@
+{
+  "completedAt": "2026-10-18T01:04:50.449232+00:00",
+  "appJarSha256": "4397a9f4debaef9e2117365f353f1a0cf86376515895d15abae69080a3d074af",
+  "fullMaven": {
+    "tests": 1954,
+    "skipped": 6,
+    "failures": 0,
+    "errors": 0
+  },
+  "native": {
+    "captures": 44,
+    "core": 27,
+    "research": 11,
+    "cachedPreview": 4,
+    "unresolvedPreview": 2,
+    "scope": "Isolated X11 JFrame/Robot, no Wayland desktop automation claim",
+    "music": "Disabled during screenshot journeys",
+    "reports": [
+      ".local/research-integration-acceptance/native-layout-final/report.txt",
+      ".local/research-integration-acceptance/research-layout-final/report.txt",
+      ".local/research-integration-acceptance/generic-cached-layout-final/report.txt",
+      ".local/research-integration-acceptance/generic-unresolved-layout-final/report.txt"
+    ]
+  },
+  "databaseBuild": "40ca42c8e8c6442c0e2e633f76bf4f4638ebf23faf4029b568ee1ee038c207b7",
+  "databaseBytesChanged": false,
+  "desktop": "Exact frozen artifact launched with normal interface chooser",
+  "knownLimits": [
+    "Long item title can clip at420px; full name remains elsewhere on page",
+    "Only Forever installed; other catalog choices unavailable",
+    "Genuine beta collector and appearance capture acceptance remain open",
+    "Rendering mappings do not imply successful render coverage"
+  ]
+}

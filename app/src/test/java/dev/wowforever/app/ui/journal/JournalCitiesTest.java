@@ -73,6 +73,33 @@ class JournalCitiesTest {
           new ViewTarget.Entity(new EntityRef(EntityKind.ITEM,7)),new ViewTarget.Entity(new EntityRef(EntityKind.QUEST,9)));
     });
   }
+  @Test void cityServiceFiltersFitCompactAndDesktopRows() throws Exception {
+    var data=new JournalCities.GuideSnapshot(new JournalCities.City(1519,"Stormwind",null),"test",List.of(),
+        dev.wowforever.app.db.CityServicesRepository.Snapshot.empty());
+    SwingUtilities.invokeAndWait(()->{
+      var page=new JournalCityPage(data,new javax.swing.JPanel(),ignored->{},null);
+      for(Component child:page.getComponents())if(child instanceof javax.swing.JTabbedPane tabs)tabs.setSelectedIndex(3);
+      for(int width:new int[]{420,1280}){
+        page.setSize(width,900);for(int pass=0;pass<20;pass++)layout(page);
+        var controls=new java.util.ArrayList<javax.swing.JToggleButton>();collectServiceFilters(page,controls);
+        assertThat(controls).hasSize(3);
+        for(var control:controls){
+          assertThat(control.getWidth()).isPositive();assertThat(control.getHeight()).isPositive();
+          assertThat(control.getY()+control.getHeight()).isLessThanOrEqualTo(control.getParent().getHeight());
+          assertThat(control.getX()+control.getWidth()).isLessThanOrEqualTo(control.getParent().getWidth());
+        }
+        if(width==420)assertThat(controls.stream().map(Component::getY).distinct().count()).isEqualTo(3);
+        else assertThat(controls.stream().map(Component::getY).distinct().count()).isEqualTo(1);
+      }
+    });
+  }
+  private static void collectServiceFilters(Container root,List<javax.swing.JToggleButton> result){
+    for(Component child:root.getComponents()){
+      if(child instanceof javax.swing.JToggleButton button&&List.of("All recorded people","Vendors","Quest connections").contains(button.getText()))result.add(button);
+      if(child instanceof Container nested)collectServiceFilters(nested,result);
+    }
+  }
+  private static void layout(Container root){root.doLayout();for(Component child:root.getComponents())if(child instanceof Container nested)layout(nested);}
   private static List<JButton> buttons(Container root) {
     List<JButton> found=new ArrayList<>();for(Component c:root.getComponents()){if(c instanceof JButton b)found.add(b);if(c instanceof Container child)found.addAll(buttons(child));}return found;
   }

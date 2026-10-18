@@ -77,6 +77,7 @@ public final class AppController implements Navigator {
   private final MainView view;
   private final Executor worker;
   private final Map<String, String> meta;
+  private volatile dev.wowforever.app.catalog.CatalogSession catalogSession;
   /** The wait before a loading page shows: a Swing timer, or a delay the test fires by hand. */
   private final MasterList.Delay loadingDelay;
   /** The search hit last opened from the dropdown and its name, which its loading page reads. */
@@ -182,6 +183,23 @@ public final class AppController implements Navigator {
     view.status().setProvenance(this.meta);
     view.masterList().onPreview(e -> preview(e.ref()));
     view.masterList().onCommit(e -> commit(e.ref()));
+  }
+
+  /** Attach the validated data identity before starting navigation. */
+  public void configureCatalogSession(dev.wowforever.app.catalog.CatalogSession session) {
+    Objects.requireNonNull(session,"session");
+    var context=session.token().context();
+    if(dev.wowforever.app.catalog.EditionRegistry.fromLegacyMetadata(repos.database().meta())
+        .installed(context.editionId()).filter(context::equals).isEmpty())
+      throw new IllegalArgumentException("Selected catalog does not match the installed database");
+    catalogSession=session;
+    view.configureResearchScope(context.editionId()+"\n"+context.projectionId()+"\n"+context.clientBuild()+"\n"+context.locale());
+  }
+  private java.util.function.BooleanSupplier currentRequest(java.util.function.BooleanSupplier navigation) {
+    var session=catalogSession;
+    if(session==null)return navigation;
+    var token=session.token();
+    return ()->navigation.getAsBoolean()&&session.current(token);
   }
 
   /** What a rail button opens. */
@@ -495,7 +513,7 @@ public final class AppController implements Navigator {
     int generation = ++resultsGeneration;
     int detail = detailGeneration;
     view.status().setMessage("Loading…");
-    Async.runIf(worker, () -> generation == resultsGeneration, work, listing -> {
+    Async.runIf(worker, currentRequest(() -> generation == resultsGeneration), work, listing -> {
       if (generation == resultsGeneration) {
         view.masterList().show(listing.title(), listing.entries(), listing.capped());
         if (opened != null) {
@@ -545,7 +563,7 @@ public final class AppController implements Navigator {
         setPage(null, LoadingPage.of(ref.kind(), title), null);
       }
     });
-    Async.runIf(worker, () -> generation == detailGeneration, () -> {
+    Async.runIf(worker, currentRequest(() -> generation == detailGeneration), () -> {
       var detail=DetailPanels.load(ref,repos);
       var dungeons=journalExperience && ref.kind()==EntityKind.INSTANCE && detail.isPresent()
           ? (dev.wowforever.app.ui.journal.JournalCatalog.DungeonSnapshot)dev.wowforever.app.ui.journal.JournalCatalog.load(new ViewTarget.List(EntityKind.INSTANCE),repos.database()) : null;
@@ -621,7 +639,7 @@ public final class AppController implements Navigator {
     leaveListPage();
     view.setTitleSuffix(ListPage.title(t.kind()));
     view.status().setMessage("Loading…");
-    Async.runIf(worker, () -> generation == detailGeneration, () -> new LoadedList(listOptions(t), ListRows.load(t, repos)), loaded -> {
+    Async.runIf(worker, currentRequest(() -> generation == detailGeneration), () -> new LoadedList(listOptions(t), ListRows.load(t, repos)), loaded -> {
       if (generation == detailGeneration) {
         AtomicReference<ListPage> self = new AtomicReference<>();
         ListPage page = new ListPage(t, loaded.options(), loaded.rows(), this, f -> refilter(self.get(), f));
@@ -649,7 +667,7 @@ public final class AppController implements Navigator {
     leaveListPage();
     view.setTitleSuffix("Zones · Map");
     view.status().setMessage("Loading…");
-    Async.runIf(worker, () -> generation == detailGeneration, () -> {
+    Async.runIf(worker, currentRequest(() -> generation == detailGeneration), () -> {
       var catalog = repos.worldMaps().catalog();
       var map = repos.zones().mapByUiMap(target.uiMapId());
       BufferedImage image = null;
@@ -693,6 +711,12 @@ public final class AppController implements Navigator {
 
   /** Content catalogs follow the same worker/EDT split and stale-load protection as entity pages. */
   private void showCatalog(ViewTarget target) {
+    if(journal() && target instanceof ViewTarget.Forever f && f.section().equals("lore")) {
+      ++detailGeneration;loadingDelay.cancel();leaveListPage();
+      view.setTitleSuffix("Azeroth through a word");
+      setPage(target,new dev.wowforever.app.ui.journal.JournalLoreSearchPage(repos.database(),this,worker));
+      view.status().setMessage("Ready to search quest text");return;
+    }
     if(journal() && target instanceof ViewTarget.Forever f && f.section().equals("pinned")) {
       ++detailGeneration;
       loadingDelay.cancel();
@@ -715,7 +739,7 @@ public final class AppController implements Navigator {
     loadingDelay.schedule(() -> {
       if (generation == detailGeneration) setPage(null,new LoadingPage(title,"Loading archived source data…"),null);
     });
-    Async.runIf(worker, () -> generation == detailGeneration, () -> CatalogPages.load(target, repos.database()), data -> {
+    Async.runIf(worker, currentRequest(() -> generation == detailGeneration), () -> CatalogPages.load(target, repos.database()), data -> {
       if (generation != detailGeneration) return;
       loadingDelay.cancel();
       setPage(target, CatalogPages.render(target, data, this));
@@ -734,7 +758,7 @@ public final class AppController implements Navigator {
     loadingDelay.schedule(() -> {
       if(generation==detailGeneration)setPage(null,new LoadingPage(title,"Opening your journal…"),null);
     });
-    Async.runIf(worker, () -> generation == detailGeneration, () -> dev.wowforever.app.ui.journal.JournalCatalog.load(target,repos.database()), data -> {
+    Async.runIf(worker, currentRequest(() -> generation == detailGeneration), () -> dev.wowforever.app.ui.journal.JournalCatalog.load(target,repos.database()), data -> {
       if(generation!=detailGeneration)return;
       loadingDelay.cancel();
       JComponent component=dev.wowforever.app.ui.journal.JournalCatalog.render(data,this);
@@ -792,7 +816,7 @@ public final class AppController implements Navigator {
     view.setHistoryState(history.canBack(), history.canForward());
     int generation = ++detailGeneration;
     view.status().setMessage("Loading…");
-    Async.runIf(worker, () -> generation == detailGeneration, () -> ListRows.load(t, repos), rows -> {
+    Async.runIf(worker, currentRequest(() -> generation == detailGeneration), () -> ListRows.load(t, repos), rows -> {
       if (generation == detailGeneration && page == listPage) {
         page.showRows(t, rows);
         showCount(rows.size());
@@ -822,10 +846,11 @@ public final class AppController implements Navigator {
    * (another page, a list, home) is dropped.
    */
   private StatusSink pageStatus(int generation) {
+    var current=currentRequest(()->generation==detailGeneration);
     return new StatusSink() {
       @Override
       public void message(String text) {
-        if (generation == detailGeneration) {
+        if (current.getAsBoolean()) {
           pageMessage = text;
           view.status().setMessage(text);
         }
@@ -833,7 +858,7 @@ public final class AppController implements Navigator {
 
       @Override
       public void fail(Exception e) {
-        if (generation == detailGeneration) {
+        if (current.getAsBoolean()) {
           AppController.this.fail(e);
         } else {
           LOG.debug("A page no longer shown failed to load more", e);

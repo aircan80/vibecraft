@@ -91,4 +91,28 @@ class ForeverItemProjectionTest {
     }
   }
 
+  @Test void canonicalForeverAndHotfixSlotTakePriorityOverOlderNativeSlot() throws Exception {
+    Path file=temp.resolve("slot-authority.sqlite");Files.copy(FixtureDb.path(),file);
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+file);var statement=c.createStatement()) {
+      statement.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('client_build','1.60.1.70450')");
+      statement.execute("CREATE TABLE client_table_dataset(snapshot_id TEXT,product TEXT,build TEXT,locale TEXT)");
+      statement.execute("CREATE TABLE client_table_row(snapshot_id TEXT,table_name TEXT,row_id TEXT,payload TEXT,source_path TEXT,source_line INTEGER)");
+      statement.execute("INSERT INTO client_table_dataset VALUES('active','wow_classic_beta','1.60.1.70450','enUS')");
+      statement.execute("INSERT INTO client_table_row VALUES('active','Item','14149','{\"InventoryType\":\"7\"}','Item.csv',1)");
+    }
+    for(String source:java.util.List.of("forever","hotfix")) {
+      for(int slot:java.util.List.of(0,6)) {
+        try(var c=DriverManager.getConnection("jdbc:sqlite:"+file);var statement=c.prepareStatement(
+            "UPDATE item SET client_source=?,inventory_type=? WHERE id=14149")) {
+          statement.setString(1,source);statement.setInt(2,slot);statement.executeUpdate();
+        }
+        try(var db=Database.open(file)) {
+          assertThat(new NpcRepository(db).detail(11520).orElseThrow().drops())
+              .filteredOn(r->r.item().id()==14149).singleElement()
+              .satisfies(r->assertThat(r.inventoryType()).as(source+" slot authority").isEqualTo(slot));
+        }
+      }
+    }
+  }
+
 }

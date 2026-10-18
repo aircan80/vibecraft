@@ -64,13 +64,15 @@ class CatalogSessionTest {
     Preferences p = Preferences.userRoot().node("edition-test-" + UUID.randomUUID());
     try {
       var session = new CatalogSession(registry(), p);
-      var picker = new EditionPicker(registry(), session, token -> {});
+      var original = session.token();
+      var picker = new EditionPicker(registry(), session, token -> fail("Current game should not reload"));
       int enabled = 0;
       for (var component : picker.getComponents()) if (component instanceof JRadioButton button) {
-        if (button.isEnabled()) enabled++;
+        if (button.isEnabled()) { enabled++; button.doClick(); }
         assertEquals(button.getName().equals("edition-forever"), button.isEnabled());
       }
       assertEquals(1, enabled);
+      assertEquals(original, session.token());
       session.statePreferences().put("last-target", "npc:2671");
       assertEquals("npc:2671", new CatalogSession(registry(), p).statePreferences().get("last-target", ""));
     } finally { p.removeNode(); }
