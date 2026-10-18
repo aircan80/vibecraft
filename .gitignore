@@ -1,5 +1,10 @@
 target/
 .local/
+# Generated databases and SQLite journals live outside source control.
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
 .idea/
 *.iml
 .vscode/
