@@ -185,6 +185,21 @@ binaries are absent from history; Git is about 24 MiB and the largest blob is
 rewrite, with external backups retained. The current Linux portable artifact and
 its historical acceptance remain separate from these source-baseline checks.
 
+## Current GUI refresh batch
+
+**Integrated, in verification; preview 1 remains running.** The next batch includes
+the updated palette, main-only header/search/theme controls, map inspector and bottom
+legend. Combined local-data clean verification passed **2,025 reported tests, six
+skipped, zero failures**. Native acceptance and a rebuilt portable artifact remain
+pending; this evidence does not replace the current preview 1 artifact acceptance
+and does not mean preview 2 is released.
+
+The World Map nested-scroll issue hiding Zephras Isle is fixed in source; twelve
+focused tests passed, including 420/1280-width destination visibility. Updated
+source/provenance and WoW-style map breadcrumb dropdown mockups are available
+for review. Those two interaction designs are not yet implemented in Java.
+No push or new release is claimed.
+
 ## Accepted future exploration: map zoom and pan
 
 **Planned, owner-approved; not implemented.** Add city and zone map zoom/pan as a
