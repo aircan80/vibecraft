@@ -13,3 +13,4 @@ tools/clientdata/**/__pycache__/
 tools/serverdb/.pytest_cache/
 tools/serverdb/**/__pycache__/
 tools/__pycache__/
+tools/**/__pycache__/
