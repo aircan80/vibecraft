@@ -25,7 +25,15 @@ class JournalDungeonCompactTest {
       // A 420×900 app leaves approximately 740px below its application chrome.
       page.setSize(420,740);layoutRepeated(page);
       assertThat(shared.listPage().getHeight()).isGreaterThanOrEqualTo(300);
-      assertThat(shared.listPage().lootTable().table().getVisibleRect().height).isPositive();
+      var table=shared.listPage().lootTable().table();
+      var lootScroll=all(shared.listPage()).stream().filter(JScrollPane.class::isInstance)
+          .map(JScrollPane.class::cast).filter(pane->SwingUtilities.isDescendingFrom(table,pane))
+          .findFirst().orElseThrow();
+      assertThat(lootScroll.getViewport().getExtentSize().height).isPositive();
+      assertThat(table.getRowCount()).isPositive();
+      // Filters may put rows below the fold. They must remain reachable through the real scroll pane.
+      table.scrollRectToVisible(table.getCellRect(0,0,true));layoutRepeated(page);
+      assertThat(table.getVisibleRect().height).isPositive();
       var filters=toggle(page,"Destination filters");assertThat(filters.isSelected()).isFalse();
       var search=all(page).stream().filter(JTextField.class::isInstance).findFirst().orElseThrow();
       assertThat(visibleThrough(search,page)).isFalse();
