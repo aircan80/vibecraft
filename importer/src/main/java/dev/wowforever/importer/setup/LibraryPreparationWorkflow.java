@@ -6,7 +6,7 @@ import java.io.*;import java.nio.file.*;import java.util.*;import java.util.conc
 
 /** Java-only prepare/export workflow. Returns verified staging artifacts; never activates or deletes a library. */
 public final class LibraryPreparationWorkflow {
- public enum Phase { PREFLIGHT,COMMUNITY,NATIVE_TABLES,HOTFIX,SCHEMA,OVERLAY,CATALOGUE,RUNTIME,VERIFY,READY }
+ public enum Phase { PREFLIGHT,COMMUNITY,NATIVE_TABLES,HOTFIX,SCHEMA,OVERLAY,CATALOGUE,MAPS,RUNTIME,VERIFY,READY }
  public record Progress(Phase phase,String detail,long bytes,long expectedBytes,int completed,int total) {}
  public record Review(SetupPlan.NativeIdentity identity,List<String> warnings){public Review{warnings=List.copyOf(warnings);}}
  public record AcquisitionReport(CommunitySourceMaterializer.Result community,WagoTableMaterializer.Result nativeTables,
@@ -26,6 +26,7 @@ public final class LibraryPreparationWorkflow {
   PinnedItemSparseDefinitionMaterializer.Result schema(SetupPlan.JobContext j,BooleanSupplier c,Consumer<PinnedItemSparseDefinitionMaterializer.Progress>x)throws Exception;
   PinnedItemSparseOverlayMaterializer.Result overlay(SetupPlan.JobContext j,WagoTableMaterializer.Result b,WagoTableMaterializer.Manifest m,RaidbotsHotfixMaterializer.Result r,PinnedItemSparseDefinitionMaterializer.Result d,BooleanSupplier c,Consumer<PinnedItemSparseOverlayMaterializer.Progress>x)throws Exception;
   LibraryBuildJob.Candidate catalogue(SetupPlan p,SetupPlan.JobContext j,SetupPlan.MaterializedInputs i,BooleanSupplier c,Consumer<LibraryBuildJob.Progress>x)throws Exception;
+  StagedNativeMapPublication.Result maps(SetupPlan p,SetupPlan.JobContext j,LibraryBuildJob.Candidate core,BooleanSupplier c,Consumer<NativeMapHierarchyAdapter.Progress>x)throws Exception;
   RuntimeLibraryExporter.VerifiedExport runtime(LibraryBuildJob.Candidate candidate,SetupPlan.JobContext j,BooleanSupplier c,Consumer<Progress>x)throws Exception;
  }
  private final Operations operations;
@@ -49,7 +50,7 @@ public final class LibraryPreparationWorkflow {
   preflight(plan);List<String> warnings=new ArrayList<>();
   if(plan.allows(SetupPlan.Acquisition.LOCAL_INSTALLATION)||plan.allows(SetupPlan.Acquisition.BLIZZARD_CDN))warnings.add("Catalogue tables come from selected Wago exports; this build does not extract catalogue tables from WoW folders or Blizzard CDN. Those additional permissions are preserved.");
   if(!plan.sources().contains(SetupPlan.Source.RAIDBOTS_HOTFIX))warnings.add("The selected native-table-only preset measured 73% named item detail coverage, below the unchanged 85% gate; the current projection may be rejected. No additional source will be selected automatically.");
-  warnings.add("This first library includes items, NPCs, quests, zones and native instance records. Map pictures, flight routes, instance floor maps and collector observations are not imported yet; expanded source comparisons come later.");
+  warnings.add("This first library includes items, NPCs, quests, zones, native instance records, and native map hierarchy/zone links. Map pictures, flight routes, instance floor maps and collector observations are not imported yet; expanded source comparisons come later.");
   warnings.add("The source preset is pinned to beta build 1.60.1.70450; verified details do not establish complete beta content, media or playable availability.");
   return new Review(Forever70450Bootstrap.wagoManifest().identity(),warnings);
  }
@@ -81,10 +82,12 @@ public final class LibraryPreparationWorkflow {
    SetupPlan.MaterializedInputs inputs=inputs(community,nativeTables,overlay);
    stage(progress,cancelled,Phase.CATALOGUE,"Capturing selected sources and building a fresh staged catalogue");
    var candidate=operations.catalogue(plan,attempt,inputs,cancelled,p->emit(progress,cancelled,new Progress(Phase.CATALOGUE,p.stage()+": "+p.message(),p.completedBytes(),p.totalBytes(),0,-1)));
+   stage(progress,cancelled,Phase.MAPS,"Adding selected native map hierarchy and zone links; artwork is not acquired");
+   var maps=operations.maps(plan,attempt,candidate,cancelled,p->emit(progress,cancelled,new Progress(Phase.MAPS,p.stage(),p.bytes(),p.expectedBytes(),0,-1)));candidate=maps.candidate();
    stage(progress,cancelled,Phase.RUNTIME,"Preparing the compact runtime library; local database work is indeterminate");
    var runtime=operations.runtime(candidate,attempt,cancelled,p->emit(progress,cancelled,p));
    check(cancelled);
-   var warnings=new ArrayList<>(review(plan).warnings());warnings.addAll(candidate.validation().warnings());Path receipt=writePreparationReceipt(plan,attempt,candidate,runtime,report,warnings,cancelled);
+   var warnings=new ArrayList<>(review(plan).warnings());for(String warning:candidate.validation().warnings())warnings.add("Core-stage validation (before native map projection): "+warning);warnings.add("Native map stage imported "+maps.maps()+" hierarchy maps and "+maps.linkedZones()+" zone links; "+maps.unplaced()+" child maps have unknown bounds. Map pictures, flight routes, instance floor maps and collector observations remain unavailable.");Path receipt=writePreparationReceipt(plan,attempt,candidate,runtime,report,maps,warnings,cancelled);
    emit(progress,cancelled,new Progress(Phase.READY,"Verified staged library is ready for separate app-controlled activation",runtime.receipt().outputBytes(),runtime.receipt().outputBytes(),1,1));
    return new Prepared(plan,cache,attempt,candidate,runtime,report,receipt,warnings);
   }finally{session.running.set(false);}
@@ -99,8 +102,9 @@ public final class LibraryPreparationWorkflow {
   values.setProperty("completedDownloadBytes",Long.toString(bytes));for(var e:plan.sourcePins().entrySet())values.setProperty("selectedPin."+e.getKey(),e.getValue());
   save(job,"acquisition-report.properties",values,cancelled);
  }
- private static Path writePreparationReceipt(SetupPlan plan,SetupPlan.JobContext job,LibraryBuildJob.Candidate candidate,RuntimeLibraryExporter.VerifiedExport runtime,AcquisitionReport acquisition,List<String> warnings,BooleanSupplier cancelled)throws IOException{
+ private static Path writePreparationReceipt(SetupPlan plan,SetupPlan.JobContext job,LibraryBuildJob.Candidate candidate,RuntimeLibraryExporter.VerifiedExport runtime,AcquisitionReport acquisition,StagedNativeMapPublication.Result maps,List<String> warnings,BooleanSupplier cancelled)throws IOException{
   Properties values=new Properties();values.setProperty("format","library-preparation-v1");values.setProperty("activationPerformed","false");values.setProperty("fullCandidate",candidate.database().toString());values.setProperty("fullCandidateSha256",candidate.sha256());values.setProperty("sourceArchive",candidate.sourceArchive().toString());values.setProperty("jobLog",candidate.jobLog().toString());values.setProperty("runtime",runtime.runtime().toString());
+  values.setProperty("map.snapshot",maps.snapshot());values.setProperty("map.transform",NativeMapHierarchyAdapter.TRANSFORM);values.setProperty("map.maps",Integer.toString(maps.maps()));values.setProperty("map.placed",Integer.toString(maps.placed()));values.setProperty("map.unplaced",Integer.toString(maps.unplaced()));values.setProperty("map.linkedZones",Integer.toString(maps.linkedZones()));values.setProperty("map.receipt",maps.receipt().toString());
   var r=runtime.receipt();values.setProperty("runtimeSha256",r.outputSha256());values.setProperty("runtimeBytes",Long.toString(r.outputBytes()));values.setProperty("sourceBytes",Long.toString(r.sourceBytes()));values.setProperty("sourceSha256",r.sourceSha256());values.setProperty("buildId",r.buildId());values.setProperty("omittedRawRecords",Long.toString(r.omittedRawRecords()));values.setProperty("omittedArchiveBytes",Long.toString(r.omittedArchiveBytes()));
   for(var e:r.retainedTables().entrySet()){values.setProperty("retained."+e.getKey()+".rows",Long.toString(e.getValue().rows()));values.setProperty("retained."+e.getKey()+".sha256MultisetSum",e.getValue().sha256MultisetSum());}
   for(int i=0;i<warnings.size();i++)values.setProperty("warning."+i,warnings.get(i));values.setProperty("warningCount",Integer.toString(warnings.size()));return save(job,"preparation-receipt.properties",values,cancelled);
@@ -118,6 +122,7 @@ public final class LibraryPreparationWorkflow {
   public PinnedItemSparseDefinitionMaterializer.Result schema(SetupPlan.JobContext j,BooleanSupplier c,Consumer<PinnedItemSparseDefinitionMaterializer.Progress>x)throws Exception{return new PinnedItemSparseDefinitionMaterializer().materialize(RaidbotsHotfixMaterializer.Permission.ALLOW_RAIDBOTS_HOTFIX,j,c,x);}
   public PinnedItemSparseOverlayMaterializer.Result overlay(SetupPlan.JobContext j,WagoTableMaterializer.Result b,WagoTableMaterializer.Manifest m,RaidbotsHotfixMaterializer.Result r,PinnedItemSparseDefinitionMaterializer.Result d,BooleanSupplier c,Consumer<PinnedItemSparseOverlayMaterializer.Progress>x)throws Exception{if(Files.size(d.definition())>1_048_576)throw new IOException("Schema dependency exceeds byte limit");return new PinnedItemSparseOverlayMaterializer().materialize(RaidbotsHotfixMaterializer.Permission.ALLOW_RAIDBOTS_HOTFIX,j,b,m,r,readDefinition(d.definition(),c),c,x);}
   public LibraryBuildJob.Candidate catalogue(SetupPlan p,SetupPlan.JobContext j,SetupPlan.MaterializedInputs i,BooleanSupplier c,Consumer<LibraryBuildJob.Progress>x)throws Exception{return new LibraryBuildJob().build(p,j,i,c,x);}
+  public StagedNativeMapPublication.Result maps(SetupPlan p,SetupPlan.JobContext j,LibraryBuildJob.Candidate core,BooleanSupplier c,Consumer<NativeMapHierarchyAdapter.Progress>x)throws Exception{return new StagedNativeMapPublication().project(p,j,core,c,x);}
   public RuntimeLibraryExporter.VerifiedExport runtime(LibraryBuildJob.Candidate candidate,SetupPlan.JobContext j,BooleanSupplier c,Consumer<Progress>x)throws Exception{
    var exporter=new RuntimeLibraryExporter();Path output=j.paths().directory().resolve("runtime.sqlite");var receipt=exporter.export(candidate.database(),output,j.storage(),Files.size(candidate.database()),candidate.sha256(),c);
    emit(x,c,new Progress(Phase.VERIFY,"Verifying compact tables and source/export receipt",receipt.outputBytes(),receipt.outputBytes(),0,-1));return exporter.verifyExport(candidate.database(),output,j.storage(),receipt,c);
