@@ -60,6 +60,7 @@ public final class LibrarySetupPanel extends JPanel {
   private static final String[] STEPS={"Welcome","Games","Sources","Game files","Review"};
   private final String startupError;
   private final boolean management;
+  private final boolean serviceAvailable;
   private LibrarySetupCoordinator coordinator;
   private LibrarySetupCoordinator.Snapshot job;
   private JTabbedPane navigation;
@@ -79,7 +80,7 @@ public final class LibrarySetupPanel extends JPanel {
   }
   private LibrarySetupPanel(Preferences preferences,Consumer<Path> openDatabase,String error,BuildLookup builds,LocalLookup local,boolean management,LibrarySetupService service) {
     this.preferences=Objects.requireNonNull(preferences);this.openDatabase=Objects.requireNonNull(openDatabase);
-    startupError=error;buildLookup=builds;localLookup=local;this.management=management;
+    startupError=error;buildLookup=builds;localLookup=local;this.management=management;serviceAvailable=service!=null;
     setLayout(new BorderLayout(0,12));setBorder(new EmptyBorder(18,20,18,20));setBackground(Theme.current().bgBase());
     var heading = new JPanel(new BorderLayout(12,8));heading.setOpaque(false);
     heading.add(title("Vibecraft",30),BorderLayout.WEST);
@@ -167,7 +168,9 @@ public final class LibrarySetupPanel extends JPanel {
   private void welcome(){
     var hero=card("Your next adventure");hero.add(title("A whole world.",36));hero.add(title("Your own field guide.",30));hero.add(gap());
     hero.add(copy("Explore maps, people, loot, crafting and lore in one connected place. You choose the games and the sources."));
-    hero.add(notice("Let's choose your library preferences. Automatic database generation is still being connected; you can already inspect game files and open an existing library."));body.add(hero);body.add(gap());
+    hero.add(notice(serviceAvailable
+        ?"Choose your library sources, then check the current plan before building. No source is downloaded until you select Build; unsupported choices stay visible. You can also open an existing library."
+        :"Let's choose your library preferences. Automatic database generation is still being connected; you can already inspect game files and open an existing library."));body.add(hero);body.add(gap());
     var details=card("Your library. Your sources.");details.add(copy("Game data stays separate from the app. Optional portraits, icons and music can be added later. WoW installations are read-only sources."));body.add(details);
   }
   private void games(){
@@ -195,8 +198,12 @@ public final class LibrarySetupPanel extends JPanel {
         render();
       });
       card.add(check);
-      if(source.id().equals("raidbots-hotfix"))card.add(notice("Optional · experimental third-party source. Setup integration is pending. Selecting or saving this preference does not download anything."));
-      card.add(copy("Adds: "+source.adds()));card.add(copy("Needs: "+source.needs()));card.add(copy("If not selected: "+source.omitted()));body.add(card);body.add(gap());
+      if(source.id().equals("raidbots-hotfix"))card.add(notice(serviceAvailable
+          ?"Optional · experimental third-party source. Requirements review checks the source plan and pinned dependencies. Selecting or saving this preference does not download anything."
+          :"Optional · experimental third-party source. Setup integration is pending. Selecting or saving this preference does not download anything."));
+      card.add(copy("Adds: "+source.adds()));
+      String needs=source.id().equals("raidbots-hotfix")&&serviceAvailable?source.needs().replace(" Setup integration pending."," The current plan must pass requirements review before Build is enabled."):source.needs();
+      card.add(copy("Needs: "+needs));card.add(copy("If not selected: "+source.omitted()));body.add(card);body.add(gap());
     }
   }
   private void review(){
@@ -208,7 +215,9 @@ public final class LibrarySetupPanel extends JPanel {
       card.add(copy("Sources: "+(sources.isEmpty()?"None selected":String.join(" · ",sources))));
       card.add(copy("WoW folder: "+(folders.get(selected.id()).isBlank()?"None selected · optional":folders.get(selected.id())+" · read-only")));
       card.add(copy("Blizzard CDN: "+(cdn.get(selected.id())?"Explicitly allowed for missing exact-build content":"Off · missing files stay gaps")));
-      if(selectedSources.get(selected.id()).get("raidbots-hotfix"))card.add(copy("Raidbots is a separately selected third-party hotfix mirror. The snapshot and definition still need explicit pinning and validation; no download has started."));
+      if(selectedSources.get(selected.id()).get("raidbots-hotfix"))card.add(copy(serviceAvailable
+          ?"Raidbots is a separately selected third-party hotfix mirror. Requirements review must check the current snapshot and definition pins before Build is enabled. Source bytes and content checks run during Build; no download has started from saving preferences."
+          :"Raidbots is a separately selected third-party hotfix mirror. The snapshot and definition still need explicit pinning and validation; no download has started."));
       if(selected.planned())card.add(notice("Adapter planned · preferences only."));body.add(card);body.add(gap());
     }
     var storage=card("Where your data will live");storage.add(copy(UserDataDir.resolve().toString()));storage.add(copy("All downloads, cache and temporary files must stay outside your WoW installation. Portable storage selection is not connected yet."));body.add(storage);body.add(gap());

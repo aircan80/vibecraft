@@ -13,7 +13,7 @@ import javax.swing.SwingUtilities;
 public final class LibrarySetupDialog {
   private LibrarySetupDialog() {}
   /** Called on the EDT. Closing setup cancels startup; a selected file is validated by the caller off the EDT. */
-  public static Path chooseDatabase(Component parent, String error) {return chooseDatabase(parent,error,null);}
+  public static Path chooseDatabase(Component parent, String error) {return chooseDatabase(parent,error,LibrarySetupServiceFactory.create());}
   public static Path chooseDatabase(Component parent,String error,LibrarySetupService service) {
     if(!SwingUtilities.isEventDispatchThread())throw new IllegalStateException("Setup dialog must run on the EDT");
     var selected=new AtomicReference<Path>();
@@ -25,7 +25,7 @@ public final class LibrarySetupDialog {
     dialog.setLocationRelativeTo(parent);dialog.setVisible(true);return selected.get();
   }
   /** Opens source preferences for the current browser. It cannot replace the active database. */
-  public static void manageSources(Component parent){manageSources(parent,null);}
+  public static void manageSources(Component parent){manageSources(parent,LibrarySetupServiceFactory.create());}
   public static void manageSources(Component parent,LibrarySetupService service){
     if(!SwingUtilities.isEventDispatchThread())throw new IllegalStateException("Source management must run on the EDT");
     java.awt.Window owner=parent instanceof java.awt.Window window?window:parent==null?null:SwingUtilities.getWindowAncestor(parent);
