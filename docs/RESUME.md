@@ -6,6 +6,43 @@
 
 # Resume development — current checkpoint
 
+## Push-ready source checkpoint and README
+
+User's NO PUSH instruction remains active. Repository is `~/Development/vibecraft`,
+origin is the owner's public `aircan80/vibecraft` repository. Generated databases
+were removed from all Git history, with all 370 original commits, merge topology,
+dates and 51 original ref names retained through one-to-one rewriting. All 42
+worktrees' pending changes were preserved. Independent review passed 371 commits,
+3,448 reachable blobs and 376 Git administrative files with no private identity
+references or confirmed secrets. Old identity strings must never be reintroduced.
+Future local commits use aircan80 and the requested GitHub noreply email.
+Full original Git/database backups and commit mapping are external under
+`vibecraft-work/review`; `.git` is 24 MiB, largest historical file about 1.37 MB.
+
+Integrated source-only baseline passed clean verify: 1939 reported tests, 55
+explicit skips, zero failures/errors. Dataset class-level skips change JUnit's
+reported inventory; these are not full-data acceptance totals. External-data
+profile separately passed 2011/6 environment skips before nine discovery tests
+were added. Explicit missing dataset correctly fails. Source-only package and
+ArchiveAudit passed, both CI workflows pass actionlint, 15 release helper tests pass.
+Ordinary CI verifies source and audits a source-only JAR; it no longer assumes a
+database is in Git. Native preview workflow remains manual-only with pinned inputs.
+
+README rewritten with approved branding, actual portable Home screenshot, feature
+guide, platform status, Vibemining plan, build/contribution links and exact keymap.
+Windows ZIP is externally available: 154081254 bytes (146.94 MiB), SHA
+732e185782a3db373445c68d9f058135bc262a540af6d92bd02154618395924b, includes
+Vibecraft.exe + Java + DB; NOT launch-tested on Windows. Linux preview remains
+verified; macOS builds not done. No repository push, workflow dispatch or release upload.
+
+Vibemining official build discovery backend integrated (d39938f; nine tests plus
+actual official metadata smoke). Full first-run source builder remains work in
+progress. Consolidated design is docs/design/vibemining-setup.md, with optional
+AtlasLoot/source selection, local WoW autodetection/read-only import, and explicit
+Blizzard CDN/build/preload choices. UI workspace commit 747cbc3 is ready isolated
+but deliberately deferred while freezing this push baseline. Do not mistake it
+for an integrated/shipped database builder. It is the next coding slice after this checkpoint.
+
 ## Latest running release preview — complete portable Vibecraft
 
 Linux 0.4.1-preview.1 is built and launched on the owner desktop through its bundled

@@ -138,11 +138,49 @@ bytes (155.84 MiB), with 1,242,483,170 bytes extracted. Archive SHA-256:
 `54e5bd64bf75df5d207a035dfdb36539b7d6541aec72cdec828dd20338c4f219`.
 Fresh-location, fresh-user-data and empty-PATH self-tests passed, with no external
 renderer runtimes included. Native home inspection confirmed branding, maps and
-icons; all final native suites passed 149 assertions and 66 captures. Windows cross-build
-is in progress using a verified Temurin Windows runtime and Launch4j-generated PE
-executable; **native Windows testing has not run**. macOS is not built. Manual
+icons; all final native suites passed 149 assertions and 66 captures. Windows ZIP is cross-built at approximately 147 MiB using a verified Temurin
+Windows runtime and Launch4j-generated PE executable; **native Windows testing has not run**. macOS is not built. Manual
 native Windows/macOS CI workflow preparation is local only, with no push or run
 claimed. This is a preview, not an RC or final release; genuine capture gates remain open.
+
+## Vibemining: in-app data rebuilding
+
+**Owner-approved, in progress; not yet running.** Add a dedicated main-navigation
+area to rebuild gameplay data within Vibecraft. Source selection uses optional
+checkboxes, with AtlasLoot optional. Discover local WoW folders automatically using
+read-only inspection, and discover official Blizzard builds/preloads directly.
+Local-data fixture build support and consolidated design are in development. The
+initial official discovery backend is integrated with nine passing focused tests;
+combined dataset verification has not been rerun after that addition. Keep selected source/build attribution and
+missing-data behavior explicit; discovery does not imply an import or write.
+
+The Windows portable ZIP is cross-built at approximately 147 MiB, including its
+Windows runtime and PE launcher. **Native Windows launch testing has not run.**
+
+Repository history cleanup is complete locally: 370 commits rewritten one-to-one,
+51 references and 42 worktree indexes reconciled, dates/topology and pending work
+preserved. Database files are removed from reachable history; external Git/data
+backups remain. The Git directory is about 24 MiB, with no reachable file above
+100 MiB. Existing artifact hashes are unchanged. No GitHub push is claimed; final
+history review precedes the next publication.
+
+## Verified clean-source baseline
+
+Clean-source verification passed with **1,939 reported tests, 55 explicit skips and
+zero failures**. Source-only packaging and archive audit passed; both CI workflows
+passed actionlint and all 15 release-helper tests passed. The earlier isolated
+dataset-profile run remains **2,011 tests, six skipped**; it predates the nine new
+discovery backend tests. Do not sum these into an unexecuted full-data total.
+Ordinary CI verifies the data-free source/package/audit and does not automatically
+upload artifacts. Manual native workflow requires a dataset. Branded README work
+is finishing; **no push is authorized or claimed**.
+
+Independent history/privacy inspection covered 371 commits, 3,448 blobs and 376
+administrative files, with zero requested identity or secret findings. Dataset
+binaries are absent from history; Git is about 24 MiB and the largest blob is
+1.37 MB. All 370 original commits and 51 references are preserved through the
+rewrite, with external backups retained. The current Linux portable artifact and
+its historical acceptance remain separate from these source-baseline checks.
 
 ## Accepted future exploration: map zoom and pan
 

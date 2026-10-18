@@ -43,11 +43,11 @@ superseded packaging proofs are not release download measurements.
 | Platform | Complete candidate archive | Candidate native launch | Signing |
 | --- | --- | --- | --- |
 | Linux x64 | Built: 163,412,349 bytes | Relocated launcher self-test and native Journal startup passed with empty tool PATH | Not signed |
-| Windows x64 | Not built | Not run | Not signed |
+| Windows x64 | Cross-built ZIP: 154,081,254 bytes (146.94 MiB) | Not launch-tested on Windows | Not signed |
 | macOS Apple Silicon | Not built | Not run | Not signed or notarized |
 | macOS Intel | Not built | Not run | Not signed or notarized |
 
-Windows/macOS scripts do not establish working Windows/macOS releases. Each target
+A cross-built Windows archive and macOS scripts do not establish native launch acceptance. Each target
 needs its own build, extraction/relocation and native-launch checks. Product version
 `0.4.1-preview.1` is separate from any platform-required numeric bundle metadata.
 
@@ -61,7 +61,7 @@ needs its own build, extraction/relocation and native-launch checks. Product ver
   lab or appearance-metadata mapping alone does not establish a shipped image.
 - Later-roadmap research, professions, exploration and comparison work remains
   partial even where individual features are present.
-- Windows and both Mac architectures remain untested. macOS signing/notarization
+- Windows is cross-built but not launch-tested; both Mac architectures remain unbuilt and untested. macOS signing/notarization
   has not been performed.
 
 ## Evidence and publication boundary
@@ -110,3 +110,12 @@ development Git history and its populated JAR must not be uploaded as that snaps
 Portable end-user downloads include reviewed data and have their own content and
 attribution review. Code licensing does not automatically license artwork or source
 datasets. No GitHub push, release tag, upload or public release has been performed.
+
+## Windows cross-build candidate
+
+The Windows ZIP contains a real `Vibecraft.exe`, a bundled verified Windows Java
+runtime, the same compact database and reviewed support files, plus a CMD fallback.
+It was assembled on Linux. ZIP integrity and pinned component hashes passed;
+Windows launch acceptance remains outstanding. No public download has been uploaded.
+
+ZIP SHA-256: `732e185782a3db373445c68d9f058135bc262a540af6d92bd02154618395924b`.

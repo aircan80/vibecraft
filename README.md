@@ -76,7 +76,7 @@ Generated databases and bulk assets are **not committed to Git**. To verify agai
 For a source-only application JAR:
 
 ```sh
-./mvnw -Psource-only clean package
+./mvnw -Psource-only -pl app -am clean package -DskipTests
 java -jar app/target/wow-forever-browser.jar
 ```
 

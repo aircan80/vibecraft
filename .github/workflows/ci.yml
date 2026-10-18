@@ -13,18 +13,20 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 21
           cache: maven
-      - name: Build and test
-        run: ./mvnw -B verify
+      - name: Verify source checkout (unavailable dataset checks are explicitly skipped)
+        run: ./mvnw -B verify -Dwowforever.music.enabled=false -Dwowforever.sound.enabled=false
         shell: bash
-      - name: Self-test the packaged jar
-        run: java -jar app/target/wow-forever-browser.jar --self-test
+      - name: Package source-only application
+        run: ./mvnw -B -Psource-only -pl app -am clean package -DskipTests
         shell: bash
-      # The populated development JAR contains archived source/media assets.
-      # CI verifies it but must not upload it. Reviewed portable release artifacts
-      # have a separate, explicit publication decision; see docs/releases/README.md.
+      - name: Audit source-only application
+        run: java packaging/ArchiveAudit.java app/target/wow-forever-browser.jar
+        shell: bash
+      # Native database self-tests belong to the manual portable workflow, which
+      # receives explicit hash-pinned datasets. Source CI uploads no application.

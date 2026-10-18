@@ -1,6 +1,6 @@
 # Repository readiness
 
-Status: local cleanup complete; nothing pushed. The canonical repository is
+Status: technical push checks passed; nothing pushed. The canonical repository is
 `~/Development/vibecraft`. Agent worktrees, caches, raw inputs, generated databases
 and release archives live outside it.
 
@@ -29,9 +29,12 @@ well as the development database: live upstream downloads may change or disappea
 The compact runtime database omits original ingestion evidence and is not itself a
 rebuild authority. End-user portable packages can still include that runtime database.
 
-Clean-source and external-dataset build verification is being updated so a clone does
-not need a populated database in its source tree. Dataset-dependent checks must be
-reported as skipped when unavailable; an explicitly supplied invalid dataset must fail.
+Clean-source verification passed on the integrated checkout: 1,939 reported tests,
+55 skips, zero failures/errors. Missing dataset classes are explicitly qualified;
+the number reported by JUnit after a class-level skip is not the full test inventory.
+The external-data profile separately passed 2,011 reported tests with six environment
+skips before the additional discovery tests landed. An explicitly supplied missing
+dataset correctly fails. See [local data builds](../development/local-data-builds.md).
 
 ## Content review
 
@@ -45,3 +48,8 @@ Pattern-based review found no confirmed private keys, tokens or credential URLs.
 Independent review of the cleaned history passed: 371 commits, 3,448 reachable blobs,
 and 376 Git administrative files had no private identity references or confirmed secrets.
 No tags, GitHub Actions runs, release uploads or repository pushes have been performed.
+
+Final checks: the integrated clean source build and source-only package passed.
+The packaged source JAR passed the asset/runtime gate, and both GitHub workflows
+passed actionlint. Ordinary source CI no longer assumes a database exists in Git.
+The manual native workflow retains explicit hash-pinned dataset requirements.
