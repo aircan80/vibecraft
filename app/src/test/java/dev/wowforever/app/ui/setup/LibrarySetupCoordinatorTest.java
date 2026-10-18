@@ -15,7 +15,7 @@ class LibrarySetupCoordinatorTest {
     final AtomicInteger reviewed=new AtomicInteger(),built=new AtomicInteger();
     @Override public Capabilities capabilities(){assertThat(SwingUtilities.isEventDispatchThread()).isFalse();return new Capabilities(Map.of("forever",Set.of("questie","native","wago","raidbots-hotfix")));}
     @Override public Review review(LibrarySetupDraft draft,Control control)throws Exception{assertThat(SwingUtilities.isEventDispatchThread()).isFalse();reviewed.incrementAndGet();return new Review(draft,"Authored adapter is ready.",List.of(),new PreparedPlan(){});}
-    @Override public Result build(Review review,Mode mode,Control control)throws Exception{assertThat(SwingUtilities.isEventDispatchThread()).isFalse();built.incrementAndGet();control.progress().accept(new Progress(Phase.DOWNLOAD,"Authored byte report",12,20,"bytes"));control.boundary();control.progress().accept(new Progress(Phase.BUILD,"Authored projection stage"));return new Result(Path.of("authored-library.sqlite"),"Authored result; no production pipeline ran.",mode==Mode.MANAGEMENT);}
+    @Override public Result build(Review review,Mode mode,Control control)throws Exception{assertThat(SwingUtilities.isEventDispatchThread()).isFalse();built.incrementAndGet();control.progress().accept(new Progress(Phase.DOWNLOAD,"Authored byte report",12,20,"bytes"));control.boundary();control.progress().accept(new Progress(Phase.BUILD,"Authored projection stage",12,20,"tables"));return new Result(Path.of("authored-library.sqlite"),"Authored result; no production pipeline ran.",mode==Mode.MANAGEMENT);}
   }
   @Test void draftCopiesEverySelectedChoiceWithoutAddingProviders(){
     var selected=new HashSet<>(Set.of("native","wago"));var map=new HashMap<String,LibrarySetupDraft.Profile>();
@@ -72,6 +72,23 @@ class LibrarySetupCoordinatorTest {
     var entered=new CountDownLatch(1);var release=new CountDownLatch(1);var finished=new CountDownLatch(1);var ready=new AtomicInteger();
     var service=new AuthoredService(){@Override public Result build(Review review,Mode mode,Control control)throws Exception{entered.countDown();try{release.await(4,TimeUnit.SECONDS);return new Result(Path.of("late-authored.sqlite"),"Late authored result",false);}finally{finished.countDown();}}};
     var ref=new AtomicReference<LibrarySetupCoordinator>();SwingUtilities.invokeAndWait(()->{ref.set(new LibrarySetupCoordinator(service,LibrarySetupService.Mode.FIRST_RUN,event->{if(event.state()==LibrarySetupCoordinator.State.READY)ready.incrementAndGet();}));ref.get().review(draft());});await(()->ref.get().snapshot().state()==LibrarySetupCoordinator.State.REVIEWED);SwingUtilities.invokeAndWait(()->ref.get().build(draft()));assertThat(entered.await(3,TimeUnit.SECONDS)).isTrue();SwingUtilities.invokeAndWait(()->ref.get().close());release.countDown();assertThat(finished.await(3,TimeUnit.SECONDS)).isTrue();SwingUtilities.invokeAndWait(()->assertThat(ready).hasValue(0));
+  }
+  @Test void hundredThousandReportsNeverQueuePerRecordAndCompletionKeepsLatestCounts()throws Exception{
+    var floodStarted=new CountDownLatch(1);var release=new CountDownLatch(1);var flooded=new CountDownLatch(1);
+    var events=new AtomicInteger();var ready=new CountDownLatch(1);var ref=new AtomicReference<LibrarySetupCoordinator>();
+    var service=new AuthoredService(){@Override public Result build(Review review,Mode mode,Control control)throws Exception{
+      floodStarted.countDown();release.await(4,TimeUnit.SECONDS);
+      for(int i=1;i<=100_000;i++)control.progress().accept(new Progress(Phase.DOWNLOAD,"Actual source bytes",i,100_000,"bytes"));
+      flooded.countDown();return new Result(Path.of("registered.sqlite"),"Registered",true);
+    }};
+    SwingUtilities.invokeAndWait(()->{ref.set(new LibrarySetupCoordinator(service,LibrarySetupService.Mode.FIRST_RUN,event->{events.incrementAndGet();if(event.state()==LibrarySetupCoordinator.State.READY)ready.countDown();}));ref.get().review(draft());});
+    await(()->ref.get().snapshot().state()==LibrarySetupCoordinator.State.REVIEWED);
+    SwingUtilities.invokeAndWait(()->ref.get().build(draft()));assertThat(floodStarted.await(3,TimeUnit.SECONDS)).isTrue();
+    // Hold the EDT while all reports arrive: old code queues 100,000 render callbacks here.
+    SwingUtilities.invokeAndWait(()->{release.countDown();try{assertThat(flooded.await(3,TimeUnit.SECONDS)).isTrue();}catch(InterruptedException failure){throw new AssertionError(failure);}});
+    var heartbeat=new CountDownLatch(1);SwingUtilities.invokeLater(heartbeat::countDown);
+    assertThat(heartbeat.await(2,TimeUnit.SECONDS)).isTrue();assertThat(ready.await(2,TimeUnit.SECONDS)).isTrue();
+    SwingUtilities.invokeAndWait(()->{assertThat(events.get()).isLessThan(12);assertThat(ref.get().snapshot().progress().completed()).isEqualTo(100_000);assertThat(ref.get().snapshot().progress().total()).isEqualTo(100_000);assertThat(ref.get().snapshot().progress().unit()).isEqualTo("bytes");ref.get().close();});
   }
   private static AtomicReference<LibrarySetupCoordinator> coordinator(LibrarySetupService service)throws Exception{var ref=new AtomicReference<LibrarySetupCoordinator>();SwingUtilities.invokeAndWait(()->{ref.set(new LibrarySetupCoordinator(service,LibrarySetupService.Mode.FIRST_RUN,event->{}));ref.get().review(draft());});return ref;}
   static void await(java.util.function.BooleanSupplier condition)throws Exception{long end=System.nanoTime()+TimeUnit.SECONDS.toNanos(4);while(System.nanoTime()<end){var ready=new AtomicBoolean();SwingUtilities.invokeAndWait(()->ready.set(condition.getAsBoolean()));if(ready.get())return;Thread.sleep(15);}throw new AssertionError("Authored setup state did not settle");}

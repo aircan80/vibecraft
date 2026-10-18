@@ -3,6 +3,7 @@ package dev.wowforever.app.ui.setup;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import javax.swing.SwingUtilities;
 
@@ -16,7 +17,11 @@ public final class LibrarySetupCoordinator implements AutoCloseable {
   private final Consumer<Snapshot> listener;
   private final ThreadPoolExecutor executor=new ThreadPoolExecutor(1,1,0,TimeUnit.MILLISECONDS,new ArrayBlockingQueue<>(1),r->{var thread=new Thread(r,"vibecraft-library-setup");thread.setDaemon(true);return thread;},new ThreadPoolExecutor.AbortPolicy());
   private AtomicBoolean cancellation=new AtomicBoolean();
-  private long generation;
+  private volatile long generation;
+  private record PendingProgress(long generation,LibrarySetupService.Progress value) {}
+  private final AtomicReference<PendingProgress> pendingProgress=new AtomicReference<>();
+  // A single coalescing timer bounds rendering work independently of acquisition record volume.
+  private final javax.swing.Timer progressTimer=new javax.swing.Timer(175,event->drainProgress(true));
   private Snapshot snapshot=new Snapshot(State.IDLE,null,null,null,null,"");
   public LibrarySetupCoordinator(LibrarySetupService service,LibrarySetupService.Mode mode,Consumer<Snapshot> listener){this.service=Objects.requireNonNull(service);this.mode=Objects.requireNonNull(mode);this.listener=Objects.requireNonNull(listener);}
   public Snapshot snapshot(){edt();return snapshot;}
@@ -42,14 +47,26 @@ public final class LibrarySetupCoordinator implements AutoCloseable {
     edt();if(snapshot.state()==State.CLOSED)return;cancellation.set(true);generation++;executor.getQueue().clear();cancellation=new AtomicBoolean();set(new Snapshot(State.IDLE,null,null,null,null,""));
   }
   private boolean busyBuild(){return snapshot.state()==State.BUILDING||snapshot.state()==State.CANCELLING;}
-  private LibrarySetupService.Control control(long token,AtomicBoolean stop){return new LibrarySetupService.Control(stop::get,progress->publish(token,()->{if(snapshot.state()==State.REVIEWING||snapshot.state()==State.BUILDING||snapshot.state()==State.CANCELLING)set(new Snapshot(snapshot.state(),snapshot.draft(),snapshot.review(),progress,null,snapshot.message()));}));}
+  private LibrarySetupService.Control control(long token,AtomicBoolean stop){return new LibrarySetupService.Control(stop::get,progress->{
+    if(token!=generation)return;
+    var next=new PendingProgress(token,Objects.requireNonNull(progress));
+    // A late producer from an invalidated job cannot overwrite a newer job's report.
+    pendingProgress.accumulateAndGet(next,(previous,value)->previous!=null&&previous.generation()>value.generation()?previous:value);
+  });}
+  private boolean reporting(){return snapshot.state()==State.REVIEWING||snapshot.state()==State.BUILDING||snapshot.state()==State.CANCELLING;}
+  private void drainProgress(boolean notify){
+    var pending=pendingProgress.getAndSet(null);
+    if(pending==null||pending.generation()!=generation||!reporting())return;
+    snapshot=new Snapshot(snapshot.state(),snapshot.draft(),snapshot.review(),pending.value(),null,snapshot.message());
+    if(notify)listener.accept(snapshot);
+  }
   @FunctionalInterface private interface Job {void run()throws Exception;}
   private void submit(long token,Job job){try{executor.execute(()->{try{job.run();}catch(CancellationException stopped){publish(token,()->set(new Snapshot(State.CANCELLED,snapshot.draft(),snapshot.review(),snapshot.progress(),null,"Stopped safely. Verified downloads may be reused; the catalogue is rebuilt and checked again, not resumed from a partial projection.")));}catch(Exception failure){publish(token,()->set(new Snapshot(State.FAILED,snapshot.draft(),snapshot.review(),snapshot.progress(),null,failure instanceof LibrarySetupService.JobFailure?failure.getMessage():"The library could not finish. Your working library has not changed. Review the selected sources and retry.")));}});}catch(RejectedExecutionException busy){set(new Snapshot(State.FAILED,snapshot.draft(),null,null,null,"A previous check is still finishing. Please retry."));}}
   private void finish(long token,AtomicBoolean stop,Runnable action){finish(token,stop,false,action);}
   /** Confirmed atomic publication wins a late stop request; closing still suppresses callbacks. */
   private void finish(long token,AtomicBoolean stop,boolean registered,Runnable action){publish(token,()->{if(stop.get()&&!registered)set(new Snapshot(State.CANCELLED,snapshot.draft(),snapshot.review(),snapshot.progress(),null,"Stopped safely after the current step. The catalogue is rebuilt and checked again on retry."));else action.run();});}
-  private void publish(long token,Runnable action){SwingUtilities.invokeLater(()->{if(snapshot.state()!=State.CLOSED&&generation==token)action.run();});}
-  private void set(Snapshot value){snapshot=value;listener.accept(value);}
-  @Override public void close(){edt();cancellation.set(true);generation++;executor.getQueue().clear();executor.shutdown();snapshot=new Snapshot(State.CLOSED,null,null,null,null,"");}
+  private void publish(long token,Runnable action){SwingUtilities.invokeLater(()->{if(snapshot.state()!=State.CLOSED&&generation==token){drainProgress(false);action.run();}});}
+  private void set(Snapshot value){snapshot=value;if(reporting()){if(!progressTimer.isRunning())progressTimer.start();}else{progressTimer.stop();pendingProgress.set(null);}listener.accept(value);}
+  @Override public void close(){edt();cancellation.set(true);generation++;progressTimer.stop();pendingProgress.set(null);executor.getQueue().clear();executor.shutdown();snapshot=new Snapshot(State.CLOSED,null,null,null,null,"");}
   private static void edt(){if(!SwingUtilities.isEventDispatchThread())throw new IllegalStateException("Setup coordinator control must run on the EDT");}
 }
