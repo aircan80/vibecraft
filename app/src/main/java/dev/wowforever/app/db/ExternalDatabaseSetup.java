@@ -19,12 +19,26 @@ public final class ExternalDatabaseSetup {
   public static Path resolve(Component parent, Path dataDir) throws IOException {
     if (SwingUtilities.isEventDispatchThread()) throw new IllegalStateException("Database setup must run off the EDT");
     String override = System.getProperty(DatabaseInstaller.EXTERNAL_DATABASE_PROPERTY);
-    if ((override != null && !override.isBlank())
-        || DatabaseInstaller.class.getResource("/data/wowforever.sqlite") != null) {
-      return new DatabaseInstaller(dataDir).install();
+    if (override != null && !override.isBlank()) return new DatabaseInstaller(dataDir).install();
+    return resolveWithManagedLibrary(dataDir,Preferences.userNodeForPackage(ExternalDatabaseSetup.class),
+        error -> chooseOnEdt(parent, error), DatabaseInstaller::validateExternal,
+        DatabaseInstaller.class.getResource("/data/wowforever.sqlite") != null);
+  }
+
+  /** Explicit overrides are handled first by resolve; managed activation applies only to a later startup. */
+  static Path resolveWithManagedLibrary(Path dataDir,Preferences preferences,Prompt prompt,
+      Validator validator,boolean embeddedAvailable) throws IOException {
+    LibraryRegistry.offEdt();
+    String managedFailure=null;
+    try {
+      var managed=new LibraryRegistry(dataDir,java.util.List.of(),java.util.Optional.empty()).resolve(()->false);
+      if(managed.isPresent())return managed.orElseThrow().database();
+    } catch(IOException failure) {
+      managedFailure="The managed library could not be validated. Choose an existing database or rebuild the library.";
     }
-    return resolve(Preferences.userNodeForPackage(ExternalDatabaseSetup.class),
-        error -> chooseOnEdt(parent, error), DatabaseInstaller::validateExternal);
+    if(embeddedAvailable)return new DatabaseInstaller(dataDir).install();
+    String message=managedFailure;
+    return resolve(preferences,error -> prompt.choose(error==null?message:error),validator);
   }
 
   static Path resolve(Preferences preferences, Prompt prompt, Validator validator) throws IOException {
