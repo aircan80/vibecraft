@@ -5,9 +5,18 @@ param(
     [ValidateSet('msi', 'exe', 'app-image')]
     [string]$Type = 'app-image',
     [string]$JarPath = '',
-    [switch]$PrivateQa
+    [switch]$PrivateQa,
+    [string]$ReleaseDataDir = '',
+    [string]$ReleaseDataManifest = '',
+    [string]$Version = '0.1.0',
+    [string]$NativeVersion = ''
 )
 $ErrorActionPreference = 'Stop'
+if ($Version -notmatch '^[A-Za-z0-9][A-Za-z0-9.+_-]*$') { throw 'Invalid product Version.' }
+if (-not $NativeVersion) { $NativeVersion = $Version }
+if ($NativeVersion -notmatch '^\d+(\.\d+){0,2}$') {
+    throw 'Windows needs numeric -NativeVersion (for example 0.4.1); -Version remains the product release identifier.'
+}
 
 $Root = Split-Path -Parent $PSScriptRoot
 $JarName = 'wow-forever-browser.jar'
@@ -33,6 +42,12 @@ if ($Type -ne 'app-image') {
     }
 }
 
+$withData = [bool]($ReleaseDataDir -or $ReleaseDataManifest)
+if ($withData -and (-not $ReleaseDataDir -or -not $ReleaseDataManifest)) {
+    throw 'Set -ReleaseDataDir and -ReleaseDataManifest together.'
+}
+if ($withData -and $PrivateQa) { throw 'Reviewed release-data and private-QA modes cannot be combined.' }
+
 $auditArgs = @((Join-Path $PSScriptRoot 'ArchiveAudit.java'), $Jar)
 if ($PrivateQa) {
     Write-Warning 'PRIVATE QA ONLY: asset-containing output must not be published.'
@@ -45,19 +60,29 @@ if ($LASTEXITCODE -ne 0) { throw 'Archive audit rejected the input JAR.' }
 if (Test-Path $Stage) { Remove-Item -Recurse -Force $Stage }
 New-Item -ItemType Directory -Force $Stage | Out-Null
 Copy-Item $Jar (Join-Path $Stage $JarName)
+Set-Content -Path (Join-Path $Stage 'release-version.txt') -Value "product-version=$Version`nnative-package-version=$NativeVersion" -Encoding UTF8
+if ($withData) {
+    & java (Join-Path $PSScriptRoot 'ReleaseData.java') $ReleaseDataDir $ReleaseDataManifest $Stage
+    if ($LASTEXITCODE -ne 0) { throw 'Release data manifest validation failed.' }
+}
 
 $jpArgs = @(
     '--input', $Stage,
     '--main-jar', $JarName,
     '--main-class', 'dev.wowforever.app.Main',
     '--name', 'WoW Forever Browser',
-    '--app-version', '0.1.0',
+    '--app-version', $NativeVersion,
     '--dest', $Dest,
     '--java-options', '-Djava.awt.headless=false',
+    '--java-options', "-Dwowforever.release.version=$Version",
     '--vendor', 'wow-forever-browser contributors',
     '--description', 'Browse World of Warcraft: Forever items and their sources',
     '--type', $Type
 )
+if ($withData) {
+    $jpArgs += @('--java-options', '-Dwowforever.database=$APPDIR/data/wowforever.sqlite',
+        '--java-options', '-Dwowforever.data.dir=$APPDIR/data')
+}
 if ($Type -ne 'app-image') {
     $jpArgs += @('--win-dir-chooser', '--win-menu', '--win-shortcut')
 }
@@ -68,7 +93,8 @@ if ($LASTEXITCODE -ne 0) { throw "jpackage failed with exit code $LASTEXITCODE" 
 
 Remove-Item -Recurse -Force $Stage
 if ($Type -eq 'app-image') {
-    $label = 'wow-forever-browser-0.1.0-Windows-' + $env:PROCESSOR_ARCHITECTURE
+    $label = 'wow-forever-browser-' + $Version + '-Windows-' + $env:PROCESSOR_ARCHITECTURE
+    if ($withData) { $label += '-with-data' }
     if ($PrivateQa) { $label += '-PRIVATE-QA' }
     Compress-Archive -Path (Join-Path $Dest 'WoW Forever Browser') -DestinationPath (Join-Path $Dest ($label + '.zip')) -Force
 }
