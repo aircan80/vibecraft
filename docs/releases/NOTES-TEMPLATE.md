@@ -1,4 +1,4 @@
-# WoW Forever Browser — VERSION
+# Vibecraft — VERSION
 
 Status: local candidate / preview / released (select actual state).
 Source commit: FULL_COMMIT. Dataset build: BUILD_ID. Client product/build: VALUE.

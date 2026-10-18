@@ -1,4 +1,4 @@
-# WoW Forever Browser 0.4.1-preview.1
+# Vibecraft 0.4.1-preview.1
 
 **Status: local candidate preparation. Not published or signed.**
 

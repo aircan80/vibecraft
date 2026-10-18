@@ -69,7 +69,7 @@ Minimal input shape (replace the descriptive values with actual measurements):
   ],
   "artifacts": [
     {
-      "path": "wow-forever-browser-0.4.1-preview.1-linux-x64-with-data.tar.gz",
+      "path": "vibecraft-0.4.1-preview.1-Linux-x86_64-with-data.tar.gz",
       "os": "linux", "arch": "x64",
       "includes_database": true, "bundled_java": true,
       "java_version": "ACTUAL_RUNTIME_VERSION",
