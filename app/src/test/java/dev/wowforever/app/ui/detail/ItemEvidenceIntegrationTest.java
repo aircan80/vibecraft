@@ -23,7 +23,8 @@ class ItemEvidenceIntegrationTest {
     SwingUtilities.invokeAndWait(()-> {
       JComponent page=TestPages.render(loaded,repos,ignored->{});
       var panel=find(page,SourceDifferencesPanel.class);assertThat(panel).isNotNull();
-      ((JButton)panel.getComponent(0)).doClick();assertThat(panel.getComponent(1).isVisible()).isTrue();
+      var source=find(panel,SourceInfoButton.class);assertThat(source).isNotNull();
+      assertThat(source.detailsContent().getComponentCount()).isPositive();
       assertThat(find(page,FieldKnowledgePanel.class)).isNotNull();
     });
   }
