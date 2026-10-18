@@ -20,7 +20,7 @@ class ItemSetLoaderTest {
     Map<Long, ItemSetInfo> sets = load(report, Set.of(421L, 163L, 203L, 999L));
 
     assertThat(sets.keySet()).containsExactly(163L, 203L, 421L);
-    assertThat(sets.get(421L)).isEqualTo(new ItemSetInfo(421, "Bloodvine Garb", java.util.List.of(19682L, 19683L,
+    assertThat(sets.get(421L)).usingRecursiveComparison().ignoringFieldsMatchingRegexes(".*evidence").isEqualTo(new ItemSetInfo(421, "Bloodvine Garb", java.util.List.of(19682L, 19683L,
         19684L), 197, 300, java.util.List.of(new ItemSetInfo.Bonus(3, 18382,
         "Improves your chance to get a critical strike with spells by 2.0%.", true))));
 

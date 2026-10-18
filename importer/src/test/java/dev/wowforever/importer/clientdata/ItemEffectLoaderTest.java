@@ -31,7 +31,7 @@ class ItemEffectLoaderTest {
     ImportReport report = new ImportReport();
     Map<Long, List<ItemSpellEffect>> effects = load(report, 5079, 17783, 19019, 5613, 118, 25);
 
-    assertThat(effects.get(5079L)).containsExactly(new ItemSpellEffect(0, ItemSpellEffect.USE, 1139,
+    assertThat(effects.get(5079L)).usingRecursiveFieldByFieldElementComparatorIgnoringFields("evidence").containsExactly(new ItemSpellEffect(0, ItemSpellEffect.USE, 1139,
         "Increases time between target's attacks by 20% and reduces their movement speed by 40% for 15 sec.", true,
         0, 420000, false));
     assertThat(effects.get(17783L)).singleElement().satisfies(e -> {
@@ -62,7 +62,7 @@ class ItemEffectLoaderTest {
     ImportReport report = new ImportReport();
     Map<Long, List<ItemSpellEffect>> effects = load(report, 13482, 215129);
     // 13482: Use "Learning" (402265, no description) + learn 17559; the Use line is the item description
-    assertThat(effects.get(13482L)).containsExactly(new ItemSpellEffect(0, ItemSpellEffect.USE, 17559,
+    assertThat(effects.get(13482L)).usingRecursiveFieldByFieldElementComparatorIgnoringFields("evidence").containsExactly(new ItemSpellEffect(0, ItemSpellEffect.USE, 17559,
         "Teaches you how to transmute Essence of Air into Essence of Fire.", true, -1, 0, true));
     // 215129's description is itself a template ($439164s1 = 75 +/- 20 % = 60 to 90), formatted for the taught
     // spell; the trailing CRLF is trimmed

@@ -14,7 +14,11 @@ package dev.wowforever.importer.clientdata;
  *                            (formatted for the taught spell), which then is not shown as flavour text
  */
 public record ItemSpellEffect(int ordinal, int trigger, long spellId, String text, boolean complete, int charges,
-    int cooldownMs, boolean fromItemDescription) {
+    int cooldownMs, boolean fromItemDescription, SpellTextEvidence evidence) {
+  public ItemSpellEffect(int ordinal, int trigger, long spellId, String text, boolean complete, int charges,
+      int cooldownMs, boolean fromItemDescription) {
+    this(ordinal, trigger, spellId, text, complete, charges, cooldownMs, fromItemDescription, SpellTextEvidence.unknown(spellId));
+  }
   public static final int USE = 0;
   public static final int EQUIP = 1;
   public static final int CHANCE_ON_HIT = 2;

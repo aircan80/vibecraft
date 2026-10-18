@@ -42,6 +42,18 @@ public final class SpellTables {
 
   private record Text(String description, String aura) {}
 
+  private ClientDataSource source;
+
+  SpellTextEvidence evidence(long spellId, String raw, List<String> tokens, boolean spellTable) {
+    String product = null, build = null, sha = null, origin = "csv/Spell.csv";
+    if (spellTable && source != null && java.nio.file.Files.isRegularFile(source.dir().resolve("build.lock"))) {
+      BuildLock lock = source.lock(); product = lock.product(); build = lock.build(); sha = lock.tableSha().get("Spell");
+      origin += " (export base: " + lock.baseUrl() + ")";
+    }
+    return new SpellTextEvidence(tokens.isEmpty() ? "COMPLETE" : "INCOMPLETE", spellId, raw, tokens,
+        spellTable ? origin : "selected-item-description (origin unknown)", product, build, sha);
+  }
+
   private final Map<Long, Text> texts;
   private final Map<Long, String> names;
   private final Map<Long, Map<Integer, Effect>> effects;
@@ -142,7 +154,9 @@ public final class SpellTables {
         procChances.put(spell.getAsLong(), r.intOr("ProcChance", 0));
       }
     }
-    return new SpellTables(texts, names, effects, durationsMs, radii, procChances);
+    var loaded = new SpellTables(texts, names, effects, durationsMs, radii, procChances);
+    loaded.source = src;
+    return loaded;
   }
 
   /** True when the spell has a {@code Spell} or a {@code SpellName} row. */

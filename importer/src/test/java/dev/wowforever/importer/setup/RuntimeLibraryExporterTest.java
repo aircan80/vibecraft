@@ -28,7 +28,13 @@ class RuntimeLibraryExporterTest {
   private RuntimeLibraryExporter.Receipt export(Path source,Path output)throws Exception{return new RuntimeLibraryExporter().export(source,output,storage(),Files.size(source),RuntimeLibraryExporter.hashFile(source,()->false),()->false);}
   @Test void retainsAllRuntimeTablesAndMetadataAndSourceIsUnchanged()throws Exception {
     Path source=source(),out=root.resolve("runtime.sqlite");String original=RuntimeLibraryExporter.hashFile(source,()->false);
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+source);var statement=c.createStatement()) {
+      statement.execute("CREATE TABLE spell_text_evidence(owner_kind TEXT,owner_id INTEGER,ordinal INTEGER,status TEXT,spell_id INTEGER,raw_text TEXT,unresolved TEXT,source TEXT,product TEXT,build TEXT,table_sha256 TEXT)");
+      statement.execute("INSERT INTO spell_text_evidence VALUES('tooltip',1,0,'INCOMPLETE',42,'Restores $q1','$q1','csv/Spell.csv','wow_classic_beta','1.60.1.70450','recorded-sha')");
+    }
+    original=RuntimeLibraryExporter.hashFile(source,()->false);
     var receipt=export(source,out);
+    assertThat(receipt.retainedTables().get("spell_text_evidence").rows()).isEqualTo(1);
     assertThat(receipt.omittedRawRecords()).isEqualTo(1);assertThat(receipt.omittedArchiveBytes()).isEqualTo(32768);
     assertThat(receipt.retainedTables().get("field_knowledge_assertion").rows()).isEqualTo(3);
     assertThat(receipt.retainedTables().get("typed_values").rows()).isEqualTo(2);

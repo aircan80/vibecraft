@@ -329,6 +329,7 @@ public final class SqliteWriter {
         if (items.contains(e.getKey())) {
           for (ItemSpellEffect x : e.getValue()) {
             effects.add(e.getKey(), x.ordinal(), x.trigger(), x.spellId(), x.text());
+            SpellTextEvidenceWriter.write(c, "effect", e.getKey(), x.ordinal(), x.evidence());
           }
         }
       }
@@ -339,12 +340,14 @@ public final class SqliteWriter {
         }
         for (ItemSetInfo.Bonus b : s.bonuses()) {
           bonuses.add(s.id(), b.threshold(), b.spellId(), b.text());
+          SpellTextEvidenceWriter.write(c, "set_bonus", s.id(), b.threshold(), b.evidence());
         }
       }
       for (Map.Entry<Long, List<TooltipLine>> e : tooltips.lines().entrySet()) {
         if (items.contains(e.getKey())) {
           for (TooltipLine l : e.getValue()) {
             lines.add(e.getKey(), l.ordinal(), l.kind(), l.text(), l.colour());
+            SpellTextEvidenceWriter.write(c, "tooltip", e.getKey(), l.ordinal(), l.evidence());
           }
         }
       }

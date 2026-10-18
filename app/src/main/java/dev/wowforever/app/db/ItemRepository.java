@@ -425,16 +425,24 @@ public final class ItemRepository {
       return ItemCard.none();
     }
     // a set piece line names its item: the piece of the item's set with that name
+    boolean hasEvidence = Sql.hasTable(c, "spell_text_evidence");
+    String evidenceColumns = hasEvidence ? "e.status, e.spell_id, e.raw_text, e.unresolved, e.source, e.product, e.build, e.table_sha256"
+        : "NULL AS status, NULL AS spell_id, NULL AS raw_text, NULL AS unresolved, NULL AS source, NULL AS product, NULL AS build, NULL AS table_sha256";
     List<TooltipLine> lines = Sql.list(c, """
-        SELECT l.kind, l.text, l.colour,
+        SELECT l.kind, l.text, l.colour, %s,
                CASE WHEN l.kind = 'set_item' THEN
                  (SELECT si.item_id FROM item_set_item si JOIN item p ON p.id = si.item_id
                   WHERE si.set_id = it.item_set_id AND p.name = l.text ORDER BY si.item_id LIMIT 1)
                END AS piece_id
-        FROM item_tooltip_line l JOIN item it ON it.id = l.item_id
-        WHERE l.item_id = ? ORDER BY l.ordinal""",
+        FROM item_tooltip_line l JOIN item it ON it.id = l.item_id %s
+        WHERE l.item_id = ? ORDER BY l.ordinal""".formatted(evidenceColumns, hasEvidence
+            ? "LEFT JOIN spell_text_evidence e ON e.owner_kind = 'tooltip' AND e.owner_id=l.item_id AND e.ordinal=l.ordinal" : ""),
         rs -> new TooltipLine(rs.getString("kind"), rs.getString("text"), rs.getString("colour"),
-            Sql.longValue(rs, "piece_id")), itemId);
+            Sql.longValue(rs, "piece_id"), new dev.wowforever.app.model.SpellTextEvidence(
+                rs.getString("status") == null ? "UNKNOWN" : rs.getString("status"), Sql.longValue(rs,"spell_id"),
+                rs.getString("raw_text"), rs.getString("unresolved") == null || rs.getString("unresolved").isEmpty()
+                    ? List.of() : List.of(rs.getString("unresolved").split("\\n")),
+                rs.getString("source"),rs.getString("product"),rs.getString("build"),rs.getString("table_sha256"))), itemId);
     ItemCard h = head.get();
     return new ItemCard(h.quality(), lines, h.iconId(), h.inventoryType(), h.bonding(), h.sellPrice());
   }

@@ -66,7 +66,8 @@ public final class SpellDescriptionFormatter {
    * @param complete   every placeholder was replaced
    * @param unresolved the placeholders kept as written, in order of first appearance
    */
-  public record Formatted(String text, boolean complete, List<String> unresolved) {
+  public record Formatted(String text, boolean complete, List<String> unresolved, SpellTextEvidence evidence) {
+    public Formatted(String text, boolean complete, List<String> unresolved) { this(text, complete, unresolved, null); }
     public Formatted {
       unresolved = List.copyOf(unresolved);
     }
@@ -85,17 +86,22 @@ public final class SpellDescriptionFormatter {
 
   /** The spell's own {@code Description_lang}, formatted. */
   public Formatted description(long spellId) {
-    return format(spellId, tables.description(spellId));
+    return format(spellId, tables.description(spellId), true);
   }
 
   /** {@code template} formatted with {@code spellId} as the spell its placeholders refer to. */
   public Formatted format(long spellId, String template) {
+    return format(spellId, template, false);
+  }
+
+  private Formatted format(long spellId, String template, boolean spellTable) {
     Run run = new Run();
     String text = template == null ? "" : render(spellId, template, run, 0).strip();
     if (!run.unresolved.isEmpty()) {
       unformatted.computeIfAbsent(spellId, k -> new LinkedHashSet<>()).addAll(run.unresolved);
     }
-    return new Formatted(text, run.unresolved.isEmpty(), new ArrayList<>(run.unresolved));
+    var tokens = new ArrayList<>(run.unresolved);
+    return new Formatted(text, tokens.isEmpty(), tokens, tables.evidence(spellId, template, tokens, spellTable));
   }
 
   /** The spells formatted incompletely so far, in id order, with their unresolved placeholders. */

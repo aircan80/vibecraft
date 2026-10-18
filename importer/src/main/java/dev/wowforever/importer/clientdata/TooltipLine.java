@@ -11,7 +11,8 @@ import java.util.List;
  *                right-aligns; Use/Equip texts may hold line breaks
  * @param colour  {@code #rrggbb}
  */
-public record TooltipLine(int ordinal, String kind, String text, String colour) {
+public record TooltipLine(int ordinal, String kind, String text, String colour, SpellTextEvidence evidence) {
+  public TooltipLine(int ordinal, String kind, String text, String colour) { this(ordinal, kind, text, colour, null); }
   public static final String WHITE = "#ffffff";
   public static final String EQUIP_GREEN = "#1eff00";
   public static final String FLAVOUR_GOLD = "#ffd100";

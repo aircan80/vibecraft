@@ -12,6 +12,7 @@ final class ClientItemUpdateWriter {
     try (var s=c.createStatement()) {
       s.execute("CREATE TABLE IF NOT EXISTS "+previousTable+"(snapshot_id TEXT,item_id INTEGER,field TEXT,value TEXT,PRIMARY KEY(snapshot_id,item_id,field))");
     }
+    SpellTextEvidenceWriter.ensure(c);
     for (var item:items.values()) {
       if (!expectedSource.equals(item.clientSource()) || !item.hasSparse()) throw new IllegalArgumentException("Unexpected client item source");
       var fields=new LinkedHashMap<String,Object>();
@@ -36,6 +37,7 @@ final class ClientItemUpdateWriter {
       try(var old=c.prepareStatement("INSERT INTO item_alt_value(item_id,field,source,value) SELECT item_id,field,?,value FROM "+previousTable+" p WHERE snapshot_id=? AND item_id=? AND field='name' AND value IS NOT NULL AND value <> ? AND NOT EXISTS (SELECT 1 FROM item_alt_value a WHERE a.item_id=p.item_id AND a.field=p.field AND a.source=? AND a.value=p.value)")) {
         String source=historyPrefix+snapshot;old.setString(1,source);old.setString(2,snapshot);old.setLong(3,item.id());old.setString(4,item.name());old.setString(5,source);old.executeUpdate();
       }
+      SpellTextEvidenceWriter.deleteItem(c, item.id());
       for(String table:List.of("item_stat","item_damage","item_armor","item_effect","item_tooltip_line"))
         try(var delete=c.prepareStatement("DELETE FROM "+table+" WHERE item_id=?")){delete.setLong(1,item.id());delete.executeUpdate();}
       ItemValues v=values.getOrDefault(item.id(),new ItemValues(List.of(),null,null));
@@ -45,8 +47,14 @@ final class ClientItemUpdateWriter {
       if(v.damage()!=null){var d=v.damage();execute(c,"INSERT INTO item_damage VALUES (?,?,?,?,?,?)",item.id(),d.min(),d.max(),d.school(),d.delayMs()>0?d.delayMs():null,d.dps());}
       if(v.armor()!=null)execute(c,"INSERT INTO item_armor VALUES (?,?,?)",item.id(),v.armor().armor(),v.armor().block());
       try(Batch effects=new Batch(c,"INSERT INTO item_effect VALUES (?,?,?,?,?)");Batch lines=new Batch(c,"INSERT INTO item_tooltip_line VALUES (?,?,?,?,?)")) {
-        for(var e:tooltips.effects().getOrDefault(item.id(),List.of()))effects.add(item.id(),e.ordinal(),e.trigger(),e.spellId(),e.text());
-        for(var l:tooltips.lines().getOrDefault(item.id(),List.of()))lines.add(item.id(),l.ordinal(),l.kind(),l.text(),l.colour());
+        for(var e:tooltips.effects().getOrDefault(item.id(),List.of())) {
+          effects.add(item.id(),e.ordinal(),e.trigger(),e.spellId(),e.text());
+          SpellTextEvidenceWriter.write(c,"effect",item.id(),e.ordinal(),e.evidence());
+        }
+        for(var l:tooltips.lines().getOrDefault(item.id(),List.of())) {
+          lines.add(item.id(),l.ordinal(),l.kind(),l.text(),l.colour());
+          SpellTextEvidenceWriter.write(c,"tooltip",item.id(),l.ordinal(),l.evidence());
+        }
       }
       // Search keeps the newly revealed name while unrelated item/quest/drop relationships remain intact.
       execute(c,"UPDATE search_index SET name=(SELECT name FROM item WHERE id=?) WHERE kind='item' AND id=?",item.id(),item.id());

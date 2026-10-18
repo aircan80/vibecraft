@@ -54,7 +54,7 @@ public final class ItemSetLoader {
         long spell = r.longOr("SpellID", 0);
         SpellDescriptionFormatter.Formatted f = fmt.description(spell);
         bonuses.add(new ItemSetInfo.Bonus(r.intOr("Threshold", 0), spell, f.text().isEmpty() ? null : f.text(),
-            f.complete()));
+            f.complete(), f.evidence()));
       }
       int skill = s.intOr("RequiredSkill", 0);
       out.put(id, new ItemSetInfo(id, s.get("Name_lang"), pieces, skill > 0 ? skill : null,

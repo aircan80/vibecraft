@@ -131,6 +131,19 @@ class SpellDescriptionFormatterTest {
   }
 
   @Test
+  void formatEvidenceRetainsRawTemplateAndUnknownItemDescriptionOrigin() {
+    var result = formatter.format(42, "Restores $q1 health.");
+    assertThat(result.evidence().status()).isEqualTo("INCOMPLETE");
+    assertThat(result.evidence().rawText()).isEqualTo("Restores $q1 health.");
+    assertThat(result.evidence().unresolved()).contains("$q1");
+    assertThat(result.evidence().source()).contains("origin unknown");
+    assertThat(result.evidence().product()).isNull();
+    assertThat(result.evidence().build()).isNull();
+    assertThat(result.evidence().tableSha256()).isNull();
+    assertThat(formatter.description(1139).evidence().source()).startsWith("csv/Spell.csv");
+  }
+
+  @Test
   void theTableHasAtLeastThirtyRealDescriptions() {
     assertThat(descriptions().count()).isGreaterThanOrEqualTo(30);
   }

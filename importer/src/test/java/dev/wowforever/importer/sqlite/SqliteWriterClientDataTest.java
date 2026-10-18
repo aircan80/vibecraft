@@ -45,6 +45,26 @@ class SqliteWriterClientDataTest {
   @TempDir Path tmp;
 
   @Test
+  void syntheticIncompleteEvidenceSurvivesAllThreePersistedContexts() throws Exception {
+    Items b = new Items(); b.item(1, "Synthetic item");
+    var evidence = new dev.wowforever.importer.clientdata.SpellTextEvidence("INCOMPLETE", 42,
+        "Restores $q1.", List.of("$q1"), "csv/Spell.csv", "wow_classic_beta", "1.60.1.70450", "recorded-hash");
+    var effect = new dev.wowforever.importer.clientdata.ItemSpellEffect(0, 0, 42, "Restores $q1.", false, 0, 0, false, evidence);
+    var bonus = new dev.wowforever.importer.clientdata.ItemSetInfo.Bonus(2, 42, "Restores $q1.", false, evidence);
+    var set = new dev.wowforever.importer.clientdata.ItemSetInfo(1, "Synthetic set", List.of(1L), null, null, List.of(bonus));
+    var line = new dev.wowforever.importer.clientdata.TooltipLine(0, "use", "Use: Restores $q1.", "#1eff00", evidence);
+    var tooltips = new ItemTooltips(Map.of(1L, List.of(effect)), Map.of(1L, set), Map.of(1L, List.of(line)));
+    Path db = tmp.resolve("evidence.sqlite");
+    SqliteWriter.write(db, b.model(), new ImportReport(), Map.of(), null, Map.of(), tooltips);
+    try (var c = open(db)) {
+      assertThat(column(c, "SELECT owner_kind FROM spell_text_evidence ORDER BY owner_kind"))
+          .containsExactly("effect", "set_bonus", "tooltip");
+      assertThat(scalar(c, "SELECT count(*) FROM spell_text_evidence WHERE status='INCOMPLETE' AND raw_text='Restores $q1.' AND unresolved='$q1' AND build='1.60.1.70450'"))
+          .isEqualTo(3);
+    }
+  }
+
+  @Test
   void schemaHasEveryPhase2TableColumnAndIndex() throws Exception {
     Path db = tmp.resolve("t.sqlite");
     Items b = new Items();
@@ -189,6 +209,11 @@ class SqliteWriterClientDataTest {
       assertThat(row(c, "select text, colour from item_tooltip_line where item_id = 19019 and ordinal = 0"))
           .containsExactly("Thunderfury, Blessed Blade of the Windseeker", "#ff8000");
       assertThat(scalar(c, "select count(*) from item_tooltip_line where item_id = 999999")).isEqualTo(0);
+      assertThat(column(c, "select owner_kind || ':' || status from spell_text_evidence order by owner_kind,owner_id,ordinal"))
+          .contains("effect:COMPLETE", "set_bonus:COMPLETE", "tooltip:COMPLETE");
+      assertThat(row(c, "select spell_id,raw_text,source from spell_text_evidence where owner_kind='effect' and owner_id=5079"))
+          .containsExactly(1139, "Increases time between target's attacks by $s2% and reduces their movement speed by $s1% for $d.",
+              "csv/Spell.csv (export base: https://wago.tools)");
       assertThat(scalar(c, "select count(*) from item_tooltip_line"))
           .isEqualTo((int) report.get(ItemTooltips.LINES));
     }

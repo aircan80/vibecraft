@@ -136,7 +136,7 @@ public final class ItemEffectLoader {
         }
         SpellDescriptionFormatter.Formatted f = fmt.description(spell);
         list.add(new ItemSpellEffect(0, trigger, spell, f.text().isEmpty() ? null : f.text(), f.complete(),
-            r.intOr("Charges", 0), cooldown(r), false));
+            r.intOr("Charges", 0), cooldown(r), false, f.evidence()));
       }
       if (learn != null && !learnPlaced) {
         list.add(0, learned(items.get(id), learn, learn, fmt));
@@ -148,7 +148,7 @@ public final class ItemEffectLoader {
       for (int i = 0; i < list.size(); i++) {
         ItemSpellEffect e = list.get(i);
         numbered.add(new ItemSpellEffect(i, e.trigger(), e.spellId(), e.text(), e.complete(), e.charges(),
-            e.cooldownMs(), e.fromItemDescription()));
+            e.cooldownMs(), e.fromItemDescription(), e.evidence()));
       }
       out.put(id, Collections.unmodifiableList(numbered));
       total += numbered.size();
@@ -186,7 +186,7 @@ public final class ItemEffectLoader {
     boolean fromItem = description != null && !description.isBlank();
     SpellDescriptionFormatter.Formatted f = fromItem ? fmt.format(taught, description) : fmt.description(taught);
     return new ItemSpellEffect(0, ItemSpellEffect.USE, taught, f.text().isEmpty() ? null : f.text(), f.complete(),
-        use.intOr("Charges", 0), cooldown(use), fromItem);
+        use.intOr("Charges", 0), cooldown(use), fromItem, f.evidence());
   }
 
   /** {@code CoolDownMSec} when positive, else {@code CategoryCoolDownMSec} when positive, else 0. */

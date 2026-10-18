@@ -77,7 +77,17 @@ public final class TooltipLinesPanel extends JPanel {
     setBorder(framed ? BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(BORDER),
         BorderFactory.createEmptyBorder(6, 8, 6, 8)) : BorderFactory.createEmptyBorder());
     for (TooltipLine line : lines) {
-      add(row(line));
+      JComponent rendered = row(line);
+      if (List.of("use", "equip", "proc", "set_bonus").contains(line.kind()))
+        rendered.setToolTipText(evidenceDetails(line));
+      add(rendered);
+      String explanation = statusExplanation(line);
+      if (explanation != null) {
+        LineText status = new LineText(explanation, new Color(0xE7BB70), Font.PLAIN, 0);
+        status.getAccessibleContext().setAccessibleName(explanation);
+        status.setToolTipText(evidenceDetails(line));
+        add(status);
+      }
     }
     setVisible(!lines.isEmpty());
   }
@@ -127,6 +137,28 @@ public final class TooltipLinesPanel extends JPanel {
       }
     }
     return height + in.top + in.bottom;
+  }
+
+  /** Visible only for incomplete evidence or a legacy line whose unknown variables are being masked. */
+  public static String statusExplanation(TooltipLine line) {
+    if ("INCOMPLETE".equals(line.evidence().status())) return "Incomplete spell text — some values are unavailable.";
+    if ("UNKNOWN".equals(line.evidence().status()) && line.text() != null && SPELL_TOKEN.matcher(line.text()).find())
+      return "Spell-text completeness unknown — unavailable values appear as ?.";
+    return null;
+  }
+
+  /** Plain text disclosure; source text is retained for inspection, never interpreted as HTML. */
+  public static String evidenceDetails(TooltipLine line) {
+    var e = line.evidence();
+    StringBuilder out = new StringBuilder("Spell-text status: ").append(e.status());
+    if (e.spellId() != null) out.append("; spell ").append(e.spellId());
+    if (e.source() != null) out.append("; source ").append(e.source());
+    if (e.product() != null) out.append("; product ").append(e.product());
+    if (e.build() != null) out.append("; build ").append(e.build());
+    if (e.tableSha256() != null) out.append("; recorded table SHA-256 ").append(e.tableSha256());
+    if (!e.unresolved().isEmpty()) out.append("; unresolved ").append(String.join(", ",e.unresolved()));
+    out.append("; recorded text: ").append(e.rawText() == null ? line.text() : e.rawText());
+    return out.toString();
   }
 
   private JComponent row(TooltipLine line) {

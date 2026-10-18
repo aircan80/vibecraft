@@ -26,6 +26,20 @@ class TooltipLinesPanelTest {
       + " Sulfuras, legendary hammer of Ragnaros.";
 
   @Test
+  void incompleteTextHasVisibleStatusAndRecordedEvidenceWithoutGuessing() {
+    var evidence = new dev.wowforever.app.model.SpellTextEvidence("INCOMPLETE", 42L,
+        "Restores $q1 health.", List.of("$q1"), "csv/Spell.csv", "wow_classic_beta", "1.60.1.70450", "a".repeat(64));
+    var line = new TooltipLine("use", "Use: Restores $q1 health.", "#1eff00", null, evidence);
+    var panel = new TooltipLinesPanel(List.of(line));
+    assertThat(panel.texts()).containsExactly("Use: Restores ? health.");
+    assertThat(panel.getComponentCount()).isEqualTo(2);
+    assertThat(((JTextArea)panel.getComponent(1)).getText()).contains("Incomplete spell text");
+    assertThat(TooltipLinesPanel.evidenceDetails(line)).contains("$q1", "70450", "csv/Spell.csv", "recorded text");
+    assertThat(TooltipLinesPanel.statusExplanation(new TooltipLine("use", "Restores $q1", null))).contains("unknown");
+    assertThat(TooltipLinesPanel.statusExplanation(new TooltipLine("use", "Restores health", null))).isNull();
+  }
+
+  @Test
   void anItemCardFromTheDatabaseShowsItsLinesInOrder() {
     var p = new TooltipLinesPanel(FixtureDb.repositories().items().detail(17204).orElseThrow().card().lines());
     assertThat(p.texts()).containsExactly("Eye of Sulfuras", "Binds when picked up", LONG_USE, "Item Level 60",

@@ -1,6 +1,16 @@
 -- WoW Forever item & drop browser database (design spec section 6).
 -- Statements end with ';' at the end of a line. Lines starting with '--' are comments.
--- Everything above the '-- @indexes' marker runs before the bulk inserts, everything below it after.
+-- Everything above the '-- Per-line formatter status; absent in older libraries.
+CREATE TABLE IF NOT EXISTS spell_text_evidence (
+  owner_kind TEXT NOT NULL CHECK(owner_kind IN ('effect','set_bonus','tooltip')),
+  owner_id INTEGER NOT NULL, ordinal INTEGER NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('COMPLETE','INCOMPLETE','UNKNOWN')),
+  spell_id INTEGER NOT NULL, raw_text TEXT, unresolved TEXT NOT NULL,
+  source TEXT, product TEXT, build TEXT, table_sha256 TEXT,
+  PRIMARY KEY(owner_kind,owner_id,ordinal)
+);
+
+-- @indexes' marker runs before the bulk inserts, everything below it after.
 
 CREATE TABLE meta (
   key   TEXT PRIMARY KEY,

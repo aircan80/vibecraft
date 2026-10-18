@@ -129,18 +129,18 @@ public final class TooltipBuilder {
 
     for (ItemSpellEffect e : effects) {
       if (e.trigger() == ItemSpellEffect.USE && e.text() != null) {
-        out.add("use", "Use: " + e.text() + cooldown(e.cooldownMs()), EQUIP_GREEN);
+        out.add("use", "Use: " + e.text() + cooldown(e.cooldownMs()), EQUIP_GREEN, e.evidence());
       }
     }
     statLines.stream().filter(l -> l.kind().equals("equip")).forEach(l -> out.add("equip", l.text(), EQUIP_GREEN));
     for (ItemSpellEffect e : effects) {
       if (e.trigger() == ItemSpellEffect.EQUIP && e.text() != null) {
-        out.add("equip", "Equip: " + e.text() + cooldown(e.cooldownMs()), EQUIP_GREEN);
+        out.add("equip", "Equip: " + e.text() + cooldown(e.cooldownMs()), EQUIP_GREEN, e.evidence());
       }
     }
     for (ItemSpellEffect e : effects) {
       if (e.trigger() == ItemSpellEffect.CHANCE_ON_HIT && e.text() != null) {
-        out.add("proc", "Chance on hit: " + e.text(), EQUIP_GREEN);
+        out.add("proc", "Chance on hit: " + e.text(), EQUIP_GREEN, e.evidence());
       }
     }
 
@@ -154,7 +154,7 @@ public final class TooltipBuilder {
       }
       for (ItemSetInfo.Bonus b : set.bonuses()) {
         if (b.text() != null) {
-          out.add("set_bonus", "(" + b.threshold() + ") Set: " + b.text(), SET_GREY);
+          out.add("set_bonus", "(" + b.threshold() + ") Set: " + b.text(), SET_GREY, b.evidence());
         }
       }
     }
@@ -263,6 +263,10 @@ public final class TooltipBuilder {
 
   private static final class Lines {
     final List<TooltipLine> lines = new ArrayList<>();
+
+    void add(String kind, String text, String colour, SpellTextEvidence evidence) {
+      lines.add(new TooltipLine(lines.size(), kind, text, colour, evidence));
+    }
 
     void add(String kind, String text, String colour) {
       lines.add(new TooltipLine(lines.size(), kind, text, colour));

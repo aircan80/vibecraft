@@ -6,7 +6,11 @@ package dev.wowforever.app.model;
  * text colour). {@code itemId} is the item a {@code set_item} line names (resolved by name within the item's set),
  * null for other lines and for a piece the database does not have.
  */
-public record TooltipLine(String kind, String text, String colour, Long itemId) {
+public record TooltipLine(String kind, String text, String colour, Long itemId, SpellTextEvidence evidence) {
+  public TooltipLine { if (evidence == null) evidence = SpellTextEvidence.unknown(); }
+  public TooltipLine(String kind, String text, String colour, Long itemId) {
+    this(kind, text, colour, itemId, SpellTextEvidence.unknown());
+  }
   /** A line that names no item. */
   public TooltipLine(String kind, String text, String colour) {
     this(kind, text, colour, null);

@@ -23,5 +23,9 @@ public record ItemSetInfo(long id, String name, List<Long> itemIds, Integer requ
    *
    * @param text the spell's formatted description, or null when it has none
    */
-  public record Bonus(int threshold, long spellId, String text, boolean complete) {}
+  public record Bonus(int threshold, long spellId, String text, boolean complete, SpellTextEvidence evidence) {
+    public Bonus(int threshold, long spellId, String text, boolean complete) {
+      this(threshold, spellId, text, complete, SpellTextEvidence.unknown(spellId));
+    }
+  }
 }
