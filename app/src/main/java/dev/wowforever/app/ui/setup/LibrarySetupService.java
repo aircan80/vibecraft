@@ -11,7 +11,7 @@ public interface LibrarySetupService {
   enum Mode { FIRST_RUN, MANAGEMENT }
   enum Phase {
     DOWNLOAD("Download selected sources"),PREPARE("Prepare library"),BUILD("Build catalogue"),
-    CHECK("Check data"),TRIM("Trim download size"),OPEN("Open library");
+    CHECK("Check data"),TRIM("Reduce library size"),OPEN("Open library");
     private final String label;Phase(String label){this.label=label;}public String label(){return label;}
   }
   /** Counts describe this phase only. -1 means not supplied; no overall percentage is inferred. */
