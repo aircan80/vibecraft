@@ -86,3 +86,25 @@ Research context from issue #12: the fresh same-build Wago named ItemSparse join
 Review: `setup.html?step=2&game=forever&review=hotfix` shows the optional row; explicitly choose Wago.tools first to enable its consent control. `sources.html` includes the same provider/status. vibeMiner remains a separate project; no exploration workspace is added.
 
 Twenty-one Firefox BiDi checks passed for default-off consent, missing-dependency disablement, no auto-selection, exact build/locale and experimental labels, unknown omission state, source details and Escape focus return, other-game disablement, per-game persistence, dependency removal, independent CDN consent, truthful manager state, no mining navigation, 420px light/1280px dark fit, 18px body and 30px source icons. Both row captures were visually reviewed outside Git. No end-to-end library build or hotfix acquisition is accepted by these mockup checks.
+
+## Import progress, safe stop, failure and completion — issues #1 and #6
+
+The approved import-state design uses six friendly phases: Download selected sources → Prepare library → Build catalogue → Check data → Trim download size → Open library. For an update made while browsing, the last phase prepares the next startup rather than switching the active session. Required technical/source evidence is behind the existing small source icon.
+
+Build and validation are indeterminate, with no guessed global percentage. Byte/table counts render only when actual counters are supplied; the prototype supplies none. A stop request changes to “Stopping after the current step” and stays pending until the simulated stage boundary completes. The stopped state preserves the working library. Retry reuses only verified downloads and rebuilds/rechecks the catalogue; it never promises partial-projector resume. No provider, mirror, CDN consent or edition fallback is enabled on retry.
+
+Coverage failure explains missing native details and offers explicit source review, retry of the same plan using verified downloads, or keeping the current library. The displayed 5,622 missing item-detail count is explicitly the earlier verified Forever run from issue #6, not this prototype job. The source icon contains the recorded 15,672/21,294 (73.6%) join and 85% rejection guard. Research potential such as 91.44% is never shown as an accepted result. Hotfix consent remains independent, optional and default off. Download failure separately explains verified-cache reuse and no candidate activation.
+
+First-run completion offers Open library. Management completion says Ready for next startup and Return to current library, explicitly preserving the current session. Completion shows beta/unknown-field expectations and does not invent accepted coverage or a completed hotfix import. These illustrative completion routes are not proof of a real end-to-end job.
+
+Review routes:
+
+- `setup.html?step=5&job=running&phase=2&mode=manage` — catalogue build.
+- `setup.html?step=5&job=stopping&phase=2&mode=manage` — waiting to stop safely.
+- `setup.html?step=5&job=stopped&mode=manage` — safe stop and verified-download retry.
+- `setup.html?step=5&job=coverage&mode=manage` — recorded missing-details example.
+- `setup.html?step=5&job=failure&mode=manage` — interrupted download.
+- `setup.html?step=6&job=complete` — first-run Open library.
+- `setup.html?step=6&job=complete&mode=manage` — ready for next startup.
+
+The collapsed Preview import states controls let reviewers inspect these routes and advance an illustrative stage boundary. No real job, download, scan, database write or activation occurs. Thirty-one Firefox BiDi checks passed across consent preservation, phases, indeterminate counters, stop/boundary/retry, honest historical coverage data, source-dialog keyboard focus, no automatic fallback, distinct completion modes and all six states at 420px plus 1280px dark. Running/stopping dark and coverage/management-completion light captures were reviewed outside Git. JavaScript syntax and diff checks pass. This is design evidence, not native Java build acceptance.
