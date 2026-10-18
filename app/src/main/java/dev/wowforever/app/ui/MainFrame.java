@@ -4,7 +4,6 @@ import dev.wowforever.app.model.SourceFilter;
 import dev.wowforever.app.nav.ViewTarget;
 import dev.wowforever.app.ui.widgets.HistoryButtons;
 import dev.wowforever.app.ui.widgets.MasterList;
-import dev.wowforever.app.ui.widgets.Rail;
 import dev.wowforever.app.ui.widgets.RailIcons;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.BorderLayout;
@@ -72,7 +71,6 @@ public final class MainFrame extends JFrame implements MainView {
   private final JButton back = HistoryButtons.back();
   private final JButton forward = HistoryButtons.forward();
   private final SearchBar searchBar;
-  private final Rail rail = new Rail();
   private final MasterList list = new MasterList();
   private final StatusBar status = new StatusBar();
   private final JPanel detailHolder = new JPanel(new BorderLayout());
@@ -101,25 +99,36 @@ public final class MainFrame extends JFrame implements MainView {
   private final JMenuItem gameCatalog = new JMenuItem("Game catalog…");
 
 
-  public MainFrame() { this(UiExperience.CLASSIC); }
+  /** Retained argument validation for callers migrating from the retired shell. */
+  static UiExperience supportedExperience(UiExperience experience) {
+    if (experience != UiExperience.JOURNAL) {
+      throw new IllegalArgumentException("Original interface has been retired; use Explorer Journal");
+    }
+    return experience;
+  }
+
+  private static String titleForExperience(UiExperience experience) {
+    supportedExperience(experience);
+    return APP_NAME;
+  }
+
+  public MainFrame() { this(UiExperience.JOURNAL); }
 
   public MainFrame(UiExperience experience) {
-    super(APP_NAME);
-    this.experience = java.util.Objects.requireNonNull(experience);
-    if (experience == UiExperience.JOURNAL) dev.wowforever.app.ui.journal.JournalAppearance.apply();
-    uiState = experience == UiExperience.JOURNAL ? UiState.loadJournal() : UiState.load();
+    super(titleForExperience(experience));
+    this.experience = supportedExperience(experience);
+    dev.wowforever.app.ui.journal.JournalAppearance.apply();
+    uiState = UiState.loadJournal();
     textSize = new TextSize(uiState);
-    journalSidebar = experience == UiExperience.JOURNAL
-        ? new dev.wowforever.app.ui.journal.JournalSidebar(t -> { if (controller != null) controller.open(t); }) : null;
-    journalBreadcrumbs = experience == UiExperience.JOURNAL
-        ? new dev.wowforever.app.ui.journal.JournalBreadcrumbs(t -> { if (controller != null) controller.open(t); }) : null;
-    if (journalSidebar != null) {
+    journalSidebar = new dev.wowforever.app.ui.journal.JournalSidebar(t -> { if (controller != null) controller.open(t); });
+    journalBreadcrumbs = new dev.wowforever.app.ui.journal.JournalBreadcrumbs(t -> { if (controller != null) controller.open(t); });
+    {
       JPanel journalPage = new JPanel(new BorderLayout());
       journalPage.add(journalBreadcrumbs, BorderLayout.NORTH);
       journalPage.add(detailHolder, BorderLayout.CENTER);
       pageHolder = journalPage;
       journalSidebar.setReady(false);
-    } else pageHolder = detailHolder;
+    }
     searchBar = new SearchBar(new SearchBar.Opener() {
       @Override
       public void accept(ViewTarget t) {
@@ -142,11 +151,6 @@ public final class MainFrame extends JFrame implements MainView {
         }
       }
     }, uiState);
-    rail.onSelect(t -> {
-      if (controller != null) {
-        controller.openRail(t);
-      }
-    });
     searchBar.setEnabled(false);
     back.addActionListener(e -> back());
     forward.addActionListener(e -> forward());
@@ -155,8 +159,8 @@ public final class MainFrame extends JFrame implements MainView {
 
     toolbar = toolbar(back, forward, searchBar);
     detailSlot.add(pageHolder, BorderLayout.CENTER);
-    JComponent navigation = rail;
-    if (journalSidebar != null) {
+    JComponent navigation;
+    {
       JScrollPane sidebarScroll = new JScrollPane(journalSidebar,
           JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
       sidebarScroll.setBorder(BorderFactory.createEmptyBorder());
@@ -178,7 +182,7 @@ public final class MainFrame extends JFrame implements MainView {
     menuBar = menuBar();
     compactShell.setMenu(compactMenu());
     KeyMap.install(getRootPane(), handlers());
-    if (experience == UiExperience.JOURNAL) {
+    {
       getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_D, java.awt.event.InputEvent.CTRL_DOWN_MASK), "pin-research");
       getRootPane().getActionMap().put("pin-research", new AbstractAction() {
         @Override public void actionPerformed(java.awt.event.ActionEvent event) {
@@ -198,7 +202,7 @@ public final class MainFrame extends JFrame implements MainView {
     layout.start();
     textSize.applySaved();
     wireStatusToggles();
-    if (experience == UiExperience.JOURNAL) {
+    {
       status.addComponentListener(new ComponentAdapter() {
         @Override public void componentResized(ComponentEvent e) { fitJournalStatus(status); }
       });
@@ -207,7 +211,7 @@ public final class MainFrame extends JFrame implements MainView {
           status.messageLabel().setToolTipText(status.message()));
       fitJournalStatus(status);
     }
-    if (experience == UiExperience.JOURNAL) SwingUtilities.updateComponentTreeUI(this);
+    SwingUtilities.updateComponentTreeUI(this);
   }
 
   /**
@@ -417,9 +421,9 @@ public final class MainFrame extends JFrame implements MainView {
   }
 
   /**
-   * Wires in the controller once the database is open, and enables searching and type-ahead. The rail's client art
+   * Wires in the controller once the database is open, and enables searching and type-ahead. Journal client art
    * loads once, on the controller's worker; on the EDT it then becomes the {@linkplain RailIcons#shared shared} icons
-   * and replaces the rail's SVG glyphs (which stay if it fails).
+   * and refreshes the journal navigation.
    */
   public void attach(AppController controller) {
     this.controller = controller;
@@ -429,9 +433,8 @@ public final class MainFrame extends JFrame implements MainView {
     if (journalSidebar != null) journalSidebar.setReady(true);
     Async.run(controller.worker(), () -> RailIcons.load(controller.repos().assets()::uiIcon), icons -> {
       RailIcons.install(icons);
-      rail.setIcons(icons);
       if (journalSidebar != null) journalSidebar.refreshTheme();
-    }, e -> LOG.warn("Loading the rail icons failed; the rail keeps its own glyphs", e));
+    }, e -> LOG.warn("Loading navigation icons failed; the journal keeps its own glyphs", e));
   }
 
   /** The About text: the bundled NOTICE.md, then the database meta values. */
@@ -572,7 +575,7 @@ public final class MainFrame extends JFrame implements MainView {
     JMenuItem full = new JMenuItem("Full window (F10)"); // no accelerator: F10 is the window's own key
     full.addActionListener(e -> toggleCompactMode());
     JPopupMenu menu = new JPopupMenu();
-    if (experience == UiExperience.JOURNAL) {
+    {
       JMenu browse = new JMenu("Browse the journal");
       for (RailTarget target : RailTarget.values()) {
         JMenuItem item = new JMenuItem(target.label());
@@ -615,7 +618,7 @@ public final class MainFrame extends JFrame implements MainView {
     WindowMenus.addHelpItems(help, menuActions());
     JMenuBar bar = new JMenuBar();
     bar.add(view);
-    if (experience == UiExperience.JOURNAL) {
+    {
       JMenu settings = new JMenu("Settings");
       gameCatalog.setName("game-catalog-menu");
       gameCatalog.setEnabled(false);
@@ -639,7 +642,7 @@ public final class MainFrame extends JFrame implements MainView {
   }
 
   private void showGameCatalog() {
-    if (experience != UiExperience.JOURNAL || catalogSession == null) return;
+    if (catalogSession == null) return;
     var picker = new dev.wowforever.app.catalog.EditionPicker(editions, catalogSession, token -> {
       // Only Forever is installed. Future switching must rebuild scoped repositories and navigation.
       status.setMessage("Game catalog: WoW Forever · " + token.context().clientBuild());
@@ -760,7 +763,7 @@ public final class MainFrame extends JFrame implements MainView {
   @Override
   public void setTitleSuffix(String s) {
     researchLabel=s;
-    String app = experience == UiExperience.JOURNAL ? "WoW Forever — Explorer Journal" : APP_NAME;
+    String app = "WoW Forever — Explorer Journal";
     setTitle(s == null || s.isEmpty() ? app : app + " — " + s);
     if (journalBreadcrumbs != null) journalBreadcrumbs.setPageTitle(s);
   }
@@ -793,7 +796,7 @@ public final class MainFrame extends JFrame implements MainView {
 
   @Override
   public void selectRail(RailTarget target) {
-    rail.select(target);
+    // Journal selection follows the complete ViewTarget, including city and nested map context.
   }
 
   @Override

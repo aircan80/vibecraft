@@ -10,7 +10,6 @@ import dev.wowforever.app.db.UserDataDir;
 import dev.wowforever.app.ui.AppController;
 import dev.wowforever.app.ui.Async;
 import dev.wowforever.app.ui.MainFrame;
-import dev.wowforever.app.ui.ExperienceChooser;
 import dev.wowforever.app.ui.UiExperience;
 import dev.wowforever.app.ui.ThemeManager;
 import dev.wowforever.app.ui.theme.Fonts;
@@ -50,7 +49,8 @@ public final class Main {
     try {
       override = startupExperience(args);
     } catch (IllegalArgumentException e) {
-      System.err.println("Usage: java -jar wow-forever-browser.jar [--self-test | --ui=classic | --ui=journal]");
+      System.err.println(e.getMessage());
+      System.err.println("Usage: java -jar wow-forever-browser.jar [--self-test | --ui=journal]");
       System.exit(2);
       return;
     }
@@ -83,14 +83,15 @@ public final class Main {
    * On the EDT: shows the window, then opens the database in the background and wires the controller. A failure
    * of either step is logged and shown, and the application exits with status 1.
    */
-  /** Explicit command-line choices support repeatable previews; normal startup always asks. */
+  /** Explorer Journal is the only supported interface; the explicit option remains for scripts. */
   static UiExperience startupExperience(String[] args) {
     if (args.length == 0) {
-      return null;
+      return UiExperience.JOURNAL;
     }
     if (args.length == 1) {
       return switch (args[0]) {
-        case "--ui=classic" -> UiExperience.CLASSIC;
+        case "--ui=classic" -> throw new IllegalArgumentException(
+            "Original interface has been retired. Start Explorer Journal without --ui=classic.");
         case "--ui=journal" -> UiExperience.JOURNAL;
         default -> throw new IllegalArgumentException("Unknown startup argument");
       };
@@ -101,11 +102,7 @@ public final class Main {
   private static void startGui(UiExperience override) {
     Fonts.install();
     ThemeManager.applySaved();
-    UiExperience experience = override != null ? override : ExperienceChooser.choose().orElse(null);
-    if (experience == null) {
-      return; // No frame, database installation or background worker has been created.
-    }
-    MainFrame frame = new MainFrame(experience);
+    MainFrame frame = new MainFrame(override);
     AtomicReference<Database> open = new AtomicReference<>();
     frame.addWindowListener(new WindowAdapter() {
       @Override

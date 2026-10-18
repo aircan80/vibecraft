@@ -15,9 +15,10 @@ import org.junit.jupiter.api.Test;
 class MainStartupTest {
 
   @Test
-  void interactiveStartupAlwaysAsksUnlessAnExplicitCliChoiceIsGiven() {
-    assertThat(Main.startupExperience(new String[0])).isNull();
-    assertThat(Main.startupExperience(new String[] {"--ui=classic"})).isEqualTo(UiExperience.CLASSIC);
+  void startupOpensJournalDirectlyAndRejectsRetiredInterface() {
+    assertThat(Main.startupExperience(new String[0])).isEqualTo(UiExperience.JOURNAL);
+    assertThatThrownBy(() -> Main.startupExperience(new String[] {"--ui=classic"}))
+        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("retired");
     assertThat(Main.startupExperience(new String[] {"--ui=journal"})).isEqualTo(UiExperience.JOURNAL);
     assertThatThrownBy(() -> Main.startupExperience(new String[] {"--ui=other"}))
         .isInstanceOf(IllegalArgumentException.class);

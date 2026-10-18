@@ -17,6 +17,16 @@ import org.junit.jupiter.api.Test;
 class MainFrameTest {
 
   @Test
+  void onlyJournalCanConstructTheProductionShell() {
+    assertThat(MainFrame.supportedExperience(UiExperience.JOURNAL)).isEqualTo(UiExperience.JOURNAL);
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> MainFrame.supportedExperience(UiExperience.CLASSIC))
+        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("retired");
+    org.assertj.core.api.Assertions.assertThatThrownBy(() -> MainFrame.supportedExperience(null))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+
+  @Test
   void focusStaysInThePageOnlyWhenItsOwnerSitsInTheHolder() {
     JPanel holder = new JPanel();
     JPanel page = new JPanel();
