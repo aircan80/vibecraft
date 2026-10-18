@@ -6,50 +6,51 @@ A World of Warcraft companion for exploration, loot, crafting, and lore.
 
 ## Current status
 
-The current desktop development launch is the accepted search-cleanup artifact
-(`96b554ac…`, service `vibecraft-search-ui`), using reviewed existing data. It passed
-79 focused tests and 55 native assertions across four captures. The rounded-header
-artifact (`4cc6…`, 111 assertions/four captures) is an earlier accepted milestone,
-not the currently active artifact. Original portable preview 2 bundles remain
-unchanged: approximately 156 MiB Linux and 147 MiB Windows. Windows application
-launch testing has not run; macOS portable delivery is not built.
+The current first-run preview is the accepted source-only setup artifact
+(`b7e01431…`), with 128 native checks and 28 captures. The newer combined source
+and map-navigation artifact (`3bddf1c0…`) passed 60 native checks/24 captures and
+100 separate headless source-evidence captures. Those checks cover the named
+artifacts, not a rebuilt portable release. Original preview 2 archives remain
+approximately 156 MiB Linux and 147 MiB Windows. Windows GUI launch is untested;
+macOS portable delivery is not built.
 
-Source checkpoint `3fdb808` is pushed to
-[GitHub](https://github.com/aircan80/vibecraft). Its [CI run](https://github.com/aircan80/vibecraft/actions/runs/39093624739)
-passed source verification and source-only packaging/audit on **Linux, macOS and
-Windows**. The preceding combined clean-source run reported 1,959 tests, 55 explicit
-skips and zero failures. Later local setup work is not claimed pushed, accepted or
-running. Source CI success does not establish native Windows application acceptance.
-No gameplay database, portable release assets or tags were uploaded with the source.
+Source checkpoint `6c4ca78` passed [Linux, macOS and Windows CI](https://github.com/aircan80/vibecraft/actions/runs/39096565844),
+including verification, source-only packaging and archive audit. Combined local
+verification reported 2,015 tests, 55 explicit skips and zero failures/errors.
+Subsequent source changes include acceptance tools and cache-recovery fixes, with
+their own checks. Source CI does not establish native Windows GUI acceptance.
+No gameplay database, portable assets or release tags were uploaded.
 
 ## Active setup and import work
 
 [#1 Sources & Updates setup](https://github.com/aircan80/vibecraft/issues/1) is the
-current priority. Approved setup/provider mockups passed 28 checks. The new
-database-independent first-run Java UI, persistence/metadata workers, immutable
-plans/storage safeguards ([#6](https://github.com/aircan80/vibecraft/issues/6)) and
-exact-build reader/transport work ([#7](https://github.com/aircan80/vibecraft/issues/7))
-are in isolated implementation/verification. They are not the currently running app.
+priority. The five-step database-independent Java wizard, source preferences,
+read-only folder detection, explicit CDN consent, compatibility workers and
+Settings management are implemented and accepted. **The Build action is disabled**
+until the acquisition, validation and activation flow is connected.
 
-Bounded read-only local WoW detection is integrated (10 focused tests), as is
-optional AtlasLoot support (29 focused tests). These completed slices do not create
-a full importer. **Zero-database bootstrap is not ready**: production importer
-integration, staged validation/activation and native CASC/DB2 extraction remain open.
-Existing-data launches do not demonstrate empty-installation database creation.
+Protected immutable plans/storage, selected-build readers and explicitly selected
+Wago CSV acquisition are integrated. Staged capture/projection and read-only
+candidate validation are under integration ([#6](https://github.com/aircan80/vibecraft/issues/6)).
+Source snapshots and cache recovery are being hardened. Fresh real-data acceptance,
+community-source acquisition, runtime compaction and safe activation remain open.
+General local CASC extraction, archive/range CDN acquisition and DB2 decoding are
+not complete ([#7](https://github.com/aircan80/vibecraft/issues/7)). Existing-data
+launches do not establish empty-installation database creation.
 
-Setup must support **multiple game versions** in shared edition-scoped catalogs,
-with an active-game switcher ([#9](https://github.com/aircan80/vibecraft/issues/9)).
-Only Forever is currently installed. Each optional provider explains **Adds,
-Needs, and If omitted** coverage ([#11](https://github.com/aircan80/vibecraft/issues/11)).
-Wago exports are explicit; VMaNGOS is comparison evidence. Local WoW folders are
-optional and read-only. Any selected missing-asset CDN retrieval writes only to
-app data, never into the WoW folder.
+Setup supports multiple selected game drafts; executable import currently targets
+Forever/enUS. Shared edition-scoped catalogs and active-game switching remain
+[#9](https://github.com/aircan80/vibecraft/issues/9). Providers explain **Adds,
+Needs, and If omitted** ([#11](https://github.com/aircan80/vibecraft/issues/11)).
+Wago consent is separate from Blizzard CDN consent. Local WoW folders are optional
+and strictly read-only; all downloads and generated data go to app-owned storage.
 
-Source-icon and breadcrumb-dropdown mockups are complete; Java implementation
-remains open under [#2](https://github.com/aircan80/vibecraft/issues/2) and
-[#3](https://github.com/aircan80/vibecraft/issues/3). The Zephras Isle visibility
-correction is already included in preview 2; nested scrolling is removed and More
-Destinations appears above map art.
+Compact source icons/dialogs are accepted for existing item, instance and encounter
+comparison panels; broader map, portrait and quest-source presentation is ongoing
+([#2](https://github.com/aircan80/vibecraft/issues/2)). Recorded hierarchy breadcrumb
+links and sibling dropdowns are implemented and accepted; [#3](https://github.com/aircan80/vibecraft/issues/3)
+is closed. They include unplaced catalogue destinations and recorded zone/district
+siblings, without inventing missing geography.
 
 ## Product scope and remaining releases
 
@@ -89,11 +90,12 @@ nonzero audio; output-device playback was exercised. Human listening acceptance 
 not claimed. Optional assets use exact-build verified retrieval/cache without
 blocking navigation.
 
-Normal portable delivery includes its Java runtime and compact gameplay database,
-ready to browse. GitHub source is data-free; source and runnable release artifacts
-are distinct. A code GPL licence does not confer redistribution rights to game art.
-Bulk game assets must not enter the source export. External database selection is
-an advanced/source-build option, not required normal-release setup.
+The planned normal release includes its Java runtime and starts without a gameplay
+database; the main-app setup will acquire selected sources and build the library.
+Existing preview 2 archives include a compact database and are historical delivery
+artifacts. GitHub source remains data-free; source and runnable releases are distinct. A code GPL licence does not confer redistribution rights to game art.
+Bulk game assets must not enter the source export. Opening an existing database remains an optional escape hatch; it does not replace
+the planned first-run library-building flow.
 
 ## Historical artifact evidence
 
