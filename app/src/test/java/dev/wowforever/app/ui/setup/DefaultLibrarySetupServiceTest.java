@@ -38,10 +38,19 @@ class DefaultLibrarySetupServiceTest {
     assertThat(ops.plan.acquisitions()).containsExactly(SetupPlan.Acquisition.WAGO_EXPORT);assertThat(ops.plan.nativeIdentity()).contains(new SetupPlan.NativeIdentity("wow_classic_beta","1.60.1.70450","enUS"));assertThat(ops.plan.sourcePins()).isEqualTo(SetupPlan.currentPins(ops.plan.sources()));
     service.review(draft(ids),CONTROL);assertThat(ops.begins).hasValue(1);assertThat(review.summary()).contains("GitHub/WoWDBDefs","Wago","Authored review warning");
   }
-  @Test void localCdnAndPlannedGamesCannotBeSilentlyIgnored()throws Exception{
+  @Test void plannedGamesCannotBeSilentlyIgnored()throws Exception{
     var ops=new Ops();var service=new DefaultLibrarySetupService(ops);
     var draft=new LibrarySetupDraft("forever",Map.of("forever",new LibrarySetupDraft.Profile(REQUIRED,Optional.of(Path.of("wow")),true),"classic",new LibrarySetupDraft.Profile(Set.of("native"),Optional.empty(),false)));
-    var review=service.review(draft,CONTROL);assertThat(review.ready()).isFalse();assertThat(review.blockers()).anyMatch(text->text.contains("Clear the chosen folder")).anyMatch(text->text.contains("CDN")).anyMatch(text->text.contains("classic"));assertThat(ops.begins).hasValue(0);
+    var review=service.review(draft,CONTROL);assertThat(review.ready()).isFalse();assertThat(review.blockers()).anyMatch(text->text.contains("classic"));assertThat(ops.begins).hasValue(0);
+  }
+  @Test void optionalLocalAndCdnPermissionsArePreservedWhileCatalogueUsesWago()throws Exception{
+    var ops=new Ops();var service=new DefaultLibrarySetupService(ops);Path folder=Path.of("missing-wow-folder");
+    var draft=new LibrarySetupDraft("forever",Map.of("forever",new LibrarySetupDraft.Profile(REQUIRED,Optional.of(folder),true)));
+    var review=service.review(draft,CONTROL);assertThat(review.ready()).isTrue();
+    assertThat(ops.plan.acquisitions()).containsExactlyInAnyOrder(SetupPlan.Acquisition.WAGO_EXPORT,SetupPlan.Acquisition.LOCAL_INSTALLATION,SetupPlan.Acquisition.BLIZZARD_CDN);
+    assertThat(ops.plan.localGameRoots()).containsExactly(folder.toAbsolutePath().normalize());
+    assertThat(review.summary()).contains("permissions are preserved","catalogue extraction from those sources is not used","protected from app writes");
+    service.build(review,LibrarySetupService.Mode.MANAGEMENT,CONTROL);assertThat(ops.publishes).hasValue(1);
   }
   @Test void prepareThenPublishReturnsOnlyTheRegisteredVersionWithRealReportedCounts()throws Exception{
     var ops=new Ops();var service=new DefaultLibrarySetupService(ops);var review=service.review(draft(REQUIRED),CONTROL);var events=new ArrayList<LibrarySetupService.Progress>();
