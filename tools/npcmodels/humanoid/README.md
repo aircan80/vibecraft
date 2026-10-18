@@ -17,3 +17,5 @@ python -m unittest discover -s tools/npcmodels/humanoid -v
 ```
 
 Next portrait slice: acquire verified CreatureDisplayInfoOption and NPCModelItemSlotDisplayInfo, then resolve their customization/geoset and equipment dependencies. Apply those selections and skin texture to a real mapped humanoid M2; validate a single portrait before enabling it in the app. Shared appearance cache identity must include the full new composition recipe.
+
+`acquire-inputs.py` reproduces native acquisition + pinned-definition offline decoding and records a manifest after every table. Pass `--native-tools` pointing to the existing `tools/npcmodels` directory, `--metadata` pointing to the verified attestation seed, and explicit cache/upstream/Node/output paths. It returns failure when a table is unavailable and preserves successful inputs for the archive transport follow-up. The decoder now records skipped encrypted sections so a partial table cannot be mistaken for complete customization coverage.

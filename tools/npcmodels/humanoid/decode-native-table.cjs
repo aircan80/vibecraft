@@ -22,6 +22,7 @@ stub('core.js',{view:{config:{},casc:{getBuildName:()=> '1.60.1.70450',
  cache:{getFile:async()=>new BufferWrapper(fs.readFileSync(definition))}}}});
 const Reader=require(path.join(js,'db/WDCReader'));
 (async()=>{const reader=new Reader('DBFilesClient/'+table+'.db2');await reader.parse();reader.preload();
+const skippedEncryptedSections=reader.sections.filter(s=>s.isEncrypted).map(s=>({recordCount:s.header.recordCount}));
 const rows=[...reader.getAllRows()].map(([id,row])=>({ID:id,...row}));
-fs.writeFileSync(output,JSON.stringify({product:'wow_classic_beta',build:'1.60.1.70450',table,sourceSha256:hash(binary),definitionSha256:hash(definition),decoderCommit:commit,rows},null,2)+'\n');console.log(JSON.stringify({table,rows:rows.length}));
+fs.writeFileSync(output,JSON.stringify({product:'wow_classic_beta',build:'1.60.1.70450',table,sourceSha256:hash(binary),definitionSha256:hash(definition),decoderCommit:commit,skippedEncryptedSections,rows},null,2)+'\n');console.log(JSON.stringify({table,rows:rows.length}));
 })().catch(e=>{console.error(e);process.exitCode=1;});

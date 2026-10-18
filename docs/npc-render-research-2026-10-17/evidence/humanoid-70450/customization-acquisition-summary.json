@@ -1,0 +1,68 @@
+[
+  {
+    "table": "ChrCustomizationChoice",
+    "fileDataId": 3450554,
+    "rows": 10447,
+    "inputSha256": "723eea5b900d1a42f2fddf5280a3a4df32077c0495f6e0a723000a99567343fc",
+    "definitionSha256": "78dda509933f11747726a7e17f7613ed85325a078278b78316f20bf69b229819",
+    "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+    "skippedEncryptedSections": [],
+    "decodedSha256": "ea5a5a0d89833b4ca2155b43fd1f2760e184f8df2203305bcc00a70977606cfc"
+  },
+  {
+    "table": "ChrCustomizationElement",
+    "fileDataId": 3512765,
+    "rows": 39109,
+    "inputSha256": "c0ce0207f6f752fcfc008afcdf003a68a58482b6ae5a4090ee466ed4b442673b",
+    "definitionSha256": "10e6572bca2aab968b29c11541c102295a686c30315c0bd33ae908a2803ab2be",
+    "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+    "skippedEncryptedSections": [],
+    "decodedSha256": "d7b49a1b2a6e8f3c8dd9f450f4c887c02933bb3c07a6ccabcc3941ecd34bdca0"
+  },
+  {
+    "table": "ChrCustomizationGeoset",
+    "fileDataId": 3456171,
+    "rows": 4832,
+    "inputSha256": "079d9e2f6e0a81f4e793b5976768b6970ff968d8ebffdb189f5b98f4911ba8da",
+    "definitionSha256": "6f352224ae6c64dbcec234377230cc1fddf5e78e5add6913f65c9da891c6f101",
+    "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+    "skippedEncryptedSections": [],
+    "decodedSha256": "9faf4bed0330540ce8d97c638cce68878382c2cdf6fd4f8229ae171c69fcf2de"
+  },
+  {
+    "table": "ChrCustomizationOption",
+    "fileDataId": 3384247,
+    "rows": 1173,
+    "inputSha256": "640f1824442b9112e43961861e6e88a75d335632c90abf5c5c488831f0db5085",
+    "definitionSha256": "4a36a92894d0b391d31030b18de0d99435038608a6c10266d33d0b61729d5763",
+    "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+    "skippedEncryptedSections": [],
+    "decodedSha256": "f976903fb15bb26592697100f922a6cef5e70ddd6c2445de79703f2c4e4ba9b7"
+  },
+  {
+    "table": "ItemDisplayInfo",
+    "fileDataId": 1266429,
+    "status": "UNAVAILABLE",
+    "error": "No verified native asset 1266429: No verified encoding for content 29120c29774d2bcdda084f1b6f2fa582: 404 Client Error: Not Found for url: https://us.cdn.blizzard.com/tpr/wow/data/dd/ba/ddbaa5989bec1cc97e2bca024e51a1fd; Root-verified asset transport: content MD5 mismatch"
+  },
+  {
+    "table": "ChrModel",
+    "fileDataId": 3384313,
+    "rows": 127,
+    "inputSha256": "32ebad4f2a027eea515f65af9738a58626c602f203f8e0288118a9274ded69bd",
+    "definitionSha256": "abea0db915c6e7014c1d993127200dc5aa8bbfb4cc594b2835cbfcc3f29cabd4",
+    "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+    "skippedEncryptedSections": [],
+    "decodedSha256": "57eb26197f0de13f1840e5806efbf8113e5da3515d47a6f15cd855961f68386f"
+  },
+  {
+    "table": "ChrModelMaterial",
+    "fileDataId": 3566562,
+    "rows": 319,
+    "inputSha256": "64f779a776a28ee196f66022930f885994db7afec609620b4901657b588695e5",
+    "definitionSha256": "ac2d052de4738dbd51de0ce86b0f19816ca170bb280ac18b604bab1c8331f2f0",
+    "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+    "skippedEncryptedSections": [],
+    "decodedSha256": "fcc3f8280ab06d3e2b7928ee80fc16a10068a988a65f06c9daaa1bbcd8239fc6"
+  }
+]
