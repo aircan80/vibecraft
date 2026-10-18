@@ -4,6 +4,8 @@ Run blender --background --factory-startup --disable-autoexec --python THIS -- G
 import bpy, sys, math, json, hashlib, time
 from pathlib import Path
 from mathutils import Vector
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+from eye_shader import install_blender_eye
 started=time.monotonic()
 arguments=sys.argv[sys.argv.index('--')+1:]
 source, output=map(Path,arguments[:2])
@@ -47,6 +49,10 @@ for mat in bpy.data.materials:
  bsdf=next((n for n in mat.node_tree.nodes if n.type=='BSDF_PRINCIPLED'),None)
  if bsdf:bsdf.inputs['Roughness'].default_value=0.76;bsdf.inputs['Metallic'].default_value=0.0
  materials.append(mat.name)
+eye_contract=None
+inspection=json.loads((source.parent/'model-inspection.json').read_text())
+for material in bpy.data.materials:
+ if material.name=='data-19':eye_contract=install_blender_eye(material,meshes,inspection)
 scene.render.filepath=str((output/'partial-humanoid.png').resolve())
 bpy.ops.render.render(write_still=True)
 report={'renderer':bpy.app.version_string,'engine':'Cycles CPU','samples':24,'resolution':[768,768],
@@ -54,7 +60,7 @@ report={'renderer':bpy.app.version_string,'engine':'Cycles CPU','samples':24,'re
  'displayScale':1.3,'bounds':{'min':list(lo),'max':list(hi)},'materials':materials,
  'inputSha256':hashlib.sha256(source.read_bytes()).hexdigest(),
  'outputSha256':hashlib.sha256((output/'partial-humanoid.png').read_bytes()).hexdigest(),
- 'durationSeconds':round(time.monotonic()-started,3)}
+ 'durationSeconds':round(time.monotonic()-started,3),'eyeShader':eye_contract}
 # Optional native head/shoulders framing; this changes only the camera.
 if '--head' in arguments[2:]:
  head_center=Vector((center.x,center.y,hi.z-span.z*0.20))
@@ -63,6 +69,11 @@ if '--head' in arguments[2:]:
  scene.render.filepath=str((output/'partial-humanoid-head.png').resolve())
  bpy.ops.render.render(write_still=True)
  report['headPortrait']={'file':'partial-humanoid-head.png','camera':'head and shoulders; same unmodified geometry','sha256':hashlib.sha256((output/'partial-humanoid-head.png').read_bytes()).hexdigest()}
+if '--head' in arguments[2:]:
+ scene.render.resolution_x=128;scene.render.resolution_y=128
+ scene.render.filepath=str((output/'partial-humanoid-head-128.png').resolve())
+ bpy.ops.render.render(write_still=True)
+ report['headPortrait128']={'file':'partial-humanoid-head-128.png','sha256':hashlib.sha256((output/'partial-humanoid-head-128.png').read_bytes()).hexdigest()}
 report['totalDurationSeconds']=round(time.monotonic()-started,3)
 report['status']='LAB_PARTIAL_BODY_ONLY_NOT_AUTHORIZED'
 report['limitations']='Incomplete customization, no equipment attachments; review only, never app cache.'

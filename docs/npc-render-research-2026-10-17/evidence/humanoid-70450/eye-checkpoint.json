@@ -1,0 +1,30 @@
+{
+  "status": "LAB_INCOMPLETE_RECONSTRUCTION_ONLY",
+  "npc": 15698,
+  "build": "1.60.1.70450",
+  "tests": {
+    "count": 6,
+    "failures": 0
+  },
+  "sourceHashes": {
+    "tools/npcmodels/humanoid/portrait-prototype.cjs": "8ba1a757b4fbad41f927100a9fd467f7a6c5cadbcae55d0d9ff5e679210d7d93",
+    "tools/npcmodels/humanoid/render_prototype.py": "ff87b936aa56d895a845e50d104748867c073130f42766370e124faac38fbb2f",
+    "tools/npcmodels/humanoid/eye_shader.py": "86f1cbbf180a46003fad86cb5c3952a7ead44fd06a347668035e7ade32862edb",
+    "tools/npcmodels/humanoid/test_eye_shader.py": "2c01bba20b6c22f145fb70d1aeefa42fd3912dd956e3f7fcda1ea7421f734583"
+  },
+  "outputs": {
+    "model-inspection.json": "badd5d62b4824b42e92cc5f19c02ce66c605a4149f2c78781ed00a7df7f29430",
+    "prototype-limits.json": "5cdb536499fa13a0e45129ef662ebe56ed2d7bcb2d73098f3d75ea401ee0fdd0",
+    "partial-humanoid.glb": "07d74337d5f7076590010322214e6dcbbd1a8817fc9454c4ba736333aa1f1e45",
+    "rendered/partial-humanoid.png": "29049cdca7ef5dbeaa4f3efa4e7e25e9f9ed9f0c95404edb5e7db6acde59b6ee",
+    "rendered/render-report.json": "3f110b6207e72cc6f99ef9b6a86125be5aa0e12b5d4ad69e9fbfbaf60aded848",
+    "rendered/partial-humanoid-head.png": "0e81d4924f3b34729d7a4c515aa34a2f23e047b926ab56f4c1343986d3368773",
+    "rendered/partial-humanoid-head-128.png": "153e840b61e1fa1e89a74314e99ee2cf49f178cb9b9e7581b8c90ea39f58d207"
+  },
+  "remaining": [
+    "equipment hat and visibility",
+    "customization bone offsets and remaining material conditions",
+    "encrypted appearance option records",
+    "Cycles studio lighting differs from game exterior lighting/fog"
+  ]
+}
