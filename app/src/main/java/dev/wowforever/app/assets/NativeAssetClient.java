@@ -13,19 +13,25 @@ import java.util.function.BooleanSupplier;
 import java.util.zip.*;
 import javax.swing.SwingUtilities;
 
-/** Exact Forever 70450 CASC reader. Blocking API: call only on a worker thread.
+/** Selected-build CASC reader; legacy audio constructors retain the reviewed Forever 70450 profile. Blocking API: call only on a worker thread.
  * Config is pinned; encoding and root are authenticated by their decoded content hashes.
  * No external executable or local metadata trust is required. Unsupported formats fail closed.
  */
 public final class NativeAssetClient implements AutoCloseable {
     public static final String PRODUCT = "wow_classic_beta", BUILD = "1.60.1.70450";
     public static final String CONFIG = "84bea4233331e390fda8724c6f91ffa5";
-    private static final String BASE = "https://us.cdn.blizzard.com/tpr/wow/";
+    public enum TransportPolicy { OFFICIAL_ONLY, ALLOW_ROOT_VERIFIED_WAGO }
+    @FunctionalInterface interface Transport {
+        byte[] download(URI uri,int limit,BooleanSupplier cancelled)throws IOException,InterruptedException;
+    }
     private static final int LIMIT = 512 * 1024 * 1024;
     private static final Object RATE = new Object();
     private static long nextRequest;
     private final Path cache;
     private final HttpClient http;
+    private final BlizzardBuildDescriptor descriptor;
+    private final TransportPolicy policy;
+    private final Transport transport;
     private byte[] encoding, root;
     private String rootKey;
     private final java.util.concurrent.locks.ReentrantLock lock = new java.util.concurrent.locks.ReentrantLock();
@@ -51,11 +57,23 @@ public final class NativeAssetClient implements AutoCloseable {
     }
 
     public NativeAssetClient(Path cache, String product, String build) {
+        this(cache, legacyProfile(product,build), TransportPolicy.ALLOW_ROOT_VERIFIED_WAGO);
+    }
+    private static BlizzardBuildDescriptor legacyProfile(String product,String build) {
         if (!PRODUCT.equals(product) || !BUILD.equals(build))
             throw new IllegalArgumentException("No authenticated native asset profile for " + product + " " + build);
-        this.cache = Objects.requireNonNull(cache);
-        http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15))
-                .followRedirects(HttpClient.Redirect.NEVER).build();
+        return BlizzardBuildDescriptor.legacyForever();
+    }
+    /** New setup jobs must pass their explicit transport permission; there is no implicit third-party fallback. */
+    public NativeAssetClient(Path cache,BlizzardBuildDescriptor descriptor,TransportPolicy policy) {
+        this.cache=Objects.requireNonNull(cache).toAbsolutePath().normalize();
+        this.descriptor=Objects.requireNonNull(descriptor);this.policy=Objects.requireNonNull(policy);
+        http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).followRedirects(HttpClient.Redirect.NEVER).build();
+        transport=this::download;
+    }
+    NativeAssetClient(Path cache,BlizzardBuildDescriptor descriptor,TransportPolicy policy,Transport transport) {
+        this.cache=Objects.requireNonNull(cache).toAbsolutePath().normalize();this.descriptor=Objects.requireNonNull(descriptor);
+        this.policy=Objects.requireNonNull(policy);this.transport=Objects.requireNonNull(transport);http=null;
     }
     /** Cancellation is checked during cache reads, transport and metadata parsing. */
     public Asset fetch(long fileDataId, BooleanSupplier cancelled) throws IOException, InterruptedException {
@@ -73,46 +91,65 @@ public final class NativeAssetClient implements AutoCloseable {
     }
     private Asset fetchLocked(long fileDataId, BooleanSupplier cancelled, int maxAssetBytes) throws IOException, InterruptedException {
         check(cancelled);
+        writableStorage(cache);
         prepare(cancelled);
-        String key = rootEntry(root, fileDataId, cancelled);
-        if (key == null) throw new FileNotFoundException("No neutral/enUS native asset " + fileDataId + " in " + BUILD);
+        String key = rootEntry(root, fileDataId, descriptor.localeMask(), cancelled);
+        if (key == null) throw new FileNotFoundException("No neutral/"+descriptor.locale()+" native asset " + fileDataId + " in " + descriptor.build());
         Encoding entry = encodingEntry(encoding, key, cancelled);
         if (entry == null) throw new IOException("Root asset absent from authenticated encoding");
         if (entry.size() > maxAssetBytes) throw new IOException("Native asset exceeds requested size bound");
         byte[] bytes;
+        String usedTransport="official CDN or verified content cache";
         try { bytes = content(key, entry.keys(), cancelled, maxAssetBytes); }
         catch (IOException officialUnavailable) {
-            // Transport only: the exact root's MD5 and encoding size remain mandatory.
-            bytes = download(URI.create("https://wago.tools/api/casc/" + fileDataId
-                    + "?download&version=" + BUILD + "&branch=" + PRODUCT), maxAssetBytes, cancelled);
+            if(policy==TransportPolicy.OFFICIAL_ONLY)throw officialUnavailable;
+            // Separate opt-in transport only: exact root MD5 and encoding size remain mandatory.
+            usedTransport="root-verified Wago transport";
+            bytes = received(URI.create("https://wago.tools/api/casc/" + fileDataId
+                    + "?download&version=" + descriptor.build() + "&branch=" + descriptor.product()), maxAssetBytes, cancelled);
             verify(bytes, key);
-            atomic(cache.resolve("content/" + key + ".bin"), bytes);
+            if(bytes.length!=entry.size())throw new IOException("Fallback asset size differs from authenticated encoding");
+            check(cancelled);atomic(cache.resolve("content/" + key + ".bin"), bytes);
         }
         if (bytes.length != entry.size()) throw new IOException("Asset size differs from authenticated encoding");
         check(cancelled);
         String sha = digest("SHA-256", bytes);
-        String proof = "{\n  \"product\": \"" + PRODUCT + "\",\n  \"build\": \"" + BUILD
-                + "\",\n  \"file_data_id\": " + fileDataId + ",\n  \"build_config_md5\": \"" + CONFIG
+        String proof = "{\n  \"product\": \"" + descriptor.product() + "\",\n  \"build\": \"" + descriptor.build()
+                + "\",\n  \"file_data_id\": " + fileDataId + ",\n  \"build_config_md5\": \"" + descriptor.buildConfigMd5()
                 + "\",\n  \"root_content_md5\": \"" + rootKey + "\",\n  \"content_md5\": \"" + key
                 + "\",\n  \"sha256\": \"" + sha + "\",\n  \"bytes\": " + bytes.length
-                + ",\n  \"exact_root_membership_verified\": true,\n  \"implementation\": \"java-native-casc-v1\"\n}\n";
-        atomic(cache.resolve("proof/" + PRODUCT + "/" + BUILD + "/" + fileDataId + ".json"), proof.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        return new Asset(cache.resolve("content/" + key + ".bin"), fileDataId, key, sha, bytes.length, PRODUCT, BUILD, rootKey);
+                + ",\n  \"exact_root_membership_verified\": true,\n  \"locale\": \""+descriptor.locale()
+                + "\",\n  \"transport_policy\": \""+policy+"\",\n  \"transport\": \""+usedTransport
+                + "\",\n  \"cdn_config_md5\": \""+descriptor.cdnConfigMd5()+"\",\n  \"region\": \""+descriptor.region()
+                + "\",\n  \"discovery_captured_at\": \""+descriptor.capturedAt()
+                + "\",\n  \"discovery_build_pointer_sha256\": \""+descriptor.metadataSha256().getOrDefault("versions",descriptor.metadataSha256().getOrDefault("bgdl",""))
+                + "\",\n  \"discovery_cdns_sha256\": \""+descriptor.metadataSha256().getOrDefault("cdns","")
+                + "\",\n  \"implementation\": \"java-native-casc-v2\"\n}\n";
+        atomic(cache.resolve("proof/" + descriptor.product() + "/" + descriptor.build() + "/" + fileDataId + ".json"), proof.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        return new Asset(cache.resolve("content/" + key + ".bin"), fileDataId, key, sha, bytes.length, descriptor.product(), descriptor.build(), rootKey);
     }
     private void prepare(BooleanSupplier cancelled) throws IOException, InterruptedException {
         if (root != null) return;
-        Path configPath = cache.resolve("config/" + CONFIG);
+        String configKey=descriptor.buildConfigMd5();
+        Path configPath = cache.resolve("config/" + configKey);
         byte[] config = Files.exists(configPath) ? read(configPath, 1024 * 1024, cancelled)
-                : download(URI.create(BASE + "config/84/be/" + CONFIG), 1024 * 1024, cancelled);
-        verify(config, CONFIG);
+                : official("config/"+keyPath(configKey),1024*1024,cancelled);
+        verify(config, configKey);
         Map<String,String> values = new HashMap<>();
         for (String line : new String(config, java.nio.charset.StandardCharsets.UTF_8).split("\\R")) {
             int at = line.indexOf(" = ");
             if (at > 0) values.put(line.substring(0, at), line.substring(at + 3));
         }
-        if (!values.getOrDefault("build-name", "").matches("WOW-70450patch1\\.60\\.1(?:_.*)?"))
-            throw new IOException("Pinned configuration build-name mismatch");
-        String[] pair = values.getOrDefault("encoding", "").split(" ");
+        String build=descriptor.build(),number=build.substring(build.lastIndexOf('.')+1),patch=build.substring(0,build.lastIndexOf('.'));
+        if(!values.getOrDefault("build-name","").matches("WOW-"+java.util.regex.Pattern.quote(number)+"patch"+java.util.regex.Pattern.quote(patch)+"(?:_.*)?"))
+            throw new IOException("Selected configuration build-name mismatch");
+        if(!descriptor.product().equals(values.getOrDefault("build-uid",descriptor.product())))throw new IOException("Selected configuration product mismatch");
+        if(!descriptor.cdnConfigMd5().isBlank()){
+            String cdnKey=descriptor.cdnConfigMd5();Path cdnPath=cache.resolve("config/"+cdnKey);
+            byte[] cdn=Files.exists(cdnPath)?read(cdnPath,1024*1024,cancelled):official("config/"+keyPath(cdnKey),1024*1024,cancelled);
+            verify(cdn,cdnKey);check(cancelled);atomic(cdnPath,cdn);
+        }
+        String[] pair = values.getOrDefault("encoding", "").split("\\s+");
         if (pair.length != 2) throw new IOException("Missing encoding identity");
         String candidateRoot = values.get("root");
         validKey(candidateRoot);
@@ -137,7 +174,7 @@ public final class NativeAssetClient implements AutoCloseable {
             try {
                 Path encodedPath = cache.resolve("encoded/" + encodedKey + ".blte");
                 byte[] encoded = Files.exists(encodedPath) ? read(encodedPath, LIMIT, cancelled)
-                        : download(URI.create(BASE + "data/" + encodedKey.substring(0, 2) + "/" + encodedKey.substring(2, 4) + "/" + encodedKey), LIMIT, cancelled);
+                        : official("data/"+keyPath(encodedKey),LIMIT,cancelled);
                 byte[] decoded = decodeBlte(encoded, limit);
                 verify(decoded, key); check(cancelled);
                 atomic(encodedPath, encoded); atomic(path, decoded); return decoded;
@@ -145,6 +182,19 @@ public final class NativeAssetClient implements AutoCloseable {
         }
         throw failure;
     }
+    private static String keyPath(String key)throws IOException{validKey(key);return key.substring(0,2)+"/"+key.substring(2,4)+"/"+key;}
+    private byte[] official(String relative,int limit,BooleanSupplier cancelled)throws IOException,InterruptedException{
+        IOException failure=new IOException("No selected official CDN host supplied verified bytes");
+        for(URI base:descriptor.cdnBases()){
+            check(cancelled);try{return received(base.resolve(relative),limit,cancelled);}catch(IOException unavailable){failure.addSuppressed(unavailable);}
+        }
+        throw failure;
+    }
+    private byte[] received(URI uri,int limit,BooleanSupplier cancelled)throws IOException,InterruptedException{
+        byte[] bytes=transport.download(uri,limit,cancelled);check(cancelled);
+        if(bytes.length>limit)throw new IOException("Native response exceeds bound");return bytes;
+    }
+    public BlizzardBuildDescriptor descriptor(){return descriptor;}
     private byte[] download(URI uri, int limit, BooleanSupplier cancelled) throws IOException, InterruptedException {
         synchronized (RATE) {
             while (System.nanoTime() < nextRequest) { check(cancelled); Thread.sleep(50); }
@@ -254,7 +304,8 @@ public final class NativeAssetClient implements AutoCloseable {
             return null;
         } catch (IndexOutOfBoundsException | BufferUnderflowException | IllegalArgumentException e) { throw new IOException("Malformed encoding", e); }
     }
-    static String rootEntry(byte[] raw, long wanted, BooleanSupplier cancelled) throws IOException {
+    static String rootEntry(byte[] raw,long wanted,BooleanSupplier cancelled)throws IOException{return rootEntry(raw,wanted,2,cancelled);}
+    static String rootEntry(byte[] raw, long wanted, int localeMask, BooleanSupplier cancelled) throws IOException {
         try {
             ByteBuffer b = ByteBuffer.wrap(raw).order(ByteOrder.LITTLE_ENDIAN);
             if (b.getInt() != 0x4d465354 || b.getInt() != 24) throw new IOException("Unsupported native root");
@@ -269,7 +320,7 @@ public final class NativeAssetClient implements AutoCloseable {
                 long last = 0; int selectedIndex = -1;
                 for (int i = 0; i < count; i++) { long id = last + b.getInt(); last = id + 1; if (id == wanted) selectedIndex = i; }
                 int keysAt = b.position();
-                if (selected == null && selectedIndex >= 0 && (locale == 0 || (locale & 2) != 0) && (flags & 0x80) == 0)
+                if (selected == null && selectedIndex >= 0 && (locale == 0 || (locale & localeMask) != 0) && (flags & 0x80) == 0)
                     selected = HexFormat.of().formatHex(raw, keysAt + selectedIndex * 16, keysAt + selectedIndex * 16 + 16);
                 long skip = (long)count * 16 + (total != named && (flags & 0x10000000) != 0 ? 0 : (long)count * 8);
                 if (skip > b.remaining()) throw new IOException("Truncated root block");
@@ -278,7 +329,7 @@ public final class NativeAssetClient implements AutoCloseable {
             return selected;
         } catch (IndexOutOfBoundsException | BufferUnderflowException e) { throw new IOException("Truncated native root", e); }
     }
-    @Override public void close() { http.shutdownNow(); }
+    @Override public void close() { if(http!=null)http.shutdownNow(); }
     private static void check(BooleanSupplier cancelled) {
         if (Thread.currentThread().isInterrupted() || cancelled.getAsBoolean()) throw new CancellationException("Native asset request cancelled");
     }
@@ -294,7 +345,16 @@ public final class NativeAssetClient implements AutoCloseable {
     private static void validKey(String key) throws IOException { if (key == null || !key.matches("[0-9a-f]{32}")) throw new IOException("Invalid native content key"); }
     private static void verify(byte[] bytes, String key) throws IOException { validKey(key); if (!digest("MD5", bytes).equals(key)) throw new IOException("Native content MD5 mismatch"); }
     private static String digest(String algorithm, byte[] bytes) { try { return HexFormat.of().formatHex(MessageDigest.getInstance(algorithm).digest(bytes)); } catch (NoSuchAlgorithmException e) { throw new AssertionError(e); } }
+    private static void writableStorage(Path path)throws IOException{
+        Path absolute=path.toAbsolutePath().normalize(),existing=absolute;
+        while(existing!=null&&!Files.exists(existing))existing=existing.getParent();
+        if(existing==null)throw new IOException("Cannot resolve native cache storage");
+        Path canonical=existing.toRealPath().resolve(existing.relativize(absolute));
+        for(Path parent=canonical;parent!=null;parent=parent.getParent())
+            if(Files.isRegularFile(parent.resolve(".build.info")))throw new IOException("Native cache must not be inside a WoW installation");
+    }
     private static void atomic(Path path, byte[] bytes) throws IOException {
+        writableStorage(path);
         Files.createDirectories(path.getParent()); Path temp = Files.createTempFile(path.getParent(), ".native-", ".tmp");
         try { Files.write(temp, bytes); Files.move(temp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
         finally { Files.deleteIfExists(temp); }
