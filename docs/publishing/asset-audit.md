@@ -1,3 +1,5 @@
+> Historical inventory from before repository cleanup. Generated databases have since been removed from all Git history; see [current repository readiness](repository-readiness.md). Remaining reference assets retain their own provenance.
+
 # Publication asset audit — 2026-10-17
 
 The current repository is **not an asset-free source distribution**. This is a technical inventory, not permission to redistribute any asset. Code licensing does not establish the rights to game artwork, music, models, screenshots, or third-party addon bundles.

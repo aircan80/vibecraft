@@ -149,9 +149,10 @@ claimed. This is a preview, not an RC or final release; genuine capture gates re
 area to rebuild gameplay data within Vibecraft. Source selection uses optional
 checkboxes, with AtlasLoot optional. Discover local WoW folders automatically using
 read-only inspection, and discover official Blizzard builds/preloads directly.
-Local-data fixture build support and consolidated design are in development. The
-initial official discovery backend is integrated with nine passing focused tests;
-combined dataset verification has not been rerun after that addition. Keep selected source/build attribution and
+The initial official discovery backend is integrated in main with nine passing
+focused tests. Vibemining UI is ready in isolation, not integrated in main or the
+running app. The complete in-app builder remains future work. Combined dataset
+verification has not been rerun after the backend addition. Keep selected source/build attribution and
 missing-data behavior explicit; discovery does not imply an import or write.
 
 The Windows portable ZIP is cross-built at approximately 147 MiB, including its
@@ -172,8 +173,10 @@ passed actionlint and all 15 release-helper tests passed. The earlier isolated
 dataset-profile run remains **2,011 tests, six skipped**; it predates the nine new
 discovery backend tests. Do not sum these into an unexecuted full-data total.
 Ordinary CI verifies the data-free source/package/audit and does not automatically
-upload artifacts. Manual native workflow requires a dataset. Branded README work
-is finishing; **no push is authorized or claimed**.
+upload artifacts. Manual native workflow requires a dataset. The polished README and actual app screenshot are integrated; relative file links
+and keymap checks passed. Local main is technically ready, with the no-push hold
+active. **No GitHub push, release or workflow run is claimed.** Future commits use
+the requested noreply identity.
 
 Independent history/privacy inspection covered 371 commits, 3,448 blobs and 376
 administrative files, with zero requested identity or secret findings. Dataset
