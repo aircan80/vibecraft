@@ -170,6 +170,10 @@
               <include>licenses/**</include>
               <include>dev/wowforever/app/ui/theme/*.properties</include>
               <include>dev/wowforever/app/ui/icons/*.svg</include>
+              <include>dev/wowforever/app/ui/fonts/Marcellus-Regular.ttf</include>
+              <include>dev/wowforever/app/ui/fonts/MarcellusSC-Regular.ttf</include>
+              <include>dev/wowforever/app/ui/fonts/OFL.txt</include>
+              <include>dev/wowforever/app/assets/forever-70450-media-hints.tsv</include>
             </includes>
           </resource>
         </resources>
