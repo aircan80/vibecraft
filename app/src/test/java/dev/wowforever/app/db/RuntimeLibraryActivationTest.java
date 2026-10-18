@@ -96,14 +96,14 @@ class RuntimeLibraryActivationTest {
     assertThatIOException().isThrownBy(()->LibraryActivation.activateExported(full.candidate(),exported.runtime(),exported.receipt(),
         full.plan(),()->false,failing,exported.storage()));
     java.util.function.BooleanSupplier duringCopy=()-> {
-      try(var paths=Files.list(app.resolve("libraries/versions"))) {
+      try(var paths=Files.list(app.resolve("libraries/versions").toRealPath())) {
         return paths.anyMatch(path->!path.equals(previous.database().getParent())&&Files.exists(path.resolve(DatabaseInstaller.FILE_NAME)));
       } catch(IOException failure) {throw new java.io.UncheckedIOException(failure);}
     };
     assertThatThrownBy(()->new LibraryActivation(app,List.of(),Optional.of(previous.database())).activateExportedForNextStartup(
         full.candidate(),exported.runtime(),exported.receipt(),full.plan(),duringCopy)).isInstanceOf(CancellationException.class);
     assertThat(Files.readAllBytes(app.resolve("libraries/selection.properties"))).isEqualTo(pointer);
-    try(var paths=Files.list(app.resolve("libraries/versions"))) {assertThat(paths.toList()).containsExactly(previous.database().getParent());}
+    try(var paths=Files.list(app.resolve("libraries/versions").toRealPath())) {assertThat(paths.toList()).containsExactly(previous.database().getParent());}
   }
 
   @Test void exportedInputsMustStayInsideActualApplicationStorageAndOffTheEdt() throws Exception {

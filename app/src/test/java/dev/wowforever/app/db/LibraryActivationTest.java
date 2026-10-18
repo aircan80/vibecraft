@@ -59,7 +59,7 @@ class LibraryActivationTest {
     var failing=new LibraryRegistry(app,List.of(),Optional.empty(),(from,to)->{throw new AtomicMoveNotSupportedException(from.toString(),to.toString(),"synthetic");});
     assertThatIOException().isThrownBy(()->LibraryActivation.activate(two.candidate(),two.plan(),()->false,failing));
     assertThat(Files.readAllBytes(pointer)).isEqualTo(before);
-    try(var versions=Files.list(app.resolve("libraries/versions"))) {assertThat(versions.toList()).containsExactly(first.database().getParent());}
+    try(var versions=Files.list(app.resolve("libraries/versions").toRealPath())) {assertThat(versions.toList()).containsExactly(first.database().getParent());}
     Files.writeString(two.candidate().database(),"changed after receipt");
     assertThatIOException().isThrownBy(()->activation.activateForNextStartup(two.candidate(),two.plan(),()->false));
     assertThat(Files.readAllBytes(pointer)).isEqualTo(before);
@@ -82,7 +82,7 @@ class LibraryActivationTest {
     };
     assertThatThrownBy(()->activation.activateForNextStartup(built.candidate(),built.plan(),duringCopy)).isInstanceOf(CancellationException.class);
     assertThat(app.resolve("libraries/selection.properties")).doesNotExist();
-    try(var versions=Files.list(app.resolve("libraries/versions"))) {assertThat(versions.toList()).isEmpty();}
+    try(var versions=Files.list(app.resolve("libraries/versions").toRealPath())) {assertThat(versions.toList()).isEmpty();}
   }
 
   @Test void explicitDatabaseOverrideStillWinsOverManagedSelection() throws Exception {
