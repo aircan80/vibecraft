@@ -10,19 +10,18 @@ mean every feature in a later release is complete.
 | Stage | Focus | Current position |
 | --- | --- | --- |
 | Foundation through v0.4.1 | Search, quests, maps, provenance and Forever systems/content | Development verified; not released; genuine collector capture acceptance remains external |
-| Explorer Journal | Mockup fidelity, persistent list/detail, compact navigation and fast loads | Journal running directly; Original interface and chooser retirement in progress per latest owner instruction; further polish remains |
+| Explorer Journal | Mockup fidelity, persistent list/detail, compact navigation and fast loads | Journal-only startup running; Original interface and chooser retired; further polish remains |
 | Cities | Native city guides, districts and source-backed soundtracks | Six-city baseline running; recorded vendor/giver directory running; geography/service coverage partial |
-| NPC previews | Exact appearance resolution, background renders and shared cache | Generic pipeline running; mapping/material coverage limited; metadata coverage is not successful-render coverage |
-| v0.5 | Loot research and preparation | Filters running; source-reported shared loot and recorded quest preparation in progress; full release acceptance remains |
-| v0.6 | Crafting and economy | Native crafting-guide slice running; profession browser, graph, source resolver, trainers, economics, gathering and disenchanting remain |
+| NPC portraits | Static 2D images and Java PNG provider/cache | Portrait-only update in progress; current running artifact retains older preview behavior; 3D models/viewers/rotation out of scope |
+| v0.5 | Loot research and preparation | Filters, source-reported shared lists and recorded quest preparation running; full release acceptance remains |
+| v0.6 | Crafting and economy | Native crafting guide and native teaching-item navigation running; recorded object geography ready in isolation, not integrated; profession browser, graph, source resolver, trainers, economics, gathering and disenchanting remain |
 | v0.7 | Lore and exploration | City baseline running; reward trails and quest-text search running; full gazetteer, storylines, pets, rares and fishing remain |
 | v0.8 | Glance and compare | Pinned-reference slice running; item compare, wishlist/export, compact pinned tabs and two-build changes remain |
 | Multiple games | Edition-scoped catalogs and selector | Foundation and picker running; only Forever installed; Classic, Retail and Anniversary/TBC data not imported |
 
 The owner has superseded the earlier requirement to retain both interfaces: Explorer
-Journal is now the sole product direction. The current service launches Journal directly;
-removal of Original GUI code and the startup chooser is in progress for the next build.
-Do not infer that code retirement is already present in the launched artifact.
+Journal is the sole interface in the current launched artifact. The Original GUI and
+startup chooser are retired; starting the app with no arguments opens Journal.
 
 “Integrated, in verification” means source implementation exists, not that the new artifact
 is running or that the whole release is accepted. The dashboard records the exact running
@@ -30,8 +29,8 @@ artifact and completed evidence independently. The owner uses it to monitor stat
 it after every meaningful batch, launch, acceptance result or blocker change. Product management
 owns scope and acceptance; project management verifies actual implementation and evidence.
 
-The current launched research batch passed full verification (1,954 Java tests, six skipped,
-zero failures/errors) and 44 final native captures. Exact artifact identity and timestamps
+The current launched research batch passed full verification (1,984 Java tests, six skipped,
+zero failures/errors) and six native suites: 153 assertions and 64 captures. Exact artifact identity and timestamps
 remain in the dashboard evidence; this does not close partial later releases.
 
 The strict Forever boundary supersedes the original v0.5 Felheart Belt must-show example:
@@ -49,12 +48,60 @@ unsupported materials and audio failures must remain visible, without blocking n
 
 ## Native WoW interface sounds
 
-**Owner-approved, in progress; not yet verified or running.** Add optional native
-Forever-build sound-kit feedback for key interface open/close, confirmation and tab
-actions. Resolve assets against the exact selected Forever build, with asynchronous
-loading/playback and separate persistent mute/volume controls. Keep city music
-independent and avoid sounds on every keystroke. Actual asset coverage and audible
-behavior require verification before this work is marked implemented or running.
+**Running, optional.** Native Forever-build sound-kit feedback covers key interface
+open/close, confirmation and tab actions, with asynchronous loading/playback and
+separate persistent mute/volume controls. City music remains independent; typing
+does not trigger sounds. All five packaged clips decoded correctly with nonzero
+audio, and output-device playback was exercised at 22% volume. This is not human
+listening acceptance.
+
+## NPC portraits: accepted scope
+
+**Static 2D portraits only.** 3D models, interactive viewers and rotation are out of
+scope for now. A Java static-PNG provider/cache is being implemented in isolation;
+the current launched artifact still has the older preview behavior until the next
+verified build. End users must not need Python, Node or Blender. Developer-only
+offline generation can remain reference tooling and does not define the runtime
+product. Missing exact Forever portrait links remain explicit; Auntie Bernice (246)
+is unmapped. Neither an Era substitute nor a constrained humanoid lab prototype
+establishes production portrait coverage.
+
+Acceptance: load/cache supported static portraits asynchronously in the Java app,
+handle missing or failed images without blocking navigation, and verify startup
+and portrait use without developer renderer toolchains. Java-only native audio
+asset fetching has an isolated working proof; its production integration remains next.
+
+## Source-only preparation and asset boundaries
+
+A source-only export/bootstrap plan is in preparation locally. Code licensing and
+Blizzard art attribution/rights are separate questions: a code GPL licence does not
+confer redistribution rights to game art. Do not include bulk game assets in a GitHub
+source export. No GitHub push or publication is authorized or claimed by this work.
+
+## Portable Java-only delivery and release data
+
+The normal runnable portable release **must include the compact gameplay database**
+and its Java runtime, ready to browse without database setup. The GitHub source
+export remains data-free; source and end-user delivery are separate artifacts.
+
+Current source-only measurements are 20.4 MB for the application JAR and 76 MiB
+archive / 184 MiB extracted for Linux code plus runtime. They exclude the gameplay
+database and are **not complete end-user release sizes**. Total Windows/macOS sizes
+are unknown; earlier 75–120 MB estimates excluded data and must not be presented as
+release totals. Empty-PATH self-test and native GUI smoke validate the packaging
+slice, not unfinished runtime or release acceptance.
+
+Native Java audio fetching and static portraits remain in progress. External database
+selection is an optional advanced/source-build flow, not required normal release setup.
+Complete release sizing depends on database compaction and asset review. End users
+must not need developer toolchains or separately installed Java for portable delivery.
+
+The existing Git history includes game assets, so it cannot be published unchanged.
+A clean source export remains under review; no GitHub push is authorized or claimed.
+A separate derived release database is being reduced by removing raw development
+archives while preserving selected facts, provenance and conflicts. The shared
+development database is unchanged. Size reduction and release acceptance remain
+unverified until the derived artifact is validated.
 
 ## Accepted future exploration: map zoom and pan
 

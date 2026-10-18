@@ -6,6 +6,29 @@
 
 # Resume development — current checkpoint
 
+## Current release work — supersedes older rendering and packaging plans
+
+Owner wants versioned portable releases with Java AND a usable compact gameplay database
+included. Normal users extract and run; no Java/Python/Node/Blender installation or manual
+database setup. Static NPC portraits only; 3D generation/viewers are out of shipped scope.
+GitHub source export is separate and data-free. Do not mistake its measured 20.4 MB JAR /
+76 MiB Linux archive for a complete runnable release download. Windows/macOS totals unmeasured.
+No repository push, tags or release uploads have occurred.
+
+Integrated source-only/bootstrap and portable tooling cc3cf6b/a5c9be8/2417a93, then Java-only
+audio acquisition 5639b39/b745d23. Actual isolated Java sound/music acquisition passed, but
+these changes are not in the last launched artifact below. Root external database tests 4/4 PASS.
+Source exporter tests and packaging gate tests PASS. Root LICENSE verified GPL v2.
+
+Active isolated work: npc_coverage_next static portraits/removal of external renderer;
+public_source_plan optional source-build database chooser (normal bundled startup unchanged);
+release_database conservative compact export preserving runtime facts/provenance/conflicts;
+portable_java_packaging explicit reviewed-data release mode; release_coordination checksums,
+version/evidence manifests and release preparation. CI must not automatically upload the old
+bulk-data JAR. Preserve current DB and development history. Main Maven builds serialized;
+release_database currently holds build slot. After source freeze, full integrated verification,
+native acceptance, complete package measurement, launch and dashboard publication remain.
+
 ## Latest launched checkpoint — sounds, teaching items, compact guide
 
 Exact frozen `.local/sounds-teaching-acceptance/app-review.jar`, SHA256

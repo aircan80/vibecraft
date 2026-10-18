@@ -1,4 +1,5 @@
 target/
+.local/
 .idea/
 *.iml
 .vscode/
