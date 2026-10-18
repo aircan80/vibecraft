@@ -142,7 +142,7 @@ public final class WagoTableMaterializer {
   private URI url(String table,String build){return base.resolve("/db2/"+table+"/csv?build="+build);}
   private Path findComplete(SetupStorage storage,Path root,Path pointer,Manifest manifest,BooleanSupplier cancelled)throws IOException {
     if(!Files.isRegularFile(pointer)||Files.size(pointer)>4096)return null;
-    Properties values=new Properties();try(var in=Files.newInputStream(pointer)){values.load(in);}
+    Properties values=cachedProperties(pointer);if(values==null)return null;
     if(!manifest.id().equals(values.getProperty("manifest")))return null;
     String name=values.getProperty("directory","");
     if(!name.matches("input-[a-f0-9]{64}-[a-f0-9-]{36}"))return null;
@@ -171,15 +171,21 @@ public final class WagoTableMaterializer {
         ||!manifest.identity().build().equals(map.get("build"))||!manifest.identity().locale().equals(map.get("locale"))
         ||!manifest.tableSha256().equals(map.get("tables"))||!base.toString().equals(map.get("base_url"))
         ||!map.keySet().equals(Set.of("product","build","locale","fetched_at","base_url","tables")))return null;
-    Properties evidence=new Properties();
     Path proof=checked(storage,directory.resolve("acquisition.properties"));
-    if(Files.size(proof)>65536)return null;
-    try(var input=Files.newInputStream(proof)){evidence.load(input);}
+    if(!Files.isRegularFile(proof)||Files.size(proof)>65536)return null;
+    Properties evidence=cachedProperties(proof);if(evidence==null)return null;
     if(!"WAGO_EXPORT".equals(evidence.getProperty("provider"))||!"false".equals(evidence.getProperty("cascRootVerified"))
         ||!manifest.id().equals(evidence.getProperty("manifest"))||!base.toString().equals(evidence.getProperty("source")))return null;
     for(String table:manifest.tableSha256().keySet())
       if(!url(table,manifest.identity().build()).toString().equals(evidence.getProperty("url."+table)))return null;
     return directory;
+  }
+
+  /** Invalid cached metadata is recoverable; destination/consent checks remain outside this parser. */
+  private static Properties cachedProperties(Path file)throws IOException {
+    Properties values=new Properties();
+    try(var input=Files.newInputStream(file)){values.load(input);return values;}
+    catch(IllegalArgumentException|NoSuchFileException invalid){return null;}
   }
 
   private long download(URI uri,Path output,long maximum,BooleanSupplier cancelled,BiConsumer<Long,Long> bytes)throws IOException {

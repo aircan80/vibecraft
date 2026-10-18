@@ -87,6 +87,20 @@ class WagoTableMaterializerTest {
     assertThat(requests).hasSize(1);assertThat(repaired.directory()).isNotEqualTo(first.directory());
     assertThat(Files.readAllBytes(repaired.directory().resolve("csv/Item.csv"))).isEqualTo(bytes);
   }
+  @Test void malformedPointerAndProofRecoverFromVerifiedBlobsWithoutNetwork() throws Exception {
+    byte[] bytes=csv("one");route("Item",bytes);var job=job();var manifest=manifest("Item",bytes);
+    var first=get(reader(),job,manifest);requests.clear();routes.clear();
+    Files.writeString(pointer(job),"directory="+"\\"+"uZZZZ\n");
+    var recovered=get(reader(),job,manifest);
+    assertThat(recovered.directory()).isNotEqualTo(first.directory());
+    Files.writeString(recovered.directory().resolve("acquisition.properties"),"provider="+"\\"+"uZZZZ\n");
+    var repaired=get(reader(),job,manifest);
+    assertThat(repaired.directory()).isNotEqualTo(recovered.directory());
+    Files.delete(repaired.directory().resolve("acquisition.properties"));
+    var restored=get(reader(),job,manifest);
+    assertThat(Files.readAllBytes(restored.directory().resolve("csv/Item.csv"))).isEqualTo(bytes);
+    assertThat(restored.downloaded()).isZero();assertThat(requests).isEmpty();
+  }
   @Test void failedNewInputKeepsPriorCompleteManifestAndFiles() throws Exception {
     byte[] old=csv("old");route("Item",old);var job=job();var first=get(reader(),job,manifest("Item",old));
     byte[] before=Files.readAllBytes(pointer(job));
