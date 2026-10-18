@@ -30,7 +30,7 @@ public final class JournalDetails {
       StatusSink sink, SourceFilter filter, Consumer<SourceFilter> onFilter, BooleanSetting questPins,
       BooleanSetting routes) {
     if (loaded instanceof DetailPanels.LoadedInstance p) return instance(p,nav,worker,sink);
-    if (loaded instanceof DetailPanels.LoadedItem p) return item(p,nav,filter,onFilter);
+    if (loaded instanceof DetailPanels.LoadedItem p) return item(p,repos,nav,worker,sink,filter,onFilter);
     if (loaded instanceof DetailPanels.LoadedZone p)
       return new JournalZonePage(p,repos,nav,worker,sink,questPins,routes);
     if (loaded instanceof DetailPanels.LoadedNpc p) {
@@ -86,7 +86,7 @@ public final class JournalDetails {
     return page;
   }
 
-  private static JComponent item(DetailPanels.LoadedItem p, Navigator nav, SourceFilter filter,
+  private static JComponent item(DetailPanels.LoadedItem p, Repositories repos, Navigator nav, Executor worker, StatusSink sink, SourceFilter filter,
       Consumer<SourceFilter> onFilter) {
     var item=new ItemPage(p.detail(),p.icon(),p.rateSources(),p.bossNpcs(),filter,onFilter,
         p.involvement(),nav,ClipboardPort.system(),List.of(),List.of(),
@@ -114,7 +114,21 @@ public final class JournalDetails {
     if(!p.sourceDifferences().isEmpty())evidence.add(new SourceDifferencesPanel(p.sourceDifferences()));
     else evidence.add(new WrappingText("No source comparisons recorded for this item.","Source comparison coverage"));
     page.tab("Source evidence"+(p.sourceDifferences().isEmpty()?"":" ("+p.sourceDifferences().size()+")"),KeyEvent.VK_E,scroll(evidence));
+    if(!p.detail().rewardFrom().isEmpty()) {
+      var trail=new JournalResearchTrail(p.detail().rewardFrom(),id->repos.quests().chain(id),worker,nav,sink);
+      page.tab("Research trail",KeyEvent.VK_R,trail);
+      int trailIndex=page.tabs.getTabCount()-1;
+      page.tabs.addChangeListener(e->{if(page.tabs.getSelectedIndex()==trailIndex)trail.activate();});
+      findResearchAction(item,()->page.tabs.setSelectedIndex(trailIndex));
+    }
     return page;
+  }
+
+  private static void findResearchAction(Container container,Runnable action) {
+    for(Component child:container.getComponents()) {
+      if(child instanceof JournalItemFacts facts)facts.researchAction(action);
+      else if(child instanceof Container nested)findResearchAction(nested,action);
+    }
   }
 
   private static void serifTitle(Container panel,String name,int size) {
@@ -189,7 +203,7 @@ public final class JournalDetails {
   public static final class JournalPage extends JPanel implements PageState {
     private final JTabbedPane tabs=new JTabbedPane();
     private final PageState delegate;
-    private record State(int tab,Object detail,int[] scroll) {}
+    private record State(int tab,Object detail,int[] scroll,Object[] sections) {}
     private JournalPage(PageState delegate) {
       super(new BorderLayout(0,8));this.delegate=delegate;add(tabs,BorderLayout.CENTER);
       tabs.getAccessibleContext().setAccessibleName("Journal detail sections");
@@ -203,11 +217,15 @@ public final class JournalDetails {
     @Override public Object saveState() {
       int[] positions=new int[tabs.getTabCount()];
       for(int i=0;i<positions.length;i++)if(tabs.getComponentAt(i) instanceof JScrollPane s)positions[i]=s.getVerticalScrollBar().getValue();
-      return new State(tabs.getSelectedIndex(),delegate.saveState(),positions);
+      Object[] sections=new Object[tabs.getTabCount()];
+      for(int i=0;i<sections.length;i++)if(tabs.getComponentAt(i) instanceof PageState state)sections[i]=state.saveState();
+      return new State(tabs.getSelectedIndex(),delegate.saveState(),positions,sections);
     }
     @Override public void restoreState(Object value) {
       if(!(value instanceof State state))return;
       delegate.restoreState(state.detail());
+      for(int i=0;i<Math.min(state.sections().length,tabs.getTabCount());i++)
+        if(tabs.getComponentAt(i) instanceof PageState section)section.restoreState(state.sections()[i]);
       if(state.tab()>=0 && state.tab()<tabs.getTabCount())tabs.setSelectedIndex(state.tab());
       SwingUtilities.invokeLater(() -> {
         for(int i=0;i<Math.min(state.scroll().length,tabs.getTabCount());i++)

@@ -88,6 +88,28 @@ class JournalDetailsTest {
       toggle.doClick();assertThat(original.getParent().isVisible()).isTrue();
     });
   }
+  @Test void recordedQuestRewardExposesLazyResearchAndRestoresSelectedSection() throws Exception {
+    var repos=FixtureDb.repositories();
+    var base=repos.items().detail(19019).orElseThrow();
+    // Synthetic acquisition record exercises the presentation independently of fixture reward coverage.
+    var detail=new ItemDetail(base.summary(),base.classId(),base.subclassId(),base.startQuestId(),base.droppedBy(),
+        base.inInstanceLoot(),base.containedInObjects(),base.containedInItems(),base.soldBy(),
+        List.of(new ItemSource(ItemSource.REWARD,new EntityRef(EntityKind.QUEST,373),"Fixture reward quest")),
+        base.relatedQuests(),base.card());
+    var loaded=new DetailPanels.LoadedItem(detail,null,Map.of(),Set.of());
+    var jobs=new java.util.ArrayList<Runnable>();
+    SwingUtilities.invokeAndWait(()->{
+      var page=(JournalDetails.JournalPage)JournalDetails.render(loaded,repos,t->{},jobs::add,StatusSink.NONE,SourceFilter.ALL,BooleanSetting.inMemory(false));
+      assertThat(jobs).isEmpty();
+      int index=page.tabs().indexOfTab("Research trail");assertThat(index).isGreaterThan(0);
+      var action=descendants(page).stream().filter(c->c instanceof javax.swing.JButton b&&b.getText().equals("Research quest trail →")).map(javax.swing.JButton.class::cast).findFirst().orElseThrow();
+      action.doClick();assertThat(page.tabs().getSelectedIndex()).isEqualTo(index);assertThat(jobs).hasSize(1);
+      Object saved=page.saveState();
+      var restored=(JournalDetails.JournalPage)JournalDetails.render(loaded,repos,t->{},jobs::add,StatusSink.NONE,SourceFilter.ALL,BooleanSetting.inMemory(false));
+      restored.restoreState(saved);assertThat(restored.tabs().getSelectedIndex()).isEqualTo(index);
+    });
+  }
+
   private static java.util.List<java.awt.Component> descendants(java.awt.Container root) {
     var values=new java.util.ArrayList<java.awt.Component>();
     for(var c:root.getComponents()){values.add(c);if(c instanceof java.awt.Container nested)values.addAll(descendants(nested));}

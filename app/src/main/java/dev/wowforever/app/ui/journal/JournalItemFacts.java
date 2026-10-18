@@ -50,6 +50,11 @@ final class JournalItemFacts extends JPanel {
     if(original.getParent()!=null)original.getParent().remove(original);holder.add(original);holder.setVisible(false);optional.add(holder);
     toggle.addActionListener(e->{holder.setVisible(toggle.isSelected());revalidate();repaint();});add(optional,BorderLayout.SOUTH);
   }
+  void researchAction(Runnable action) {
+    JButton research=new JButton("Research quest trail →");research.setAlignmentX(LEFT_ALIGNMENT);
+    research.setToolTipText("Follow recorded quest rewards into prerequisites and source evidence");
+    research.addActionListener(e->action.run());acquisition.add(Box.createVerticalStrut(12));acquisition.add(research);
+  }
   private void entry(String label,int count){if(count>0){acquisition.add(new FactText(count+" · "+label,false));acquisition.add(Box.createVerticalStrut(5));}}
   @Override public Dimension getMaximumSize(){return new Dimension(UIScale.scale(1000),Integer.MAX_VALUE);}
   private static JPanel stack(){JPanel p=new JPanel(new JournalSurface.Stack());p.setOpaque(false);return p;}
