@@ -1,0 +1,156 @@
+name: Native portable release
+
+'on':
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer matching the POM numeric version (build artifacts only; never publishes)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+concurrency:
+  group: portable-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      native: ${{ steps.version.outputs.native }}
+      mac_native: ${{ steps.version.outputs.mac_native }}
+      prerelease: ${{ steps.version.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Validate product tag and POM version
+        id: version
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = push ]; then
+            test "$REF_TYPE" = tag
+            case "$REF_NAME" in v*) PRODUCT_VERSION="${REF_NAME#v}" ;; *) exit 1 ;; esac
+          else
+            PRODUCT_VERSION="$INPUT_VERSION"
+          fi
+          python3 tools/releases/source_release.py version --version "$PRODUCT_VERSION" --output "$GITHUB_OUTPUT"
+
+  native:
+    needs: version
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-24.04
+            arch: x64
+          - target: windows-x64
+            runner: windows-2022
+            arch: x64
+          - target: macos-arm64
+            runner: macos-15
+            arch: arm64
+          - target: macos-x64
+            runner: macos-15-intel
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+          architecture: ${{ matrix.arch }}
+          cache: maven
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Verify data-free source and helper tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m unittest discover -s tools/releases -p test_source_release.py
+          bash ./mvnw -B -Psource-only clean verify -Dwowforever.music.enabled=false -Dwowforever.sound.enabled=false
+          java packaging/ArchiveAudit.java app/target/wow-forever-browser.jar
+      - name: Package native Linux or macOS app-image
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          APP_VERSION: ${{ needs.version.outputs.version }}
+          NUMERIC_VERSION: ${{ needs.version.outputs.native }}
+          MAC_NUMERIC_VERSION: ${{ needs.version.outputs.mac_native }}
+        run: |
+          set -euo pipefail
+          export PACKAGE_DEST="$RUNNER_TEMP/source-release/package"
+          export NATIVE_APP_VERSION="$NUMERIC_VERSION"
+          if [ "$RUNNER_OS" = macOS ]; then export NATIVE_APP_VERSION="$MAC_NUMERIC_VERSION"; fi
+          bash packaging/jpackage.sh
+      - name: Package native Windows app-image
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          PRODUCT_VERSION: ${{ needs.version.outputs.version }}
+          NUMERIC_VERSION: ${{ needs.version.outputs.native }}
+        run: |
+          ./packaging/jpackage.ps1 -Type app-image -Version $env:PRODUCT_VERSION -NativeVersion $env:NUMERIC_VERSION -Destination "$env:RUNNER_TEMP/source-release/package"
+          if ($LASTEXITCODE -ne 0) { throw 'Portable packaging failed' }
+      - name: Relocate, run offline bundled launcher and checksum portable archive
+        shell: bash
+        env:
+          PRODUCT_VERSION: ${{ needs.version.outputs.version }}
+          TARGET: ${{ matrix.target }}
+        run: |
+          set -euo pipefail
+          python tools/releases/source_release.py package --work "$RUNNER_TEMP/source-release" --target "$TARGET" --version "$PRODUCT_VERSION"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: portable-${{ matrix.target }}
+          path: ${{ runner.temp }}/source-release/upload/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
+
+  publish:
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    needs: [version, native]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: portable-*
+          path: ${{ runner.temp }}/release-assets
+          merge-multiple: true
+      - name: Validate all platform checksums and publish one release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          PRODUCT_VERSION: ${{ needs.version.outputs.version }}
+          PRERELEASE: ${{ needs.version.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          python tools/releases/source_release.py verify-set --directory "$RUNNER_TEMP/release-assets" --version "$PRODUCT_VERSION"
+          cd "$RUNNER_TEMP/release-assets"
+          flags=()
+          if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
+          gh release create "$RELEASE_TAG" --verify-tag --title "Vibecraft $PRODUCT_VERSION" --notes-file "$GITHUB_WORKSPACE/docs/releases/PORTABLE-RELEASE-NOTES.md" "${flags[@]}" ./*

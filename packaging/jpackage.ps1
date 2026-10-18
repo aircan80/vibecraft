@@ -9,7 +9,8 @@ param(
     [string]$ReleaseDataDir = '',
     [string]$ReleaseDataManifest = '',
     [string]$Version = '0.1.0',
-    [string]$NativeVersion = ''
+    [string]$NativeVersion = '',
+    [string]$Destination = ''
 )
 $ErrorActionPreference = 'Stop'
 if ($Version -notmatch '^[A-Za-z0-9][A-Za-z0-9.+_-]*$') { throw 'Invalid product Version.' }
@@ -23,6 +24,7 @@ $JarName = 'wow-forever-browser.jar'
 $Jar = Join-Path $Root "app\target\$JarName"
 if ($JarPath) { $Jar = (Resolve-Path $JarPath).Path }
 $Dest = Join-Path $Root 'packaging\dist'
+if ($Destination) { $Dest = [System.IO.Path]::GetFullPath($Destination) }
 $Stage = Join-Path $Dest 'input'
 
 if (-not (Test-Path $Jar)) {

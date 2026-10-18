@@ -1,5 +1,6 @@
-name: Manual portable preview
+name: Historical populated portable preview
 
+# Historical only: current data-free releases use release.yml.
 # No push/PR/release trigger and no release/tag publication. Dispatch uploads the
 # explicitly reviewed populated packages as short-lived Actions artifacts only.
 'on':

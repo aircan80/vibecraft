@@ -1,3 +1,5 @@
+Releases are built by the four-platform [GitHub Actions release workflow](../docs/releases/GITHUB-RELEASES.md). The scripts below also support local developer packaging; current releases are data-free and use first-run library setup.
+
 # Vibecraft portable Java application
 
 Every place. Every drop. Every adventure.
