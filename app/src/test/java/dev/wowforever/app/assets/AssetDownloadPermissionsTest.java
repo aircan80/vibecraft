@@ -38,7 +38,9 @@ class AssetDownloadPermissionsTest {
     Path game=Files.createDirectory(temporary.resolve("game")),cache=Files.createDirectory(temporary.resolve("cache"));
     AssetDownloadPermissions.configureManaged(temporary.resolve("catalog.sqlite"),
         new AssetDownloadPermissions.Consent(AssetDownloadPermissions.Mode.MANAGED,false,true,List.of(game)));
-    assertThat(AssetDownloadPermissions.checkCacheWrite(cache,cache.resolve("content/new.bin"))).isEqualTo(cache.resolve("content/new.bin"));
+    assertThat(AssetDownloadPermissions.checkCacheWrite(cache,cache.resolve("content/new.bin")))
+        .isEqualTo(cache.toRealPath().resolve("content/new.bin"));
+    assertThat(cache.resolve("content")).doesNotExist();
     assertThatIOException().isThrownBy(()->AssetDownloadPermissions.checkCacheWrite(cache,temporary.resolve("outside.bin")));
     assertThatIOException().isThrownBy(()->AssetDownloadPermissions.checkCacheWrite(game,game.resolve("cache/new.bin")));
     Files.createSymbolicLink(cache.resolve("alias"),game);

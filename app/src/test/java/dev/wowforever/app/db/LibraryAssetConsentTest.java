@@ -22,7 +22,9 @@ class LibraryAssetConsentTest {
     assertThat(AssetDownloadPermissions.current()).isEqualTo(AssetDownloadPermissions.LEGACY);
     assertThat(selected.assetPermissions().allowBlizzardCdn()).isFalse();
     assertThat(selected.assetPermissions().allowWagoExport()).isTrue();
-    assertThat(selected.assetPermissions().readOnlyGameRoots()).containsExactly(game);
+    var protectedRoots=selected.assetPermissions().readOnlyGameRoots();
+    assertThat(protectedRoots).hasSize(1);
+    assertThat(Files.isSameFile(protectedRoots.getFirst(),game)).isTrue();
     var preferences=preferences();
     try {
       assertThat(ExternalDatabaseSetup.resolveWithManagedLibrary(app,preferences,error->{throw new AssertionError();},DatabaseInstaller::validateExternal,false))
