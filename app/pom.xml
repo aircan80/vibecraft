@@ -131,6 +131,34 @@
     </plugins>
   </build>
   <profiles>
+    <!-- Full dataset verification reads external data directly; no populated DB is copied into resources. -->
+    <profile>
+      <id>local-data</id>
+      <properties>
+        <wowforever.localDataDir>${user.home}/.local/share/vibecraft/development-data</wowforever.localDataDir>
+      </properties>
+      <build>
+        <testResources>
+          <testResource><directory>src/test/resources</directory></testResource>
+          <testResource>
+            <directory>${wowforever.localDataDir}</directory>
+            <targetPath>data</targetPath>
+            <includes><include>build-id.txt</include><include>import-report.txt</include></includes>
+          </testResource>
+        </testResources>
+        <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-surefire-plugin</artifactId>
+            <configuration>
+              <systemPropertyVariables>
+                <wowforever.database>${wowforever.localDataDir}/wowforever.sqlite</wowforever.database>
+              </systemPropertyVariables>
+            </configuration>
+          </plugin>
+        </plugins>
+      </build>
+    </profile>
     <profile>
       <id>source-only</id>
       <build>

@@ -36,6 +36,7 @@ public final class QuestTestData {
   }
 
   public static DetailPanels.LoadedQuest load(long id) {
+    dev.wowforever.app.LocalDatasetSupport.requireAvailable();
     return (DetailPanels.LoadedQuest) DetailPanels.load(new EntityRef(EntityKind.QUEST, id), Loaded.REPOS)
         .orElseThrow();
   }

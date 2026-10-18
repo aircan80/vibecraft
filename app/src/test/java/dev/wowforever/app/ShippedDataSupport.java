@@ -20,10 +20,10 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The real committed database for the shipped-data tests, and the SQL helpers they share. Each test class extracts
- * it from the classpath resource with the production {@link DatabaseInstaller}, so every class also covers the
- * extraction path on the shipped file. The state is static: the classes must not run concurrently (the build
- * configures no parallel execution).
+ * The real external gameplay dataset for data acceptance tests, and their shared SQL helpers.
+ * The local-data profile supplies a read-only database path; embedded release resources are also supported.
+ * Without either, these tests explicitly abort as unavailable. The state is static: classes must not run
+ * concurrently (the build configures no parallel execution).
  */
 abstract class ShippedDataSupport {
   static Database db;
@@ -31,6 +31,7 @@ abstract class ShippedDataSupport {
 
   @BeforeAll
   static void open(@TempDir Path dir) throws Exception {
+    LocalDatasetSupport.requireAvailable();
     Path file = new DatabaseInstaller(dir).install();
     db = Database.open(file);
     repos = Repositories.of(db);
