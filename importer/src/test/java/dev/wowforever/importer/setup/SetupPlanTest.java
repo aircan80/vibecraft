@@ -207,6 +207,29 @@ class SetupPlanTest {
         dev.wowforever.importer.Fixtures.questieDbRoot(),Optional.empty(),Optional.empty(),Optional.empty(),Optional.of(forged))));
     assertThat(job.paths().archiveDatabase()).doesNotExist();
   }
+  @Test void explicitWagoCaptureDoesNotRequireOrCreateUnusedPermittedLocalFolder() throws Exception {
+    Path missing=temporary.resolve("unavailable-WoW");
+    var sources=Set.of(Source.QUESTIE,Source.NATIVE_DATA);
+    var plan=new SetupPlan(sources,Set.of(Acquisition.WAGO_EXPORT,Acquisition.LOCAL_INSTALLATION),Optional.of(BUILD),List.of(missing),SetupPlan.currentPins(sources));
+    assertThatIOException().isThrownBy(()->plan.prepareJob(missing.resolve("forbidden-output"),Optional.empty(),"rejected",List.of()));
+    assertThat(missing).doesNotExist();
+    var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"explicit-wago",List.of());
+    Path nativeData=client("https://wago.tools",BUILD.build(),false);
+    var prepared=plan.prepareCapture(job.storage(),job.paths(),inputs(
+        dev.wowforever.importer.Fixtures.questieDbRoot(),nativeData,Acquisition.WAGO_EXPORT));
+    assertThat(prepared.capture()).matches("[a-f0-9]{64}");
+    assertThat(job.paths().archiveDatabase()).exists();assertThat(missing).doesNotExist();
+  }
+  @Test void actualLocalAcquisitionStillRequiresItsSelectedFolderToBeAvailable() throws Exception {
+    Path missing=temporary.resolve("unavailable-WoW");
+    var sources=Set.of(Source.QUESTIE,Source.NATIVE_DATA);
+    var plan=new SetupPlan(sources,Set.of(Acquisition.WAGO_EXPORT,Acquisition.LOCAL_INSTALLATION),Optional.of(BUILD),List.of(missing),SetupPlan.currentPins(sources));
+    var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"actual-local",List.of());
+    Path nativeData=client("https://cdn.example.invalid",BUILD.build(),false);
+    assertThatIOException().isThrownBy(()->plan.prepareCapture(job.storage(),job.paths(),inputs(
+        dev.wowforever.importer.Fixtures.questieDbRoot(),nativeData,Acquisition.LOCAL_INSTALLATION))).withMessageContaining("installation is unavailable");
+    assertThat(job.paths().archiveDatabase()).doesNotExist();assertThat(missing).doesNotExist();
+  }
   private MaterializedInputs inputs(Path questie,Path client,Acquisition method){return new MaterializedInputs(questie,Optional.empty(),Optional.empty(),Optional.of(new MaterializedClient(client,method)));}
   private Path client(String base,String build,boolean era) throws Exception {
     Path dir=Files.createTempDirectory(temporary,"client-");Files.createDirectory(dir.resolve("csv"));

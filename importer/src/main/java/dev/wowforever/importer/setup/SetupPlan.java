@@ -218,7 +218,6 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
     if (!sourcePins.equals(currentPins(sources))) throw new IOException("Selected source pins changed; review a new plan before importing");
     if (!sources.contains(Source.NATIVE_DATA))
       throw new IOException("A runnable Forever catalog currently requires genuine native build data; community-only activation is not supported");
-    for (Path root : localGameRoots) if (!Files.isDirectory(root)) throw new IOException("Selected WoW installation is unavailable");
     storage.verifyJob(job);
     for (Path output : List.of(job.directory(),job.archiveDatabase(),job.candidateDatabase(),job.cache(),job.buildId(),job.report())) {
       if (!storage.verifyDestination(output).equals(output)) throw new IOException("Job paths changed since preparation");
@@ -244,6 +243,8 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
       client=inputs.client().orElseThrow(()->new IOException("Selected native tables are not materialized"));
     }
     if (!allows(client.acquiredBy())) throw new IOException("Native input used an acquisition method that was not selected");
+    if(client.acquiredBy()==Acquisition.LOCAL_INSTALLATION)
+      for(Path root:localGameRoots)if(!Files.isDirectory(root))throw new IOException("Selected WoW installation is unavailable");
     if (!Files.isDirectory(client.directory())) throw new IOException("Native input directory is unavailable");
     String reviewedLockHash=hash(client.directory().resolve("build.lock"));
     BuildLock lock;
