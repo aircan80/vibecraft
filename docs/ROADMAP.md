@@ -1,4 +1,12 @@
-# Roadmap and ideas backlog
+# Vibecraft roadmap and ideas backlog
+
+**Every place. Every drop. Every adventure.**
+
+A World of Warcraft companion for exploration, loot, crafting, and lore.
+
+Owner-approved product name: **Vibecraft**. Branding is integrated for verification;
+the existing running artifact predates the rename. Game names and historical evidence
+remain unchanged: the installed gameplay catalog is still WoW Forever.
 
 ## Current high-level direction (2026-10-17)
 
@@ -58,7 +66,7 @@ listening acceptance.
 ## NPC portraits: accepted scope
 
 **Static 2D portraits only.** 3D models, interactive viewers and rotation are out of
-scope for now. A Java static-PNG provider/cache is being implemented in isolation;
+scope for now. A Java static-PNG provider/cache is integrated in source and awaits final verification;
 the current launched artifact still has the older preview behavior until the next
 verified build. End users must not need Python, Node or Blender. Developer-only
 offline generation can remain reference tooling and does not define the runtime
@@ -69,7 +77,7 @@ establishes production portrait coverage.
 Acceptance: load/cache supported static portraits asynchronously in the Java app,
 handle missing or failed images without blocking navigation, and verify startup
 and portrait use without developer renderer toolchains. Java-only native audio
-asset fetching has an isolated working proof; its production integration remains next.
+asset fetching is integrated in source; final packaged acceptance remains pending.
 
 ## Source-only preparation and asset boundaries
 
@@ -91,17 +99,34 @@ are unknown; earlier 75–120 MB estimates excluded data and must not be present
 release totals. Empty-PATH self-test and native GUI smoke validate the packaging
 slice, not unfinished runtime or release acceptance.
 
-Native Java audio fetching and static portraits remain in progress. External database
+Native Java audio fetching and static portraits are integrated in source, with final
+packaged verification pending. External database
 selection is an optional advanced/source-build flow, not required normal release setup.
 Complete release sizing depends on database compaction and asset review. End users
 must not need developer toolchains or separately installed Java for portable delivery.
 
 The existing Git history includes game assets, so it cannot be published unchanged.
 A clean source export remains under review; no GitHub push is authorized or claimed.
-A separate derived release database is being reduced by removing raw development
-archives while preserving selected facts, provenance and conflicts. The shared
-development database is unchanged. Size reduction and release acceptance remain
-unverified until the derived artifact is validated.
+A separate derived release database removes raw development archives while
+preserving selected facts, provenance and conflicts. Measured reduction and current
+validation are recorded below; complete packaged release acceptance remains pending.
+
+## Current portable preview candidate
+
+Proposed version: **0.4.1-preview.1**, not an RC. Static Java portraits, Java-only
+asset/audio support, complete packaging, preview notes and manifest tooling are
+integrated in source. Fresh full verification is blocked by a test restoring UI
+defaults incorrectly and causing cascading UI errors; its correction and a rebuilt
+candidate are pending. The older verified artifact remains the running baseline.
+Do not claim the latest source passed or was launched.
+
+The derived database measures 1,050,083,328 bytes versus 2,283,749,376 bytes, a
+54.02% reduction, with approximately 58.8 MB xz compression. All 81 retained table
+digests, foreign-key/integrity checks, icons, maps and conflict data are preserved;
+the shared development database is unchanged. These are database measurements,
+not final full-release size. An obsolete preliminary 156 MiB gzip bundle passed a
+relocated self-test; it is not the final candidate. Final rebuilt packaged acceptance
+and complete release sizing remain pending.
 
 ## Accepted future exploration: map zoom and pan
 
