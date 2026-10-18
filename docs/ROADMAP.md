@@ -243,16 +243,31 @@ pushed by this roadmap.
 - [#1 Zero-data setup](https://github.com/aircan80/vibecraft/issues/1)
 - [#2 Source-icon Java implementation](https://github.com/aircan80/vibecraft/issues/2)
 - [#3 Breadcrumb Java implementation](https://github.com/aircan80/vibecraft/issues/3)
-- [#4 Remove legacy search pane](https://github.com/aircan80/vibecraft/issues/4): source integrated, 79 focused checks passed; native acceptance pending.
+- [#4 Remove legacy search pane](https://github.com/aircan80/vibecraft/issues/4): completed: 79 focused tests, 55 native assertions and four captures passed; accepted development artifact running, portable archives unchanged.
 - [#5 Windows launch acceptance](https://github.com/aircan80/vibecraft/issues/5): not yet run.
 - [#6 Staged import jobs](https://github.com/aircan80/vibecraft/issues/6)
 - [#7 Native Vibemining](https://github.com/aircan80/vibecraft/issues/7)
 - [#8 Cross-platform CI](https://github.com/aircan80/vibecraft/issues/8): Linux passed; initial Windows/macOS fixture-path and symlink failures are being fixed.
 - [#9 Multiple game-version selection and switching](https://github.com/aircan80/vibecraft/issues/9)
 
+- [#10 VibeMiner future exploration](https://github.com/aircan80/vibecraft/issues/10): broader Blizzard/other-game/our-database exploration, build comparisons and new-item discovery. Future work; separate-app architecture is undecided.
+
 Setup must select **multiple game versions**, building shared edition-scoped catalogs
 with an active-game switcher. Only Forever is currently installed; this requirement
 is accepted scope, not completed multi-game import functionality.
+
+## Future VibeMiner concept
+
+**Future exploration, issue #10.** The broader database/build exploration concept is
+named **VibeMiner**: Blizzard and potentially other games, our database, build
+comparison and newly added items. A separate app is a possibility, not an accepted
+architecture decision. The owner explicitly placed this work later. Current
+Vibecraft no-data setup and import remain within Vibecraft; this concept does not
+re-scope that active work.
+
+Current Windows CI fixture correction passed 13 focused checks; macOS helper work
+and combined CI acceptance remain pending. No new all-platform green CI result is
+claimed.
 
 ## Accepted future exploration: map zoom and pan
 
