@@ -9,12 +9,18 @@ public final class ItemSparseHotfixDecoder {
   var definition=PinnedItemSparseDefinition.parse(definitionBytes);Path data=acquired.snapshot(),evidence=acquired.evidence();
   if(Files.isSymbolicLink(data)||Files.isSymbolicLink(evidence)||Files.size(evidence)>16384||Files.size(data)>(64L<<20))throw new IOException("Snapshot/evidence alias or size rejected");
   Properties proof=new Properties();try(var input=Files.newInputStream(evidence)){proof.load(input);}catch(IllegalArgumentException invalid){throw new IOException("Invalid acquisition evidence",invalid);}
+  return decodeBytes(readBounded(data,cancelled),proof,pin,definitionBytes,cancelled);
+ }
+ /** Bounded archive adapter with precisely the same definition, source, hash and framing checks. */
+ public DecodedItemSparseSnapshot decodeBytes(byte[] snapshot,Properties proof,RaidbotsHotfixMaterializer.Pin pin,
+   byte[] definitionBytes,BooleanSupplier cancelled)throws IOException{
+  check(cancelled);if(snapshot.length>(64L<<20))throw new IOException("Hotfix snapshot exceeds byte limit");
+  if(!PinnedItemSparseDefinition.BUILD.equals(pin.build()))throw new IOException("ItemSparse decoder only supports its exact reviewed build");
+  var definition=PinnedItemSparseDefinition.parse(definitionBytes);
   Map<String,String> required=Map.of("provider","RAIDBOTS_HOTFIX","source",RaidbotsHotfixMaterializer.SOURCE.toString(),"product",pin.product(),"build",pin.build(),"requestedLocale",pin.locale(),"sha256",pin.sha256(),"cascRootVerified","false","decodedRowsAvailable","false");
   for(var entry:required.entrySet())if(!entry.getValue().equals(proof.getProperty(entry.getKey())))throw new IOException("Hotfix acquisition evidence does not match selected identity");
-  byte[] snapshot=readBounded(data,cancelled);check(cancelled);if(!pin.sha256().equals(PinnedItemSparseDefinition.hash(snapshot)))throw new IOException("Hotfix snapshot content hash mismatch");
-  var structure=new HotfixSnapshotReader().read(data,pin.buildNumber(),64L<<20,500000,cancelled);
-  // The bytes being decoded must remain exactly the bytes whose framing was checked.
-  if(!Arrays.equals(snapshot,readBounded(data,cancelled)))throw new IOException("Hotfix snapshot changed during decoder audit");
+  if(!pin.sha256().equals(PinnedItemSparseDefinition.hash(snapshot)))throw new IOException("Hotfix snapshot content hash mismatch");
+  var structure=new HotfixSnapshotReader().read(snapshot,pin.buildNumber(),64L<<20,500000,cancelled);
   var events=decodeEvents(definition,structure,snapshot,cancelled);
   return new DecodedItemSparseSnapshot(pin,"RAIDBOTS_HOTFIX",pin.sha256(),PinnedItemSparseDefinition.COMMIT,
       PinnedItemSparseDefinition.SHA256,PinnedItemSparseDefinition.LAYOUT,definition.columns(),events);
