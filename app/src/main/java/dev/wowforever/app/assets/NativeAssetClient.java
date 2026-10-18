@@ -24,6 +24,23 @@ public final class NativeAssetClient implements AutoCloseable {
     @FunctionalInterface interface Transport {
         byte[] download(URI uri,int limit,BooleanSupplier cancelled)throws IOException,InterruptedException;
     }
+    @FunctionalInterface interface RangeTransport {
+        byte[] download(URI uri,long offset,int size,BooleanSupplier cancelled)throws IOException,InterruptedException;
+    }
+    /** Bounds index metadata searched on a loose-file miss, never archive-body download size. */
+    public record ArchiveBudget(int indexes,long bytes) {
+        public ArchiveBudget { if(indexes<1||indexes>2048||bytes<28||bytes>128L*1024*1024)throw new IllegalArgumentException("Archive lookup budget"); }
+        public static ArchiveBudget standard(){return new ArchiveBudget(64,16L*1024*1024);}
+    }
+    private boolean sharedRuntime;
+    private final RangeTransport rangeTransport;
+    private final ArchiveBudget archiveBudget;
+    private List<String> archives=List.of();
+    private int scannedIndexes,newIndexes;
+    private long newIndexBytes;
+    private String usedArchive="";
+    private long usedArchiveOffset,usedArchiveBytes;
+    private long scannedIndexBytes;
     private static final int LIMIT = 512 * 1024 * 1024;
     private static final Object RATE = new Object();
     private static long nextRequest;
@@ -42,11 +59,12 @@ public final class NativeAssetClient implements AutoCloseable {
     private static final class Shared {
         static final NativeAssetClient INSTANCE = create();
         private static NativeAssetClient create() {
-            NativeAssetClient client = new NativeAssetClient(systemCache(), PRODUCT, BUILD);
+            NativeAssetClient client = new NativeAssetClient(systemCache(), PRODUCT, BUILD).withSharedPermissions();
             Runtime.getRuntime().addShutdownHook(new Thread(client::close, "native-audio-assets-shutdown"));
             return client;
         }
     }
+    NativeAssetClient withSharedPermissions(){sharedRuntime=true;return this;}
     public static NativeAssetClient shared() { return Shared.INSTANCE; }
     public static Path systemCache() {
         String configured = System.getProperty("wowforever.nativeAssets.cache", System.getenv("NPC_PREVIEW_ASSET_CACHE"));
@@ -66,14 +84,23 @@ public final class NativeAssetClient implements AutoCloseable {
     }
     /** New setup jobs must pass their explicit transport permission; there is no implicit third-party fallback. */
     public NativeAssetClient(Path cache,BlizzardBuildDescriptor descriptor,TransportPolicy policy) {
+        this(cache,descriptor,policy,ArchiveBudget.standard());
+    }
+    public NativeAssetClient(Path cache,BlizzardBuildDescriptor descriptor,TransportPolicy policy,ArchiveBudget archiveBudget) {
         this.cache=Objects.requireNonNull(cache).toAbsolutePath().normalize();
         this.descriptor=Objects.requireNonNull(descriptor);this.policy=Objects.requireNonNull(policy);
+        this.archiveBudget=Objects.requireNonNull(archiveBudget);
         http=HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(15)).followRedirects(HttpClient.Redirect.NEVER).build();
-        transport=this::download;
+        transport=this::download; rangeTransport=this::downloadRange;
     }
     NativeAssetClient(Path cache,BlizzardBuildDescriptor descriptor,TransportPolicy policy,Transport transport) {
+        this(cache,descriptor,policy,transport,(u,o,n,c)->{throw new IOException("Range transport not configured");},ArchiveBudget.standard());
+    }
+    NativeAssetClient(Path cache,BlizzardBuildDescriptor descriptor,TransportPolicy policy,Transport transport,
+                      RangeTransport rangeTransport,ArchiveBudget archiveBudget) {
         this.cache=Objects.requireNonNull(cache).toAbsolutePath().normalize();this.descriptor=Objects.requireNonNull(descriptor);
         this.policy=Objects.requireNonNull(policy);this.transport=Objects.requireNonNull(transport);http=null;
+        this.rangeTransport=Objects.requireNonNull(rangeTransport);this.archiveBudget=Objects.requireNonNull(archiveBudget);
     }
     /** Cancellation is checked during cache reads, transport and metadata parsing. */
     public Asset fetch(long fileDataId, BooleanSupplier cancelled) throws IOException, InterruptedException {
@@ -92,6 +119,8 @@ public final class NativeAssetClient implements AutoCloseable {
     private Asset fetchLocked(long fileDataId, BooleanSupplier cancelled, int maxAssetBytes) throws IOException, InterruptedException {
         check(cancelled);
         writableStorage(cache);
+        if(sharedRuntime)AssetDownloadPermissions.checkCacheWrite(cache,cache);
+        scannedIndexes=0;scannedIndexBytes=0;newIndexes=0;newIndexBytes=0;usedArchive="";usedArchiveOffset=0;usedArchiveBytes=0;
         prepare(cancelled);
         String key = rootEntry(root, fileDataId, descriptor.localeMask(), cancelled);
         if (key == null) throw new FileNotFoundException("No neutral/"+descriptor.locale()+" native asset " + fileDataId + " in " + descriptor.build());
@@ -124,7 +153,10 @@ public final class NativeAssetClient implements AutoCloseable {
                 + "\",\n  \"discovery_captured_at\": \""+descriptor.capturedAt()
                 + "\",\n  \"discovery_build_pointer_sha256\": \""+descriptor.metadataSha256().getOrDefault("versions",descriptor.metadataSha256().getOrDefault("bgdl",""))
                 + "\",\n  \"discovery_cdns_sha256\": \""+descriptor.metadataSha256().getOrDefault("cdns","")
-                + "\",\n  \"implementation\": \"java-native-casc-v2\"\n}\n";
+                + "\",\n  \"archive_md5\": \""+usedArchive+"\",\n  \"archive_offset\": "+usedArchiveOffset
+                + ",\n  \"archive_encoded_bytes\": "+usedArchiveBytes+",\n  \"new_archive_indexes\": "+newIndexes
+                + ",\n  \"new_archive_index_bytes\": "+newIndexBytes
+                + ",\n  \"implementation\": \"java-native-casc-v3\"\n}\n";
         atomic(cache.resolve("proof/" + descriptor.product() + "/" + descriptor.build() + "/" + fileDataId + ".json"), proof.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         return new Asset(cache.resolve("content/" + key + ".bin"), fileDataId, key, sha, bytes.length, descriptor.product(), descriptor.build(), rootKey);
     }
@@ -147,7 +179,7 @@ public final class NativeAssetClient implements AutoCloseable {
         if(!descriptor.cdnConfigMd5().isBlank()){
             String cdnKey=descriptor.cdnConfigMd5();Path cdnPath=cache.resolve("config/"+cdnKey);
             byte[] cdn=Files.exists(cdnPath)?read(cdnPath,1024*1024,cancelled):official("config/"+keyPath(cdnKey),1024*1024,cancelled);
-            verify(cdn,cdnKey);check(cancelled);atomic(cdnPath,cdn);
+            verify(cdn,cdnKey);check(cancelled);archives=parseArchives(cdn);atomic(cdnPath,cdn);
         }
         String[] pair = values.getOrDefault("encoding", "").split("\\s+");
         if (pair.length != 2) throw new IOException("Missing encoding identity");
@@ -173,14 +205,86 @@ public final class NativeAssetClient implements AutoCloseable {
             validKey(encodedKey);
             try {
                 Path encodedPath = cache.resolve("encoded/" + encodedKey + ".blte");
-                byte[] encoded = Files.exists(encodedPath) ? read(encodedPath, LIMIT, cancelled)
-                        : official("data/"+keyPath(encodedKey),LIMIT,cancelled);
+                byte[] encoded;
+                if(Files.exists(encodedPath))encoded=read(encodedPath,LIMIT,cancelled);
+                else {
+                    try{encoded=official("data/"+keyPath(encodedKey),encodedBound(limit),cancelled);}
+                    catch(IOException looseMissing){
+                        try{encoded=archiveContent(encodedKey,cancelled,encodedBound(limit));}
+                        catch(IOException missing){missing.addSuppressed(looseMissing);throw missing;}
+                    }
+                }
+                verifyEncoded(encoded,encodedKey);
                 byte[] decoded = decodeBlte(encoded, limit);
                 verify(decoded, key); check(cancelled);
                 atomic(encodedPath, encoded); atomic(path, decoded); return decoded;
             } catch (IOException e) { failure.addSuppressed(e); }
         }
         throw failure;
+    }
+    static List<String> parseArchives(byte[] cdn)throws IOException {
+        String value=null;
+        for(String line:new String(cdn,java.nio.charset.StandardCharsets.UTF_8).split("\\R"))
+            if(line.startsWith("archives = ")){if(value!=null)throw new IOException("Duplicate archive list");value=line.substring(11).trim();}
+        if(value==null||value.isEmpty())return List.of();
+        String[] keys=value.split("\\s+");if(keys.length>2048)throw new IOException("Archive list exceeds bound");
+        var unique=new HashSet<String>();for(String key:keys){validKey(key);if(!unique.add(key))throw new IOException("Duplicate archive identity");}
+        return List.of(keys);
+    }
+    private byte[] archiveIndex(String archive,BooleanSupplier cancelled)throws IOException,InterruptedException {
+        if(scannedIndexes>=2048||scannedIndexBytes>=128L*1024*1024)throw new IOException("Archive index parse budget exhausted");
+        Path path=cache.resolve("indexes/"+archive+".index");
+        byte[] index;
+        if(Files.exists(path))index=read(path,(int)Math.min(2*1024*1024,128L*1024*1024-scannedIndexBytes),cancelled);
+        else {
+            if(newIndexes>=archiveBudget.indexes()||newIndexBytes>=archiveBudget.bytes())
+                throw new IOException("Archive index network budget exhausted after "+newIndexes+" new indexes / "+newIndexBytes+" bytes; retry can reuse verified indexes; content availability remains unknown");
+            int bound=(int)Math.min(2*1024*1024,archiveBudget.bytes()-newIndexBytes);
+            newIndexes++;index=official("data/"+keyPath(archive)+".index",bound,cancelled);newIndexBytes+=index.length;
+        }
+        scannedIndexes++;scannedIndexBytes+=index.length;return index;
+    }
+    private byte[] archiveRange(String archive,CdnArchiveIndex.Entry entry,String encodedKey,BooleanSupplier cancelled,int encodedLimit)throws IOException,InterruptedException {
+        if(entry.size()>encodedLimit)throw new IOException("Archived encoded asset exceeds bound");
+        IOException unavailable=new IOException("Selected archive range unavailable");
+        for(URI base:descriptor.cdnBases()) {
+            check(cancelled);
+            try {
+                networkAllowed(base.resolve("data/"+keyPath(archive)));
+                byte[] encoded=rangeTransport.download(base.resolve("data/"+keyPath(archive)),entry.offset(),entry.size(),cancelled);
+                check(cancelled);if(encoded.length!=entry.size())throw new IOException("Archive range length mismatch");
+                verifyEncoded(encoded,encodedKey);usedArchive=archive;usedArchiveOffset=entry.offset();usedArchiveBytes=entry.size();return encoded;
+            }catch(IOException failure){unavailable.addSuppressed(failure);}
+        }
+        throw unavailable;
+    }
+    private byte[] archiveContent(String encodedKey,BooleanSupplier cancelled,int encodedLimit)throws IOException,InterruptedException {
+        Path location=cache.resolve("archive-locations/"+descriptor.cdnConfigMd5()+"/"+encodedKey);
+        if(Files.exists(location)) {
+            String archive=new String(read(location,32,cancelled),java.nio.charset.StandardCharsets.US_ASCII);
+            if(!archives.contains(archive))throw new IOException("Cached archive location not in selected configuration");
+            byte[] index=archiveIndex(archive,cancelled);
+            var entry=CdnArchiveIndex.find(index,archive,encodedKey,cancelled);
+            if(entry==null)throw new IOException("Cached archive location lacks exact EKey membership");
+            return archiveRange(archive,entry,encodedKey,cancelled,encodedLimit);
+        }
+        for(String archive:archives) {
+            check(cancelled);byte[] index=archiveIndex(archive,cancelled);
+            var entry=CdnArchiveIndex.find(index,archive,encodedKey,cancelled);
+            Path path=cache.resolve("indexes/"+archive+".index");
+            check(cancelled);if(!Files.exists(path))atomic(path,index);
+            if(entry==null)continue;
+            byte[] encoded=archiveRange(archive,entry,encodedKey,cancelled,encodedLimit);
+            check(cancelled);atomic(location,archive.getBytes(java.nio.charset.StandardCharsets.US_ASCII));return encoded;
+        }
+        throw new FileNotFoundException("Encoding key absent from selected archive indexes");
+    }
+    private static int encodedBound(int decodedLimit){return (int)Math.min(LIMIT,Math.max(1024*1024L,2L*decodedLimit+65536));}
+    static void verifyEncoded(byte[] encoded,String key)throws IOException {
+        if(encoded.length<8)throw new IOException("Truncated encoded identity");
+        int header=ByteBuffer.wrap(encoded,4,4).getInt();
+        if(header<0||header>encoded.length)throw new IOException("Invalid encoded header identity");
+        verify(header==0?encoded:Arrays.copyOf(encoded,header),key);
     }
     private static String keyPath(String key)throws IOException{validKey(key);return key.substring(0,2)+"/"+key.substring(2,4)+"/"+key;}
     private byte[] official(String relative,int limit,BooleanSupplier cancelled)throws IOException,InterruptedException{
@@ -191,17 +295,33 @@ public final class NativeAssetClient implements AutoCloseable {
         throw failure;
     }
     private byte[] received(URI uri,int limit,BooleanSupplier cancelled)throws IOException,InterruptedException{
+        networkAllowed(uri);
         byte[] bytes=transport.download(uri,limit,cancelled);check(cancelled);
         if(bytes.length>limit)throw new IOException("Native response exceeds bound");return bytes;
     }
+    private void networkAllowed(URI uri)throws IOException {
+        if(!sharedRuntime)return;
+        var consent=AssetDownloadPermissions.current();
+        boolean allowed="wago.tools".equals(uri.getHost())?consent.allowWagoExport():consent.allowBlizzardCdn();
+        if(!allowed)throw new IOException("Active library has not selected this asset network source");
+    }
     public BlizzardBuildDescriptor descriptor(){return descriptor;}
     private byte[] download(URI uri, int limit, BooleanSupplier cancelled) throws IOException, InterruptedException {
+        return downloadResponse(uri,limit,cancelled,null,-1,-1);
+    }
+    private byte[] downloadRange(URI uri,long offset,int size,BooleanSupplier cancelled)throws IOException,InterruptedException {
+        return downloadResponse(uri,size,cancelled,"bytes="+offset+"-"+(offset+size-1),offset,size);
+    }
+    private byte[] downloadResponse(URI uri,int limit,BooleanSupplier cancelled,String range,long offset,int size)throws IOException,InterruptedException {
+        networkAllowed(uri);
         synchronized (RATE) {
             while (System.nanoTime() < nextRequest) { check(cancelled); Thread.sleep(50); }
             nextRequest = System.nanoTime() + 500_000_000L;
         }
         check(cancelled);
-        HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(90)).GET().build();
+        var builder=HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(90)).header("Accept-Encoding","identity").GET();
+        if(range!=null)builder.header("Range",range);
+        HttpRequest request=builder.build();
         // ofByteArray enforces the request deadline throughout body transfer; subscriber bounds memory.
         var future = http.sendAsync(request, response -> new BoundedBody(limit));
         long deadline = System.nanoTime() + Duration.ofSeconds(120).toNanos();
@@ -214,9 +334,20 @@ public final class NativeAssetClient implements AutoCloseable {
             HttpResponse<byte[]> response;
             try { response = future.join(); }
             catch (java.util.concurrent.CompletionException e) { throw new IOException("Native transport failed", e.getCause()); }
-            if (response.statusCode() != 200) throw new IOException("Native transport HTTP " + response.statusCode());
+            validateResponse(response.statusCode(),response.headers().firstValue("Content-Range").orElse(""),response.body().length,offset,size);
+            if(response.headers().firstValue("Content-Encoding").filter(v->!v.equalsIgnoreCase("identity")).isPresent())
+                throw new IOException("Unexpected native content encoding");
             check(cancelled); return response.body();
         } finally { if (!future.isDone()) future.cancel(true); }
+    }
+    static void validateResponse(int status,String contentRange,int actualBytes,long offset,int size)throws IOException {
+        if(offset<0){if(status!=200)throw new IOException("Native transport HTTP "+status);return;}
+        if(status!=206||actualBytes!=size)throw new IOException("Archive request requires exact bounded HTTP 206");
+        var match=java.util.regex.Pattern.compile("bytes ([0-9]+)-([0-9]+)/([0-9]+)").matcher(contentRange);
+        try {
+            if(!match.matches()||Long.parseLong(match.group(1))!=offset||Long.parseLong(match.group(2))!=offset+size-1
+                    ||Long.parseLong(match.group(3))<offset+size)throw new IOException("Archive Content-Range mismatch");
+        }catch(NumberFormatException invalid){throw new IOException("Invalid archive Content-Range",invalid);}
     }
     private static final class BoundedBody implements HttpResponse.BodySubscriber<byte[]> {
         private final java.util.concurrent.CompletableFuture<byte[]> result = new java.util.concurrent.CompletableFuture<>();
@@ -353,8 +484,9 @@ public final class NativeAssetClient implements AutoCloseable {
         for(Path parent=canonical;parent!=null;parent=parent.getParent())
             if(Files.isRegularFile(parent.resolve(".build.info")))throw new IOException("Native cache must not be inside a WoW installation");
     }
-    private static void atomic(Path path, byte[] bytes) throws IOException {
+    private void atomic(Path path, byte[] bytes) throws IOException {
         writableStorage(path);
+        if(sharedRuntime)path=AssetDownloadPermissions.checkCacheWrite(cache,path);
         Files.createDirectories(path.getParent()); Path temp = Files.createTempFile(path.getParent(), ".native-", ".tmp");
         try { Files.write(temp, bytes); Files.move(temp, path, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING); }
         finally { Files.deleteIfExists(temp); }
