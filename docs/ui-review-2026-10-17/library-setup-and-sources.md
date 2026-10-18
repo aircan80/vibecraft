@@ -14,7 +14,7 @@ The proposed portable release includes the application and Java, with an empty d
 6. Build in the background through inspect, download, import, validate and activate. A candidate database protects the existing library. Safe stop and conditional resume are separate from completion. Stage advancement is manual in the mockup so reviewers can inspect each state without simulated rates or false downloads.
 7. Ready links to the Journal and permanent Sources & updates. Optional portraits/icons/audio do not block the basic reference library.
 
-The permanent area has Sources, Game data, History & issues, and Settings. A small note identifies vibeMiner as a separate future CDN-only project; it is not a Vibecraft workspace or database integration. Each provider shows selection, edition/build, last successful import, last checked and update state, with coverage, exclusions and conflicts available on demand. Update checking and downloading are separate. Small source icons expose readable details, omission impact, rights status and collapsed technical evidence. Routine content stays readable without large provenance blocks.
+The permanent area has Sources, History & issues, and Settings. There is no standalone Game data or mining workspace in Vibecraft. vibeMiner is a separate future CDN-only project; it has no embedded workspace or database integration here. Each provider shows selection, edition/build, last successful import, last checked and update state, with coverage, exclusions and conflicts available on demand. Update checking and downloading are separate. Small source icons expose readable details, omission impact, rights status and collapsed technical evidence. Routine content stays readable without large provenance blocks.
 
 ## Required implementation boundaries
 
@@ -27,7 +27,7 @@ The browser prototype's persisted state is review-only session storage. Producti
 ## Review
 
 - `mockups/setup.html`: fresh welcome; `?step=0` through `?step=6` jump to review slices.
-- `mockups/sources.html`: persistent management; `?tab=vibemining`, `history` or `settings` opens each area.
+- `mockups/sources.html`: persistent management; `?tab=history` or `?tab=settings` opens those management areas.
 - Add `theme=light` or `theme=dark`; the theme button persists within the preview session.
 - Gallery links are in the Explorer mockup's upper design-study navigation.
 
@@ -43,7 +43,7 @@ Planned adapters stay visibly planned. Their preferences can be edited and saved
 
 Tracking: https://github.com/aircan80/vibecraft/issues/9 (multi-version selection and switching), with setup context in issue #1.
 
-The subsequent owner decision makes vibeMiner a separate CDN-only application for game/build discovery and on-demand caching. It does not require a local WoW installation and must not connect to Vibecraft’s database. Vibecraft retains its own in-app library source/import workflow. The mockup only notes the separate project; it does not implement or design that application. Internal `tab=vibemining` review routes remain for compatibility.
+The subsequent owner decision makes vibeMiner a separate CDN-only application for game/build discovery and on-demand caching. It does not require a local WoW installation and must not connect to Vibecraft’s database. Vibecraft retains its own in-app library source/import workflow. The mockup only notes the separate project; it does not implement or design that application. Obsolete mining-workspace routes fall back to ordinary Sources & updates; no mining workspace is rendered.
 
 Multi-version review routes: `setup.html?step=1&games=forever,classic,retail,anniversary` selects all four in the preview; add `game=classic` to inspect another edition’s saved choices. The same parameters work on `sources.html`. Twenty-four dedicated Firefox BiDi checks passed for multi-selection, default Forever, per-edition source and checked-status preservation, navigation persistence, a combined version review, blocked planned-adapter imports, pending direct routes, open Vibe Miner placement, keyboard Tab, 18px text and 420px fit. This supplements the earlier single-version flow review rather than reasserting obsolete disabled-game behavior. Future explorer tracking: https://github.com/aircan80/vibecraft/issues/10.
 
@@ -66,3 +66,11 @@ All writes—downloads, cache, temporary candidate files and the shared database
 Validation: 28 final Firefox BiDi assertions passed for explicit providers/capability loss, Wago dependency/opt-in, vMaNGOS and collector boundaries, edition persistence, automatic detection, strict read-only copy, blocked no-folder/no-CDN acquisition, CDN-only/local-plus-CDN states, no edition fallback, separate source and destination, all app-owned paths, manager coverage distinctions, 420px fit on Sources/Game files/Review and 18px body text. These are mockup checks, not implemented production import adapters or filesystem-write enforcement.
 
 Review: `setup.html?step=3&game=forever` shows optional read-only folder and complementary CDN checkbox. Add `review=acquisition` to jump to that checkbox. `setup.html?step=2&review=additional` opens vMaNGOS/collector choices. No downloads, scans or database changes occur.
+
+## No mining workspace in Vibecraft — issues #1 and #10
+
+The standalone Game data navigation entry, tab, raw build-discovery page and embedded vibeMiner teaser have been removed. Vibecraft retains Sources & updates, source-specific configuration, and optional read-only local folder plus missing-file CDN consent in the normal Game files setup step. Its required product/build check is limited to configuring this library’s acquisition; it is not an all-record browser or build exploration workspace. The ready screen links back to that ordinary setup configuration.
+
+vibeMiner remains a separate CDN-only project. All-record exploration, table browsing, build comparisons and discovery of new items are outside Vibecraft. Legacy prototype mining-tab URLs now select normal Sources with valid active-tab accessibility state. No backend or native UI mining feature is claimed by these HTML changes. Earlier screenshot descriptions in this design history refer to superseded prototypes.
+
+Thirteen final Firefox checks passed for absence of mining navigation, retained normal source-folder/CDN setup and read-only copy, narrowly scoped library build configuration, three source-management tabs, valid legacy-route fallback, keyboard navigation and 420px fit. Wide dark and compact light source-management captures were generated outside the repository.
