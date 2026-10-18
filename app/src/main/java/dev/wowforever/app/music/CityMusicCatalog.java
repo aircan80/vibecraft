@@ -1,6 +1,7 @@
 package dev.wowforever.app.music;
 
 import com.google.gson.*;
+import dev.wowforever.app.assets.ReviewedDataFiles;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalTime;
@@ -23,7 +24,8 @@ public final class CityMusicCatalog {
   public String build(){return build;}
   public Optional<City> city(long id){return Optional.ofNullable(cities.get(id));}
   public static CityMusicCatalog bundled() {
-    try(var input=CityMusicCatalog.class.getResourceAsStream("/data/city-music/catalog.json")) {
+    try(var input=ReviewedDataFiles.open("city-music/catalog.json",
+        "f652c48b94f0efa6eedcc175002847270b1aa49717024335dd40261c8410c466",1024*1024)) {
       if(input==null)throw new IOException("City music catalog unavailable");
       return read(input);
     }catch(IOException|RuntimeException failure){return new CityMusicCatalog("wow_classic_beta","",Map.of());}

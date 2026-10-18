@@ -43,3 +43,11 @@ After integrating the Java client into both services, **19 focused JUnit tests p
 - No Python, Node, Blender or subprocess is used by either audio service. The developer render tooling remains separate.
 
 The proof deliberately stops short of claiming human listening, full track playback or a fresh packaged-app GUI launch.
+
+## Portable external data
+
+The source-only portable app sets `-Dwowforever.data.dir=<app>/data`. `ReviewedDataFiles.open(relativePath, reviewedSha256, maxBytes)` loads an explicitly selected external data directory authoritatively, checks size and the compiled reviewed SHA-256, and rejects traversal or symlinks outside that directory. It falls back to `/data/` classpath resources only when the property is absent. A missing or altered explicit catalog never borrows a bundled catalog.
+
+City music requires only `city-music/catalog.json`, SHA-256 `f652c48b94f0efa6eedcc175002847270b1aa49717024335dd40261c8410c466`. Its compressed source tables are evidence inputs, not runtime dependencies. UI sound file IDs and their exact product/build are compiled constants; `ui-sounds/catalog.json` is provenance documentation, not a runtime requirement. Native metadata and audio content remain acquired by the authenticated Java client.
+
+Four additional tests verify reviewed external files, bounds and tampering; authoritative missing-data behavior; identical six-city bundled/external catalogs; traversal and escaping symlinks. Combined native/audio/data suite: **23 tests passed**.
