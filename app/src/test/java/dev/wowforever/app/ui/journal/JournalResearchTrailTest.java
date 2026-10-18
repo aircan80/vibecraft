@@ -31,7 +31,10 @@ class JournalResearchTrailTest {
       jobs.removeFirst().run();
       var graph=descendants(panel).stream().filter(ChainPanel.class::isInstance).map(ChainPanel.class::cast).findFirst().orElseThrow();
       assertThat(graph.rows()).anyMatch(r->r.kind()==ChainRows.Kind.STEP&&r.step().connector()==QuestChain.Connector.REQUIRES_ALL);
-      assertThat(button(panel,"AllTheThings Forever ↗").getToolTipText()).contains("not in-game verified","exact-build","quests.lua#12");
+      var source=descendants(panel).stream().filter(dev.wowforever.app.ui.widgets.SourceInfoButton.class::isInstance)
+          .map(dev.wowforever.app.ui.widgets.SourceInfoButton.class::cast).findFirst().orElseThrow();
+      assertThat(source.getToolTipText()).contains("AllTheThings Forever","not in-game verified");
+      assertThat(text(source.detailsContent())).contains("exact-build","quests.lua#12","https://example.com/source#L12");
       button(panel,"Open quest: Quest 2").doClick();assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(EntityKind.QUEST,2)));
       assertThat(text(panel)).contains("not your character's progress","not establish an in-game observation");
     });

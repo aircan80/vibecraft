@@ -60,9 +60,17 @@ class QuestRelationEvidenceTest {
     SwingUtilities.invokeAndWait(() -> {
       ChainPanel panel = new ChainPanel(chain, target -> {}, opened::add);
       assertThat(opened).isEmpty();
-      JButton source = descendants(panel).stream().filter(JButton.class::isInstance).map(JButton.class::cast)
-          .filter(b -> b.getText().equals("AllTheThings Forever ↗")).findFirst().orElseThrow();
-      assertThat(source.getToolTipText()).contains("not in-game verified", "snapshot-abc", "quests.lua");
+      var info = descendants(panel).stream()
+          .filter(dev.wowforever.app.ui.widgets.SourceInfoButton.class::isInstance)
+          .map(dev.wowforever.app.ui.widgets.SourceInfoButton.class::cast).findFirst().orElseThrow();
+      assertThat(info.getToolTipText()).contains("AllTheThings Forever", "not in-game verified");
+      var details = info.detailsContent();
+      JButton source = descendants(details).stream().filter(JButton.class::isInstance).map(JButton.class::cast)
+          .filter(b -> b.getText().equals("Open original source ↗")).findFirst().orElseThrow();
+      assertThat(descendants(details)).anySatisfy(component -> {
+        if (!(component instanceof javax.swing.JTextArea text)) throw new AssertionError();
+        assertThat(text.getText()).contains("snapshot-abc", "quests.lua", expected.toString());
+      });
       assertThat(descendants(panel)).anySatisfy(component -> {
         if (!(component instanceof javax.swing.JTextArea text)) throw new AssertionError();
         assertThat(text.getText()).isEqualTo("Some AllTheThings conditions were not imported.");
