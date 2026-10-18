@@ -30,19 +30,12 @@ public final class ForeverContentRepository {
 
   public Context context() {
     Cache cache=cache();Context value=cache.context;
-    if(value==null)cache.context=value=loadContext();return value;
+    if(value!=null)return value;
+    // Recheck under the database lock so independently created repositories share a single cold load.
+    return db.read(c->{if(cache.context==null)cache.context=loadContext();return cache.context;});
   }
 
-  private Context loadContext() {
-    return db.read(c -> {
-      var meta=db.meta();
-      if (!Sql.hasTable(c,"forever_diff")) return Context.empty();
-      String era=meta.get("forever_diff_era_snapshot_id"), forever=meta.get("forever_diff_forever_snapshot_id");
-      if(era==null || forever==null)return Context.empty();
-      String foreverBuild=Sql.one(c,"SELECT build FROM client_table_dataset WHERE snapshot_id=?",r->r.getString(1),forever).orElse("unknown");
-      String eraBuild=Sql.one(c,"SELECT build FROM client_table_dataset WHERE snapshot_id=?",r->r.getString(1),era).orElse("unknown");
-      return new Context(foreverBuild,eraBuild,
-          Sql.list(c,"""
+  private static final String CHANGE_SELECT="""
               SELECT d.kind,d.id,d.status,d.fields,
                 COALESCE(NULLIF(json_extract(n.payload,'$.Name_lang'),''),
                   NULLIF(json_extract(n.payload,'$.AreaName_lang'),''),
@@ -52,34 +45,49 @@ public final class ForeverContentRepository {
                   NULLIF(json_extract(n.payload,'$.Title_lang'),''),
                   NULLIF(json_extract(sp.payload,'$.Name_lang'),''),i.name,z.name,'') AS name,
                 i.id AS item_id,z.id AS zone_id
-              FROM forever_diff d
+              FROM selected d
               LEFT JOIN client_table_row n ON n.snapshot_id=d.forever_snapshot_id AND n.table_name=d.kind AND n.row_id=d.id
               LEFT JOIN client_table_row sp ON sp.snapshot_id=d.forever_snapshot_id AND sp.table_name='SpellName'
                 AND sp.row_id=CAST(json_extract(n.payload,'$.Spell') AS TEXT)
               LEFT JOIN item i ON d.kind IN ('Item','ItemSparse') AND i.id=CAST(d.id AS INTEGER)
               LEFT JOIN zone z ON d.kind='AreaTable' AND z.id=CAST(d.id AS INTEGER)
-              WHERE d.era_snapshot_id=? AND d.forever_snapshot_id=?
               ORDER BY CASE d.kind WHEN 'Map' THEN 0 WHEN 'ItemSet' THEN 1 WHEN 'ChrRaces' THEN 2 WHEN 'AreaTable' THEN 3 ELSE 4 END,
                 d.kind,d.status DESC,CAST(d.id AS INTEGER)
-              """, r -> {
-                var ref=r.getObject("item_id")!=null?new dev.wowforever.app.model.EntityRef(dev.wowforever.app.model.EntityKind.ITEM,r.getLong("item_id")):
-                    r.getObject("zone_id")!=null?new dev.wowforever.app.model.EntityRef(dev.wowforever.app.model.EntityKind.ZONE,r.getLong("zone_id")):null;
-                return new Change(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getString("name"),ref);
-              },era,forever));
+              """;
+
+  private Context loadContext() {
+    return readContext("WITH ","",List.of(),List.of());
+  }
+
+  /** Restrict IDs before looking up native names. Ordinary page headers never load the global diff. */
+  private Context readContext(String prefix,String restriction,List<Object> leading,List<Object> trailing) {
+    return db.read(c -> {
+      var meta=db.meta();
+      if (!Sql.hasTable(c,"forever_diff")) return Context.empty();
+      String era=meta.get("forever_diff_era_snapshot_id"), forever=meta.get("forever_diff_forever_snapshot_id");
+      if(era==null || forever==null)return Context.empty();
+      String foreverBuild=Sql.one(c,"SELECT build FROM client_table_dataset WHERE snapshot_id=?",r->r.getString(1),forever).orElse("unknown");
+      String eraBuild=Sql.one(c,"SELECT build FROM client_table_dataset WHERE snapshot_id=?",r->r.getString(1),era).orElse("unknown");
+      List<Object> parameters=new ArrayList<>(leading);parameters.add(era);parameters.add(forever);parameters.addAll(trailing);
+      String sql=prefix+"selected AS MATERIALIZED (SELECT * FROM forever_diff WHERE era_snapshot_id=? AND forever_snapshot_id=? "
+          +restriction+") "+CHANGE_SELECT;
+      return new Context(foreverBuild,eraBuild,Sql.list(c,sql,r -> {
+        var ref=r.getObject("item_id")!=null?new dev.wowforever.app.model.EntityRef(dev.wowforever.app.model.EntityKind.ITEM,r.getLong("item_id")):
+            r.getObject("zone_id")!=null?new dev.wowforever.app.model.EntityRef(dev.wowforever.app.model.EntityKind.ZONE,r.getLong("zone_id")):null;
+        return new Change(r.getString(1),r.getString(2),r.getString(3),r.getString(4),r.getString("name"),ref);
+      },parameters.toArray()));
     });
   }
 
   /** Only descendant AreaTable IDs are included; similarly named areas are never linked. */
   public Context zoneContext(long zoneId) {return cache().zones.computeIfAbsent(zoneId,this::loadZoneContext);}
   private Context loadZoneContext(long zoneId) {
-    Context all=context();
-    return db.read(c -> {
-      var ids=Sql.list(c,"""
-          WITH RECURSIVE descendants(id) AS (SELECT ? UNION SELECT z.id FROM zone z JOIN descendants d ON z.parent_id=d.id)
-          SELECT CAST(id AS TEXT) FROM descendants""",r->r.getString(1),zoneId);
-      return new Context(all.foreverBuild(),all.eraBuild(),all.changes().stream()
-          .filter(ch -> (ch.kind().equalsIgnoreCase("AreaTable") || ch.kind().equalsIgnoreCase("zone")) && ids.contains(ch.id())).toList());
-    });
+    return readContext("""
+        WITH RECURSIVE descendants(id) AS (
+          SELECT ? UNION SELECT z.id FROM zone z JOIN descendants d ON z.parent_id=d.id
+        ),
+        """, "AND kind COLLATE NOCASE IN ('AreaTable','zone') AND id IN (SELECT CAST(id AS TEXT) FROM descendants)",
+        List.of(zoneId),List.of());
   }
 
   public Context instanceContext(String key) {
@@ -87,9 +95,7 @@ public final class ForeverContentRepository {
     return cache().instances.computeIfAbsent(key,this::loadInstanceContext);
   }
   private Context loadInstanceContext(String key) {
-    Context all=context();String map=key.substring("client:".length());
-    return new Context(all.foreverBuild(),all.eraBuild(),all.changes().stream()
-        .filter(ch->ch.kind().equals("Map") && ch.id().equals(map)).toList());
+    return readContext("WITH ","AND kind='Map' AND id=?",List.of(),List.of(key.substring("client:".length())));
   }
 
   public List<Discovery> discoveries() {
@@ -171,10 +177,17 @@ public final class ForeverContentRepository {
     for(var dataset:ClientTableRows.datasets(c)) {
       if(pinned!=null && !pinned.equals(dataset.snapshotId()))continue;
       if(!"wow_classic_beta".equals(dataset.product())) continue;
-      List<ClientTableRows.Row> nativeRows=ClientTableRows.read(c,dataset.snapshotId(),name);
-      if(nativeRows.isEmpty()) continue;
-      return nativeRows.stream().map(r->new Row(r.id(),fields.stream().map(f->r.text(f,"")).toList(),dataset.build(),
-          name+" · build "+dataset.build()+" · "+r.sourcePath()+":"+r.sourceLine())).toList();
+      // Only the fields used by this view cross JDBC; wide raw CSV payloads stay in SQLite.
+      String columns=String.join(",",fields.stream().map(f->"json_extract(payload,'$."+f+"')").toList());
+      List<Row> rows=Sql.list(c,"SELECT row_id,source_path,source_line,"+columns
+          +" FROM client_table_row WHERE snapshot_id=? AND table_name=? ORDER BY source_line",r->{
+        List<String> cells=new ArrayList<>();
+        for(int index=0;index<fields.size();index++) {
+          String value=r.getString(index+4);cells.add(value==null||value.isBlank()?"":value);
+        }
+        return new Row(r.getString(1),List.copyOf(cells),dataset.build(),name+" · build "+dataset.build()+" · "+r.getString(2)+":"+r.getLong(3));
+      },dataset.snapshotId(),name);
+      if(!rows.isEmpty())return rows;
     }
     return List.of();
   }

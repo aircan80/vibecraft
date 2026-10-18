@@ -7,6 +7,9 @@ import dev.wowforever.app.ui.*;
 import dev.wowforever.app.ui.detail.*;
 import dev.wowforever.app.ui.pages.*;
 import dev.wowforever.app.ui.widgets.*;
+import dev.wowforever.app.ui.theme.Fonts;
+import dev.wowforever.app.ui.theme.Theme;
+import com.formdev.flatlaf.util.UIScale;
 import java.awt.*;
 import java.awt.event.KeyEvent;
 import java.util.List;
@@ -28,9 +31,11 @@ public final class JournalDetails {
       BooleanSetting routes) {
     if (loaded instanceof DetailPanels.LoadedInstance p) return instance(p,nav,worker,sink);
     if (loaded instanceof DetailPanels.LoadedItem p) return item(p,nav,filter,onFilter);
+    if (loaded instanceof DetailPanels.LoadedZone p)
+      return new JournalZonePage(p,repos,nav,worker,sink,questPins,routes);
     if (loaded instanceof DetailPanels.LoadedNpc p && p.portrait()!=null)
       return new JournalNpcPortrait(new NpcPage(p.detail(),p.mapZoneId(),p.map(),p.rateSources(),p.bossNpcs(),filter,
-          onFilter,p.involvement(),nav,ClipboardPort.system(),p.routes()),p.portrait());
+          onFilter,p.involvement(),nav,ClipboardPort.system(),p.routes()),p.portrait(),p.detail().summary().id(),worker);
     return DetailPanels.render(loaded,repos,nav,worker,sink,filter,onFilter,questPins,routes);
   }
 
@@ -43,10 +48,15 @@ public final class JournalDetails {
     var page=new JournalPage(encounters);
     JPanel top=new JPanel(new BorderLayout());top.setOpaque(false);
     if(!p.breadcrumbs().isEmpty())top.add(new BreadcrumbTrail(p.breadcrumbs(),nav),BorderLayout.NORTH);
-    top.add(heading,BorderLayout.CENTER);page.add(top,BorderLayout.NORTH);
+    HeaderPanel destination=encounters.header();
+    destination.setBorder(BorderFactory.createEmptyBorder(6,18,10,18));
+    serifTitle(destination,p.detail().summary().displayName(),30);
+    top.add(destination,BorderLayout.CENTER);page.add(top,BorderLayout.NORTH);
+    polishEncounters(encounters);
 
     JPanel overview=column();
     overview.add(heading("Your dungeon guide"));
+    if(encounters.coverage()!=null)overview.add(encounters.coverage());
     overview.add(new WrappingText("Choose an encounter to inspect its recorded loot, or use Maps to plan your approach.","Dungeon guide"));
     JPanel counts=new JPanel(new GridLayout(1,3,10,0));counts.setOpaque(false);
     counts.add(fact("Encounters",Long.toString(p.detail().bosses().stream().filter(b -> !b.extraList()).count())));
@@ -75,11 +85,23 @@ public final class JournalDetails {
   private static JComponent item(DetailPanels.LoadedItem p, Navigator nav, SourceFilter filter,
       Consumer<SourceFilter> onFilter) {
     var item=new ItemPage(p.detail(),p.icon(),p.rateSources(),p.bossNpcs(),filter,onFilter,
-        p.involvement(),nav,ClipboardPort.system(),List.of(),p.knowledge().stream().filter(k -> k.field().equals("stats")).toList(),p.appearance(),p.foreverContext(),p.nativeMetadata());
+        p.involvement(),nav,ClipboardPort.system(),List.of(),List.of(),
+        p.appearance()!=null&&p.appearance().available()?p.appearance():null,p.foreverContext(),p.nativeMetadata());
+    item.header().setTitleShown(false);
+    item.header().setNote(null);
+    if(item.card()!=null) {
+      Component holder=item.card().getParent();Container body=holder.getParent();int index=body.getComponentZOrder(holder);
+      var facts=new JournalItemFacts(p,item.card(),nav);body.remove(holder);body.add(facts,index);
+    }
     item.setClassicComparison(p.classicComparison());
     var page=new JournalPage(item);
     HeaderPanel header=new HeaderPanel(p.detail().summary().displayName(),"Item #"+p.detail().summary().id());
-    p.knowledge().stream().filter(k -> k.field().equals("stats")).findFirst().ifPresent(k -> header.add(new KnowledgeChip(k)));
+    header.setBorder(BorderFactory.createEmptyBorder(8,18,8,18));
+    serifTitle(header,p.detail().summary().displayName(),30);
+    if(p.detail().card().quality()!=null)header.setTitleColor(() -> dev.wowforever.app.ui.theme.QualityColors.text(p.detail().card().quality(),com.formdev.flatlaf.FlatLaf.isLafDark()));
+    p.knowledge().stream().filter(k -> k.field().equals("stats")).findFirst().ifPresent(k -> {
+      KnowledgeChip chip=new KnowledgeChip(k);chip.setAlignmentX(Component.LEFT_ALIGNMENT);header.add(chip);
+    });
     page.add(header,BorderLayout.NORTH);
     page.tab("Item & acquisition",KeyEvent.VK_I,item);
     JPanel evidence=column();evidence.add(heading("Understand this item's evidence"));
@@ -91,11 +113,36 @@ public final class JournalDetails {
     return page;
   }
 
+  private static void serifTitle(Container panel,String name,int size) {
+    for(Component c:panel.getComponents()) {
+      if(c instanceof JLabel label && name.equals(label.getText()))label.setFont(Fonts.heading(UIScale.scale((float)size)));
+      if(c instanceof Container child)serifTitle(child,name,size);
+    }
+  }
+  private static void polishEncounters(InstancePage page) {
+    if(page.bossesNote()!=null)page.bossesNote().setText("Loot sources and verification are shown beside each encounter’s records.");
+    page.encounters().setFixedCellHeight(UIScale.scale(52));
+    page.encounters().setCellRenderer((list,boss,index,selected,focus) -> {
+      JPanel row=new JPanel(new BorderLayout(10,0));
+      row.setBackground(selected?list.getSelectionBackground():list.getBackground());
+      row.setBorder(BorderFactory.createCompoundBorder(focus?BorderFactory.createLineBorder(Theme.current().link()):BorderFactory.createEmptyBorder(1,1,1,1),BorderFactory.createEmptyBorder(7,10,7,10)));
+      JLabel number=new JLabel(Integer.toString(index+1));number.setForeground(selected?list.getSelectionForeground():Theme.current().textMuted());
+      JLabel name=new JLabel(boss.displayName());name.setForeground(selected?list.getSelectionForeground():Theme.current().textPrimary());
+      name.setFont(name.getFont().deriveFont(UIScale.scale(14f)));name.setToolTipText(boss.displayName());
+      row.add(number,BorderLayout.WEST);row.add(name);row.getAccessibleContext().setAccessibleName((index+1)+". "+boss.displayName());return row;
+    });
+    page.extraLists().setFixedCellHeight(UIScale.scale(40));
+    Runnable rows=() -> {if(page.lootTable()!=null)page.lootTable().table().setRowHeight(UIScale.scale(34));};
+    rows.run();
+    page.encounters().addListSelectionListener(e -> {if(!e.getValueIsAdjusting())SwingUtilities.invokeLater(rows);});
+    page.extraLists().addListSelectionListener(e -> {if(!e.getValueIsAdjusting())SwingUtilities.invokeLater(rows);});
+  }
+
   private static JPanel column() {
     JPanel panel=new StackPanel();panel.setBorder(BorderFactory.createEmptyBorder(16,18,16,18));return panel;
   }
   private static JLabel heading(String text) {
-    JLabel label=new JLabel(text);label.setFont(label.getFont().deriveFont(Font.BOLD,18f));
+    JLabel label=new JLabel(text);label.setFont(Fonts.heading(UIScale.scale(24f)));
     label.setBorder(BorderFactory.createEmptyBorder(0,0,12,0));label.setAlignmentX(Component.LEFT_ALIGNMENT);return label;
   }
   private static JPanel fact(String label,String value) {

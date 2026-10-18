@@ -1,5 +1,11 @@
 package dev.wowforever.app.db;
 
+import com.google.gson.Strictness;
+import com.google.gson.JsonParser;
+import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
+import java.io.IOException;
+import java.io.StringReader;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -28,18 +34,55 @@ public final class ClientTableRows {
   public static List<Row> read(Connection c,String snapshotId,String table) throws SQLException {
     if(!Sql.hasTable(c,"client_table_row")) return List.of();
     List<Row> rows=new ArrayList<>();
-    try(var ps=c.prepareStatement("SELECT r.row_id,r.source_path,r.source_line,j.key,j.value FROM client_table_row r, json_each(r.payload) j WHERE r.snapshot_id=? AND r.table_name=? ORDER BY r.source_line,j.id")) {
+    // Fetch one native record, not one JDBC row per CSV cell. Sorting the expanded json_each
+    // result used minutes and a large SQLite temporary file for wide tables such as ItemSparse.
+    // Sort the resulting record references in Java instead of making SQLite sort large payloads.
+    try(var ps=c.prepareStatement("SELECT row_id,payload,source_path,source_line FROM client_table_row WHERE snapshot_id=? AND table_name=?")) {
       ps.setString(1,snapshotId);ps.setString(2,table);
       try(var rs=ps.executeQuery()) {
-        String id=null,path=null;long line=0;Map<String,String> cells=new LinkedHashMap<>();
-        while(rs.next()) {
-          String next=rs.getString(1);
-          if(id!=null&&!id.equals(next)){rows.add(new Row(id,cells,path,line));cells=new LinkedHashMap<>();}
-          id=next;path=rs.getString(2);line=rs.getLong(3);cells.put(rs.getString(4),rs.getString(5));
-        }
-        if(id!=null) rows.add(new Row(id,cells,path,line));
+        while(rs.next())rows.add(new Row(rs.getString(1),decodePayload(rs.getString(2)),rs.getString(3),rs.getLong(4)));
       }
     }
+    rows.sort(java.util.Comparator.comparingLong(Row::sourceLine));
     return List.copyOf(rows);
+  }
+
+  /**
+   * Decodes the archived JSON object once, retaining column order and the difference between
+   * a missing column, JSON null, an empty cell, and the string "0". Native CSV cells are strings;
+   * typed scalar values in older fixtures also follow SQLite json_each's text representation.
+   */
+  public static Map<String,String> decodePayload(String payload) throws SQLException {
+    Map<String,String> cells=new LinkedHashMap<>();
+    if(payload==null)throw new SQLException("Native row payload is null");
+    try(JsonReader json=new JsonReader(new StringReader(payload))) {
+      json.setStrictness(Strictness.STRICT);
+      json.beginObject();
+      while(json.hasNext()) {
+        String key=json.nextName();
+        String value=switch(json.peek()) {
+          case NULL -> {json.nextNull();yield null;}
+          case BOOLEAN -> json.nextBoolean()?"1":"0";
+          case STRING -> json.nextString();
+          case NUMBER -> sqliteNumber(json.nextString());
+          case BEGIN_OBJECT,BEGIN_ARRAY -> JsonParser.parseReader(json).toString();
+          default -> throw new SQLException("Unsupported native cell token for "+key);
+        };
+        cells.put(key,value);
+      }
+      json.endObject();
+      if(json.peek()!=JsonToken.END_DOCUMENT)throw new SQLException("Trailing native row payload");
+      return cells;
+    }catch(IOException|IllegalStateException|com.google.gson.JsonParseException failure) {
+      throw new SQLException("Invalid archived native row JSON",failure);
+    }
+  }
+  private static String sqliteNumber(String value) {
+    // SQLite exposes integer JSON numbers as longs and real numbers as doubles. Strings never
+    // pass through this conversion: IDs, large numeric cells, and blank CSV cells remain exact.
+    if(value.indexOf('.')<0&&value.indexOf('e')<0&&value.indexOf('E')<0) {
+      try{return Long.toString(Long.parseLong(value));}catch(NumberFormatException ignored){}
+    }
+    return Double.toString(Double.parseDouble(value));
   }
 }

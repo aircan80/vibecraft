@@ -24,6 +24,16 @@ public final class Async {
 
   private Async() {}
 
+  private record Ready<T>(T value) {}
+
+  /** Obsolete queued navigation never starts its expensive load; obsolete results/errors are also discarded. */
+  public static <T> void runIf(Executor worker, java.util.function.BooleanSupplier current,
+      Supplier<T> work, Consumer<T> onEdt, Consumer<Exception> onError) {
+    run(worker, () -> current.getAsBoolean() ? new Ready<>(work.get()) : null,
+        result -> { if (result != null && current.getAsBoolean()) onEdt.accept(result.value()); },
+        failure -> { if (current.getAsBoolean()) onError.accept(failure); });
+  }
+
   /** Runs {@code work} in a {@link SwingWorker}; {@code onEdt} or {@code onError} then runs on the EDT. */
   public static <T> void run(Supplier<T> work, Consumer<T> onEdt, Consumer<Exception> onError) {
     run(SWING_WORKER, work, onEdt, onError);

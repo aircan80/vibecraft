@@ -1,0 +1,100 @@
+{
+  "npc_id": 2671,
+  "npc_name": "Mechanical Squirrel",
+  "build": "1.60.1.70450",
+  "display_id": 7937,
+  "model_data_id": 134,
+  "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+  "root_content_key": "8a0ca94be2f6ace93991c04ca6e19b57",
+  "official_cdn_base": "https://us.cdn.blizzard.com/tpr/wow",
+  "source_assets": [
+    {
+      "file_data_id": 126062,
+      "content_md5": "e58b60c4968282be403add62e7c6bf3e"
+    },
+    {
+      "file_data_id": 126061,
+      "content_md5": "23767eabc8f426e33c4ac07708c68ae4"
+    },
+    {
+      "file_data_id": 479933,
+      "content_md5": "a90e0f3ecbfd3c27d8d2612187c4b21e"
+    }
+  ],
+  "source_identity": "Same-build Creature \u2192 CreatureDisplayInfo \u2192 CreatureModelData; archived native client records",
+  "description": "12 generated views in 30-degree steps; native bind pose, no animation; not in-game screenshots",
+  "renderer": "4.5.3 LTS",
+  "engine": "Cycles CPU",
+  "samples": 48,
+  "resolution": [
+    768,
+    768
+  ],
+  "pose": "native bind pose; no animation",
+  "camera": "orthographic three-quarter",
+  "input_sha256": "c09c3311392f79747e12a648fbc57e90078ef9c36d4881d7291471a8f63c16b6",
+  "render_report_sha256": "3ec924af00a6e2d283ba50b85f4f67adc82c9ce5e0c1c8c91765a7826abf0f19",
+  "build_attestation_sha256": "2596aacdef3c007c1da2daacfe966e36108196cf321535736245970cbe99b4c4",
+  "frames": [
+    {
+      "file": "turntable-00.png",
+      "angle": 0,
+      "sha256": "fc0407d9ed1ad83cfa3e01d29aa32306dd97ac106791a295f6cdac02bc112dfd"
+    },
+    {
+      "file": "turntable-01.png",
+      "angle": 30,
+      "sha256": "48443397608487ee6b00d6f2a8c670a65ad70dcee9436dd6b906b4ddd4651948"
+    },
+    {
+      "file": "turntable-02.png",
+      "angle": 60,
+      "sha256": "7398e221dda75b40eb25b03653480e8728ccc54d94e63a453d31e2eaa98fe2de"
+    },
+    {
+      "file": "turntable-03.png",
+      "angle": 90,
+      "sha256": "60ed5c9340c4a88b12063817dddd1ae0821103b5742e69c0e564b28cbfadde33"
+    },
+    {
+      "file": "turntable-04.png",
+      "angle": 120,
+      "sha256": "419e284bb2261aba19c7b656923008adb7fd59481f1149cf40b360904c4f5035"
+    },
+    {
+      "file": "turntable-05.png",
+      "angle": 150,
+      "sha256": "7156763efc7d366d5ba4914dffcf91e97e64af708db493c79addb9a028743236"
+    },
+    {
+      "file": "turntable-06.png",
+      "angle": 180,
+      "sha256": "cdf7b41ca3db95849568b1ccb22af238bcf50b161ce6a2ce3306fa647333a6f0"
+    },
+    {
+      "file": "turntable-07.png",
+      "angle": 210,
+      "sha256": "8358293b27c20f1411c7325fe9a36b11203f291529e5a85ea3736fc6fcb3ac48"
+    },
+    {
+      "file": "turntable-08.png",
+      "angle": 240,
+      "sha256": "cc89feedacbece3e398cffc5f5a64ba7cbec699cc22b0c7dcc211397b82072c4"
+    },
+    {
+      "file": "turntable-09.png",
+      "angle": 270,
+      "sha256": "f839874c4572fe0db4a5c816c9bc6f31743bc8eaf9c149207ac68b0dd1534d8b"
+    },
+    {
+      "file": "turntable-10.png",
+      "angle": 300,
+      "sha256": "beed85d03ef9e372494edd32d2acbd9b149d5f0a5d91156e91059dd595aff9e3"
+    },
+    {
+      "file": "turntable-11.png",
+      "angle": 330,
+      "sha256": "ac675adc375e8753ea99a5816ce237b0c411e6187447cb0568ed2afeb9705e11"
+    }
+  ]
+}

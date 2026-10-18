@@ -75,6 +75,25 @@ class JournalDetailsTest {
     });
   }
 
+  @Test void themedItemFactsKeepTheOriginalTooltipBehindAUserAction() throws Exception {
+    var detail=FixtureDb.repositories().items().detail(19019).orElseThrow();
+    var loaded=new DetailPanels.LoadedItem(detail,null,Map.of(),Set.of());
+    SwingUtilities.invokeAndWait(() -> {
+      var page=render(loaded);
+      var all=descendants(page);
+      assertThat(all.stream().filter(JournalItemFacts.class::isInstance)).hasSize(1);
+      var original=all.stream().filter(dev.wowforever.app.ui.widgets.ItemCardPanel.class::isInstance).findFirst().orElseThrow();
+      assertThat(original.getParent().isVisible()).isFalse();
+      var toggle=(javax.swing.JToggleButton)all.stream().filter(c -> c instanceof javax.swing.JToggleButton b && b.getText().equals("In-game tooltip")).findFirst().orElseThrow();
+      toggle.doClick();assertThat(original.getParent().isVisible()).isTrue();
+    });
+  }
+  private static java.util.List<java.awt.Component> descendants(java.awt.Container root) {
+    var values=new java.util.ArrayList<java.awt.Component>();
+    for(var c:root.getComponents()){values.add(c);if(c instanceof java.awt.Container nested)values.addAll(descendants(nested));}
+    return values;
+  }
+
   private static JournalDetails.JournalPage render(Object loaded) {
     // Null repositories deliberately prove these two routes consume only preloaded data on the EDT.
     return (JournalDetails.JournalPage)JournalDetails.render(loaded,null,t->{},Runnable::run,

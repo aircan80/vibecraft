@@ -1,5 +1,23 @@
 # Resume development — current checkpoint
 
+## Latest verified continuation: Journal polish, catalog loads and turntable
+
+The next preview integrates the closer Home/entity styling, hierarchical map pages
+with an On this map inspector, bounded native catalog reads, stale queued-load
+guards and a native optional twelve-view Mechanical Squirrel turntable. Portrait
+is the default; rotating views decode on the application worker and are gated by
+exact NPC/build plus manifest and frame hashes. Keyboard/slider/drag/playback
+controls and compact layout are covered by focused tests. No live 3D animation
+or additional verified NPC coverage is claimed.
+
+Full verify passed: 1881 tests, six skipped, zero failures/errors. Exact final
+artifact SHA256 `db8bb691d487198f82e4ea7c64b1d998b9b7640eb5a7998ee542828b6586bc01`
+passed 22 native and 12 headless captures including actual rotation controls and
+theme transitions. Desktop relaunched from this artifact with normal chooser.
+See `docs/verification/journal-polish.json`. The older preview below is historical. Performance
+investigation: `docs/performance/2026-10-17-catalog-load-fixes.md` and the independent
+SQL review beside it. The shipped SQLite bytes remain unchanged.
+
 ## Latest checkpoint: dual interface and native portrait
 
 Normal startup now asks **Original interface** or **Explorer Journal**. CLI overrides: `--ui=classic` / `--ui=journal`. Original remains the default constructor for compatibility harnesses; ordinary interactive startup always asks. Journal has separate layout preferences, labelled routes, a task Home with genuine Dalaran art, a unified dungeon index and stateful detail tabs. No production DB bytes changed.

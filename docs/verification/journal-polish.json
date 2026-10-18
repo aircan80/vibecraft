@@ -1,0 +1,48 @@
+{
+  "version": "0.4.1-SNAPSHOT / Explorer Journal polish and native turntable",
+  "completedAt": "2026-10-18T00:05:43.533083+00:00",
+  "appJarSha256": "db8bb691d487198f82e4ea7c64b1d998b9b7640eb5a7998ee542828b6586bc01",
+  "databaseBuild": "40ca42c8e8c6442c0e2e633f76bf4f4638ebf23faf4029b568ee1ee038c207b7",
+  "databaseBytesChanged": false,
+  "tests": 1881,
+  "skipped": 6,
+  "failures": 0,
+  "errors": 0,
+  "ui": {
+    "nativeStatus": "PASS",
+    "nativeCaptures": 22,
+    "headlessCaptures": 12,
+    "nativeReport": ".local/journal-polish-acceptance/native-turntable-final/report.txt",
+    "headlessReport": ".local/journal-polish-acceptance/headless-turntable-final/report.txt",
+    "scope": "Isolated X11 Robot, no Wayland automation claim",
+    "checks": [
+      "Original/Journal chooser",
+      "theme switch backgrounds",
+      "compact layout",
+      "map marker selection and explicit Open",
+      "navigation and history",
+      "optional original item tooltip",
+      "strict Forever and explicit Era comparison",
+      "verified NPC portrait",
+      "turntable arrows, keyboard, dragging, slider, reset, playback and portrait return"
+    ]
+  },
+  "catalogFirstLoadMs": {
+    "set2133": 61.39,
+    "stats": 2.02,
+    "trinkets": 229.91,
+    "recipes": 187.06,
+    "xpFood": 189.57,
+    "comprehension": 79.81
+  },
+  "timingScope": "Fresh Database instance; OS cache potentially warm. Repository timings, not whole page latency.",
+  "npcRendering": {
+    "npcId": 2671,
+    "build": "1.60.1.70450",
+    "views": 12,
+    "mode": "Bundled rendered bind-pose views, not live 3D animation",
+    "decode": "Optional asynchronous load, SHA checked manifest and frames, bounded single-pack cache",
+    "coverage": "One verified NPC; Seeking Remnant mapping unresolved"
+  },
+  "desktopLaunch": "Exact verified artifact copied to .local/running/wow-forever-browser.jar and launched with normal chooser"
+}

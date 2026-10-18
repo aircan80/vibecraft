@@ -1,6 +1,8 @@
 package dev.wowforever.app.ui.journal;
 
 import dev.wowforever.app.ui.theme.Theme;
+import dev.wowforever.app.ui.theme.Fonts;
+import com.formdev.flatlaf.util.UIScale;
 import dev.wowforever.app.ui.widgets.WrappingText;
 import java.awt.*;
 import javax.swing.*;
@@ -9,7 +11,7 @@ import javax.swing.*;
 final class JournalSurface {
   private JournalSurface() {}
   static JLabel heading(String text,int size) {
-    JLabel label=new JLabel(text);label.setFont(label.getFont().deriveFont(Font.BOLD,(float)size));label.setForeground(Theme.current().textPrimary());return label;
+    JLabel label=new JLabel(text);label.setFont(Fonts.heading(UIScale.scale((float)size)));label.setForeground(Theme.current().textPrimary());return label;
   }
   static JTextArea title(String text,int size) {
     JTextArea title=new JTextArea(text,0,20) {
@@ -21,18 +23,26 @@ final class JournalSurface {
         return new Dimension(natural.width,(int)Math.ceil(view.getPreferredSpan(javax.swing.text.View.Y_AXIS)));
       }
     };
-    title.setFont(UIManager.getFont("Label.font").deriveFont(Font.BOLD,(float)size));title.setEditable(false);title.setFocusable(false);title.setOpaque(false);title.setLineWrap(true);title.setWrapStyleWord(true);
+    title.setFont(Fonts.heading(UIScale.scale((float)size)));title.setEditable(false);title.setFocusable(false);title.setOpaque(false);title.setLineWrap(true);title.setWrapStyleWord(true);
     title.getAccessibleContext().setAccessibleName(text);return title;
   }
   static JPanel stack() { JPanel panel=new JPanel(new Stack());panel.setOpaque(false);return panel; }
   static JPanel card() {
-    JPanel panel=stack();panel.setOpaque(true);panel.setBackground(Theme.current().bgRaised());
-    panel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Theme.current().hairline()),
-        BorderFactory.createEmptyBorder(18,18,18,18)));return panel;
+    JPanel panel=new JPanel(new Stack()) {
+      @Override protected void paintComponent(Graphics graphics){
+        Graphics2D g=(Graphics2D)graphics.create();g.setRenderingHint(RenderingHints.KEY_ANTIALIASING,RenderingHints.VALUE_ANTIALIAS_ON);
+        g.setColor(Theme.current().bgRaised());g.fillRoundRect(0,0,getWidth()-1,getHeight()-1,18,18);
+        Color base=Theme.current().bgRaised(),line=Theme.current().textMuted();
+        g.setColor(new Color((base.getRed()*3+line.getRed())/4,(base.getGreen()*3+line.getGreen())/4,(base.getBlue()*3+line.getBlue())/4));
+        g.drawRoundRect(0,0,getWidth()-1,getHeight()-1,18,18);g.dispose();
+      }
+    };
+    panel.setOpaque(false);panel.setBorder(BorderFactory.createEmptyBorder(22,22,22,22));return panel;
   }
   static void add(JPanel parent,JComponent child) { parent.add(child);parent.add(Box.createVerticalStrut(10)); }
   static WrappingText copy(String value) { return new WrappingText(value,value); }
-  static JPanel grid() { JPanel panel=new JPanel(new Grid());panel.setOpaque(false);return panel; }
+  static JPanel grid() {return grid(2,720);}
+  static JPanel grid(int columns,int threshold) { JPanel panel=new JPanel(new Grid(columns,threshold));panel.setOpaque(false);return panel; }
   static JScrollPane scroll(Body body) {
     JScrollPane pane=new JScrollPane(body,JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
     pane.setBorder(BorderFactory.createEmptyBorder());pane.getVerticalScrollBar().setUnitIncrement(24);return pane;
@@ -61,13 +71,15 @@ final class JournalSurface {
     }
   }
   static final class Grid implements LayoutManager {
-    private int columns(Container p){return p.getWidth()>=720?2:1;}
+    private final int wideColumns,threshold;
+    Grid(int wideColumns,int threshold){this.wideColumns=wideColumns;this.threshold=threshold;}
+    private int columns(Container p){return p.getWidth()>=threshold?wideColumns:1;}
     public void addLayoutComponent(String n,Component c){}public void removeLayoutComponent(Component c){}
     public Dimension minimumLayoutSize(Container p){return new Dimension(0,preferredLayoutSize(p).height);}
     public Dimension preferredLayoutSize(Container p){return measure(p,false);}
     public void layoutContainer(Container p){measure(p,true);}
     private Dimension measure(Container p,boolean layout){
-      int columns=columns(p),gap=14,width=Math.max(0,(p.getWidth()-gap*(columns-1))/columns),y=0,n=p.getComponentCount();
+      int columns=columns(p),gap=16,width=Math.max(0,(p.getWidth()-gap*(columns-1))/columns),y=0,n=p.getComponentCount();
       for(int i=0;i<n;i+=columns){int h=0;
         for(int j=i;j<Math.min(n,i+columns);j++){
           Component c=p.getComponent(j);c.setSize(width,Math.max(1,c.getHeight()));

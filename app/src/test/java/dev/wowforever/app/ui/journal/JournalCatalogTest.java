@@ -42,6 +42,21 @@ class JournalCatalogTest {
       page.restoreState(new JournalDungeonPage.State("",1,2,4,1,0,null,0));assertThat(buttons(page)).anyMatch(b->b.getText().equals("Reset filters"));
     });
   }
+  @Test void desktopHomeKeepsPrimaryTasksAndDalaranInTheFirstViewport() throws Exception {
+    SwingUtilities.invokeAndWait(()->{
+      var image=new java.awt.image.BufferedImage(500,500,java.awt.image.BufferedImage.TYPE_INT_RGB);
+      var page=new JournalHomePage(new JournalCatalog.HomeSnapshot(List.of(dungeon(7,"City of Dalaran",true)),"70450",image,"Map A"),ignored->{});
+      page.setSize(1030,760);for(int i=0;i<12;i++)layout(page);
+      JButton world=button(page,"Explore the world"),dungeons=button(page,"Find a dungeon"),gear=button(page,"Browse items");
+      Point w=SwingUtilities.convertPoint(world,0,0,page),d=SwingUtilities.convertPoint(dungeons,0,0,page),g=SwingUtilities.convertPoint(gear,0,0,page);
+      assertThat(w.x).isLessThan(d.x);assertThat(d.x).isLessThan(g.x);
+      assertThat(Math.abs(w.y-d.y)).isLessThan(80);assertThat(Math.abs(d.y-g.y)).isLessThan(80);
+      assertThat(g.y+gear.getHeight()).isLessThan(760);
+      JButton dalaran=button(page,"Explore Dalaran");Point feature=SwingUtilities.convertPoint(dalaran,0,0,page);
+      assertThat(feature.y).isGreaterThan(g.y).isLessThan(760);
+    });
+  }
+  private static void layout(Container root){root.doLayout();for(Component c:root.getComponents())if(c instanceof Container child)layout(child);}
   private static JButton button(Container root,String text){return buttons(root).stream().filter(b->text.equals(b.getText())).findFirst().orElseThrow(()->new AssertionError("Missing button: "+text));}
   private static List<JButton> buttons(Container root){List<JButton> result=new ArrayList<>();for(Component c:root.getComponents()){if(c instanceof JButton b)result.add(b);if(c instanceof Container child)result.addAll(buttons(child));}return result;}
 }

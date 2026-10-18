@@ -99,6 +99,7 @@ public final class MainFrame extends JFrame implements MainView {
   public MainFrame(UiExperience experience) {
     super(APP_NAME);
     this.experience = java.util.Objects.requireNonNull(experience);
+    if (experience == UiExperience.JOURNAL) dev.wowforever.app.ui.journal.JournalAppearance.apply();
     uiState = experience == UiExperience.JOURNAL ? UiState.loadJournal() : UiState.load();
     textSize = new TextSize(uiState);
     journalSidebar = experience == UiExperience.JOURNAL
@@ -178,6 +179,7 @@ public final class MainFrame extends JFrame implements MainView {
     layout.start();
     textSize.applySaved();
     wireStatusToggles();
+    if (experience == UiExperience.JOURNAL) SwingUtilities.updateComponentTreeUI(this);
   }
 
   /**
@@ -202,6 +204,8 @@ public final class MainFrame extends JFrame implements MainView {
   private void toggleTheme() {
     ThemeManager.toggle(this);
     if (journalSidebar != null) {
+      dev.wowforever.app.ui.journal.JournalAppearance.apply();
+      SwingUtilities.updateComponentTreeUI(this);
       journalSidebar.refreshTheme();
       rerender();
     }

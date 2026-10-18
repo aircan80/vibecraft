@@ -16,6 +16,24 @@ import org.junit.jupiter.api.Test;
 class AsyncTest {
 
   @Test
+  void obsoleteQueuedWorkDoesNotRunAndDoesNotDeliver() {
+    List<Runnable> queue=new ArrayList<>();
+    AtomicBoolean current=new AtomicBoolean(true),ran=new AtomicBoolean(),delivered=new AtomicBoolean();
+    Async.runIf(queue::add,current::get,()->{ran.set(true);return "old";},
+        value->delivered.set(true),failure->delivered.set(true));
+    current.set(false);queue.getFirst().run();
+    assertThat(ran).isFalse();assertThat(delivered).isFalse();
+  }
+
+  @Test
+  void loadOvertakenDuringWorkDoesNotDeliverItsValue() {
+    AtomicBoolean current=new AtomicBoolean(true),delivered=new AtomicBoolean();
+    Async.runIf(Runnable::run,current::get,()->{current.set(false);return "old";},
+        value->delivered.set(true),failure->delivered.set(true));
+    assertThat(delivered).isFalse();
+  }
+
+  @Test
   void synchronousExecutorDeliversInline() {
     List<String> got = new ArrayList<>();
     Async.run(Runnable::run, () -> "done", got::add, e -> got.add("error"));

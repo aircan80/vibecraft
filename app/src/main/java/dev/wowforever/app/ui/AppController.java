@@ -83,8 +83,8 @@ public final class AppController implements Navigator {
   private EntityRef hitRef;
   private String hitTitle;
   private final NavigationHistory history = new NavigationHistory();
-  private int resultsGeneration;
-  private int detailGeneration;
+  private volatile int resultsGeneration;
+  private volatile int detailGeneration;
   /** Whether the current history slot was taken by a list preview, so the next preview may reuse it. */
   private boolean previewSlot;
   /** Search input revision when the current entity navigation was requested or explicitly committed. */
@@ -473,7 +473,7 @@ public final class AppController implements Navigator {
     int generation = ++resultsGeneration;
     int detail = detailGeneration;
     view.status().setMessage("Loading…");
-    Async.run(worker, work, listing -> {
+    Async.runIf(worker, () -> generation == resultsGeneration, work, listing -> {
       if (generation == resultsGeneration) {
         view.masterList().show(listing.title(), listing.entries(), listing.capped());
         if (opened != null) {
@@ -519,7 +519,7 @@ public final class AppController implements Navigator {
         setPage(null, LoadingPage.of(ref.kind(), title), null);
       }
     });
-    Async.run(worker, () -> DetailPanels.load(ref, repos), detail -> {
+    Async.runIf(worker, () -> generation == detailGeneration, () -> DetailPanels.load(ref, repos), detail -> {
       if (generation == detailGeneration) {
         loadingDelay.cancel();
         if (detail.isPresent()) {
@@ -586,7 +586,7 @@ public final class AppController implements Navigator {
     leaveListPage();
     view.setTitleSuffix(ListPage.title(t.kind()));
     view.status().setMessage("Loading…");
-    Async.run(worker, () -> new LoadedList(listOptions(t), ListRows.load(t, repos)), loaded -> {
+    Async.runIf(worker, () -> generation == detailGeneration, () -> new LoadedList(listOptions(t), ListRows.load(t, repos)), loaded -> {
       if (generation == detailGeneration) {
         AtomicReference<ListPage> self = new AtomicReference<>();
         ListPage page = new ListPage(t, loaded.options(), loaded.rows(), this, f -> refilter(self.get(), f));
@@ -614,7 +614,7 @@ public final class AppController implements Navigator {
     leaveListPage();
     view.setTitleSuffix("Zones · Map");
     view.status().setMessage("Loading…");
-    Async.run(worker, () -> {
+    Async.runIf(worker, () -> generation == detailGeneration, () -> {
       var catalog = repos.worldMaps().catalog();
       var map = repos.zones().mapByUiMap(target.uiMapId());
       BufferedImage image = null;
@@ -625,7 +625,7 @@ public final class AppController implements Navigator {
       return new LoadedWorldMap(catalog, image);
     }, data -> {
       if (generation != detailGeneration) return;
-      setPage(target, new WorldMapPage(target, data.catalog(), data.image(), region -> {
+      setPage(target, worldMapPage(target, data.catalog(), data.image(), region -> {
         if (!data.catalog().children(region.uiMapId()).isEmpty()) {
           open(new ViewTarget.WorldMap(region.uiMapId()));
         } else if (region.zoneId() != null) {
@@ -646,6 +646,14 @@ public final class AppController implements Navigator {
     }, failure -> { if (generation == detailGeneration) fail(failure); });
   }
 
+  private JComponent worldMapPage(ViewTarget.WorldMap target,
+      dev.wowforever.app.model.WorldMapCatalog catalog, BufferedImage image,
+      java.util.function.Consumer<dev.wowforever.app.model.WorldMapRegion> open,
+      java.util.function.Consumer<Long> focused, Runnable root, Runnable up, Runnable list) {
+    return journal() ? new dev.wowforever.app.ui.journal.JournalWorldMapPage(target,catalog,image,open,focused,root,up,list)
+        : new WorldMapPage(target,catalog,image,open,focused,root,up,list);
+  }
+
   private record LoadedWorldMap(dev.wowforever.app.model.WorldMapCatalog catalog, BufferedImage image) {}
 
   /** Content catalogs follow the same worker/EDT split and stale-load protection as entity pages. */
@@ -663,7 +671,7 @@ public final class AppController implements Navigator {
     loadingDelay.schedule(() -> {
       if (generation == detailGeneration) setPage(null,new LoadingPage(title,"Loading archived source data…"),null);
     });
-    Async.run(worker, () -> CatalogPages.load(target, repos.database()), data -> {
+    Async.runIf(worker, () -> generation == detailGeneration, () -> CatalogPages.load(target, repos.database()), data -> {
       if (generation != detailGeneration) return;
       loadingDelay.cancel();
       setPage(target, CatalogPages.render(target, data, this));
@@ -682,7 +690,7 @@ public final class AppController implements Navigator {
     loadingDelay.schedule(() -> {
       if(generation==detailGeneration)setPage(null,new LoadingPage(title,"Opening your journal…"),null);
     });
-    Async.run(worker, () -> dev.wowforever.app.ui.journal.JournalCatalog.load(target,repos.database()), data -> {
+    Async.runIf(worker, () -> generation == detailGeneration, () -> dev.wowforever.app.ui.journal.JournalCatalog.load(target,repos.database()), data -> {
       if(generation!=detailGeneration)return;
       loadingDelay.cancel();
       JComponent component=dev.wowforever.app.ui.journal.JournalCatalog.render(data,this);
@@ -740,7 +748,7 @@ public final class AppController implements Navigator {
     view.setHistoryState(history.canBack(), history.canForward());
     int generation = ++detailGeneration;
     view.status().setMessage("Loading…");
-    Async.run(worker, () -> ListRows.load(t, repos), rows -> {
+    Async.runIf(worker, () -> generation == detailGeneration, () -> ListRows.load(t, repos), rows -> {
       if (generation == detailGeneration && page == listPage) {
         page.showRows(t, rows);
         showCount(rows.size());
