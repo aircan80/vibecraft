@@ -9,7 +9,7 @@ import sys
 
 VERSION = re.compile(r"\d+\.\d+\.\d+(?:-[a-z][a-z0-9.-]*)?\Z")
 SHA = re.compile(r"[a-f0-9]{64}\Z")
-PLACEHOLDER = re.compile(r"(?i)(todo|tbd|placeholder|replace.?me|<|>)")
+PLACEHOLDER = re.compile(r"(?i)(todo|tbd|placeholder|replace.?me|actual_|full_40_|<|>)")
 
 
 def required(obj, key):
