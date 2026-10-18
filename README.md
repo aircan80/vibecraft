@@ -102,7 +102,7 @@ Bug reports are especially useful with the app version, operating system, select
 | Keys | Action |
 |---|---|
 | Ctrl+F, Ctrl+L, / outside text fields | Focus search |
-| Esc | Close dropdown, then clear the map filter, then clear search, then focus list |
+| Esc | Close dropdown, then clear the map filter, then clear search, then focus page content |
 | Alt+Left/Right, mouse 4/5 | Back / forward |
 | Up/Down, Enter | Preview, open |
 | Ctrl+1…6 | Jump to source section |
@@ -111,7 +111,6 @@ Bug reports are especially useful with the app version, operating system, select
 | [ / ] | Quest page: previous / next quest in the chain |
 | Z | Quest page: next zone on the map |
 | Ctrl+C / Ctrl+Shift+C on a row | Copy name / copy item:ID or /way |
-| Ctrl+B | Toggle results list |
 | F10, Ctrl+Shift+T | Compact mode, always on top |
 | Ctrl+= / Ctrl+- / Ctrl+0 | Text size |
 | Up from the search box, Left/Right, Enter | Pick a kind chip in the dropdown |

@@ -115,11 +115,10 @@ final class LayoutSwitch {
   }
 
   /**
-   * Where Esc moves the focus once the search box has nothing left to close or clear: the master list in the full
-   * layout; in the compact one, which has no list, the page's first table or list (null when it has none).
+   * Esc focuses the current page's first table or list in either layout, or nothing when it has none.
    */
   Component escapeTarget() {
-    return compact ? firstBrowsable(parts.holder()) : parts.list().jlist();
+    return firstBrowsable(parts.holder());
   }
 
   /** The first focusable, visible, enabled table or list under {@code c}, or null. */
@@ -145,7 +144,7 @@ final class LayoutSwitch {
       window.show(parts.shell(), false);
     } else {
       parts.search().setCompact(false);
-      parts.toolbar().add(parts.search());
+      parts.toolbar().add(parts.search(), BorderLayout.CENTER);
       parts.detailSlot().add(parts.holder(), BorderLayout.CENTER);
       parts.content().add(parts.status(), BorderLayout.SOUTH);
       window.show(parts.content(), true);

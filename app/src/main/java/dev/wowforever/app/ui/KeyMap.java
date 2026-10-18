@@ -36,7 +36,6 @@ public final class KeyMap {
   public static final String ESCAPE = "escape";
   public static final String BACK = "back";
   public static final String FORWARD = "forward";
-  public static final String TOGGLE_LIST = "toggleList";
   public static final String COMPACT_MODE = "compactMode";
   public static final String ALWAYS_ON_TOP = "alwaysOnTop";
   public static final String TEXT_BIGGER = "textBigger";
@@ -63,7 +62,7 @@ public final class KeyMap {
   /** The keyboard map, in the order the help shows it. */
   public static final List<Binding> BINDINGS = List.of(
       new Binding("Ctrl+F, Ctrl+L, / outside text fields", FOCUS_SEARCH, "Focus search"),
-      new Binding("Esc", ESCAPE, "Close dropdown, then clear the map filter, then clear search, then focus list"),
+      new Binding("Esc", ESCAPE, "Close dropdown, then clear the map filter, then clear search, then focus page content"),
       new Binding("Alt+Left/Right, mouse 4/5", "history", "Back / forward"),
       new Binding("Up/Down, Enter", DOCUMENTED_ONLY, "Preview, open"),
       new Binding("Ctrl+1…6", DOCUMENTED_ONLY, "Jump to source section"),
@@ -73,7 +72,6 @@ public final class KeyMap {
       new Binding("[ / ]", QUEST_PAGE, "Quest page: previous / next quest in the chain"),
       new Binding("Z", QUEST_PAGE, "Quest page: next zone on the map"),
       new Binding("Ctrl+C / Ctrl+Shift+C on a row", ROW_COPY, "Copy name / copy item:ID or /way"),
-      new Binding("Ctrl+B", TOGGLE_LIST, "Toggle results list"),
       new Binding("F10, Ctrl+Shift+T", "window", "Compact mode, always on top"),
       new Binding("Ctrl+= / Ctrl+- / Ctrl+0", "textSize", "Text size"),
       new Binding("Up from the search box, Left/Right, Enter", DOCUMENTED_ONLY, "Pick a kind chip in the dropdown"));
@@ -85,7 +83,6 @@ public final class KeyMap {
       ESCAPE, List.of(new Stroke("ESCAPE", ESCAPE)),
       "history", List.of(new Stroke("alt LEFT", BACK), new Stroke("alt RIGHT", FORWARD)),
       ROW_COPY, List.of(new Stroke("ctrl C", COPY_NAME), new Stroke("shift ctrl C", COPY_ID)),
-      TOGGLE_LIST, List.of(new Stroke("ctrl B", TOGGLE_LIST)),
       "window", List.of(new Stroke("F10", COMPACT_MODE), new Stroke("shift ctrl T", ALWAYS_ON_TOP)),
       QUEST_PAGE, java.util.stream.Stream.of("g", "t", "o", "m", "c", "r", "1", "2", "3", "4", "5",
           "6", "7", "8", "9", "[", "]", "z").map(key -> new Stroke("typed " + key, key)).toList(),

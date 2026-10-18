@@ -60,13 +60,12 @@ class KeyMapTest {
         "[ / ]",
         "Z",
         "Ctrl+C / Ctrl+Shift+C on a row",
-        "Ctrl+B",
         "F10, Ctrl+Shift+T",
         "Ctrl+= / Ctrl+- / Ctrl+0",
         "Up from the search box, Left/Right, Enter");
     assertThat(KeyMap.BINDINGS).extracting(KeyMap.Binding::description).containsExactly(
         "Focus search",
-        "Close dropdown, then clear the map filter, then clear search, then focus list",
+        "Close dropdown, then clear the map filter, then clear search, then focus page content",
         "Back / forward",
         "Preview, open",
         "Jump to source section",
@@ -75,7 +74,6 @@ class KeyMapTest {
         "Quest page: previous / next quest in the chain",
         "Quest page: next zone on the map",
         "Copy name / copy item:ID or /way",
-        "Toggle results list",
         "Compact mode, always on top",
         "Text size",
         "Pick a kind chip in the dropdown");
@@ -128,13 +126,17 @@ class KeyMapTest {
   void eachKeyRunsItsHandler() {
     JRootPane root = installed();
     int when = JComponent.WHEN_IN_FOCUSED_WINDOW;
-    for (String key : List.of("ctrl F", "ctrl L", "ESCAPE", "alt LEFT", "alt RIGHT", "ctrl B", "F10",
+    for (String key : List.of("ctrl F", "ctrl L", "ESCAPE", "alt LEFT", "alt RIGHT", "F10",
         "shift ctrl T", "ctrl EQUALS", "ctrl MINUS", "ctrl 0")) {
       assertThat(press(root, when, key)).as(key).isTrue();
     }
     assertThat(ran).containsExactly(KeyMap.FOCUS_SEARCH, KeyMap.FOCUS_SEARCH, KeyMap.ESCAPE, KeyMap.BACK,
-        KeyMap.FORWARD, KeyMap.TOGGLE_LIST, KeyMap.COMPACT_MODE, KeyMap.ALWAYS_ON_TOP,
+        KeyMap.FORWARD, KeyMap.COMPACT_MODE, KeyMap.ALWAYS_ON_TOP,
         KeyMap.TEXT_BIGGER, KeyMap.TEXT_SMALLER, KeyMap.TEXT_RESET);
+  }
+
+  @Test void retiredResultsPaneShortcutIsNotBound() {
+    assertThat(press(installed(), JComponent.WHEN_IN_FOCUSED_WINDOW, "ctrl B")).isFalse();
   }
 
   @Test
@@ -164,9 +166,9 @@ class KeyMapTest {
   @Test
   void installNeedsAHandlerForEveryRootAction() {
     Map<String, Runnable> missing = handlers();
-    missing.remove(KeyMap.TOGGLE_LIST);
+    missing.remove(KeyMap.FOCUS_SEARCH);
     assertThatThrownBy(() -> KeyMap.install(new JRootPane(), missing, focusOwner::get))
-        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining(KeyMap.TOGGLE_LIST);
+        .isInstanceOf(IllegalArgumentException.class).hasMessageContaining(KeyMap.FOCUS_SEARCH);
   }
 
   @Test

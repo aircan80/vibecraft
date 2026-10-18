@@ -13,7 +13,6 @@ import java.awt.Dimension;
 import java.awt.Frame;
 import java.awt.KeyboardFocusManager;
 import java.awt.Rectangle;
-import java.awt.event.ActionEvent;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
 import java.io.IOException;
@@ -38,7 +37,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
-import javax.swing.JSplitPane;
 import javax.swing.JTable;
 import javax.swing.JTextArea;
 import javax.swing.JToolBar;
@@ -50,7 +48,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * The main window: back/forward and search on top; the icon rail, the master list and the detail in the middle;
+ * The main window: navigation beside back/forward, search and one full-width page;
  * status at the bottom. Created before the database is open; {@link #attach} wires in the controller. Never
  * created in tests (they use {@link #buildContent}, {@link CompactShell} and the panels directly). The keys are
  * those of {@link KeyMap}; the window's place, size and settings come from and go back to {@link UiState}.
@@ -62,12 +60,6 @@ import org.slf4j.LoggerFactory;
 public final class MainFrame extends JFrame implements MainView {
   public static final String APP_NAME = dev.wowforever.app.Branding.NAME;
   private static final Logger LOG = LoggerFactory.getLogger(MainFrame.class);
-  /** The content's action that hides or shows the master list (Ctrl+B through {@link KeyMap}). */
-  static final String TOGGLE_LIST = "toggleList";
-  private static final String SHOWN_DIVIDER_SIZE = "wowforever.shownDividerSize";
-  /** The content's client property holding its {@link ListVisibility}. */
-  private static final String LIST_VISIBILITY = "wowforever.listVisibility";
-
   private final JButton back = HistoryButtons.back();
   private final JButton forward = HistoryButtons.forward();
   private final JButton themeButton = new JButton();
@@ -303,85 +295,20 @@ public final class MainFrame extends JFrame implements MainView {
     searchBar.styleForJournal();
   }
 
-  /**
-   * The window content: full-height {@code rail} at the left; {@code toolbar} above the main
-   * {@code list | detail} split whose
-   * divider starts at, and is saved to, {@code state}; {@code status} below. When the list shows is up to the
-   * content's {@link ListVisibility} ({@link #listVisibility}): the content's {@link #TOGGLE_LIST} action (Ctrl+B)
-   * goes through it, and the list starts shown when {@code state} saved it pinned.
-   */
+  /** Full-height navigation beside a header and one page, with no legacy results split pane. */
   public static JPanel buildContent(JComponent toolbar, JComponent rail, JComponent list, JComponent detail,
       JComponent status, UiState state) {
-    JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, list, detail);
-    split.setContinuousLayout(true);
-    split.setResizeWeight(0);
-    split.setDividerLocation(state.dividerLocation());
-    split.addPropertyChangeListener(JSplitPane.DIVIDER_LOCATION_PROPERTY, e -> {
-      if (list.isVisible()) {
-        state.setDividerLocation(split.getDividerLocation());
-      }
-    });
+    // The controller may retain its result model, but it must never enter the visible component tree.
+    list.setVisible(false);
+    state.setListVisible(false);
     JPanel workspace = new JPanel(new BorderLayout());
     workspace.add(toolbar, BorderLayout.NORTH);
-    workspace.add(split, BorderLayout.CENTER);
+    workspace.add(detail, BorderLayout.CENTER);
     JPanel content = new JPanel(new BorderLayout());
     content.add(rail, BorderLayout.WEST);
     content.add(workspace, BorderLayout.CENTER);
     content.add(status, BorderLayout.SOUTH);
-    ListVisibility visibility = new ListVisibility(state.listVisible());
-    Runnable apply = () -> showList(split, list, state, visibility.visible());
-    content.putClientProperty(LIST_VISIBILITY, new ListControl(visibility, apply));
-    content.getActionMap().put(TOGGLE_LIST, new AbstractAction("Show list") {
-      @Override
-      public void actionPerformed(ActionEvent e) {
-        visibility.toggle();
-        apply.run();
-        state.setListVisible(visibility.pinned());
-      }
-    });
-    apply.run();
     return content;
-  }
-
-  /** The list's visibility in a content, and what shows or hides the list as it says. */
-  private record ListControl(ListVisibility visibility, Runnable apply) {}
-
-  /** The list's visibility in {@code content}, made by {@link #buildContent}. */
-  static ListVisibility listVisibility(JPanel content) {
-    return ((ListControl) content.getClientProperty(LIST_VISIBILITY)).visibility();
-  }
-
-  /**
-   * Updates the list of {@code content} with {@code change} to its {@link ListVisibility}, then shows or hides it as
-   * that says.
-   */
-  static void updateList(JPanel content, Consumer<ListVisibility> change) {
-    ListControl control = (ListControl) content.getClientProperty(LIST_VISIBILITY);
-    change.accept(control.visibility());
-    control.apply().run();
-  }
-
-  /**
-   * Hides the list (the detail takes the whole split), or shows it again at the saved width; nothing when it is
-   * already so.
-   */
-  private static void showList(JSplitPane split, JComponent list, UiState state, boolean show) {
-    if (list.isVisible() == show) {
-      return;
-    }
-    if (list.isVisible()) {
-      split.putClientProperty(SHOWN_DIVIDER_SIZE, split.getDividerSize());
-      list.setVisible(false);
-      split.setDividerSize(0);
-    } else {
-      list.setVisible(true);
-      if (split.getClientProperty(SHOWN_DIVIDER_SIZE) instanceof Integer size) {
-        split.setDividerSize(size);
-      }
-      split.setDividerLocation(state.dividerLocation());
-    }
-    split.revalidate();
-    split.repaint();
   }
 
   /** Shows the current page again (a layout switch); nothing before the controller. */
@@ -401,52 +328,9 @@ public final class MainFrame extends JFrame implements MainView {
     uiState.setSourceFilter(filter);
   }
 
-  /**
-   * A result opened: the list collapses unless pinned or the window is wide ({@link ListVisibility}). When the list
-   * had the focus (Enter on a row), the focus moves to the page, so it does not fall wherever AWT puts it.
-   */
-  @Override
-  public void onResultOpened() {
-    if (!layout.isCompact()) { // the compact layout has no list
-      Component owner = KeyboardFocusManager.getCurrentKeyboardFocusManager().getFocusOwner();
-      updateList(content, v -> v.resultOpened(getWidth()));
-      Component target = focusAfterCollapse(owner, list, detailHolder);
-      if (target != null) {
-        target.requestFocusInWindow();
-      }
-    }
-  }
-
-  /**
-   * Where the focus goes once the list may have collapsed: when {@code owner} (the focus owner before) is inside
-   * {@code list} and the list is now hidden, the page in {@code holder} ({@link #focusTargetIn}), or the holder while
-   * it holds none; otherwise null, the focus staying where it is.
-   */
-  static Component focusAfterCollapse(Component owner, JComponent list, JPanel holder) {
-    if (list.isVisible() || !focusStaysInPage(owner, list)) {
-      return null;
-    }
-    return holder.getComponentCount() > 0 && holder.getComponent(0) instanceof JComponent page
-        ? focusTargetIn(page) : holder;
-  }
-
-  /**
-   * Shows the list of {@code content} again when an opened result collapsed it, without pinning it (as a search's
-   * results do, {@link ListVisibility#resultsShown}): Esc's last step focuses the list, which must be on screen.
-   */
-  static void revealList(JPanel content) {
-    if (!listVisibility(content).visible()) {
-      updateList(content, ListVisibility::resultsShown);
-    }
-  }
-
-  /** A search filled the list: it shows. */
-  @Override
-  public void onResultsShown() {
-    if (!layout.isCompact()) {
-      updateList(content, ListVisibility::resultsShown);
-    }
-  }
+  /** Search results use the main page; the compatibility result model stays detached. */
+  @Override public void onResultOpened() {}
+  @Override public void onResultsShown() {}
 
   @Override
   public BooleanSetting routes() {
@@ -498,17 +382,11 @@ public final class MainFrame extends JFrame implements MainView {
   }
 
   private Map<String, Runnable> handlers() {
-    Action toggleList = content.getActionMap().get(TOGGLE_LIST);
     return Map.ofEntries(
         Map.entry(KeyMap.FOCUS_SEARCH, searchBar::focus),
         Map.entry(KeyMap.ESCAPE, this::escape),
         Map.entry(KeyMap.BACK, this::back),
         Map.entry(KeyMap.FORWARD, this::forward),
-        Map.entry(KeyMap.TOGGLE_LIST, () -> {
-          if (!layout.isCompact()) { // the compact layout has no list
-            toggleList.actionPerformed(new ActionEvent(content, ActionEvent.ACTION_PERFORMED, KeyMap.TOGGLE_LIST));
-          }
-        }),
         Map.entry(KeyMap.COMPACT_MODE, this::toggleCompactMode),
         Map.entry(KeyMap.ALWAYS_ON_TOP, this::toggleAlwaysOnTop),
         Map.entry(KeyMap.TEXT_BIGGER, () -> showTextSize(textSize.bigger())),
@@ -517,16 +395,12 @@ public final class MainFrame extends JFrame implements MainView {
   }
 
   /**
-   * Esc: the search box closes its dropdown or clears its text; failing both, the list takes the focus, shown again
-   * if an opened result collapsed it (in the compact layout, the page's first table or list).
+   * Esc closes the dropdown, clears the current filter or search, then focuses browsable page content.
    */
   private void escape() {
     JComponent page = detailHolder.getComponentCount() > 0 && detailHolder.getComponent(0) instanceof JComponent c
         ? c : null;
     if (!escapeContent(searchBar, page)) {
-      if (!layout.isCompact()) {
-        revealList(content); // a list collapsed by an opened result comes back for Esc, unpinned
-      }
       Component target = layout.escapeTarget();
       if (target != null) {
         target.requestFocusInWindow();
@@ -642,23 +516,7 @@ public final class MainFrame extends JFrame implements MainView {
   }
 
   private JMenuBar menuBar() {
-    Action toggleList = content.getActionMap().get(TOGGLE_LIST);
-    JCheckBoxMenuItem showList = new JCheckBoxMenuItem(toggleList);
-    showList.setSelected(list.isVisible());
-    showList.setAccelerator(KeyStroke.getKeyStroke("ctrl B"));
-    list.addComponentListener(new ComponentAdapter() {
-      @Override
-      public void componentShown(ComponentEvent e) {
-        showList.setSelected(true);
-      }
-
-      @Override
-      public void componentHidden(ComponentEvent e) {
-        showList.setSelected(false);
-      }
-    });
     JMenu view = new JMenu("View");
-    view.add(showList);
     WindowMenus.addViewItems(view, menuActions());
     JMenu help = new JMenu("Help");
     WindowMenus.addHelpItems(help, menuActions());
@@ -907,6 +765,6 @@ public final class MainFrame extends JFrame implements MainView {
 
   @Override
   public boolean showsMasterList() {
-    return !layout.isCompact();
+    return false;
   }
 }

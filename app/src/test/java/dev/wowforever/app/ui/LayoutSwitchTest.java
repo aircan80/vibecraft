@@ -365,13 +365,19 @@ class LayoutSwitchTest {
   }
 
   @Test
-  void escapeFocusesTheListInTheFullLayoutAndThePageInTheCompactOne() {
+  void escapeFocusesPageContentInBothLayoutsWithoutReattachingLegacyList() {
     layout.start();
-    assertThat(layout.escapeTarget()).isSameAs(view.masterList().jlist());
+    assertThat(layout.escapeTarget()).isNull();
+    assertThat(view.masterList().getParent()).isNull();
+    assertThat(view.masterList().isVisible()).isFalse();
     controller.start();
     layout.toggle();
     assertThat(layout.escapeTarget()).isNull(); // the home page has nothing to browse
     controller.open(ITEM_PAGE);
     assertThat(layout.escapeTarget()).isSameAs(((ItemPage) view.detail).droppedBy().table());
+    layout.toggle();
+    assertThat(layout.escapeTarget()).isSameAs(((ItemPage) view.detail).droppedBy().table());
+    assertThat(view.masterList().getParent()).isNull();
+    assertThat(view.masterList().isVisible()).isFalse();
   }
 }

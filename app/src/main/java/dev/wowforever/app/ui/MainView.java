@@ -47,8 +47,8 @@ public interface MainView {
   void selectRail(RailTarget target);
 
   /**
-   * Whether the master list is on screen. The compact window has none: there a full search's results take the
-   * detail area instead.
+   * Whether a view presents the compatibility master list. Journal returns false in both layouts, so full
+   * search results use the main page.
    */
   default boolean showsMasterList() {
     return true;
