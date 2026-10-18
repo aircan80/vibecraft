@@ -28,9 +28,10 @@ class ExternalDatabaseSetupTest {
   @Test void restartReusesValidatedSelectionWithoutPrompt() throws Exception {
     Preferences prefs = preferences();
     try {
-      prefs.put(ExternalDatabaseSetup.PATH_KEY, "/synthetic/catalog.sqlite");
+      Path selected = Path.of("synthetic", "catalog.sqlite").toAbsolutePath();
+      prefs.put(ExternalDatabaseSetup.PATH_KEY, selected.toString());
       Path result = ExternalDatabaseSetup.resolve(prefs, error -> { throw new AssertionError("Unexpected chooser"); }, Path::toAbsolutePath);
-      assertThat(result).isEqualTo(Path.of("/synthetic/catalog.sqlite"));
+      assertThat(result).isEqualTo(selected);
     } finally { prefs.removeNode(); }
   }
   @Test void movedDatabaseCanBeReplacedAndCancelKeepsPreviousPreference() throws Exception {
