@@ -36,3 +36,24 @@ replay is incomplete. Those warnings survive activation and registry resolution.
 consumer do not enable automatic UI activation: real-data acceptance, runtime compaction and an explicit
 reviewed caller decision remain separate work. Synthetic unit fixtures establish atomicity and routing;
 they do not establish a complete imported game library.
+
+## Compact runtime activation
+
+`activateExportedForNextStartup(fullCandidate, runtimePath, exportReceipt, plan, cancelled)` preserves the
+full-candidate API and shares its immutable-copy/atomic-pointer mechanism. The full candidate and compact
+runtime input must both be inside the actual application data directory, protected by `SetupStorage`.
+Selecting their parent as a new permissive storage root is not an alternative.
+
+The operation rederives the full candidate's hash and complete source validation, then independently calls
+`RuntimeLibraryExporter.verifyExport`. A caller-created receipt or `VerifiedExport` record is never an
+authority token. Verification binds actual source/runtime sizes and hashes, build identity, retained table
+rows, original metadata, omitted raw-record/archive-byte counts and archive identities. Forging a new hash
+for a modified runtime does not bypass comparison with the full source.
+
+Only that verified compact file is copied into versioned library storage. The copied size and SHA-256,
+structural compatibility, runtime profile and source identity are checked again before atomic publication.
+There is one expensive source/runtime row-verification pass before copying. Identical copied bytes do not
+need a second full row pass. The compact copy is not sent to the full raw-proof validator: runtime-v1
+intentionally omits those raw blobs. Registry selection keeps the original full source's validated identity,
+counts and coverage warnings, alongside the compact database's exact content hash. Startup therefore needs
+no archived raw blobs. This backend does not enable a UI activation action or relax real-data readiness.
