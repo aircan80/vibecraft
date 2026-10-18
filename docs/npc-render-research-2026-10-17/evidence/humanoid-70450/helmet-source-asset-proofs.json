@@ -1,0 +1,227 @@
+{
+  "status": "EIGHT_INPUTS_MATCH_EXACT_ROOT",
+  "proofs": [
+    {
+      "product": "wow_classic_beta",
+      "build": "1.60.1.70450",
+      "file_data_id": 900914,
+      "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+      "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+      "content_md5": "e5801e998e7496be6005fdaf805811bf",
+      "sha256": "d4dd4a7d0ffa28426bc55e2483a9147992f931e3a15b497c3fe237d084f888f4",
+      "bytes": 20009628,
+      "transport": "official CDN / verified content cache",
+      "exact_root_membership_verified": true,
+      "root_selection": "first neutral/enUS non-LowViolence entry in native root order",
+      "selected_root_entry": {
+        "file_data_id": 900914,
+        "content_key": "e5801e998e7496be6005fdaf805811bf",
+        "content_flags": 302776320,
+        "locale_flags": 95222
+      },
+      "root_variants": [
+        {
+          "file_data_id": 900914,
+          "content_key": "e5801e998e7496be6005fdaf805811bf",
+          "content_flags": 302776320,
+          "locale_flags": 95222
+        }
+      ]
+    },
+    {
+      "product": "wow_classic_beta",
+      "build": "1.60.1.70450",
+      "file_data_id": 900966,
+      "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+      "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+      "content_md5": "357eb0804c611214b0d48fffd9ad346e",
+      "sha256": "fa7fde435c3e89a70ef425e75ef1a9917a0c98e658c1888d8a98efe4be8fd2c6",
+      "bytes": 380704,
+      "transport": "https://wago.tools/api/casc/900966?download&version=1.60.1.70450&branch=wow_classic_beta",
+      "exact_root_membership_verified": true,
+      "root_selection": "first neutral/enUS non-LowViolence entry in native root order",
+      "selected_root_entry": {
+        "file_data_id": 900966,
+        "content_key": "357eb0804c611214b0d48fffd9ad346e",
+        "content_flags": 303169536,
+        "locale_flags": 95222
+      },
+      "root_variants": [
+        {
+          "file_data_id": 900966,
+          "content_key": "357eb0804c611214b0d48fffd9ad346e",
+          "content_flags": 303169536,
+          "locale_flags": 95222
+        }
+      ]
+    },
+    {
+      "product": "wow_classic_beta",
+      "build": "1.60.1.70450",
+      "file_data_id": 928687,
+      "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+      "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+      "content_md5": "21981387db0de9dc49b3e870acf7fccc",
+      "sha256": "8e60e0d55364a094b013c7358a43ba4915c6d7b0ee355bee066c7e3df75f6c9b",
+      "bytes": 88572,
+      "transport": "https://wago.tools/api/casc/928687?download&version=1.60.1.70450&branch=wow_classic_beta",
+      "exact_root_membership_verified": true,
+      "root_selection": "first neutral/enUS non-LowViolence entry in native root order",
+      "selected_root_entry": {
+        "file_data_id": 928687,
+        "content_key": "21981387db0de9dc49b3e870acf7fccc",
+        "content_flags": 302514176,
+        "locale_flags": 95222
+      },
+      "root_variants": [
+        {
+          "file_data_id": 928687,
+          "content_key": "21981387db0de9dc49b3e870acf7fccc",
+          "content_flags": 302514176,
+          "locale_flags": 95222
+        }
+      ]
+    },
+    {
+      "product": "wow_classic_beta",
+      "build": "1.60.1.70450",
+      "file_data_id": 917856,
+      "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+      "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+      "content_md5": "a226ab57fe7c56519c7273db45eaa379",
+      "sha256": "4027a9b98f93ab155e58976ce37a6c0c5ed3af2d16680bfdfe63fb907ab503f2",
+      "bytes": 88572,
+      "transport": "https://wago.tools/api/casc/917856?download&version=1.60.1.70450&branch=wow_classic_beta",
+      "exact_root_membership_verified": true,
+      "root_selection": "first neutral/enUS non-LowViolence entry in native root order",
+      "selected_root_entry": {
+        "file_data_id": 917856,
+        "content_key": "a226ab57fe7c56519c7273db45eaa379",
+        "content_flags": 302514176,
+        "locale_flags": 95222
+      },
+      "root_variants": [
+        {
+          "file_data_id": 917856,
+          "content_key": "a226ab57fe7c56519c7273db45eaa379",
+          "content_flags": 302514176,
+          "locale_flags": 95222
+        }
+      ]
+    },
+    {
+      "product": "wow_classic_beta",
+      "build": "1.60.1.70450",
+      "file_data_id": 3484614,
+      "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+      "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+      "content_md5": "bb8217094290dbf52d5e3766ae3079bc",
+      "sha256": "5bcfed4c47894c2565ee506d6472adc9af959a621cfebdf2a45a1e6636703c00",
+      "bytes": 44900,
+      "transport": "https://wago.tools/api/casc/3484614?download&version=1.60.1.70450&branch=wow_classic_beta",
+      "exact_root_membership_verified": true,
+      "root_selection": "first neutral/enUS non-LowViolence entry in native root order",
+      "selected_root_entry": {
+        "file_data_id": 3484614,
+        "content_key": "bb8217094290dbf52d5e3766ae3079bc",
+        "content_flags": 302514176,
+        "locale_flags": 95222
+      },
+      "root_variants": [
+        {
+          "file_data_id": 3484614,
+          "content_key": "bb8217094290dbf52d5e3766ae3079bc",
+          "content_flags": 302514176,
+          "locale_flags": 95222
+        }
+      ]
+    },
+    {
+      "product": "wow_classic_beta",
+      "build": "1.60.1.70450",
+      "file_data_id": 137812,
+      "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+      "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+      "content_md5": "725355096629a251aba9907a0f9031fb",
+      "sha256": "a9390fba3f9572b4a65eebdebd8880ecb7bd976e98264c02abba0f8d6128bff4",
+      "bytes": 5170,
+      "transport": "https://wago.tools/api/casc/137812?download&version=1.60.1.70450&branch=wow_classic_beta",
+      "exact_root_membership_verified": true,
+      "root_selection": "first neutral/enUS non-LowViolence entry in native root order",
+      "selected_root_entry": {
+        "file_data_id": 137812,
+        "content_key": "725355096629a251aba9907a0f9031fb",
+        "content_flags": 302776320,
+        "locale_flags": 95222
+      },
+      "root_variants": [
+        {
+          "file_data_id": 137812,
+          "content_key": "725355096629a251aba9907a0f9031fb",
+          "content_flags": 302776320,
+          "locale_flags": 95222
+        }
+      ]
+    },
+    {
+      "product": "wow_classic_beta",
+      "build": "1.60.1.70450",
+      "file_data_id": 482811,
+      "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+      "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+      "content_md5": "0ef5a62bc5035961c417dcce5706e65d",
+      "sha256": "c9462c7895dd801ac88f266bf17a37005936e5f2231583400728aa916a33bb7e",
+      "bytes": 1664,
+      "transport": "https://wago.tools/api/casc/482811?download&version=1.60.1.70450&branch=wow_classic_beta",
+      "exact_root_membership_verified": true,
+      "root_selection": "first neutral/enUS non-LowViolence entry in native root order",
+      "selected_root_entry": {
+        "file_data_id": 482811,
+        "content_key": "0ef5a62bc5035961c417dcce5706e65d",
+        "content_flags": 303169536,
+        "locale_flags": 95222
+      },
+      "root_variants": [
+        {
+          "file_data_id": 482811,
+          "content_key": "0ef5a62bc5035961c417dcce5706e65d",
+          "content_flags": 303169536,
+          "locale_flags": 95222
+        }
+      ]
+    },
+    {
+      "product": "wow_classic_beta",
+      "build": "1.60.1.70450",
+      "file_data_id": 137827,
+      "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+      "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+      "content_md5": "848129adfbb751726fa7348950ade986",
+      "sha256": "6e5651d70b027f3e01bb003f215fbd79b185897a0d33b747f7c39a39b150b091",
+      "bytes": 175948,
+      "transport": "https://wago.tools/api/casc/137827?download&version=1.60.1.70450&branch=wow_classic_beta",
+      "exact_root_membership_verified": true,
+      "root_selection": "first neutral/enUS non-LowViolence entry in native root order",
+      "selected_root_entry": {
+        "file_data_id": 137827,
+        "content_key": "848129adfbb751726fa7348950ade986",
+        "content_flags": 302514177,
+        "locale_flags": 95222
+      },
+      "root_variants": [
+        {
+          "file_data_id": 137827,
+          "content_key": "848129adfbb751726fa7348950ade986",
+          "content_flags": 302514177,
+          "locale_flags": 95222
+        },
+        {
+          "file_data_id": 137827,
+          "content_key": "a68e51731994b1e351f016ed3fb7d281",
+          "content_flags": 302514176,
+          "locale_flags": 95222
+        }
+      ]
+    }
+  ]
+}

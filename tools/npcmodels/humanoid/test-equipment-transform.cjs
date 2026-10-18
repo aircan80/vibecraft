@@ -1,0 +1,21 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {bindAttachment,translatedVertices,helmetVisible}=require('./equipment-transform.cjs');
+const m={attachmentLookup:Array(12).fill(-1),attachments:[{id:11,bone:1,position:[2,3,4]}],bones:[{parentBone:-1,flags:0,pivot:[8,8,8]},{parentBone:0,flags:512,pivot:[9,9,9]}]};m.attachmentLookup[11]=0;
+const p=bindAttachment(m,11);assert.deepEqual(p.translationWebGL,[2,4,-3]);assert.deepEqual(p.boneChain.map(b=>b.index),[1,0]);
+assert.deepEqual(translatedVertices([0,0,0,1,2,3],p.translationWebGL),[2,4,-3,3,6,0]);
+assert.equal(p.matrix[12],2);assert.equal(p.matrix[13],4);assert.equal(p.matrix[14],-3);
+assert.throws(()=>bindAttachment(m,10),/Missing/);
+const cycle=structuredClone(m);cycle.bones[0].parentBone=1;assert.throws(()=>bindAttachment(cycle,11),/hierarchy/);
+const billboard=structuredClone(m);billboard.bones[1].flags=8;assert.throws(()=>bindAttachment(billboard,11),/billboard/);
+const ranges=[{first:1,last:99},{first:201,last:299}];
+assert.equal(helmetVisible(0,ranges),true);assert.equal(helmetVisible(3,ranges),false);assert.equal(helmetVisible(201,ranges),false);assert.equal(helmetVisible(299,ranges),false);assert.equal(helmetVisible(3301,ranges),true);
+console.log('7 native attachment/visibility test groups passed');
+
+const {verifyGLBPositions}=require('./equipment-transform.cjs');
+const doc={accessors:[{bufferView:0,componentType:5126,type:'VEC3',count:1}],bufferViews:[{buffer:0,byteOffset:0}],meshes:[{primitives:[{attributes:{POSITION:0}}]}]};
+let text=Buffer.from(JSON.stringify(doc));text=Buffer.concat([text,Buffer.alloc((4-text.length%4)%4,32)]);
+const glb=Buffer.alloc(20+text.length+8+12);glb.writeUInt32LE(0x46546c67,0);glb.writeUInt32LE(text.length,12);text.copy(glb,20);[2,4,-3].forEach((v,i)=>glb.writeFloatLE(v,28+text.length+i*4));
+assert.equal(verifyGLBPositions(glb,[2,4,-3]).maxAbsoluteError,0);
+assert.throws(()=>verifyGLBPositions(glb,[0,0,0]),/position mismatch/);
+console.log('2 GLB attachment propagation test groups passed');

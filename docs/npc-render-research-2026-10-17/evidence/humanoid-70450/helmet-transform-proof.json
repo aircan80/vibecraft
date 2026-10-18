@@ -1,0 +1,267 @@
+{
+  "model": 137812,
+  "skin": 482811,
+  "texture": 137827,
+  "display": 33918,
+  "visibility": {
+    "rawIds": [
+      249,
+      0
+    ],
+    "sex": 0,
+    "selectedId": 249,
+    "state": "KNOWN_ROWS_ONLY",
+    "rows": [
+      {
+        "ID": 8838,
+        "RaceID": 7,
+        "HideGeosetGroup": 0,
+        "RaceBitSelection": 0,
+        "Field_10_0_0_46047_003": 32,
+        "HelmetGeosetVisDataID": 249
+      },
+      {
+        "ID": 8866,
+        "RaceID": 7,
+        "HideGeosetGroup": 2,
+        "RaceBitSelection": 0,
+        "Field_10_0_0_46047_003": 32,
+        "HelmetGeosetVisDataID": 249
+      }
+    ],
+    "hideGroups": [
+      0,
+      2
+    ],
+    "hideGeosetRanges": [
+      {
+        "first": 1,
+        "last": 99
+      },
+      {
+        "first": 201,
+        "last": 299
+      }
+    ]
+  },
+  "transform": {
+    "attachmentId": 11,
+    "attachment": {
+      "id": 11,
+      "bone": 172,
+      "unknown": 0,
+      "position": [
+        -0.03501581400632858,
+        0.00000557148314328515,
+        0.865135133266449
+      ],
+      "animateAttached": {
+        "globalSeq": 65535,
+        "interpolation": 0,
+        "timestamps": [],
+        "values": [],
+        "timestampOffsets": null,
+        "valueOffsets": null
+      }
+    },
+    "boneChain": [
+      {
+        "index": 172,
+        "parentBone": 48,
+        "flags": 512,
+        "pivot": [
+          -0.03501581400632858,
+          0.865135133266449,
+          -0.00000557148314328515
+        ]
+      },
+      {
+        "index": 48,
+        "parentBone": 36,
+        "flags": 33554944,
+        "pivot": [
+          -0.03501581400632858,
+          0.865135133266449,
+          -0.00000557148314328515
+        ]
+      },
+      {
+        "index": 36,
+        "parentBone": 28,
+        "flags": 33554944,
+        "pivot": [
+          -0.04163678362965584,
+          0.8294559717178345,
+          -0.00000557148314328515
+        ]
+      },
+      {
+        "index": 28,
+        "parentBone": 14,
+        "flags": 33554944,
+        "pivot": [
+          -0.04740290343761444,
+          0.7969168424606323,
+          -0.000005534187039302196
+        ]
+      },
+      {
+        "index": 14,
+        "parentBone": 9,
+        "flags": 33554944,
+        "pivot": [
+          -0.058457281440496445,
+          0.5930545926094055,
+          -0.000005438267635327065
+        ]
+      },
+      {
+        "index": 9,
+        "parentBone": 3,
+        "flags": 33554944,
+        "pivot": [
+          -0.04697456955909729,
+          0.5378017425537109,
+          -0.000005438267635327065
+        ]
+      },
+      {
+        "index": 3,
+        "parentBone": 1,
+        "flags": 33554944,
+        "pivot": [
+          -0.03439294174313545,
+          0.48707115650177,
+          0
+        ]
+      },
+      {
+        "index": 1,
+        "parentBone": 0,
+        "flags": 33554944,
+        "pivot": [
+          -0.03169912472367287,
+          0.48007121682167053,
+          0
+        ]
+      },
+      {
+        "index": 0,
+        "parentBone": -1,
+        "flags": 33554944,
+        "pivot": [
+          0,
+          0,
+          0
+        ]
+      }
+    ],
+    "mode": "native bind pose; animation disabled",
+    "boneWorldMatrix": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1
+    ],
+    "translationWebGL": [
+      -0.03501581400632858,
+      0.865135133266449,
+      -0.00000557148314328515
+    ],
+    "matrix": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      0,
+      0,
+      0,
+      1,
+      0,
+      -0.03501581400632858,
+      0.865135133266449,
+      -0.00000557148314328515,
+      1
+    ],
+    "justification": "M2RendererGL starts every local matrix at identity; with no animation applied parent-chain multiplication remains identity. No rest pivot is added twice."
+  },
+  "originalNativeBounds": {
+    "min": [
+      -0.361338347196579,
+      0.03685082495212555,
+      -0.16389209032058716
+    ],
+    "max": [
+      0.17964594066143036,
+      0.45357412099838257,
+      0.16367276012897491
+    ]
+  },
+  "exportedPositionVerification": {
+    "vertices": 91,
+    "maxAbsoluteError": 5.960464477539063e-8,
+    "tolerance": 0.000001,
+    "bounds": {
+      "min": [
+        -0.39635416865348816,
+        0.9019859433174133,
+        -0.16389766335487366
+      ],
+      "max": [
+        0.14463013410568237,
+        1.3187092542648315,
+        0.16366718709468842
+      ]
+    },
+    "coordinateSystem": "native loader WebGL [x,z,-y]"
+  },
+  "nativeMaterials": [
+    {
+      "flags": 0,
+      "blendingMode": 0
+    }
+  ],
+  "textureTypes": [
+    2
+  ],
+  "subMeshes": [
+    {
+      "submeshID": 0,
+      "level": 0,
+      "vertexStart": 0,
+      "vertexCount": 91,
+      "triangleStart": 0,
+      "triangleCount": 468,
+      "boneCount": 1,
+      "boneStart": 0,
+      "boneInfluences": 0,
+      "centerBoneIndex": 0,
+      "centerPosition": [
+        -0.11518190801143646,
+        0.00010965600813506171,
+        0.24757538735866547
+      ],
+      "sortCenterPosition": [
+        -0.11518190801143646,
+        0.00010965600813506171,
+        0.24757538735866547
+      ],
+      "sortRadius": 0.2959924042224884
+    }
+  ]
+}

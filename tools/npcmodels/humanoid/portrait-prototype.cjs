@@ -41,17 +41,39 @@ const Exporter=require(path.join(js,'3D/exporters/M2Exporter'));
  const mask=recipe.customizationGeosetMask;
  if(!Array.isArray(mask)||mask.length!==skin.subMeshes.length)throw Error('Exact model mask required');
  const geosets=new Set(mask.filter(m=>m.checked).map(m=>m.geosetID??m.id));
+ const equipment=process.env.PROTOTYPE_EQUIPMENT_RECIPE?JSON.parse(fs.readFileSync(process.env.PROTOTYPE_EQUIPMENT_RECIPE)):null;
+ let helmet=null;
+ if(equipment){
+  if(equipment.product!=='wow_classic_beta'||equipment.build!=='1.60.1.70450'||equipment.extraId!==10766)throw Error('Wrong equipment prototype identity');
+  const head=equipment.slots.find(s=>s.slotRecord.ItemSlot===0);
+  if(head?.display.ID!==33918||head.modelDependencies[0]?.selection?.fileDataIds?.join(',')!=='137812'||head.textureDependencies[0]?.fileDataIds?.join(',')!=='137827')throw Error('Ambiguous or wrong native helmet variant');
+  const helpers=require('./equipment-transform.cjs');
+  const transform=helpers.bindAttachment(exporter.m2,11);
+  helmet={model:137812,skin:482811,texture:137827,display:33918,visibility:head.helmetVisibility,transform};
+ }
  const hasHair=fs.existsSync(path.join(input,'917856.bin'));
  const hasEye=fs.existsSync(path.join(input,'3484614.bin'));
  if(hasEye){const eyeUnit=skin.textureUnits.find(u=>skin.subMeshes[u.skinSectionIndex].submeshID===3301);const mapper=require(path.join(js,'3D/ShaderMapper')); if(!eyeUnit||mapper.getPixelShader(eyeUnit.textureCount,eyeUnit.shaderID)!=='Combiners_Mod_Add'||mapper.getVertexShader(eyeUnit.textureCount,eyeUnit.shaderID)!=='Diffuse_T1_T2')throw Error('Unsupported actual native eye shader');}
  const supportedTypes=new Set([1,...(hasHair?[6]:[]),...(hasEye?[19]:[])]);
  const omitted=[];
- exporter.setGeosetMask(skin.subMeshes.map((s,i)=>{const unit=skin.textureUnits.find(t=>t.skinSectionIndex===i); const type=unit ? exporter.m2.textureTypes[exporter.m2.textureCombos[unit.textureComboIndex]] : null; const selected=geosets.has(s.submeshID); if(selected&&!supportedTypes.has(type))omitted.push({geoset:s.submeshID,textureType:type}); return {checked:selected&&supportedTypes.has(type)};}));
+ exporter.setGeosetMask(skin.subMeshes.map((s,i)=>{const unit=skin.textureUnits.find(t=>t.skinSectionIndex===i); const type=unit ? exporter.m2.textureTypes[exporter.m2.textureCombos[unit.textureComboIndex]] : null; const selected=geosets.has(s.submeshID)&&(!helmet||require('./equipment-transform.cjs').helmetVisible(s.submeshID,helmet.visibility.hideGeosetRanges)); if(selected&&!supportedTypes.has(type))omitted.push({geoset:s.submeshID,textureType:type}); return {checked:selected&&supportedTypes.has(type)};}));
  const BLP=require(path.join(js,'casc/blp'));
  const png=new BLP(new BufferWrapper(fs.readFileSync(path.join(input,'928687.bin')))).toPNG();
  await exporter.addURITexture(1,'data:image/png;base64,'+png.raw.toString('base64'));
  if(hasHair){const hair=new BLP(new BufferWrapper(fs.readFileSync(path.join(input,'917856.bin')))).toPNG(); await exporter.addURITexture(6,'data:image/png;base64,'+hair.raw.toString('base64'));}
  if(hasEye){const eye=new BLP(new BufferWrapper(fs.readFileSync(path.join(input,'3484614.bin')))).toPNG(); await exporter.addURITexture(19,'data:image/png;base64,'+eye.raw.toString('base64'));}
  await exporter.exportAsGLTF(path.join(output,'partial-humanoid.m2'),{isCancelled:()=>false,mark:()=>{}},'glb');
- fs.writeFileSync(path.join(output,'prototype-limits.json'),JSON.stringify({status:'LAB_PARTIAL_BODY_ONLY_NOT_AUTHORIZED',npc:15698,display:15660,extra:10766,model,texture:928687,hair:hasHair?917856:null,eye:hasEye?3484614:null,inputHashes:[900914,900966,928687,...(hasHair?[917856]:[]),...(hasEye?[3484614]:[])].map(id=>({fileDataId:id,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(input,`${id}.bin`))).digest('hex')})),recipeSha256:crypto.createHash('sha256').update(fs.readFileSync(process.env.PROTOTYPE_RECIPE)).digest('hex'),recipe,omittedMaterialUnresolvedMeshes:omitted,missing:['equipment attachments','equipment visibility overrides','customization bone and material conditions beyond baked atlas'],unusedFixedTexturesNotAcquired:[3550825,4531003,5210065],pose:'bind pose'},null,2));
+ if(helmet){
+  const hat=new Exporter(new BufferWrapper(fs.readFileSync(path.join(input,'137812.bin'))),[137827,0,0],137812);await hat.m2.load();
+  const hatSkin=await hat.m2.getSkin(0);
+  // Pinned GLTF exporter ignores setPosedGeometry (OBJ/STL only).
+  // Transform this isolated helmet loader's native vertex array explicitly.
+  helmet.originalNativeBounds={min:[0,1,2].map(i=>Math.min(...hat.m2.vertices.filter((_,j)=>j%3===i))),max:[0,1,2].map(i=>Math.max(...hat.m2.vertices.filter((_,j)=>j%3===i)))};
+  hat.m2.vertices=require('./equipment-transform.cjs').translatedVertices(hat.m2.vertices,helmet.transform.translationWebGL);
+  await hat.exportAsGLTF(path.join(output,'native-helmet.m2'),{isCancelled:()=>false,mark:()=>{}},'glb');
+  helmet.exportedPositionVerification=require('./equipment-transform.cjs').verifyGLBPositions(fs.readFileSync(path.join(output,'native-helmet.glb')),hat.m2.vertices);
+  helmet.nativeMaterials=hat.m2.materials;helmet.textureTypes=hat.m2.textureTypes;helmet.subMeshes=hatSkin.subMeshes;
+  fs.writeFileSync(path.join(output,'helmet-proof.json'),JSON.stringify(helmet,null,2));
+ }
+ fs.writeFileSync(path.join(output,'prototype-limits.json'),JSON.stringify({status:'LAB_PARTIAL_BODY_ONLY_NOT_AUTHORIZED',npc:15698,display:15660,extra:10766,model,texture:928687,hair:hasHair?917856:null,eye:hasEye?3484614:null,helmet,inputHashes:[900914,900966,928687,...(hasHair?[917856]:[]),...(hasEye?[3484614]:[]),...(helmet?[137812,482811,137827]:[])].map(id=>({fileDataId:id,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(input,`${id}.bin`))).digest('hex')})),recipeSha256:crypto.createHash('sha256').update(fs.readFileSync(process.env.PROTOTYPE_RECIPE)).digest('hex'),recipe,omittedMaterialUnresolvedMeshes:omitted,missing:['equipment attachments','equipment visibility overrides','customization bone and material conditions beyond baked atlas'],unusedFixedTexturesNotAcquired:[3550825,4531003,5210065],pose:'bind pose'},null,2));
 })().catch(e=>{console.error(e);process.exitCode=1;});

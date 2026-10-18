@@ -13,11 +13,16 @@ turntable='--turntable' in arguments[2:]
 output.mkdir(parents=True,exist_ok=True)
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
 bpy.ops.import_scene.gltf(filepath=str(source.resolve()))
+helmet_source=source.parent/'native-helmet.glb'
+if '--helmet' in arguments[2:]:
+ if not helmet_source.exists():raise RuntimeError('Requested native helmet GLB missing')
+ bpy.ops.import_scene.gltf(filepath=str(helmet_source.resolve()))
 custom_shapes={b.custom_shape for o in bpy.context.scene.objects if o.type=='ARMATURE' for b in o.pose.bones if b.custom_shape}
 meshes=[o for o in bpy.context.scene.objects if o.type=='MESH' and o not in custom_shapes]
 if not meshes: raise RuntimeError('GLB contains no mesh')
-# Native display scale is recorded explicitly rather than baked into mesh coordinates.
-for obj in meshes: obj.scale *= 1.3
+# Actual CreatureDisplayInfo15660 scale, common to body and native helmet.
+display_scale=0.40000000596
+for obj in meshes: obj.scale *= display_scale
 bpy.context.view_layer.update()
 points=[o.matrix_world @ v.co for o in meshes for v in o.data.vertices]
 lo=Vector(tuple(min(p[i] for p in points) for i in range(3)))
@@ -40,7 +45,7 @@ camdata=bpy.data.cameras.new('Portrait');cam=bpy.data.objects.new('Portrait',cam
 cam.location=center+Vector((1.3,-1.7,1.0)).normalized()*radius*4
 camdata.type='ORTHO';camdata.ortho_scale=radius*1.30;aim(cam,center);scene.camera=cam
 for name,offset,power,size in [('Key',(-2,-3,4),220,4),('Fill',(3,-1,2),110,3),('Rim',(0,3,3),160,3)]:
- data=bpy.data.lights.new(name,'AREA');data.energy=power;data.shape='DISK';data.size=radius*size
+ data=bpy.data.lights.new(name,'AREA');data.energy=power*(display_scale/1.3)**2;data.shape='DISK';data.size=radius*size
  obj=bpy.data.objects.new(name,data);scene.collection.objects.link(obj);obj.location=center+Vector(offset)*radius;aim(obj,center)
 # Creature material is opaque (M2 blendingMode 0); retain its original decoded texture.
 materials=[]
@@ -57,10 +62,10 @@ scene.render.filepath=str((output/'partial-humanoid.png').resolve())
 bpy.ops.render.render(write_still=True)
 report={'renderer':bpy.app.version_string,'engine':'Cycles CPU','samples':24,'resolution':[768,768],
  'transparent':True,'camera':'orthographic three-quarter','pose':'native bind pose; no animation',
- 'displayScale':1.3,'bounds':{'min':list(lo),'max':list(hi)},'materials':materials,
+ 'nativeDisplayScale':display_scale,'modelScale':1.0,'displayScaleApplied':True,'bounds':{'min':list(lo),'max':list(hi)},'materials':materials,
  'inputSha256':hashlib.sha256(source.read_bytes()).hexdigest(),
  'outputSha256':hashlib.sha256((output/'partial-humanoid.png').read_bytes()).hexdigest(),
- 'durationSeconds':round(time.monotonic()-started,3),'eyeShader':eye_contract}
+ 'durationSeconds':round(time.monotonic()-started,3),'eyeShader':eye_contract,'nativeHelmet':json.loads((source.parent/'helmet-proof.json').read_text()) if '--helmet' in arguments[2:] else None}
 # Optional native head/shoulders framing; this changes only the camera.
 if '--head' in arguments[2:]:
  head_center=Vector((center.x,center.y,hi.z-span.z*0.20))
@@ -76,5 +81,5 @@ if '--head' in arguments[2:]:
  report['headPortrait128']={'file':'partial-humanoid-head-128.png','sha256':hashlib.sha256((output/'partial-humanoid-head-128.png').read_bytes()).hexdigest()}
 report['totalDurationSeconds']=round(time.monotonic()-started,3)
 report['status']='LAB_PARTIAL_BODY_ONLY_NOT_AUTHORIZED'
-report['limitations']='Incomplete customization, no equipment attachments; review only, never app cache.'
+report['limitations']='Incomplete customization and remaining gear coverage; review only, never app cache.'
 (output/'render-report.json').write_text(json.dumps(report,indent=2)+'\n')

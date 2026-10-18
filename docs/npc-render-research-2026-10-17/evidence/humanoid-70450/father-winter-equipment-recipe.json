@@ -1,0 +1,982 @@
+{
+  "schema": "npc-equipment-recipe-v1",
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "extraId": 10766,
+  "race": 7,
+  "sex": 0,
+  "state": "INCOMPLETE_GEAR_PROTOTYPE",
+  "readyToRender": false,
+  "inputIncompleteness": {
+    "NPCModelItemSlotDisplayInfo": {
+      "inputCompleteness": {
+        "state": "PARTIAL_AUTHENTICATED_CHUNKS",
+        "erasedRanges": [
+          {
+            "offset": 850346,
+            "length": 108,
+            "keyName": "057dc814574bd5b6"
+          }
+        ],
+        "skippedSections": [
+          {
+            "fileOffset": 850346,
+            "recordCount": 6
+          }
+        ]
+      },
+      "skippedEncryptedSections": [
+        {
+          "recordCount": 6
+        }
+      ]
+    },
+    "ItemDisplayInfo": {
+      "inputCompleteness": {
+        "state": "PARTIAL_AUTHENTICATED_CHUNKS",
+        "erasedRanges": [
+          {
+            "offset": 426882,
+            "length": 30,
+            "keyName": "057dc814574bd5b6"
+          }
+        ],
+        "skippedSections": [
+          {
+            "fileOffset": 426882,
+            "recordCount": 2
+          }
+        ]
+      },
+      "skippedEncryptedSections": [
+        {
+          "recordCount": 2
+        }
+      ]
+    }
+  },
+  "slots": [
+    {
+      "slotRecord": {
+        "ID": 1124333,
+        "ItemDisplayInfoID": 33918,
+        "ItemSlot": 0,
+        "NpcModelID": 10766
+      },
+      "display": {
+        "ID": 33918,
+        "GeosetGroupOverride": 0,
+        "ItemVisual": 0,
+        "ParticleColorID": 0,
+        "ItemRangedDisplayInfoID": 0,
+        "OverrideSwooshSoundKitID": 0,
+        "SheatheTransformMatrixID": 0,
+        "StateSpellVisualKitID": 0,
+        "SheathedSpellVisualKitID": 0,
+        "UnsheathedSpellVisualKitID": 0,
+        "Flags": 0,
+        "ModelResourcesID": [
+          17419,
+          0
+        ],
+        "ModelMaterialResourcesID": [
+          18711,
+          0
+        ],
+        "ModelType": [
+          0,
+          0
+        ],
+        "GeosetGroup": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "AttachmentGeosetGroup": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HelmetGeosetVis": [
+          249,
+          0
+        ]
+      },
+      "blockers": [
+        "Native attachment bone transform and item material binding must be independently verified.",
+        "Equipment geoset/texture composition is not authorized by this dependency recipe."
+      ],
+      "modelDependencies": [
+        {
+          "position": 0,
+          "resourceId": 17419,
+          "state": "UNIQUE",
+          "rows": [
+            {
+              "ID": 137805,
+              "GeoBox": [
+                -0.17983387410640717,
+                -0.08464310318231583,
+                -0.03672667220234871,
+                0.13342829048633575,
+                0.08842907100915909,
+                0.23541885614395142
+              ],
+              "FileDataID": 137805,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137806,
+              "GeoBox": [
+                -0.22056110203266144,
+                -0.09154557436704636,
+                -0.022186173126101494,
+                0.14255507290363312,
+                0.09152527898550034,
+                0.25354745984077454
+              ],
+              "FileDataID": 137806,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137807,
+              "GeoBox": [
+                -0.23677171766757965,
+                -0.12052351981401443,
+                -0.013914731331169605,
+                0.15818668901920319,
+                0.12082520127296448,
+                0.3069536089897156
+              ],
+              "FileDataID": 137807,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137808,
+              "GeoBox": [
+                -0.26631301641464233,
+                -0.172824889421463,
+                -0.07327404618263245,
+                0.23524358868598938,
+                0.17312659323215485,
+                0.3575514256954193
+              ],
+              "FileDataID": 137808,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137809,
+              "GeoBox": [
+                -0.2609449028968811,
+                -0.13223569095134735,
+                -0.026448501273989677,
+                0.16581220924854279,
+                0.13209155201911926,
+                0.32145753502845764
+              ],
+              "FileDataID": 137809,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137810,
+              "GeoBox": [
+                -0.2763271927833557,
+                -0.13052913546562195,
+                -0.04422105848789215,
+                0.12058380246162415,
+                0.13082249462604523,
+                0.2643762230873108
+              ],
+              "FileDataID": 137810,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137811,
+              "GeoBox": [
+                -0.2637924551963806,
+                -0.15247327089309692,
+                -0.016854312270879745,
+                0.1916334182024002,
+                0.15268702805042267,
+                0.4206182062625885
+              ],
+              "FileDataID": 137811,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137812,
+              "GeoBox": [
+                -0.361338347196579,
+                -0.16367276012897491,
+                0.03685082495212555,
+                0.17964594066143036,
+                0.16389209032058716,
+                0.45357412099838257
+              ],
+              "FileDataID": 137812,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137813,
+              "GeoBox": [
+                -0.3455134332180023,
+                -0.1421450823545456,
+                -0.03653568774461746,
+                0.19322441518306732,
+                0.14235705137252808,
+                0.31171363592147827
+              ],
+              "FileDataID": 137813,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137814,
+              "GeoBox": [
+                -0.3144749402999878,
+                -0.12779076397418976,
+                -0.023646408692002296,
+                0.12551207840442657,
+                0.12146393209695816,
+                0.3296511471271515
+              ],
+              "FileDataID": 137814,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137815,
+              "GeoBox": [
+                -0.19160455465316772,
+                -0.10396365821361542,
+                0.017676591873168945,
+                0.1381995528936386,
+                0.10418281704187393,
+                0.2904001772403717
+              ],
+              "FileDataID": 137815,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137816,
+              "GeoBox": [
+                -0.216016486287117,
+                -0.12143932282924652,
+                -0.010072443634271622,
+                0.1778739094734192,
+                0.12173859030008316,
+                0.30175909399986267
+              ],
+              "FileDataID": 137816,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137817,
+              "GeoBox": [
+                -0.24355745315551758,
+                -0.1070064902305603,
+                0.012269298546016216,
+                0.14087794721126556,
+                0.10735558718442917,
+                0.3323797285556793
+              ],
+              "FileDataID": 137817,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137818,
+              "GeoBox": [
+                -0.23686006665229797,
+                -0.12662017345428467,
+                -0.04950680956244469,
+                0.15310120582580566,
+                0.1253710389137268,
+                0.27322039008140564
+              ],
+              "FileDataID": 137818,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137819,
+              "GeoBox": [
+                -0.2513365149497986,
+                -0.09992659091949463,
+                -0.027442773804068565,
+                0.11732418090105057,
+                0.09944236278533936,
+                0.2670966684818268
+              ],
+              "FileDataID": 137819,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137820,
+              "GeoBox": [
+                -0.2765817642211914,
+                -0.1490917056798935,
+                0.06473007798194885,
+                0.23730416595935822,
+                0.14962120354175568,
+                0.3794873058795929
+              ],
+              "FileDataID": 137820,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137821,
+              "GeoBox": [
+                -0.18945547938346863,
+                -0.09409211575984955,
+                -0.04208536818623543,
+                0.13351726531982422,
+                0.09533078223466873,
+                0.23054642975330353
+              ],
+              "FileDataID": 137821,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137822,
+              "GeoBox": [
+                -0.20815317332744598,
+                -0.11913786083459854,
+                0.008692589588463306,
+                0.2129361778497696,
+                0.11855901777744293,
+                0.2449696809053421
+              ],
+              "FileDataID": 137822,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137823,
+              "GeoBox": [
+                -0.06106588616967201,
+                -0.12705537676811218,
+                0.021014444530010223,
+                0.33088991045951843,
+                0.127454474568367,
+                0.3339199721813202
+              ],
+              "FileDataID": 137823,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137824,
+              "GeoBox": [
+                -0.041248057037591934,
+                -0.15450258553028107,
+                -0.008368140086531639,
+                0.41148754954338074,
+                0.1552877277135849,
+                0.39846742153167725
+              ],
+              "FileDataID": 137824,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137825,
+              "GeoBox": [
+                -0.2278297245502472,
+                -0.1161336898803711,
+                -0.016725169494748116,
+                0.12744861841201782,
+                0.11607789993286133,
+                0.31812307238578796
+              ],
+              "FileDataID": 137825,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 137826,
+              "GeoBox": [
+                -0.2011612057685852,
+                -0.12602806091308594,
+                0.01766728051006794,
+                0.19699211418628693,
+                0.1267344206571579,
+                0.26122966408729553
+              ],
+              "FileDataID": 137826,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 404133,
+              "GeoBox": [
+                -0.08726416528224945,
+                -0.1237272322177887,
+                0.032782264053821564,
+                0.29060882329940796,
+                0.12313100695610046,
+                0.33304160833358765
+              ],
+              "FileDataID": 404133,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 404134,
+              "GeoBox": [
+                -0.30811136960983276,
+                -0.12532956898212433,
+                -0.009170317091047764,
+                0.20038162171840668,
+                0.12532974779605865,
+                0.30830803513526917
+              ],
+              "FileDataID": 404134,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 608369,
+              "GeoBox": [
+                -0.31931865215301514,
+                -0.16416795551776886,
+                0.04142196848988533,
+                0.21180422604084015,
+                0.1641685664653778,
+                0.47237321734428406
+              ],
+              "FileDataID": 608369,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 608371,
+              "GeoBox": [
+                -0.33190208673477173,
+                -0.15469513833522797,
+                0.13131825625896454,
+                0.19637228548526764,
+                0.1546957641839981,
+                0.4708482027053833
+              ],
+              "FileDataID": 608371,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 1992959,
+              "GeoBox": [
+                -0.2671009600162506,
+                -0.13326947391033173,
+                -0.05563545227050781,
+                0.176581010222435,
+                0.1318330317735672,
+                0.3050323724746704
+              ],
+              "FileDataID": 1992959,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 2741891,
+              "GeoBox": [
+                -0.2845183312892914,
+                -0.1304900348186493,
+                0.03252050653100014,
+                0.1711047738790512,
+                0.1304900199174881,
+                0.3598058521747589
+              ],
+              "FileDataID": 2741891,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 2741892,
+              "GeoBox": [
+                -0.3098140358924866,
+                -0.1537891924381256,
+                0.026272693648934364,
+                0.17779035866260529,
+                0.1537891924381256,
+                0.39812687039375305
+              ],
+              "FileDataID": 2741892,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 3167395,
+              "GeoBox": [
+                -0.35410064458847046,
+                -0.10231263190507889,
+                0.05359681323170662,
+                0.11039362102746964,
+                0.09598582983016968,
+                0.3743884861469269
+              ],
+              "FileDataID": 3167395,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            },
+            {
+              "ID": 3167396,
+              "GeoBox": [
+                -0.35410064458847046,
+                -0.10231263190507889,
+                0.05359681323170662,
+                0.11039362102746964,
+                0.09598582983016968,
+                0.3743884861469269
+              ],
+              "FileDataID": 3167396,
+              "Flags": 0,
+              "LodCount": 0,
+              "ModelResourcesID": 17419
+            }
+          ],
+          "fileDataIds": [
+            137805,
+            137806,
+            137807,
+            137808,
+            137809,
+            137810,
+            137811,
+            137812,
+            137813,
+            137814,
+            137815,
+            137816,
+            137817,
+            137818,
+            137819,
+            137820,
+            137821,
+            137822,
+            137823,
+            137824,
+            137825,
+            137826,
+            404133,
+            404134,
+            608369,
+            608371,
+            1992959,
+            2741891,
+            2741892,
+            3167395,
+            3167396
+          ],
+          "selection": {
+            "state": "UNIQUE",
+            "tier": 0,
+            "fileDataIds": [
+              137812
+            ],
+            "rows": [
+              {
+                "ID": 137812,
+                "GenderIndex": 0,
+                "ClassID": 0,
+                "RaceID": 7,
+                "PositionIndex": -1
+              }
+            ]
+          }
+        }
+      ],
+      "textureDependencies": [
+        {
+          "position": 0,
+          "resourceId": 18711,
+          "rows": [
+            {
+              "ID": 137827,
+              "FileDataID": 137827,
+              "UsageType": 0,
+              "MaterialResourcesID": 18711
+            }
+          ],
+          "fileDataIds": [
+            137827
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "attachment": {
+        "id": 11,
+        "source": "wow.export EquipmentSlots.js native0\u2192equipment1\u2192HELMET11",
+        "transformState": "UNRESOLVED_NATIVE_ANCHOR_AND_BONE",
+        "required": "Read character M2 or SKEL attachment11, local position, bone index and evaluated bone-world transform; apply exact coordinate conversion and character model transform."
+      },
+      "helmetVisibility": {
+        "rawIds": [
+          249,
+          0
+        ],
+        "sex": 0,
+        "selectedId": 249,
+        "state": "KNOWN_ROWS_ONLY",
+        "rows": [
+          {
+            "ID": 8838,
+            "RaceID": 7,
+            "HideGeosetGroup": 0,
+            "RaceBitSelection": 0,
+            "Field_10_0_0_46047_003": 32,
+            "HelmetGeosetVisDataID": 249
+          },
+          {
+            "ID": 8866,
+            "RaceID": 7,
+            "HideGeosetGroup": 2,
+            "RaceBitSelection": 0,
+            "Field_10_0_0_46047_003": 32,
+            "HelmetGeosetVisDataID": 249
+          }
+        ],
+        "hideGroups": [
+          0,
+          2
+        ],
+        "hideGeosetRanges": [
+          {
+            "first": 1,
+            "last": 99
+          },
+          {
+            "first": 201,
+            "last": 299
+          }
+        ]
+      }
+    },
+    {
+      "slotRecord": {
+        "ID": 1124334,
+        "ItemDisplayInfoID": 33581,
+        "ItemSlot": 2,
+        "NpcModelID": 10766
+      },
+      "display": {
+        "ID": 33581,
+        "GeosetGroupOverride": 0,
+        "ItemVisual": 0,
+        "ParticleColorID": 0,
+        "ItemRangedDisplayInfoID": 0,
+        "OverrideSwooshSoundKitID": 0,
+        "SheatheTransformMatrixID": 0,
+        "StateSpellVisualKitID": 0,
+        "SheathedSpellVisualKitID": 0,
+        "UnsheathedSpellVisualKitID": 0,
+        "Flags": 0,
+        "ModelResourcesID": [
+          0,
+          0
+        ],
+        "ModelMaterialResourcesID": [
+          0,
+          0
+        ],
+        "ModelType": [
+          0,
+          0
+        ],
+        "GeosetGroup": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "AttachmentGeosetGroup": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HelmetGeosetVis": [
+          0,
+          0
+        ]
+      },
+      "blockers": [
+        "Equipment geoset/texture composition is not authorized by this dependency recipe."
+      ],
+      "modelDependencies": [],
+      "textureDependencies": []
+    },
+    {
+      "slotRecord": {
+        "ID": 1124335,
+        "ItemDisplayInfoID": 33582,
+        "ItemSlot": 5,
+        "NpcModelID": 10766
+      },
+      "display": {
+        "ID": 33582,
+        "GeosetGroupOverride": 0,
+        "ItemVisual": 0,
+        "ParticleColorID": 0,
+        "ItemRangedDisplayInfoID": 0,
+        "OverrideSwooshSoundKitID": 0,
+        "SheatheTransformMatrixID": 0,
+        "StateSpellVisualKitID": 0,
+        "SheathedSpellVisualKitID": 0,
+        "UnsheathedSpellVisualKitID": 0,
+        "Flags": 0,
+        "ModelResourcesID": [
+          0,
+          0
+        ],
+        "ModelMaterialResourcesID": [
+          0,
+          0
+        ],
+        "ModelType": [
+          0,
+          0
+        ],
+        "GeosetGroup": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "AttachmentGeosetGroup": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HelmetGeosetVis": [
+          0,
+          0
+        ]
+      },
+      "blockers": [
+        "Equipment geoset/texture composition is not authorized by this dependency recipe."
+      ],
+      "modelDependencies": [],
+      "textureDependencies": []
+    },
+    {
+      "slotRecord": {
+        "ID": 1124336,
+        "ItemDisplayInfoID": 33580,
+        "ItemSlot": 6,
+        "NpcModelID": 10766
+      },
+      "display": {
+        "ID": 33580,
+        "GeosetGroupOverride": 0,
+        "ItemVisual": 0,
+        "ParticleColorID": 0,
+        "ItemRangedDisplayInfoID": 0,
+        "OverrideSwooshSoundKitID": 0,
+        "SheatheTransformMatrixID": 0,
+        "StateSpellVisualKitID": 0,
+        "SheathedSpellVisualKitID": 0,
+        "UnsheathedSpellVisualKitID": 0,
+        "Flags": 0,
+        "ModelResourcesID": [
+          0,
+          0
+        ],
+        "ModelMaterialResourcesID": [
+          0,
+          0
+        ],
+        "ModelType": [
+          0,
+          0
+        ],
+        "GeosetGroup": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "AttachmentGeosetGroup": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HelmetGeosetVis": [
+          0,
+          0
+        ]
+      },
+      "blockers": [
+        "Equipment geoset/texture composition is not authorized by this dependency recipe."
+      ],
+      "modelDependencies": [],
+      "textureDependencies": []
+    },
+    {
+      "slotRecord": {
+        "ID": 1124337,
+        "ItemDisplayInfoID": 33576,
+        "ItemSlot": 8,
+        "NpcModelID": 10766
+      },
+      "display": {
+        "ID": 33576,
+        "GeosetGroupOverride": 0,
+        "ItemVisual": 0,
+        "ParticleColorID": 0,
+        "ItemRangedDisplayInfoID": 0,
+        "OverrideSwooshSoundKitID": 0,
+        "SheatheTransformMatrixID": 0,
+        "StateSpellVisualKitID": 0,
+        "SheathedSpellVisualKitID": 0,
+        "UnsheathedSpellVisualKitID": 0,
+        "Flags": 0,
+        "ModelResourcesID": [
+          0,
+          0
+        ],
+        "ModelMaterialResourcesID": [
+          0,
+          0
+        ],
+        "ModelType": [
+          0,
+          0
+        ],
+        "GeosetGroup": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "AttachmentGeosetGroup": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "HelmetGeosetVis": [
+          0,
+          0
+        ]
+      },
+      "blockers": [
+        "Equipment geoset/texture composition is not authorized by this dependency recipe."
+      ],
+      "modelDependencies": [],
+      "textureDependencies": []
+    }
+  ],
+  "blockers": [
+    "Missing encrypted rows can hide additional equipment."
+  ],
+  "provenance": {
+    "NPCModelItemSlotDisplayInfo": {
+      "sourceSha256": "3d9e0f7d2117f625ca295a82a0259255e9c632071cb06fe7988031ee36ade84d",
+      "definitionSha256": "355b8e71ac2f831364cb54de6820cd7d848f30f77385a050348fafb7a74be91d",
+      "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545"
+    },
+    "ItemDisplayInfo": {
+      "sourceSha256": "ece6402428c9756ccd7d53056db7a65f2d96fcbdea30ae30308054fea284a8a4",
+      "definitionSha256": "dcee59402327a2d40019bdb959869146b0a3c5d9804d29dcbdce5c9737c5880a",
+      "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545"
+    },
+    "TextureFileData": {
+      "sourceSha256": "597c53d5e238ed5aa69c16756db575af43788cda4952ab8c98448e92fa4cd1f2",
+      "definitionSha256": "d6bbccd02b59d45623842e0b910341d5f5f61ba85fa27fb2f8ed56c36ee182c2",
+      "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545"
+    },
+    "ModelFileData": {
+      "sourceSha256": "e0bf435d11775528c12a69ad315628159a90193ec6fc41a7b25f1bf3d43d8cc3",
+      "definitionSha256": "64344a45fad2f748225e8c40c1ddc9259eafb1f303088aa9027f4524fe9e5621",
+      "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545"
+    },
+    "ComponentModelFileData": {
+      "sourceSha256": "fd35c338dde43eb3ef6dfa13a2fac129703fa75e08772e5c426c2bbe2defea22",
+      "definitionSha256": "1dec757282c1395049c3bf61d646f65c1185181ffbd25839a7e105cb0f2a8432",
+      "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545"
+    },
+    "HelmetGeosetData": {
+      "sourceSha256": "ca16eb31bc19407823d4a1a7c8435363b7d5e33037abc666ea63ec4b232f46de",
+      "definitionSha256": "8bacef41d6aadd99656715ee7b5694fd455b82b5e97ad2c720f3f992507f5018",
+      "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545"
+    }
+  },
+  "algorithmSource": {
+    "commit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+    "files": [
+      "src/js/wow/EquipmentSlots.js",
+      "src/js/db/caches/DBItemModels.js",
+      "src/js/db/caches/DBItemGeosets.js",
+      "src/js/3D/renderers/M2RendererGL.js",
+      "src/js/modules/tab_creatures.js"
+    ]
+  }
+}

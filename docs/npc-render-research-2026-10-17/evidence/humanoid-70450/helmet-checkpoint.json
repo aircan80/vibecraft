@@ -1,0 +1,41 @@
+{
+  "status": "LAB_PARTIAL_RECONSTRUCTION_NOT_PRODUCTION",
+  "npc": 15698,
+  "display": 15660,
+  "extra": 10766,
+  "build": "1.60.1.70450",
+  "sourceHashes": {
+    "tools/npcmodels/humanoid/portrait-prototype.cjs": "ea61b5dbbad810cac691f032a27cab8e0ea394e7eb6346f270dc70fb0036aa29",
+    "tools/npcmodels/humanoid/render_prototype.py": "deedb89a8e236d9d77d148b8ef9fd8148616f3c60de4ae303446aef91709665e",
+    "tools/npcmodels/humanoid/eye_shader.py": "86f1cbbf180a46003fad86cb5c3952a7ead44fd06a347668035e7ade32862edb",
+    "tools/npcmodels/humanoid/test_eye_shader.py": "2c01bba20b6c22f145fb70d1aeefa42fd3912dd956e3f7fcda1ea7421f734583",
+    "tools/npcmodels/humanoid/equipment-transform.cjs": "fc05a82e6142107b8e0404c4a23b2bff33898bf7fac5be1c0b116504bfad6631",
+    "tools/npcmodels/humanoid/test-equipment-transform.cjs": "d3a0571d0de4f295877239aea01ec547e9af79860d487afb4d5262ad050342c4",
+    "tools/npcmodels/humanoid/PORTRAIT-PROTOTYPE.md": "cd2258f71aac5d397a169fed98c32bd9ce31633323d7a62329a8a35c558c390d"
+  },
+  "outputs": {
+    "model-inspection.json": "badd5d62b4824b42e92cc5f19c02ce66c605a4149f2c78781ed00a7df7f29430",
+    "partial-humanoid.glb": "2e2922232886ae8d86542b13306279b0d749e1f0840e4ba87de53aa604c12eda",
+    "native-helmet.glb": "b5529bd2fef3c3046a71ac79069921d355eab0d682a805f4af9ee294e54da462",
+    "helmet-proof.json": "f016d24290fe272c218cf6aa4d63f05111f37ec3822e00864d735349a39f541a",
+    "prototype-limits.json": "646d45e494a3ff6d7239801eb7a3b8aa0f6dcc11144f17f5a801c1ce292cfa76",
+    "index.html": "0b6db3d42a2703d4aad88f31a4ac23ee39471244936e1a8e743260405e0e0a9c",
+    "source-asset-proofs.json": "e07552ea0931fc41c29839e41527349a7eaacb22ac099aeb3afa1649d4109fe3",
+    "rendered/partial-humanoid.png": "7d50bd55c5bbc8b2bb6091ace2662bc8815a46919a48b8cfae06473455ff62fb",
+    "rendered/partial-humanoid-head.png": "a0cf41a67169bee5fa05cda902c5930d03e631524816182579664d719566aa96",
+    "rendered/partial-humanoid-head-128.png": "48f33c463b533e216373b9d0ce4201145bb4322abebc444f12d6c835a43cbe33",
+    "rendered/render-report.json": "878b566fdb50cce73d7d9060cdae5c5e65a856455962feb1a7af142cbaa24c32"
+  },
+  "tests": {
+    "eyeNumericUvAndContract": 6,
+    "attachmentVisibilityGlbGroups": 9,
+    "failures": 0
+  },
+  "remaining": [
+    "encrypted appearance option records",
+    "remaining customization material conditions",
+    "customization bone offsets",
+    "remaining equipment beyond known helmet",
+    "studio lighting approximation, no game fog"
+  ]
+}
