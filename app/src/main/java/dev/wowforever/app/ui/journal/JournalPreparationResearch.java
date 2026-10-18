@@ -72,6 +72,15 @@ final class JournalPreparationResearch extends JScrollPane implements PageState 
     if(inspected&&!loading&&loadedId!=selectedId())refresh();
     if(!loading)restoreScroll();
   }
+  @Override public void addNotify(){
+    super.addNotify();
+    // Guide containers can detach and reattach without changing the selected tab.
+    SwingUtilities.invokeLater(()->{
+      if(!isDisplayable())return;
+      Container ancestor=SwingUtilities.getAncestorOfClass(JTabbedPane.class,this);
+      if(ancestor instanceof JTabbedPane tabs)setActive(tabs.getSelectedComponent()==this);
+    });
+  }
   @Override public void removeNotify(){setActive(false);super.removeNotify();}
   private long selectedId(){QuestSummary quest=(QuestSummary)selection.getSelectedItem();return quest==null?-1:quest.id();}
   private void refresh(){

@@ -74,6 +74,23 @@ class JournalPreparationResearchTest {
     });
     SwingUtilities.invokeAndWait(()->assertThat(restored[0].getVerticalScrollBar().getValue()).isEqualTo(123));
   }
+  @Test void reattachingSelectedTabRestartsCancelledInspectionWithoutTabChange()throws Exception {
+    var jobs=new ArrayList<Runnable>();var calls=new AtomicInteger();
+    var host=new JPanel[1];var panel=new JournalPreparationResearch[1];
+    SwingUtilities.invokeAndWait(()->{
+      panel[0]=new JournalPreparationResearch(QUESTS,id->{calls.incrementAndGet();return evidence();},jobs::add,t->{},StatusSink.NONE);
+      var tabs=new JTabbedPane();tabs.addTab("Preparation",panel[0]);host[0]=new JPanel();host[0].add(tabs);host[0].addNotify();
+    });
+    SwingUtilities.invokeAndWait(()->{
+      button(panel[0],"Inspect recorded prerequisites & items").doClick();assertThat(jobs).hasSize(1);
+      host[0].removeNotify();jobs.removeFirst().run();assertThat(calls).hasValue(0);
+      host[0].addNotify();
+    });
+    SwingUtilities.invokeAndWait(()->{
+      assertThat(jobs).hasSize(1);jobs.removeFirst().run();assertThat(calls).hasValue(1);
+      assertThat(text(panel[0])).contains("Quest required items");host[0].removeNotify();
+    });
+  }
   private static void layout(Container root){root.doLayout();for(Component c:root.getComponents())if(c instanceof Container child)layout(child);}
   private static JButton button(Container root,String text){return descendants(root).stream().filter(JButton.class::isInstance).map(JButton.class::cast).filter(b->text.equals(b.getText())).findFirst().orElseThrow();}
   private static JComboBox<?> combo(Container root){return descendants(root).stream().filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst().orElseThrow();}
