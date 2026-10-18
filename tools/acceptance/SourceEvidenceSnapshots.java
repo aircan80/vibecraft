@@ -68,11 +68,12 @@ public final class SourceEvidenceSnapshots {
     }
     var evidence=find(page,SourceDifferencesPanel.class);
     if(evidence!=null) {
-      ((JButton)evidence.getComponent(0)).doClick();settle(root);
-      if(!evidence.getComponent(1).isVisible())throw new AssertionError("Evidence expansion failed");
-      scroll(page,evidence);settle(root);save(root,page,out,base+"-evidence",report);count++;
-      JButton technical=buttons(evidence).stream().filter(b->b.getText().equals("Show technical source evidence")).findFirst().orElse(null);
-      if(technical!=null && id==16806){technical.doClick();settle(root);scroll(page,technical);settle(root);save(root,page,out,base+"-technical-evidence",report);count++;}
+      SourceInfoButton info=find(evidence,SourceInfoButton.class);
+      JComponent retained=info.detailsContent();
+      root.removeAll();root.add(new JScrollPane(retained));settle(root);
+      save(root,page,out,base+"-evidence",report);count++;
+      JButton technical=buttons(retained).stream().filter(button->button.getText().equals("Technical evidence")).findFirst().orElse(null);
+      if(technical!=null && id==16806){technical.doClick();settle(root);save(root,page,out,base+"-technical-evidence",report);count++;}
     }else report.add(base+": no retained comparisons; no evidence fabricated.");
     return count;
   }
