@@ -27,6 +27,8 @@ Search across the catalog, paste an item link or Wowhead URL, and follow cross-l
 
 NPC pages support **static portraits**; coverage is partial and missing images are identified. Interactive 3D models are outside the shipped scope.
 
+Coverage depends on the selected library. The new first-run bootstrap builds a core catalog; it does not yet include the maps, artwork and full feature coverage of the older development library. That integration is tracked in [issue #14](https://github.com/aircan80/vibecraft/issues/14).
+
 ### Forever means Forever
 
 **WoW Forever is the only currently supported edition.** Forever facts come from Forever evidence; unknown beta values stay unknown. Classic Era comparisons are explicitly labeled rather than silently filling gaps. Classic, Retail and Anniversary/TBC support are planned, not available catalogs.
@@ -35,7 +37,7 @@ NPC pages support **static portraits**; coverage is partial and missing images a
 
 **Local preview candidates exist; no public GitHub release is available yet.** There is no download link to chase until the first release is published.
 
-The existing preview candidates include Java and a compact gameplay database. The planned release starts without a database and builds one through Sources & Updates. Extract the whole archive and open the launcher—no separate Java, database server, Python, Node or Blender installation. Browsing the included catalog works offline; optional native audio may need a first download into the local cache.
+The existing preview candidates include Java and a compact gameplay database. These archives are unchanged older snapshots; they have not been rebuilt with the new source-first setup. The current development source can build a core library through the main app’s setup wizard; that is separate from these preview downloads. Extract the whole archive and open the launcher—no separate Java, database server, Python, Node or Blender installation. Browsing the included catalog works offline; optional native audio may need a first download into the local cache.
 
 | Platform | Current candidate | Launch verification |
 | --- | --- | --- |
@@ -47,11 +49,19 @@ Keep the extracted application folder together. Settings and caches use per-user
 
 See [preview notes](docs/releases/PREVIEW-0.4.1-preview.1.md), [packaging instructions](packaging/README.md) and [release preparation](docs/releases/README.md) for evidence and remaining gates. These are development previews, with incomplete data/portrait coverage and outstanding genuine collector-capture acceptance.
 
-## Coming next: Sources & Updates
+## Build your library
 
-Vibecraft’s setup will let you choose game versions and data sources, reuse matching files from an optional read-only WoW installation, and explicitly allow missing content to download into Vibecraft-owned storage. Each source explains what it adds and what is unavailable when omitted. The application never writes into a Blizzard installation.
+The current development app connects its five-step setup and Settings → Sources & Updates to the Java acquisition, validation, compact-export and next-startup activation engine. The backend preparation and managed-activation paths have passed real-data checks; the complete native GUI build journey is still under acceptance. No public release containing this flow is available yet.
 
-This complete workflow is **not shipped yet**. The five-step Java wizard and Settings → Sources & Updates screens are implemented, with saved selections and background compatibility checks. The Build action stays disabled while acquisition, staged validation and safe activation are connected; full local extraction and table decoding remain development work. Existing compatible databases can still be opened. See the [setup and source-management design](docs/design/vibemining-setup.md).
+1. Start without a selected database, or open **Settings → Sources & Updates**. An existing compatible database can still be opened directly.
+2. Choose **WoW Forever**, **QuestieDB**, **Blizzard native data**, explicit **Wago.tools** exports and **Raidbots hotfix details**. This bootstrap supports exactly **1.60.1.70450 / enUS**. Raidbots is a separately selected third-party mirror and defaults off; its disclosed pinned GitHub/WoWDBDefs schema is also required. No provider is selected automatically.
+3. On Review, select **Check requirements**. **Build** becomes available only after the current plan passes. AtlasLoot and All The Things are optional when their real adapters accept the selected snapshot; other editions/providers remain gated.
+4. Select **Build** to download the selected inputs, prepare and check a fresh catalog, and produce its compact runtime copy. Work runs in the background. Verified downloads may be reused on retry; a partial catalog projection is rebuilt and checked again.
+5. On first run, select **Open library**. From source management, completion is **Ready for next startup**; the current Journal keeps using its existing database.
+
+The optional WoW folder stays read-only. Folder/CDN permissions are preserved, but this catalog builder obtains its tables from the explicitly selected Wago exports; it does not extract them from local CASC or Blizzard CDN. A remembered folder can be unavailable while Wago supplies the tables, and it remains protected from app writes.
+
+This is a **core catalog, not full parity**: map pictures, routes/floors, artwork and other extended projections remain work for [issue #14](https://github.com/aircan80/vibecraft/issues/14). Omitting AtlasLoot omits its boss-loot lists. One measured Questie + native/Wago + Raidbots run, without AtlasLoot or All The Things, produced a **45.4 MB** runtime database (45,441,024 bytes); this is not the size of every future full-feature library. See the [measured preparation evidence](docs/verification/2026-10-18-fresh-java-library-preparation.md) and [setup design](docs/design/vibemining-setup.md).
 
 **vibeMiner is a separate planned application**, intended for exploring Blizzard CDN records and comparing builds. Raw-data exploration, new-item discovery and datamining interfaces do not belong in Vibecraft. Normal Vibecraft setup will not require vibeMiner. The separate project is tracked in [issue #10](https://github.com/aircan80/vibecraft/issues/10).
 
@@ -80,7 +90,7 @@ For a source-only application JAR:
 java -jar app/target/wow-forever-browser.jar
 ```
 
-The current JAR filename is retained internally. Without bundled data, startup opens the setup wizard, with an option to open an existing compatible database; it does not yet generate one. Full dataset requirements, sidecars and regeneration steps are documented in [local-data builds](docs/development/local-data-builds.md).
+The current JAR filename is retained internally. Without bundled data, startup opens the setup wizard to review and build the supported core library, or open an existing compatible database. Full dataset requirements, sidecars and regeneration steps are documented in [local-data builds](docs/development/local-data-builds.md).
 
 ### Contribute
 

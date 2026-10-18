@@ -1,87 +1,67 @@
 # Vibecraft first-run data setup and source management
 
-Status: consolidated product/design decision and implementation plan. The complete workflow below is not yet shipped. Existing Java importers and initial asset/runtime services provide parts of the engine; they do not yet implement all source choices, local-client decoding or resumable database creation.
+Status: the current development source binds the Java wizard and Sources & Updates to the production preparation/export/activation service. Real backend preparation and managed activation have passed acceptance. The complete native GUI build journey is still being checked; no GUI completion claim or public release is implied. Older portable preview archives remain unchanged.
 
-## Product experience
+## Current user flow
 
-**Vibecraft owns its first-run setup and Sources & Updates inside the main application.** Journal remains focused on reference browsing. Sources & Updates owns source choices, read-only local installation inspection, explicit acquisition permissions, download plans, import jobs, provenance and candidate-database validation/activation.
+**Vibecraft owns setup inside the main app.** Without a selected compatible database, it opens Welcome → Games → Sources → Game files → Review. Existing installed/bundled libraries still open Journal directly, and first-run setup retains an existing-database escape. Settings → Sources & Updates uses the same source preferences and engine.
 
-**vibeMiner is a separate planned application**, following the owner’s subsequent decision in [issue #10](https://github.com/aircan80/vibecraft/issues/10). It explores Blizzard CDN data without a local game installation or a Vibecraft database. Vibecraft setup must not require vibeMiner. This document’s historical filename is retained for existing links; it no longer specifies an embedded Vibe Miner workspace.
+The supported bootstrap is exactly **WoW Forever beta 1.60.1.70450 / enUS**. Select QuestieDB, Blizzard native data, explicit Wago exports and the separately selected Raidbots hotfix details source. Raidbots defaults off; neither its mirror nor its pinned GitHub/WoWDBDefs schema dependency is silently enabled. The current Wago-only detail coverage does not pass the required gate without the selected same-build hotfix details. The review explains the blocker instead of adding a provider, reducing validation or borrowing Era data.
 
-First-run setup uses the same engine. With a compatible installed or bundled runtime database, start Journal directly. Without one, show the source picker and setup progress, then open Journal after a validated database is installed. Choosing Blizzard acquisition opens the game-data tools within Sources & Updates. No end-user Python, Node, Blender, manually launched importer or terminal commands are part of the intended workflow.
+Select **Check requirements**, then **Build** once the current immutable plan passes. First-run success offers **Open library**. A management build registers the checked compact version for the next startup and reports **Ready for next startup**; the current Journal and its open database remain unchanged. Editing choices invalidates their previous review.
 
-Support both a small application that builds local data and an optional reviewed compact-database bundle. Neither requires a populated database in Git. Existing local data and the active app stay available while a replacement is prepared. Static NPC images take priority; a 3D viewer is outside this scope.
+The app is Java only. End users do not launch an importer, Python, Node, Blender or a database server. The source-only JAR needs Java 21; portable packages bundle Java. The existing preview packages predate this flow and have not been republished.
 
-## Sources and acquisition methods
+## What this first catalog includes
 
-The picker has checkboxes for sources, and separate controls for how selected data is acquired. Every source card shows its capabilities, exact revision/build, required/recommended/optional status, dependencies, omission impact, acquisition availability, license/rights information, and estimated download/disk size. Show measured pinned-manifest or server size estimates; say “not measured yet” when unavailable. Downloads already verified in cache reduce the remaining estimate.
+The fresh bootstrap provides a core/client reference catalog. It does **not** provide full feature parity with the older development library: map pictures, flight routes, instance floors, collector imports, expanded source-comparison projections and artwork integration remain work in [issue #14](https://github.com/aircan80/vibecraft/issues/14). Unselected AtlasLoot means its boss-loot lists are absent. Missing media stays explicit; static portraits remain the image scope, with interactive 3D excluded.
 
-Persist the exact selection. An unchecked source is neither downloaded nor imported from cache. In particular, omitting AtlasLoot also omits its baseline, Continued variants and rate files unless the user explicitly selects them separately. No Era fallback, hidden substitute, or implicit import of everything found in a cache.
+A measured fresh run selected Questie, native/Wago and Raidbots, without AtlasLoot or All The Things. It produced a verified compact runtime of **45,441,024 bytes (45.4 MB)** from a 642,269,184-byte full candidate. This is one selected core-library measurement, not a promised size for all providers, artwork or future complete libraries. See [the preparation acceptance record](../verification/2026-10-18-fresh-java-library-preparation.md) for source pins, scope and timings.
 
-Candidate source capabilities:
+## Explicit source and transport choices
 
-| Source/capability | Selection behavior | Missing or omitted behavior |
-| --- | --- | --- |
-| Forever core identity/schema | Required for a Forever catalog; identity must be genuine | Cannot activate a catalog with invented native metadata |
-| Questie entities/quests | Recommended; current pipeline structurally requires it until refactored | Explain absent entity/quest coverage; do not fabricate rows |
-| AtlasLoot loot/rates | Optional; explicit omission is implemented for live and archived imports | Loot sections explain that this source was not selected |
-| AllTheThings connections | Optional, with quest-detail dependencies shown | Connection coverage unavailable; no inferred prerequisite chains |
-| Native items/spells/recipes | Selected pinned client tables; dependency closure visible | Dependent detail panels report missing table coverage |
-| Maps/icons/static portraits | Optional selected artwork capabilities | Text/reference browsing continues with honest placeholders |
-| Music/UI sounds | Optional separate audio capabilities | Quiet playback; no hidden download |
-| Community drop-rate database | Optional separate source | Do not substitute community percentages as native evidence |
-| Collector observations | Optional actual local capture | Capture-required status; observations cannot be invented/downloaded |
+Source cards explain **Adds**, **Needs** and **If not selected**. Each game's saved preferences are separate. Unsupported selected games/providers block review; they are not silently omitted.
 
-If a capability needs another selected source/table, show that dependency and require a visible choice. Do not silently add downloads. License information is per selected source and revision: the code's GPL license does not license Blizzard assets, and attribution alone does not establish permission for sources with no declared license. Preserve the necessary notices and provenance.
+| Choice | Current behavior |
+| --- | --- |
+| QuestieDB | Required by the current core projector; exact reviewed source pin. |
+| Blizzard native data | Exact Forever70450/enUS identity and supported native-table set required. |
+| Wago.tools exports | Explicit delivery-provider consent required for this catalog path; provider-reported table provenance is distinct from CASC authentication. |
+| Raidbots hotfix details | Optional/default-off third-party choice; the current supported bootstrap needs it to satisfy the unchanged native-detail gate. Requires native + Wago selection, the pinned same-build snapshot and disclosed GitHub/WoWDBDefs schema. Deselecting dependencies clears this draft choice with an explanation. |
+| AtlasLoot | Optional; offered for building only when the actual pinned adapter passes preflight. Omission excludes its data rather than substituting another addon or rates. |
+| All The Things | Optional under its actual adapter's compatibility checks; unsupported conditions remain qualified. |
+| Other games, comparison providers, collector imports | Preferences/design do not establish a supported production job. Unhandled choices remain gated. |
 
-The current importer structurally requires Questie and runs a broad native-table loader. AtlasLoot can now be explicitly omitted in live imports and archived replay; its baseline, rates and provenance are then omitted too. The production setup/source manager still needs to call this selection API. Making Questie optional remains substantive adapter/model work. A two-table native sample or `--skip-client-data` does not currently create the full supported catalog: `EditionRegistry` requires actual Forever product/build metadata. Use a real pinned native input set or explicitly design a distinct honest community-only context; never fake metadata to bypass the gate.
+An unchecked provider is not downloaded or imported merely because its files exist in cache. No Era fallback, hidden substitute, automatic consent or fabricated source lineage is permitted. Source-specific rights and notices remain separate from code licensing; attribution alone does not establish redistribution permission.
 
-## Autodetect a local WoW installation first
+## Read-only WoW folders and optional CDN permission
 
-Before asking the user to Browse, check remembered locations, supported Battle.net installation records, and bounded platform-specific locations: Windows installation records and common program directories, macOS applications, and known Linux Wine/Bottles/Lutris prefixes. Run discovery in the background with cancellation, time/candidate/file-size limits and stale-result guards. Do not recursively crawl disks.
+The Game files step can inspect remembered/common installation paths or a chosen folder on a background worker. Metadata recognition is not proof of complete archives, supported extraction or usable encrypted content. Full catalog construction currently uses **selected Wago exports**, not local CASC or direct Blizzard CDN table extraction.
 
-Deduplicate canonical paths and validate typed `.build.info` records, active product, build, locale and expected CASC metadata. Multiple compatible results produce a selection list; one can be preselected; no compatible result offers Browse. Show incompatible Era, Retail or Anniversary installations clearly instead of treating them as Forever. Finding a directory proves neither complete files nor decoder support.
+A chosen WoW folder and the optional missing-content CDN permission are preserved in the reviewed plan. They do not have to be turned off to use Wago. An unavailable remembered folder is permitted and protected when actual catalog acquisition is Wago; an actual local acquisition still requires its files to exist. A clear-folder action remains available. CDN permission never grants Wago consent, and Wago consent never grants CDN permission.
 
-The approved setup offers an optional autodetected/Browse Blizzard folder and a separate checkbox: **Download missing data from Blizzard CDN into Vibecraft’s data folder.** Local reuse and CDN permission are complementary. A missing installation for a selected game can use CDN-only acquisition when its exact build/content is available. Wago export consent is independent; CDN permission never enables another provider implicitly.
+All downloads, partial files, cache, source archives, staging databases and managed runtime versions stay in Vibecraft-owned storage. Selected game folders and active-permission roots form the protected read-only boundary. Reject app write paths inside those roots, including aliases. The active database is also protected. No job populates or patches the Blizzard installation.
 
-The review separates the **source folder (read-only)** from the **Vibecraft-owned destination**. All downloads, partial files, extracted assets, caches and generated databases go to app-owned storage. Reject writable destinations inside any selected game installation, including paths whose existing ancestors resolve there through aliases. No operation may patch or populate a Blizzard folder.
+Folder detection currently checks bounded common/remembered paths and metadata. Broader platform installation-record discovery and complete local catalog extraction remain separate work. Compatibility checks cover the supported setup target; there is no standalone raw-data/build explorer inside Vibecraft.
 
-Local WoW files are read-only. Put caches, extracted images, staging files and databases in Vibecraft user storage. Revalidate identity around reads to detect the client being patched. Missing, encrypted or unsupported files are explicit capability gaps. Prefer verified local files when that acquisition method is selected, but never fall back to the network unless the corresponding network source is enabled.
+## Jobs, cancellation and publication
 
-Local installations supply client data; they do not supply Questie/AtlasLoot curated datasets. Pure Java local-CASC index/archive access and raw DB2 decoding remain separate implementation work.
+One bounded worker owns dynamic capability checks, pinned-plan review, acquisition, projection, compact export and publication. No source parsing or SQL runs on the EDT. The service factory captures the established app-data path and an immutable active-database/permission snapshot without I/O.
 
-## Direct Blizzard builds/CDN, including beta availability
+The user-facing phases are:
 
-Offer explicit product/branch, region, available build and locale selection. Capture official discovery metadata, URL, timestamp and content hash, then pin build/CDN configuration, encoding and root identities for the job. Verify each configuration/content key through the acquisition chain. Supported available builds are not a promise that all historical builds can be fetched.
+`Download selected sources → Prepare library → Build catalogue → Check data → Trim download size → Open library`
 
-A beta/preload advertised by metadata is not necessarily readable. Show missing, unpublished or encrypted required data as unavailable. An incomplete new build may keep its verified download cache while the current installed catalog remains active. It must not be activated or silently replaced with another build.
+Report actual source/file/byte/table counts only when supplied. Projection, SQL checks and other unmeasured work remain indeterminate; there is no fabricated overall percentage. Internal validation can occur both before and after trimming.
 
-Download selected tables/assets rather than the entire game by default. Start with resumption at verified file boundaries; range resumption requires separate identity and Content-Range validation. Direct-Blizzard-only mode excludes implicit Wago transport fallback even when bytes could match. A separately selected table-export service has its own service-reported build/hash provenance and must not be described as CASC-root verification.
+Cancellation requests **Stopping after the current step** until a safe boundary returns. Verified acquisitions may be reused by the same preparation session on retry, while each catalog attempt starts fresh and is checked again. Do not describe this as resuming a partial SQL projection or guarantee restart recovery. Late/closed callbacks cannot open a library or switch the current page. A confirmed atomic publication wins a cancellation arriving after its commit; the UI must describe the registered result honestly rather than claim rollback.
 
-## Job engine, resume and activation
+Prepare a full candidate and source archive first. Independently validate the compact runtime and its source/export receipts, then publish a versioned copy and atomically register it for next startup. The old open database is not replaced. Full source evidence, logs and checked acquisition cache are currently retained; automatic cleanup is not part of this flow. Cleanup needs a separate reviewed policy for known staged paths after verified publication.
 
-One bounded setup worker coordinates immutable plans and reports structured progress:
+## Remaining work and release gates
 
-`Inspect → Plan → Fetch → Normalize → Project → Compact → Validate → Install → Ready`
+The app now uses importer libraries in production; the earlier test-only dependency limitation is resolved. The core preparation path and managed activation have real-data evidence. They are separate from the native GUI journey, which is still under acceptance, and from packaged Windows/macOS launch acceptance and a public release.
 
-Additional states: waiting for input, paused, failed and cancelled. Show source/file/byte progress when lengths are known and stage progress otherwise. Retry the failed source or stage without discarding verified independent inputs. Persist job-schema/app version, selected edition/build/locale, source pins and hashes, acquisition permissions, completed checkpoints and reports outside Git. Changes to source selections or build identity create a new plan; never mutate an active job implicitly.
+Remaining work includes the full first-run capability inventory and missing extended projections/media in [#14](https://github.com/aircan80/vibecraft/issues/14), broader supported editions/providers, local/direct-CDN catalog extraction, durable restart/recovery, estimates, storage selection/cleanup, and cross-platform packaging checks. Explicit conflicts, missing fields, unsupported formats, encrypted files and intentionally omitted sources remain distinct states.
 
-Cancellation propagates through HTTP requests, file loops, parsing and SQL stages. Interrupts alone are insufficient. Use cooperative cancellation and transaction rollback, with JDBC cancellation where supported. Resume at verified file/stage boundaries rather than pretending a partly completed SQL transaction is resumable.
-
-Build into a staging database. Keep raw snapshots in a separate archive/cache store and produce a compact runtime projection that retains the provenance/conflict evidence needed by the UI. Validate integrity, schema, identity, core query behavior, source counts and capability coverage before activation. Close handles and publish the validated candidate atomically; retain the previous database for recovery. Journal must never attach to a half-built candidate.
-
-Adding sources later uses this same staged rebuild/update flow. Coverage states distinguish **not selected**, **download failed**, **selected but missing source row**, **unsupported format**, **encrypted**, and **conflicting evidence**. Source precedence is explicit and reviewable; an alternative value is evidence to inspect, not an excuse to silently combine game editions.
-
-## Reuse, implementation slices and acceptance
-
-Reuse Java `SourceFetcher`, `ArchiveWorkflow` ingestion/projection, existing table loaders and pinned asset-verification code as libraries behind the main app. The application currently uses the importer only in test scope, so production reuse requires a deliberate module/dependency change. No separate end-user importer is implied.
-
-Implementation slices:
-
-1. Source capability/selection model, persisted plans, structured progress and first-run/Sources & Updates shell.
-2. Exact selected community acquisition, optional AtlasLoot refactor, worker cancellation and atomic candidate lifecycle.
-3. Direct pinned native table acquisition; satisfy the real loader dependency set and catalog identity before claiming a usable fresh build.
-4. Local WoW autodetection plus verified Java CASC/DB2 extraction; optional BLP image conversion and other selected asset capabilities.
-5. Resume/recovery, conflict inspection, compact runtime export, add-source rebuilds and cross-platform packaged acceptance.
-
-Each slice needs deterministic synthetic tests; network-format checks and actual local-client acceptance are separate evidence. Test cancellation, invalid input, corrupted cache, unavailable selected sources, no hidden transport fallback, patch races, disk-full failure and recovery without replacing the working database. Do not claim complete first-run setup from a file chooser, metadata discovery alone or an importer CLI demonstration.
+**vibeMiner is a separate planned application** for Blizzard CDN exploration, build comparisons and datamining, tracked in [#10](https://github.com/aircan80/vibecraft/issues/10). Vibecraft setup does not require it. This document retains its historical filename for existing links; it does not specify an embedded mining workspace.
