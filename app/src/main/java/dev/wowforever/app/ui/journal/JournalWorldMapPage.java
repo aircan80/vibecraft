@@ -23,10 +23,9 @@ public final class JournalWorldMapPage extends JPanel implements PageState {
     inspector.selectRegion(target.focusedChildId());
     var map = new WorldMapPage(target, catalog, art, region -> {
       inspector.selectRegion(region.uiMapId()); open.accept(region);
-    }, child -> { inspector.selectRegion(child); focused.accept(child); }, root, up, list);
+    }, child -> { inspector.selectRegion(child); focused.accept(child); }, root, up, list, false);
     var workspace = new JournalMapWorkspace(map, inspector,
-        width -> 100 + (int) Math.round(Math.min(width, art == null ? 1002 : art.getWidth())
-            * (art == null ? 668.0 / 1002 : (double) art.getHeight() / art.getWidth())));
+        map::preferredHeightForWidth);
     JScrollPane scroll = new JScrollPane(workspace, JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED, JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
     scroll.setBorder(BorderFactory.createEmptyBorder()); scroll.getVerticalScrollBar().setUnitIncrement(24);
     add(scroll);

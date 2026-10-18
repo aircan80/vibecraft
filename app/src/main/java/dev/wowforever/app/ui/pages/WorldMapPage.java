@@ -16,9 +16,17 @@ import javax.swing.*;
 /** Geographical drill-down. Every region is a real keyboard-focusable button over the map art. */
 public final class WorldMapPage extends JPanel {
   private final List<JButton> regions = new ArrayList<>();
+  private final MapBody body = new MapBody();
 
   public WorldMapPage(ViewTarget.WorldMap target, WorldMapCatalog catalog, BufferedImage art,
       Consumer<WorldMapRegion> open, Consumer<Long> focused, Runnable root, Runnable up, Runnable list) {
+    this(target, catalog, art, open, focused, root, up, list, true);
+  }
+
+  /** Embedded atlas pages let their outer workspace own scrolling. */
+  public WorldMapPage(ViewTarget.WorldMap target, WorldMapCatalog catalog, BufferedImage art,
+      Consumer<WorldMapRegion> open, Consumer<Long> focused, Runnable root, Runnable up, Runnable list,
+      boolean ownScroll) {
     super(new BorderLayout(0, 8));
     setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
     setFocusable(true);
@@ -30,8 +38,7 @@ public final class WorldMapPage extends JPanel {
     header.add(breadcrumb, BorderLayout.CENTER);
     header.add(viewToggle(true, root, list), BorderLayout.EAST);
     add(header, BorderLayout.NORTH);
-    JPanel body = new MapBody();
-    body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+    body.setLayout(null);
     var children = catalog.children(target.uiMapId()).stream()
         .sorted(Comparator.comparingDouble(WorldMapRegion::y0).thenComparingDouble(WorldMapRegion::x0)
             .thenComparingLong(WorldMapRegion::uiMapId)).toList();
@@ -43,7 +50,7 @@ public final class WorldMapPage extends JPanel {
       String facts = facts(region);
       button.getAccessibleContext().setAccessibleName(region.name() + facts + (catalog.children(region.uiMapId()).isEmpty()
           ? ", zone" : ", continent") + (navigable ? "" : ", not in the database yet"));
-      button.setToolTipText(region.name() + facts + (!navigable ? " · Not in the database yet"
+      button.setToolTipText(region.name() + facts + (!region.placed() ? " · Position unavailable" : "") + (!navigable ? " · Not in the database yet"
           : !region.hasArt() ? " · No map art in this client build" : ""));
       button.addActionListener(e -> {
         focused.accept(region.uiMapId());
@@ -65,12 +72,20 @@ public final class WorldMapPage extends JPanel {
       }
     }
     canvas.stackRegions();
+    if (regions.stream().anyMatch(region -> region.getParent() == null)) {
+      JLabel more = new JLabel("More destinations");
+      more.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 0));
+      body.add(more);
+      for (JButton region : regions) if (region.getParent() == null) body.add(region);
+      body.add(Box.createVerticalStrut(10));
+    }
     body.add(canvas);
-    for (JButton region : regions) if (region.getParent() == null) body.add(region);
     if (children.isEmpty()) body.add(new JLabel("World map geography is unavailable in this database. Use List to browse zones."));
-    JScrollPane scroll = new JScrollPane(body);
-    scroll.setBorder(BorderFactory.createEmptyBorder());
-    add(scroll, BorderLayout.CENTER);
+    if (ownScroll) {
+      JScrollPane scroll = new JScrollPane(body);
+      scroll.setBorder(BorderFactory.createEmptyBorder());
+      add(scroll, BorderLayout.CENTER);
+    } else add(body, BorderLayout.CENTER);
     add(new JLabel(catalog.sourceBuild().isBlank() ? "Archived client geography" : "Map hierarchy: client " + catalog.sourceBuild()), BorderLayout.SOUTH);
     bind("BACK_SPACE", "up", up);
     bind("ESCAPE", "clear-region", () -> { focused.accept(null); requestFocusInWindow(); });
@@ -82,6 +97,13 @@ public final class WorldMapPage extends JPanel {
         }
       }
     }
+  }
+
+  /** Measures artwork, every unplaced destination, header, and provenance at the actual available width. */
+  public int preferredHeightForWidth(int width) {
+    Insets in = getInsets();
+    body.setSize(Math.max(1, width - in.left - in.right), Math.max(1, body.getHeight()));
+    return getPreferredSize().height;
   }
 
   private static String facts(WorldMapRegion region) {
@@ -111,6 +133,21 @@ public final class WorldMapPage extends JPanel {
   }
 
   private static final class MapBody extends JPanel implements Scrollable {
+    @Override public Dimension getPreferredSize() {
+      int height = 0, width = 0;
+      for (Component child : getComponents()) if (child.isVisible()) {
+        Dimension size = child.getPreferredSize();
+        height += size.height; width = Math.max(width, size.width);
+      }
+      return new Dimension(width, height);
+    }
+    @Override public void doLayout() {
+      int y = 0;
+      for (Component child : getComponents()) if (child.isVisible()) {
+        int height = child.getPreferredSize().height;
+        child.setBounds(0, y, getWidth(), height); y += height;
+      }
+    }
     @Override public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
     @Override public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 24; }
     @Override public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return r.height; }
