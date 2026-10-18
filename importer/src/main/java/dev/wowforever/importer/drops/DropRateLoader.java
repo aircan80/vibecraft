@@ -52,12 +52,18 @@ public final class DropRateLoader {
    * AtlasLoot Classic Forever fork, Task 19), so the app labels them by edition. Positions 2 and 5 are unchanged.
    */
   public static DropRates load(SourceRoots roots, String atlasSource, ProblemCollector problems) {
-    DropRates rates = new DropRates();
-    loadWowhead(roots.questieDb().resolve(QUESTIE_DROPS), rates, problems);
-    loadCorrections(roots.questieDb().resolve(QUESTIE_CORRECTIONS), rates, problems);
+    DropRates rates = loadQuestieOnly(roots.questieDb(), problems);
     loadAtlasLoot(roots.atlasLoot().resolve(ATLAS_DIR).resolve("droprate.lua"), atlasSource, rates, problems);
     loadOverrides(roots.atlasLoot().resolve(ATLAS_DIR).resolve("droprate_override.lua"), atlasSource + "-override",
         rates, problems);
+    return rates;
+  }
+
+  /** Loads only the selected Questie rates; never inspects AtlasLoot paths or caches. */
+  public static DropRates loadQuestieOnly(Path questie, ProblemCollector problems) {
+    DropRates rates = new DropRates();
+    loadWowhead(questie.resolve(QUESTIE_DROPS), rates, problems);
+    loadCorrections(questie.resolve(QUESTIE_CORRECTIONS), rates, problems);
     return rates;
   }
 

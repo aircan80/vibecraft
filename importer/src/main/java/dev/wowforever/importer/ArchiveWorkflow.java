@@ -22,6 +22,12 @@ public final class ArchiveWorkflow {
   private ArchiveWorkflow() {}
 
   public static String ingest(ImportOptions options) throws Exception {
+    return ingest(options, CoreSourceSelection.DEFAULT);
+  }
+
+  /** Captures only explicitly selected core sources, including the choice in replay configuration. */
+  public static String ingest(ImportOptions options, CoreSourceSelection selected) throws Exception {
+    Objects.requireNonNull(selected, "selected core sources");
     validateOutputs(options);
     Path database = options.out().toAbsolutePath();
     Files.createDirectories(database.getParent());
@@ -33,6 +39,7 @@ public final class ArchiveWorkflow {
       Map<String, List<Artifact>> inputs = new LinkedHashMap<>();
       Map<String, Snapshot> descriptions = new LinkedHashMap<>();
       for (SourceSpec spec : specs) {
+        if (spec.key().equals("atlasloot") && !selected.atlasLoot()) continue;
         Optional<Path> override = spec.key().equals("questiedb") ? options.questieDbDir() : options.atlasLootDir();
         captureSpec(inputs, descriptions, spec.key(), spec, fetcher.resolve(spec, override), override.isPresent());
         if (spec.baseline() != null)
@@ -61,6 +68,7 @@ public final class ArchiveWorkflow {
         config = Objects.requireNonNull(stream).readAllBytes();
       }
       Properties settings = new Properties();
+      settings.setProperty("atlasLootSelected", Boolean.toString(selected.atlasLoot()));
       settings.setProperty("failOnUnsupported", Boolean.toString(options.failOnUnsupported()));
       settings.setProperty("coverageMin", Integer.toString(options.coverageMinPct()));
       ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -143,7 +151,7 @@ public final class ArchiveWorkflow {
           if (selection.keySet().stream().anyMatch(role -> role.equals("collector") || role.startsWith("collector-")))
             throw new IllegalArgumentException("Collector ingestion is archive-only until explicit project-collector; use that command to project observations");
           if (!(legacy ? selection.keySet().containsAll(List.of("configuration","legacy-app","allthethings"))
-              : selection.keySet().containsAll(List.of("configuration", "questiedb", "atlasloot"))))
+              : selection.keySet().containsAll(List.of("configuration", "questiedb"))))
             throw new IllegalArgumentException("Unknown or incomplete ingestion: " + ingestion);
           if (!Set.of("configuration","questiedb","atlasloot","atlasloot-baseline","client","server","allthethings","legacy-app").containsAll(selection.keySet()))
             throw new IOException("Unexpected archived input role");
@@ -157,9 +165,17 @@ public final class ArchiveWorkflow {
         try (InputStream stream = Files.newInputStream(work.resolve("configuration/projection.properties"))) { settings.load(stream); }
         if(!Set.of("true","false").contains(settings.getProperty("failOnUnsupported","")) || !settings.containsKey("coverageMin"))
           throw new IOException("Archived projection settings are incomplete or invalid");
+        String atlasSetting = settings.getProperty("atlasLootSelected", "true"); // Historical captures selected both sources.
+        if (!Set.of("true", "false").contains(atlasSetting))
+          throw new IOException("Archived AtlasLoot selection is invalid");
+        CoreSourceSelection selected = new CoreSourceSelection(Boolean.parseBoolean(atlasSetting));
+        if (!legacy && (selection.containsKey("atlasloot") != selected.atlasLoot()
+            || (!selected.atlasLoot() && selection.containsKey("atlasloot-baseline"))))
+          throw new IOException("Archived inputs do not match the explicit AtlasLoot selection");
         Path candidate = work.resolve("candidate.sqlite");
         ImportOptions options = new ImportOptions(candidate, work.resolve("empty-cache"),
-            Optional.of(work.resolve("questiedb")), Optional.of(work.resolve("atlasloot")),
+            Optional.of(work.resolve("questiedb")),
+            selection.containsKey("atlasloot") ? Optional.of(work.resolve("atlasloot")) : Optional.empty(),
             Boolean.parseBoolean(settings.getProperty("failOnUnsupported")), work.resolve("build-id.txt"),
             selection.containsKey("client") ? ClientDataOptions.of(work.resolve("client")) : ClientDataOptions.skipped(),
             Integer.parseInt(settings.getProperty("coverageMin")),
@@ -177,10 +193,10 @@ public final class ArchiveWorkflow {
           report.note("Legacy baseline retained; core data was not regenerated or revalidated for client coverage.");
         } else {
           List<SourceSpec> sourceSpecs = SourceSpec.load(specs);
-          if (sourceSpecs.stream().anyMatch(x -> x.baseline() != null) && !selection.containsKey("atlasloot-baseline"))
+          if (selected.atlasLoot() && sourceSpecs.stream().anyMatch(x -> x.baseline() != null) && !selection.containsKey("atlasloot-baseline"))
             throw new IOException("Archived AtlasLoot baseline is missing; offline projection refused");
           report = ImportPipeline.runResolved(options, console, sourceSpecs,
-              selection.containsKey("atlasloot-baseline") ? work.resolve("atlasloot-baseline") : null);
+              selection.containsKey("atlasloot-baseline") ? work.resolve("atlasloot-baseline") : null, selected);
         }
         if(selection.containsKey("allthethings")) {
           SourceSpec att=archivedAttSpec(work.resolve("configuration"));

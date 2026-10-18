@@ -79,22 +79,34 @@ public final class ImportPipeline {
 
   /** Runs the import and prints the rendered report to {@code console}. */
   public static ImportReport run(ImportOptions opts, PrintStream console) throws IOException, SQLException {
-    return runResolved(opts, console, SourceSpec.load(), null);
+    return run(opts, console, CoreSourceSelection.DEFAULT);
+  }
+
+  /** Runs the explicitly selected core sources; disabling AtlasLoot never resolves its files or baseline. */
+  public static ImportReport run(ImportOptions opts, PrintStream console, CoreSourceSelection selected)
+      throws IOException, SQLException {
+    return runResolved(opts, console, SourceSpec.load(), null, selected);
   }
 
   /** Runs from explicit archived source specifications; a supplied baseline avoids every network fallback. */
   public static ImportReport runResolved(ImportOptions opts, PrintStream console, List<SourceSpec> specs,
       Path baselineRoot) throws IOException, SQLException {
+    return runResolved(opts, console, specs, baselineRoot, CoreSourceSelection.DEFAULT);
+  }
+
+  public static ImportReport runResolved(ImportOptions opts, PrintStream console, List<SourceSpec> specs,
+      Path baselineRoot, CoreSourceSelection selected) throws IOException, SQLException {
+    Objects.requireNonNull(selected, "selected core sources");
     ImportReport report = new ImportReport();
     Map<String, ProblemCollector> problems = new LinkedHashMap<>();
 
     SourceSpec questieSpec = specs.stream().filter(s -> s.key().equals("questiedb")).findFirst().orElseThrow();
-    SourceSpec atlasSpec = specs.stream().filter(s -> s.key().equals("atlasloot")).findFirst().orElseThrow();
+    SourceSpec atlasSpec = selected.atlasLoot()
+        ? specs.stream().filter(s -> s.key().equals("atlasloot")).findFirst().orElseThrow() : null;
     SourceFetcher fetcher = new SourceFetcher(opts.cacheDir(), HttpClient.newBuilder()
         .followRedirects(HttpClient.Redirect.NORMAL).connectTimeout(Duration.ofSeconds(30)).build());
-    SourceRoots roots = new SourceRoots(
-        fetcher.resolve(questieSpec, opts.questieDbDir()), fetcher.resolve(atlasSpec, opts.atlasLootDir()));
-    Path questieDb = roots.questieDb();
+    Path questieDb = fetcher.resolve(questieSpec, opts.questieDbDir());
+    Path atlasRoot = selected.atlasLoot() ? fetcher.resolve(atlasSpec, opts.atlasLootDir()) : null;
 
     Map<EntityKind, EntitySchema> schemas = new EnumMap<>(EntityKind.class);
     Map<EntityKind, EntityTable> tables = new EnumMap<>(EntityKind.class);
@@ -116,7 +128,10 @@ public final class ImportPipeline {
       applier.applyLayer(layer, questieDb, tables, bound, corrections);
     }
 
-    DropRates rates = DropRateLoader.load(roots, atlasSpec.rateSource(), stage(problems, "droprates"));
+    DropRates rates = selected.atlasLoot()
+        ? DropRateLoader.load(new SourceRoots(questieDb, atlasRoot), atlasSpec.rateSource(), stage(problems, "droprates"))
+        : DropRateLoader.loadQuestieOnly(questieDb, stage(problems, "droprates"));
+    if (!selected.atlasLoot()) report.note("AtlasLoot was not selected; its loot lists, rates and baseline were not imported.");
     Map<String, String> serverMeta =
         ServerDbStage.run(opts.serverDbDir(), tables.get(EntityKind.NPC)::contains, rates, report);
 
@@ -124,8 +139,9 @@ public final class ImportPipeline {
     // a first zone pass supplies the names, a second one (cheap) classifies the raids.
     Map<Long, String> areaNames = ZoneLoader.load(questieDb, constants, Set.of(), new ProblemCollector())
         .values().stream().collect(Collectors.toMap(Zone::id, Zone::name, (a, b) -> a));
-    List<AtlasInstance> instances = AtlasLootLoader.load(roots.atlasLoot(), areaNames, stage(problems, "atlasloot"));
-    if (atlasSpec.baseline() != null) {
+    List<AtlasInstance> instances = selected.atlasLoot()
+        ? AtlasLootLoader.load(atlasRoot, areaNames, stage(problems, "atlasloot")) : List.of();
+    if (atlasSpec != null && atlasSpec.baseline() != null) {
       // the AtlasLoot pin replaced an earlier one (the Classic Forever fork, Hoizame's): keep the union (Task 19)
       List<AtlasInstance> baseline = AtlasLootLoader.load(baselineRoot != null ? baselineRoot : fetcher.resolve(atlasSpec.baseline(), Optional.empty()),
           areaNames, stage(problems, "atlasloot.baseline"));
@@ -145,13 +161,15 @@ public final class ImportPipeline {
     ClientDataBundle client =
         ClientDataStage.run(opts.clientData(), tables, zones, questieDb, atlasLootMapIds, report);
 
-    Map<String, String> meta = meta(questieSpec.commit(), atlasSpec.pin(), Instant.now());
-    if (atlasSpec.zip() != null) {
+    Map<String, String> meta = meta(questieSpec.commit(), atlasSpec == null ? "" : atlasSpec.pin(), Instant.now());
+    meta.put("atlasloot_selection", selected.atlasLoot() ? "selected" : "not-selected");
+    if (!selected.atlasLoot()) meta.remove("atlasloot_commit");
+    if (atlasSpec != null && atlasSpec.zip() != null) {
       meta.put("atlasloot_name", atlasSpec.zip().name());
       meta.put("atlasloot_version", atlasSpec.zip().version());
       meta.put("atlasloot_sha256", atlasSpec.zip().sha256());
     }
-    if (atlasSpec.baseline() != null) {
+    if (atlasSpec != null && atlasSpec.baseline() != null) {
       meta.put("atlasloot_baseline_commit", atlasSpec.baseline().commit());
     }
     meta.putAll(serverMeta);
