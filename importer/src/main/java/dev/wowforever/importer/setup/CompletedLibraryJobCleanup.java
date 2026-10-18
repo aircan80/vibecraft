@@ -6,7 +6,7 @@ import java.nio.file.*;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 
-/** Explicit, bounded cleanup for successfully activated jobs. Not wired to the application. */
+/** Explicit, bounded cleanup after verified durable activation; runtime and cache files are retained. */
 public final class CompletedLibraryJobCleanup {
   @FunctionalInterface interface DeleteFile {void delete(Path file)throws IOException;}
   private final DeleteFile deleteFile;
