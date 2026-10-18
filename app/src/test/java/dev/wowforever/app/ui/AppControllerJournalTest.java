@@ -58,7 +58,8 @@ class AppControllerJournalTest {
     var expected = new JournalDungeonPage.State("Deadmines", 2, 1, 0, 1, 0, "instance:2", 0);
     page.restoreState(expected);
     controller.open(new ViewTarget.Entity(new EntityRef(EntityKind.INSTANCE, 2)));
-    assertThat(view.detail).isInstanceOf(JournalPage.class);
+    assertThat(view.detail).isInstanceOf(JournalDungeonPage.class);
+    assertThat(guide(view.detail)).isNotNull();
     controller.back();
     assertThat(view.detail).isInstanceOf(JournalDungeonPage.class).isNotSameAs(page);
     assertThat(((JournalDungeonPage) view.detail).saveState()).isEqualTo(expected);
@@ -69,18 +70,18 @@ class AppControllerJournalTest {
     AppController controller = controller();
     var dungeon = new ViewTarget.Entity(new EntityRef(EntityKind.INSTANCE, 2));
     controller.open(dungeon);
-    JournalPage first = (JournalPage) view.detail;
+    JournalPage first = guide(view.detail);
     first.tabs().setSelectedIndex(2);
     assertThat(first.tabs().getTitleAt(2)).isEqualTo("Maps");
     controller.open(new ViewTarget.Home());
     controller.back();
-    JournalPage restored = (JournalPage) view.detail;
+    JournalPage restored = guide(view.detail);
     assertThat(restored).isNotSameAs(first);
     assertThat(restored.tabs().getSelectedIndex()).isEqualTo(2);
     controller.forward();
     assertThat(view.detail).isInstanceOf(JournalHomePage.class);
     controller.back();
-    assertThat(((JournalPage) view.detail).tabs().getSelectedIndex()).isEqualTo(2);
+    assertThat(guide(view.detail).tabs().getSelectedIndex()).isEqualTo(2);
   }
 
   @Test
@@ -99,6 +100,13 @@ class AppControllerJournalTest {
     assertThat(view.detail).isSameAs(dungeon);
     assertThat(view.lastTarget).isEqualTo(new ViewTarget.List(EntityKind.INSTANCE));
     assertThat(view.title).isEqualTo("Dungeons & raids");
+  }
+
+  private static JournalPage guide(java.awt.Component component) {
+    if(component instanceof JournalPage page)return page;
+    if(component instanceof java.awt.Container container)
+      for(var child:container.getComponents()) {JournalPage page=guide(child);if(page!=null)return page;}
+    return null;
   }
 
   private static final class JournalView implements MainView {

@@ -39,6 +39,22 @@ class JournalSidebarTest {
     assertThat(JournalSidebar.matches(new ViewTarget.WorldMap(947), new ViewTarget.List(EntityKind.QUEST))).isFalse();
   }
 
+  @Test void foreverDungeonDiscoveriesHighlightDungeonsRatherThanCharacterSystems() throws Exception {
+    SwingUtilities.invokeAndWait(() -> {
+      JournalSidebar sidebar = new JournalSidebar(t -> {});
+      sidebar.select(new ViewTarget.Forever("discovery",2981));
+      assertThat(button(sidebar,"Dungeons & raids").isSelected()).isTrue();
+      assertThat(button(sidebar,"Character & systems").isSelected()).isFalse();
+      assertThat(button(sidebar,"Dungeons & raids").getAccessibleContext().getAccessibleDescription())
+          .contains("Current section");
+      sidebar.select(new ViewTarget.Forever("race",95));
+      assertThat(button(sidebar,"Dungeons & raids").isSelected()).isFalse();
+      assertThat(button(sidebar,"Character & systems").isSelected()).isTrue();
+      sidebar.select(new ViewTarget.Forever("ladder"));
+      assertThat(button(sidebar,"Dungeons & raids").isSelected()).isTrue();
+    });
+  }
+
   private JButton button(JournalSidebar sidebar, String name) {
     for (Component c : sidebar.getComponents())
       if (c instanceof JButton b && name.equals(b.getAccessibleContext().getAccessibleName())) return b;

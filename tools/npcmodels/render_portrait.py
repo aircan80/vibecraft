@@ -8,6 +8,12 @@ started=time.monotonic()
 arguments=sys.argv[sys.argv.index('--')+1:]
 source, output=map(Path,arguments[:2])
 turntable='--turntable' in arguments[2:]
+request_path=arguments[arguments.index('--request')+1] if '--request' in arguments else None
+request=json.loads(Path(request_path).read_text()) if request_path else None
+display_scale=float(request['displayScale']) if request else 1.3
+if not math.isfinite(display_scale) or not 0 < display_scale < 100:raise ValueError('invalid native display scale')
+resolution=512 if request else 768
+portrait_name='portrait.png' if request else 'mechanical-squirrel.png'
 output.mkdir(parents=True,exist_ok=True)
 bpy.ops.object.select_all(action='SELECT'); bpy.ops.object.delete(use_global=False)
 bpy.ops.import_scene.gltf(filepath=str(source.resolve()))
@@ -15,15 +21,15 @@ custom_shapes={b.custom_shape for o in bpy.context.scene.objects if o.type=='ARM
 meshes=[o for o in bpy.context.scene.objects if o.type=='MESH' and o not in custom_shapes]
 if not meshes: raise RuntimeError('GLB contains no mesh')
 # Native display scale is recorded explicitly rather than baked into mesh coordinates.
-for obj in meshes: obj.scale *= 1.3
+for obj in meshes: obj.scale *= display_scale
 bpy.context.view_layer.update()
 points=[o.matrix_world @ v.co for o in meshes for v in o.data.vertices]
 lo=Vector(tuple(min(p[i] for p in points) for i in range(3)))
 hi=Vector(tuple(max(p[i] for p in points) for i in range(3)))
 center=(lo+hi)/2; span=hi-lo
 scene=bpy.context.scene
-scene.render.engine='CYCLES';scene.cycles.device='CPU';scene.cycles.samples=48
-scene.render.resolution_x=768;scene.render.resolution_y=768;scene.render.resolution_percentage=100
+scene.render.engine='CYCLES';scene.cycles.device='CPU';scene.cycles.samples=24 if request else 48
+scene.render.resolution_x=resolution;scene.render.resolution_y=resolution;scene.render.resolution_percentage=100
 scene.render.film_transparent=True
 scene.render.image_settings.file_format='PNG';scene.render.image_settings.color_mode='RGBA'
 scene.view_settings.view_transform='Standard';scene.view_settings.look='Medium High Contrast'
@@ -47,13 +53,13 @@ for mat in bpy.data.materials:
  bsdf=next((n for n in mat.node_tree.nodes if n.type=='BSDF_PRINCIPLED'),None)
  if bsdf:bsdf.inputs['Roughness'].default_value=0.76;bsdf.inputs['Metallic'].default_value=0.0
  materials.append(mat.name)
-scene.render.filepath=str((output/'mechanical-squirrel.png').resolve())
+scene.render.filepath=str((output/portrait_name).resolve())
 bpy.ops.render.render(write_still=True)
-report={'renderer':bpy.app.version_string,'engine':'Cycles CPU','samples':48,'resolution':[768,768],
+report={'renderer':bpy.app.version_string,'engine':'Cycles CPU','samples':scene.cycles.samples,'resolution':[resolution,resolution],
  'transparent':True,'camera':'orthographic three-quarter','pose':'native bind pose; no animation',
- 'displayScale':1.3,'bounds':{'min':list(lo),'max':list(hi)},'materials':materials,
+ 'displayScale':display_scale,'bounds':{'min':list(lo),'max':list(hi)},'materials':materials,
  'inputSha256':hashlib.sha256(source.read_bytes()).hexdigest(),
- 'outputSha256':hashlib.sha256((output/'mechanical-squirrel.png').read_bytes()).hexdigest(),
+ 'outputSha256':hashlib.sha256((output/portrait_name).read_bytes()).hexdigest(),
  'durationSeconds':round(time.monotonic()-started,3)}
 proof_path=source.parent.parent/'attestation/content-proof.json'
 if proof_path.exists():

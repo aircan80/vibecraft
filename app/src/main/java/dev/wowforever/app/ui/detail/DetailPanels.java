@@ -137,7 +137,13 @@ public final class DetailPanels {
    */
   public record LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
       Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes,
-      QuestInvolvement.Result involvement, dev.wowforever.app.db.NpcPortraits.Portrait portrait) {
+      QuestInvolvement.Result involvement, dev.wowforever.app.db.NpcPortraits.Portrait portrait,
+      dev.wowforever.app.model.NpcAppearance appearance) {
+    public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
+        Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes,
+        QuestInvolvement.Result involvement, dev.wowforever.app.db.NpcPortraits.Portrait portrait) {
+      this(detail,mapZoneId,map,rateSources,bossNpcs,routes,involvement,portrait,null);
+    }
     public LoadedNpc(NpcDetail detail, Long mapZoneId, BufferedImage map,
         Map<RateSource.Key, List<RateSource>> rateSources, Set<Long> bossNpcs, List<Route> routes,
         QuestInvolvement.Result involvement) {
@@ -254,7 +260,8 @@ public final class DetailPanels {
         return new LoadedNpc(d, zone, zoneMap(zone, repos), repos.items().sourcesOfNpc(id, rated),
             rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)), repos.npcs().routes(id),
             repos.quests().involvingResult(ref),
-            dev.wowforever.app.db.NpcPortraits.load(id,repos.instances().clientBuild()).orElse(null));
+            dev.wowforever.app.db.NpcPortraits.load(id,repos.instances().clientBuild()).orElse(null),
+            new dev.wowforever.app.db.NpcAppearanceRepository(repos.database()).resolve(id));
       });
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains())).map(d -> {
         Long zone = mapZone(d.spawns());

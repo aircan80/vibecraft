@@ -179,6 +179,15 @@ public final class MainFrame extends JFrame implements MainView {
     layout.start();
     textSize.applySaved();
     wireStatusToggles();
+    if (experience == UiExperience.JOURNAL) {
+      status.addComponentListener(new ComponentAdapter() {
+        @Override public void componentResized(ComponentEvent e) { fitJournalStatus(status); }
+      });
+      status.addHierarchyListener(e -> SwingUtilities.invokeLater(() -> fitJournalStatus(status)));
+      status.messageLabel().addPropertyChangeListener("text", e ->
+          status.messageLabel().setToolTipText(status.message()));
+      fitJournalStatus(status);
+    }
     if (experience == UiExperience.JOURNAL) SwingUtilities.updateComponentTreeUI(this);
   }
 
@@ -191,6 +200,18 @@ public final class MainFrame extends JFrame implements MainView {
     status.themeToggle().addActionListener(e -> toggleTheme());
     status.layoutToggle().setModel(new WindowMenus.LiveToggle(layout::isCompact));
     status.layoutToggle().addActionListener(e -> toggleCompactMode());
+  }
+
+  /** Journal's narrow layout prioritizes the current message and controls; full metadata stays in tooltips. */
+  static void fitJournalStatus(StatusBar status) {
+    boolean compact = dev.wowforever.app.ui.detail.CompactColumns.within(status);
+    boolean wide = status.getWidth() >= 960 && !compact;
+    status.provenanceLabel().setVisible(wide);
+    status.infoLabel().setVisible(wide);
+    status.messageLabel().setHorizontalAlignment(wide ? SwingConstants.CENTER : SwingConstants.LEFT);
+    status.messageLabel().setToolTipText(status.message());
+    status.setToolTipText(status.provenance() + (status.info().isEmpty() ? "" : " · " + status.info()));
+    status.revalidate();
   }
 
   private void navigationWidth(boolean collapsed) {
@@ -690,6 +711,10 @@ public final class MainFrame extends JFrame implements MainView {
     String app = experience == UiExperience.JOURNAL ? "WoW Forever — Explorer Journal" : APP_NAME;
     setTitle(s == null || s.isEmpty() ? app : app + " — " + s);
     if (journalBreadcrumbs != null) journalBreadcrumbs.setPageTitle(s);
+  }
+
+  @Override public void highlightCitySection() {
+    if(journalSidebar!=null) journalSidebar.select(new ViewTarget.Forever("cities"));
   }
 
   @Override public UiExperience uiExperience() { return experience; }

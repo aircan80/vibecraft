@@ -10,6 +10,17 @@
   <name>Browser application</name>
 
   <dependencies>
+    <!-- Java Sound service providers; pinned decoder versions, service files merged by Shade. -->
+    <dependency>
+      <groupId>com.googlecode.soundlibs</groupId>
+      <artifactId>mp3spi</artifactId>
+      <version>1.9.5.4</version>
+    </dependency>
+    <dependency>
+      <groupId>com.googlecode.soundlibs</groupId>
+      <artifactId>vorbisspi</artifactId>
+      <version>1.0.3.3</version>
+    </dependency>
     <dependency>
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>

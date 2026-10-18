@@ -13,6 +13,9 @@ public interface MainView {
   /** A committed page changed; the Journal shell updates its location and labelled navigation. */
   default void viewTargetChanged(dev.wowforever.app.nav.ViewTarget target) {}
 
+  /** The committed entity is a verified city; preserve geography while highlighting Cities. */
+  default void highlightCitySection() {}
+
   /** The master list left of the detail. */
   MasterList masterList();
 

@@ -77,3 +77,21 @@ Raidbots is the cache distributor, and these observations are distinct from nati
 QuestieDB correction inputs at e9a67d1a2753a0e64c4c96bf7864788fac7b765f are archived
 alongside the earlier baseline; the bounded refresh keeps its three-way audit and conflicts.
 Stat labels and aura identifiers use WoWDBDefs enum originals, retained under data/reference.
+
+City soundtrack decoder libraries
+-------------------------------
+MP3SPI 1.9.5.4, VorbisSPI 1.0.3.3, JLayer 1.0.1.4, JOrbis 0.0.17.4, and
+Tritonus Share 0.3.7.4 are packaged from com.googlecode.soundlibs artifacts.
+Their Maven parent com.googlecode.soundlibs:soundlibs:1.4 declares the LGPL 2.1 license.
+Original decoder authors are JavaZoom (MP3SPI/VorbisSPI/JLayer), JCraft (JOrbis),
+and the Tritonus project. Maven packaging and corresponding source are available at
+https://github.com/pdudits/soundlibs (Patrik Dudits). The libraries remain separate
+Java Sound service providers merged into the distributable JAR; no decoder source
+changes are made by this application. LGPL license: licenses/LGPL-2.1-soundlibs.txt.
+Artifact metadata: https://repo.maven.apache.org/maven2/com/googlecode/soundlibs/soundlibs/1.4/soundlibs-1.4.pom
+
+Native city soundtrack assignments retain exact Forever 1.60.1.70450 AreaTable,
+WMOAreaTable, ZoneMusic, SoundKit and SoundKitEntry evidence from Wago exports.
+Selected CSV source bytes and hashes are retained under data/city-music. Blizzard
+retains rights to native music; audio is downloaded into the user's local cache
+only after exact Blizzard build root membership and content hashes are verified.

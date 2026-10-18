@@ -20,3 +20,10 @@ The actual bundled database supplies the displayed facts: City of Dalaran is lev
 `assets/westfall.jpg` and `assets/dalaran.jpg` were extracted byte-for-byte from `app/src/main/resources/data/wowforever.sqlite`; provenance keys, lengths and SHA-256 hashes are in `assets/manifest.json`. Artwork was not redrawn or edited. Dalaran artwork is credited to Dan Gilbert, Lothaer, Arith Hsu and the Atlas Team, distributed under the copied `assets/Atlas-GPL-2.0.txt` license. Westfall is original archived client artwork and remains subject to its existing game-art rights. Map pins are explicitly illustrative placements and are not evidence of coordinates. The prototype makes no new coverage or certainty claims.
 
 The source-comparison drawer demonstrates progressive disclosure using real provider identities, not fabricated conflicts. A temporal hidden-to-known update is explained as such. A complete production implementation would render the existing repository's exact field history and archived source evidence here.
+
+## New design studies
+
+- [City guide](cities.html): source-qualified native districts, overview/map navigation and honest music states.
+- [Equipment research](loot-research.html): persistent results/detail, responsive filters, missing-field semantics and query states.
+
+These are additional review concepts; original four screens remain available.

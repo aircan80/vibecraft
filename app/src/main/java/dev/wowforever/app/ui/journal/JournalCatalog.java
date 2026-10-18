@@ -22,6 +22,7 @@ public final class JournalCatalog {
   }
   /** Returns null for destinations which retain their existing detailed page. */
   public static Object load(ViewTarget target, Database db) {
+    if (target instanceof ViewTarget.Forever city && city.section().equals("cities")) return JournalCities.load(db);
     if (target instanceof ViewTarget.Home) {
       List<InstanceSummary> instances=new InstanceRepository(db).all();
       BufferedImage art=null;String label="";
@@ -41,6 +42,7 @@ public final class JournalCatalog {
     return null;
   }
   public static JComponent render(Object snapshot, Navigator nav) {
+    if(snapshot instanceof JournalCities.Snapshot cities) return JournalCities.render(cities,nav);
     if(snapshot instanceof HomeSnapshot home) return new JournalHomePage(home,nav);
     if(snapshot instanceof DungeonSnapshot dungeons) return new JournalDungeonPage(dungeons,nav);
     return null;

@@ -33,9 +33,13 @@ public final class JournalDetails {
     if (loaded instanceof DetailPanels.LoadedItem p) return item(p,nav,filter,onFilter);
     if (loaded instanceof DetailPanels.LoadedZone p)
       return new JournalZonePage(p,repos,nav,worker,sink,questPins,routes);
-    if (loaded instanceof DetailPanels.LoadedNpc p && p.portrait()!=null)
-      return new JournalNpcPortrait(new NpcPage(p.detail(),p.mapZoneId(),p.map(),p.rateSources(),p.bossNpcs(),filter,
-          onFilter,p.involvement(),nav,ClipboardPort.system(),p.routes()),p.portrait(),p.detail().summary().id(),worker);
+    if (loaded instanceof DetailPanels.LoadedNpc p) {
+      var npc=new NpcPage(p.detail(),p.mapZoneId(),p.map(),p.rateSources(),p.bossNpcs(),filter,
+          onFilter,p.involvement(),nav,ClipboardPort.system(),p.routes());
+      if(p.portrait()!=null)return new JournalNpcPortrait(npc,p.portrait(),p.detail().summary().id(),worker);
+      if(p.appearance()!=null)return new JournalNpcPreview(npc,p.appearance(),dev.wowforever.app.preview.NpcPreviewService.shared());
+      return npc;
+    }
     return DetailPanels.render(loaded,repos,nav,worker,sink,filter,onFilter,questPins,routes);
   }
 

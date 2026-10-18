@@ -1,0 +1,74 @@
+# Warcraft product opportunities: a world worth getting lost in
+
+Research date: 2026-10-17. This is an AI product-research perspective grounded in Warcraft's systems and the repository, not a human playtest or a claim of personal game experience. Proposals are not shipped functionality. Relative effort assumes the present Java/Swing/offline SQLite architecture; estimates need an implementation spike.
+
+## Product direction
+
+The strongest version of this app lets someone follow curiosity: “What is that creature?”, “Where does this recipe come from?”, “What does this quest open?”, “Why do these sources disagree?” Its advantage should be connected, beautiful, trustworthy answers, rather than another table directory. No character checklist, completion percentage, BiS prescription, or demand to connect an account is needed.
+
+Forever stays the default evidence scope. A familiar Classic answer must never silently fill a Forever gap. A missing record means missing coverage, not absent content. Keep real zero, not applicable, hidden, unresolved and community-reported separate. Build/edition belong on every relation as well as every entity.
+
+## What was actually inspected
+
+- Product principles and release train in `docs/superpowers/specs/2026-10-17-product-backlog.md`; older milestones in that document are historical, not a fresh implementation audit.
+- `JournalCities` and `JournalCityPage`: exact-build city identities and direct native child districts exist. This is not proof of complete city-service catalogues or interior geography. Current city/equipment designs are `docs/ui-review-2026-10-17/{city-guide,equipment-workspace}.md` and their linked interactive mockups.
+- `ItemContentRepository`: sets, recipes, XP food and appearance connections already provide useful foundations. An appearance relationship is not an equipment recommendation.
+- `SourceDifferenceRepository` and source widgets: evidence comparison already exists. Propose making it easier to understand and reach, not building a second conflicting evidence system.
+- `tools/npcmodels/README.md`: current native catalogue covers 184 Creature rows and 193 positive authored display slots for build 70450. That is not all NPCs in the app. On-demand cache/worker exists; equipped humanoids, external skeleton assembly, translucent/additive and multipass cases remain unsupported. Seeking Remnant's mapping remains unresolved. A model mapping is not evidence of tameability, server presence or render success.
+
+## Five priorities with concrete player journeys
+
+| Priority | Opportunity and question | Small useful experience | Data and boundary | Relative effort / reuse |
+|---|---|---|---|---|
+| 1 | **Connections: “What does this unlock?”** A quest reward is interesting because of what follows it. | Open Cozy Sleeping Bag 211527 → its reward quest 79976 → a readable prerequisite trail with faction branches → inspect an attributed edge → Back returns to the same item. Later, a recipe can lead to its taught spell, output, reagents and acquisition. | Reuse existing quest/source relationships and exact pinned ATT Forever assertions. Preserve AND/OR and faction conditions; no ID-adjacency inference. Say “authored prerequisite” where that is the evidence. Cap traversal, detect cycles and disclose missing ends. | **S–M** for one quest trail, **L** for generalized relations. Shared edge projection benefits cities, professions, loot and lore. |
+| 2 | **City guide: “Who here can help with this?”** A capital should feel like a place with useful people. | Stormwind → a recorded district → actual people/services → a selected NPC → its actual quests or goods, while the map remains available. Music, native art and breadcrumb provide place identity; facts provide usefulness. | City 1519 and direct child records are established locally. Trainer/vendor/transport claims require real scoped source records; district names never prove services. A city directory must distinguish precise district placement from city-only placement. Interior maps wait for actual floors and transforms. | **M** for one honest service category, **L** for broad services. Reuse city shell, map inspector, NPC links and existing music service. |
+| 3 | **Loot research that explains the answer**: “Which encounter is this from, and how certain is that?” | Dungeon → boss → item → all available acquisition assertions, with a concise answer first and source differences beside it. Preserve dungeon selection/filter state on return. Hidden Forever values remain visible as unknown records, rather than disappearing under filters. | Reuse current equipment workspace and source comparisons. Keep encounter-list membership distinct from observed boss drops, and Classic emulator rates distinct from Forever rates. Never add overlapping counts. Class restriction compatibility does not imply proficiency or usefulness. | **S–M** to join up current work; high immediate value. This is refinement of active roadmap work, not an extra parallel UI rewrite. |
+| 4 | **Recipe field guide: “How is this made and where is the knowledge?”** | Start at XP Food → select a genuinely recorded food → exact effect/conditions → recipe or taught spell when linked → ingredients and their recorded sources. Start with one fully verified recipe, not a universal craft graph. | Existing native effects, recipes and `SkillLineAbility` are a foundation; inspect exact build layouts and local row coverage before asserting difficulty bands or trainer costs. Show alternatives as alternatives; do not assume every recipe item teaches exactly one spell. Missing source remains missing. | **M** bounded recipe panel; **L** recursive reagent graph. Reusable item/spell/source edges and quantity aggregation. |
+| 5 | **Visual bestiary: “What is that beast, and what else looks like it?”** | Mechanical Squirrel → portrait/turntable → exact appearance variants → other genuinely mapped NPCs sharing that appearance → their source-qualified locations. Later add family/diet/learnable ability panels where Forever evidence exists. | Exact native appearance keys and cached assets already exist. CreatureFamily schema is a possible join, not proof the shipped snapshot has usable family coverage. Petopia Classic is a reference/comparison, never a Forever tameability fallback. Keep unsupported renders navigable with a clear reason. | **M** for visual catalogue over verified mappings, **L+** for equipped humanoids/animation and broad server mappings. Reuse deduplicated disk cache; load only visible previews. |
+
+The first three deserve delivery before adding broad new navigation categories. They strengthen the work already underway and answer different parts of the same research session.
+
+## Five experiments worth earning their place
+
+1. **Azeroth through a word.** Search quest and readable text for a place, person or faction, then show exact excerpts with links. For example, investigate references to Dalaran rather than invent a lore biography. A local full-text index can make this fast; exact text mentions are not proof two entities are canonically identical. First experiment: one corpus and deterministic highlighted snippets. **M**, reusable search and lore foundation.
+2. **Build archaeology.** On a changed item or area, open a small field-level timeline: exact old/new builds, changed value, source and unknown transitions. Separate observed changes from newly acquired coverage; hidden → known is not necessarily a game balance change. First experiment: two retained Forever snapshots, five real controls; do not fake a timeline from the Era baseline. **M after data exists**; edition comparison can reuse the presentation but not merge identities.
+3. **Sound atlas.** From a supported city soundscape, open a tiny soundtrack card showing the real track, linked area and available variants. Optional manual day/night selection only after native mappings are verified. ZoneMusic defines paired sounds/intervals in relevant layouts, but this does not establish this build's playable assets or exact in-game selection behavior. First experiment: the already acquired city's track with honest playback state and persistent mute. **S** beyond city music; no autoplay on every incidental hover.
+4. **Appearance cabinet.** Browse source-backed item appearance groups without collecting or tracking ownership. “These items share this native appearance” is useful even when stats are hidden. Keep NPC appearance and item appearance as different relation types. Start with existing `ItemContentRepository.appearance`, a few verified groups and explicit Classic comparison. **S–M**; reuse portrait/render infrastructure only where actual item asset support exists.
+5. **Field evidence notebook.** Offer a read-only “Why is this unknown?” card and export a compact research packet: entity/build/field, current assertions, exact missing evidence and local source links. Later an explicit user-started collector import can attach observations. No automatic upload or player profile. First experiment: export one existing source-comparison page, not a social platform. **S–M**; improves collector acceptance and source debugging.
+
+## Two signature experiences
+
+### The Connected Field Guide
+
+Every major page exposes a small **Connections** rail grouped by meaning: comes from, used for, unlocks, found in, mentions. Opening a relation shows a readable two- or three-step trail with evidence at each step. This can become the defining experience because it answers questions across systems without requiring players to learn our schema.
+
+Implement this as bounded indexed SQLite queries into immutable view snapshots, rendered off the EDT. Use typed edges with edition/build/source/evidence/condition, not an unbounded force-directed graph or a generative answer engine. A research trail can be pinned locally later, but it must remain reference material rather than prescribed character progression.
+
+### The Living Atlas
+
+A city, zone or dungeon combines actual map, selected records, contextual native art, optional soundscape, and the selected NPC's cached portrait. Selecting on the map changes the inspector; opening is an explicit action. The atmosphere should enrich the answer, never delay it. This builds on current city/map/music/renderer work rather than replacing the UI shell.
+
+The expensive part is trustworthy coverage and relationships, not Swing's ability to draw attractive panels. Prefetch small metadata; query bounded records; queue render/audio independently; display useful text immediately. All audio respects persistent mute. Never pre-render the entire library before a user can use the app.
+
+## Next small vertical slice
+
+**Ship one coherent “Cozy Sleeping Bag → what unlocks it?” journey.** The source-backed chain already exists; first verify the exact current page paths and reuse the existing chain component. Add a concise connection action from the item, a readable trail with actual faction starts/conditions, an evidence disclosure and return-state preservation. Do not introduce a generic graph database or add a new main-rail category.
+
+Acceptance: item 211527 reaches quest 79976 and the existing six-link attributed prerequisite projection; actual faction branches stay distinct; unknown conditions stay disclosed; a source edge opens the pinned assertion; Back restores selection. Check desktop/420px, keyboard, both themes and cold versus warm load timing on the shipped DB. If current chain UI already satisfies an acceptance point, verify and improve its discoverability instead of rebuilding it.
+
+**Parallel work that does not compete for the same files:** city designer can specify one source-qualified service journey; data researcher can inventory exact Forever NPC/service coverage; renderer team can broaden supported material/skeleton controls in its isolated worker; another owner can instrument cold-load timings. Keep root build/package verification serialized.
+
+Longer-term north star: open any world record and understand its place, appearance, connections, history and uncertainty in a few clicks, entirely offline once its data/assets are installed.
+
+## Research evidence and limits
+
+Primary sources checked on 2026-10-17. These describe authored source data, tools or schemas; they do not independently verify server gameplay. Rolling `master` references below are research pointers, not suitable production snapshot identifiers. Pin revision, archive bytes and retain source path/line before importing.
+
+- [ATT Forever configuration](https://github.com/ATTWoWAddon/AllTheThings/blob/master/.contrib/.db/forever/.config/forever.config) establishes a dedicated Forever data branch. [ATT runtime](https://github.com/ATTWoWAddon/AllTheThings/blob/master/AllTheThings.lua) implements source navigation across NPC/item/recipe/provider relationships. This supports the feasibility of typed authored links, not permission to flatten all conditions or silently borrow other editions. The repository backlog already pins the actual Sleeping Bag assertions and source logic to `a8c2fce5e8e52af3925352f5e61cbf7520ae3148`.
+- [WoWDBDefs ZoneMusic](https://raw.githubusercontent.com/wowdev/WoWDBDefs/master/definitions/ZoneMusic.dbd) supplies build-dependent music fields and relationships. Schema availability alone does not establish locally available audio or complete day/night behavior.
+- [WoWDBDefs SkillLineAbility](https://raw.githubusercontent.com/wowdev/WoWDBDefs/master/definitions/SkillLineAbility.dbd) supplies versioned profession/ability schema definitions. Actual selected-build rows and effect interpretation still require validation.
+- [WoWDBDefs CreatureFamily](https://raw.githubusercontent.com/wowdev/WoWDBDefs/master/definitions/CreatureFamily.dbd) and [CreatureSoundData](https://github.com/wowdev/WoWDBDefs/blob/master/definitions/CreatureSoundData.dbd) are potential family/audio linkage sources. They are not themselves Forever tameability or gameplay observations.
+- [wow.export upstream](https://github.com/Kruithne/wow.export) is the asset-export implementation already used by the isolated worker. Its broader capabilities do not mean our adapter supports animations or all rendering features.
+- [Petopia's Classic ability reference](https://www.wow-petopia.com/classic/abilities.php) is first-party authored specialist reference material for Classic pet questions. Its value here is demonstrating a useful information model; its edition scope must remain explicit. No Forever tameability assertion in this report derives from Classic Petopia.
+
+No additional game catalogues, new imports, player studies or NPC coverage expansion were performed in this research task. The opportunity priorities are product judgments; proposed player questions are design scenarios, not measured user-frequency claims.

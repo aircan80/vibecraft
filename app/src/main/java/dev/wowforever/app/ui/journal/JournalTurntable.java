@@ -16,7 +16,8 @@ public final class JournalTurntable extends JPanel {
   private final JToggleButton play=new JToggleButton("Play rotation");
   private final Timer timer;
   private final JComponent canvas;
-  public JournalTurntable(NpcTurntables.Turntable data) {
+  public JournalTurntable(NpcTurntables.Turntable data) {this(data,"Mechanical Squirrel");}
+  public JournalTurntable(NpcTurntables.Turntable data,String npcName) {
     super(new BorderLayout(0,6));this.data=data;setOpaque(false);
     canvas=new JComponent(){
       {setFocusable(true);setName("npc-turntable-canvas");setToolTipText("Drag to rotate; Left/Right to turn; Home to reset");}
@@ -32,7 +33,7 @@ public final class JournalTurntable extends JPanel {
         if(hasFocus()){copy.setColor(getForeground());copy.drawRect(1,1,Math.max(0,getWidth()-3),Math.max(0,getHeight()-3));}copy.dispose();
       }
     };
-    canvas.getAccessibleContext().setAccessibleName("Mechanical Squirrel · 12-view bind-pose preview");
+    canvas.getAccessibleContext().setAccessibleName(npcName+" · 12-view bind-pose preview");
     canvas.setBorder(BorderFactory.createEmptyBorder());add(canvas,BorderLayout.CENTER);
     MouseAdapter drag=new MouseAdapter(){int startX,startFrame;boolean dragging;
       public void mousePressed(MouseEvent e){dragging=true;startX=e.getX();startFrame=frameIndex();pause();canvas.requestFocusInWindow();}

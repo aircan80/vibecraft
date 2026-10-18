@@ -4,10 +4,15 @@
  */
 'use strict';
 const fs = require('fs'), path = require('path'), util = require('util'), Module = require('module'), crypto = require('crypto');
-if (process.argv.length !== 5) throw Error('Usage: node export-m2.cjs WOW_EXPORT ASSET_DIR OUTPUT_DIR');
-const [source, input, output] = process.argv.slice(2).map(x => path.resolve(x));
+if (![5,6].includes(process.argv.length)) throw Error('Usage: node export-m2.cjs WOW_EXPORT ASSET_DIR OUTPUT_DIR');
+const [source, input, output] = process.argv.slice(2,5).map(x => path.resolve(x));
 if (!source || !input || !output) throw Error('Usage: node export-m2.cjs WOW_EXPORT ASSET_DIR OUTPUT_DIR');
 fs.mkdirSync(output, {recursive:true});
+const request = process.argv[5] ? JSON.parse(fs.readFileSync(process.argv[5], 'utf8')) : null;
+const modelID = request ? request.modelFileDataId : 126061;
+const textures = request ? request.textures : [126062,0,0];
+const stem = request ? 'preview' : 'mechanical-squirrel';
+if (!Number.isSafeInteger(modelID) || modelID <= 0 || !Array.isArray(textures) || textures.some(x=>!Number.isSafeInteger(x)||x<0)) throw Error('Invalid appearance request');
 const js = path.join(source, 'src/js');
 const config = {overwriteFiles:true, modelsExportTextures:true, modelsExportAlpha:true,
  pathFormat:'posix', enableSharedTextures:false, modelsExportAnimations:false,
@@ -21,21 +26,31 @@ stub('casc/export-helper.js', {replaceExtension:(p,e)=>p.replace(/\.[^.\/]+$/, '
 const originalLoad = Module._load;
 Module._load = function(name,...args) {if(name==='webp-wasm')return {};return originalLoad.call(this,name,...args);};
 let BufferWrapper;
+const missing = new Set();
 stub('core.js',{view:{config,casc:{getFile:async id=>{
  const f=path.join(input,`${id}.bin`);
- if(!fs.existsSync(f)) throw Error(`Missing exact native dependency ${id}`);
+ if(!fs.existsSync(f)) { missing.add(id); throw Error(`Missing exact native dependency ${id}`); }
  return new BufferWrapper(fs.readFileSync(f));
 }}}});
 BufferWrapper=require(path.join(js,'buffer'));
 const Exporter=require(path.join(js,'3D/exporters/M2Exporter'));
 (async()=>{
- const exporter=new Exporter(new BufferWrapper(fs.readFileSync(path.join(input,'126061.bin'))),[126062,0,0],126061);
- await exporter.exportAsGLTF(path.join(output,'mechanical-squirrel.m2'),{isCancelled:()=>false,mark:()=>{}},'glb');
- const glb=fs.readFileSync(path.join(output,'mechanical-squirrel.glb'));
+ const exporter=new Exporter(new BufferWrapper(fs.readFileSync(path.join(input,`${modelID}.bin`))),textures,modelID);
+ await exporter.exportAsGLTF(path.join(output,stem+'.m2'),{isCancelled:()=>false,mark:()=>{}},'glb');
+ const glb=fs.readFileSync(path.join(output,stem+'.glb'));
  const document=JSON.parse(glb.subarray(20,20+glb.readUInt32LE(12)).toString());
- if(document.images?.length!==1 || !document.meshes?.[0]?.primitives?.every(p=>p.material!==undefined)) throw Error('Missing embedded material/texture');
+ if(missing.size) throw Error('Missing exact native dependencies: '+[...missing].join(','));
+ if(!document.images?.length || !document.meshes?.every(mesh=>mesh.primitives.every(p=>p.material!==undefined && document.materials[p.material]?.pbrMetallicRoughness?.baseColorTexture))) throw Error('Missing embedded material/texture');
  const m=exporter.m2, skin=await m.getSkin(0);
- const inputHashes=[126061,126062,479933].map(id=>({fileDataId:id,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(input,`${id}.bin`))).digest('hex')}));
- if(m.materials.some(m=>m.blendingMode!==0) || skin.subMeshes.length!==1) throw Error('Unsupported appearance outside this opaque single-submesh control');
- fs.writeFileSync(path.join(output,'conversion.json'),JSON.stringify({exporterCommit:'c2fd7bde36a712be78a5da896c995b84fbfa2545',model:126061,texture:126062,skin:479933,inputHashes,vertices:m.vertices.length/3,triangles:skin.triangles.length/3,submeshes:skin.subMeshes.length,textureTypes:m.textureTypes,materials:m.materials,pose:'bind pose; animation intentionally disabled',missingDependencies:[]},null,2));
+ const inputHashes=fs.readdirSync(input).filter(x=>/^\d+\.bin$/.test(x)).map(x=>Number(x.slice(0,-4))).sort((a,b)=>a-b).map(id=>({fileDataId:id,sha256:crypto.createHash('sha256').update(fs.readFileSync(path.join(input,`${id}.bin`))).digest('hex')}));
+ if(m.materials.some(m=>![0,1].includes(m.blendingMode))) throw Error('Unsupported appearance: translucent or additive materials need separate validation');
+ if(request){
+  const {nativeMaterials,writeGlb}=require('./materials.cjs');
+  const sections=skin.subMeshes.map((_,i)=>skin.textureUnits.filter(t=>t.skinSectionIndex===i));
+  nativeMaterials(document,m.materials,sections);
+  fs.writeFileSync(path.join(output,stem+'.glb'),writeGlb(glb,document));
+ }
+ if(m.textureTypes.some(t=>![0,2,11,12,13].includes(t))) throw Error('Unsupported appearance: composite or special texture type');
+ if(!request && skin.subMeshes.length!==1) throw Error('Unsupported control submeshes');
+ fs.writeFileSync(path.join(output,'conversion.json'),JSON.stringify({exporterCommit:'c2fd7bde36a712be78a5da896c995b84fbfa2545',model:modelID,textures,inputHashes,vertices:m.vertices.length/3,triangles:skin.triangles.length/3,submeshes:skin.subMeshes.length,textureTypes:m.textureTypes,materials:m.materials,pose:'bind pose; animation intentionally disabled',missingDependencies:[]},null,2));
 })().catch(e=>{console.error(e);process.exitCode=1;});

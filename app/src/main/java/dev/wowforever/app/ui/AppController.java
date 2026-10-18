@@ -116,14 +116,27 @@ public final class AppController implements Navigator {
     }
   }
   private JComponent renderDetail(Object detail, StatusSink sink) {
-    return journal() ? dev.wowforever.app.ui.journal.JournalDetails.render(detail,repos,this,worker,sink,
-        view.sourceFilter(),this::changeSourceFilter,view.questPins(),view.routes())
-        : DetailPanels.render(detail,repos,this,worker,sink,
+    if (!journal()) return DetailPanels.render(detail,repos,this,worker,sink,
         view.sourceFilter(),this::changeSourceFilter,view.questPins(),view.routes());
+    JComponent component=dev.wowforever.app.ui.journal.JournalDetails.render(detail,repos,this,worker,sink,
+        view.sourceFilter(),this::changeSourceFilter,view.questPins(),view.routes());
+    if (loaded!=null && loaded.detail()==detail) {
+      if (loaded.dungeons()!=null && detail instanceof DetailPanels.LoadedInstance instance)
+        return new dev.wowforever.app.ui.journal.JournalDungeonPage(loaded.dungeons(),this,instance.detail().summary().id(),component);
+      if (loaded.city()!=null && detail instanceof DetailPanels.LoadedZone zone)
+        return new dev.wowforever.app.ui.journal.JournalCityPage(loaded.city(),component,this,zone.map(),
+            new dev.wowforever.app.music.CityMusicPanel(dev.wowforever.app.music.CityMusicService.shared()));
+    }
+    return component;
   }
 
-  /** A loaded entity record and the entity it is of. */
-  private record Loaded(EntityRef ref, Object detail) {}
+  /** Loaded entity and optional worker-preloaded Journal context. */
+  private record Loaded(EntityRef ref, Object detail,
+      dev.wowforever.app.ui.journal.JournalCatalog.DungeonSnapshot dungeons,
+      dev.wowforever.app.ui.journal.JournalCities.GuideSnapshot city) {}
+  private record EntitySnapshot(java.util.Optional<Object> detail,
+      dev.wowforever.app.ui.journal.JournalCatalog.DungeonSnapshot dungeons,
+      dev.wowforever.app.ui.journal.JournalCities.GuideSnapshot city) {}
 
   /** The view state ({@link PageState#saveState}) saved for the page of {@code target}. */
   private record PendingState(ViewTarget target, Object state) {}
@@ -356,6 +369,8 @@ public final class AppController implements Navigator {
     pageTarget = t;
     view.setDetail(p);
     if (t != null) view.viewTargetChanged(t);
+    if (journal() && t instanceof ViewTarget.Entity entity && loaded!=null && loaded.city()!=null
+        && entity.ref().equals(loaded.ref())) view.highlightCitySection();
     if (state != null && p instanceof PageState s) {
       s.restoreState(state);
     }
@@ -439,6 +454,7 @@ public final class AppController implements Navigator {
 
   private void show(ViewTarget t, boolean captureSearchEdit) {
     rememberJournalState();
+    if(journal()) dev.wowforever.app.music.CityMusicService.shared().leaveCity();
     loadingDelay.cancel(); // the loading page of a page left behind
     if (!(t instanceof ViewTarget.Search)) {
       lastPage = t;
@@ -519,11 +535,21 @@ public final class AppController implements Navigator {
         setPage(null, LoadingPage.of(ref.kind(), title), null);
       }
     });
-    Async.runIf(worker, () -> generation == detailGeneration, () -> DetailPanels.load(ref, repos), detail -> {
+    boolean journalExperience=journal();
+    Async.runIf(worker, () -> generation == detailGeneration, () -> {
+      var detail=DetailPanels.load(ref,repos);
+      var dungeons=journalExperience && ref.kind()==EntityKind.INSTANCE && detail.isPresent()
+          ? (dev.wowforever.app.ui.journal.JournalCatalog.DungeonSnapshot)dev.wowforever.app.ui.journal.JournalCatalog.load(new ViewTarget.List(EntityKind.INSTANCE),repos.database()) : null;
+      var city=journalExperience && ref.kind()==EntityKind.ZONE && detail.isPresent()
+          ? dev.wowforever.app.ui.journal.JournalCities.loadGuide(repos.database(),ref.id()) : null;
+      return new EntitySnapshot(detail,dungeons,city);
+    }, snapshot -> {
+      var detail=snapshot.detail();
       if (generation == detailGeneration) {
         loadingDelay.cancel();
         if (detail.isPresent()) {
-          loaded = new Loaded(ref, detail.get());
+          loaded = new Loaded(ref, detail.get(),snapshot.dungeons(),snapshot.city());
+          if (snapshot.city()!=null) dev.wowforever.app.music.CityMusicService.shared().enterCity(snapshot.city().city().id(),snapshot.city().build());
           setPage(new ViewTarget.Entity(ref), renderDetail(detail.get(), pageStatus(generation)));
           view.setTitleSuffix(DetailPanels.name(detail.get()));
           followCommittedPage(ref, detail.get());
@@ -658,7 +684,7 @@ public final class AppController implements Navigator {
 
   /** Content catalogs follow the same worker/EDT split and stale-load protection as entity pages. */
   private void showCatalog(ViewTarget target) {
-    if (journal() && target instanceof ViewTarget.Forever f && f.section().equals("ladder")) {
+    if (journal() && target instanceof ViewTarget.Forever f && (f.section().equals("ladder") || f.section().equals("cities"))) {
       showJournalCatalog(target);
       return;
     }
@@ -683,7 +709,7 @@ public final class AppController implements Navigator {
   private void showJournalCatalog(ViewTarget target) {
     int generation=++detailGeneration;
     leaveListPage();
-    String title=target instanceof ViewTarget.Home?"Explorer Journal":"Dungeons & raids";
+    String title=target instanceof ViewTarget.Home?"Explorer Journal":target instanceof ViewTarget.Forever f && f.section().equals("cities")?"Cities":"Dungeons & raids";
     view.setTitleSuffix(title);
     view.status().setMessage("Loading…");
     loadingDelay.cancel();

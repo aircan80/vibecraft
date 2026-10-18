@@ -56,6 +56,26 @@ class JournalCatalogTest {
       assertThat(feature.y).isGreaterThan(g.y).isLessThan(760);
     });
   }
+  @Test void persistentRailNavigatesOtherDestinationsAndRestoresTheEmbeddedGuide() throws Exception {
+    SwingUtilities.invokeAndWait(()->{
+      var data=new JournalCatalog.DungeonSnapshot(List.of(dungeon(1,"Deadmines",false),dungeon(2,"Dalaran",true)),List.of());
+      List<ViewTarget> opened=new ArrayList<>();TestGuide guide=new TestGuide();guide.tab=2;
+      var page=new JournalDungeonPage(data,opened::add,2,guide);page.setSize(1030,760);for(int i=0;i<8;i++)layout(page);
+      assertThat(guide.getParent().isVisible()).isTrue();
+      JButton other=buttons(page).stream().filter(b->"Deadmines".equals(b.getAccessibleContext().getAccessibleName())).findFirst().orElseThrow();
+      other.doClick();assertThat(opened).containsExactly(new ViewTarget.Entity(dungeon(1,"Deadmines",false).ref()));
+      Object saved=page.saveState();TestGuide replacement=new TestGuide();var returned=new JournalDungeonPage(data,opened::add,2,replacement);returned.restoreState(saved);assertThat(replacement.tab).isEqualTo(2);
+      returned.setSize(420,760);for(int i=0;i<8;i++)layout(returned);
+      for(Component c:all(returned))if(c instanceof JToggleButton toggle&&toggle.getText().equals("Destinations"))toggle.doClick();
+      for(int i=0;i<8;i++)layout(returned);assertThat(replacement.getParent().isVisible()).isFalse();
+      for(Component c:all(returned))if(c instanceof JToggleButton toggle&&toggle.getText().equals("Selected guide"))toggle.doClick();
+      for(int i=0;i<8;i++)layout(returned);assertThat(replacement.getParent().isVisible()).isTrue();assertThat(replacement.tab).isEqualTo(2);
+    });
+  }
+  private static final class TestGuide extends JPanel implements dev.wowforever.app.ui.pages.PageState {
+    int tab;public Object saveState(){return tab;}public void restoreState(Object state){if(state instanceof Integer n)tab=n;}
+  }
+  private static List<Component> all(Container root){List<Component> result=new ArrayList<>();for(Component c:root.getComponents()){result.add(c);if(c instanceof Container child)result.addAll(all(child));}return result;}
   private static void layout(Container root){root.doLayout();for(Component c:root.getComponents())if(c instanceof Container child)layout(child);}
   private static JButton button(Container root,String text){return buttons(root).stream().filter(b->text.equals(b.getText())).findFirst().orElseThrow(()->new AssertionError("Missing button: "+text));}
   private static List<JButton> buttons(Container root){List<JButton> result=new ArrayList<>();for(Component c:root.getComponents()){if(c instanceof JButton b)result.add(b);if(c instanceof Container child)result.addAll(buttons(child));}return result;}

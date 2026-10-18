@@ -6,6 +6,8 @@ import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.widgets.RailIcons;
 import dev.wowforever.app.ui.widgets.RailTarget;
 import java.awt.*;
+import java.awt.event.FocusAdapter;
+import java.awt.event.FocusEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -38,6 +40,7 @@ public final class JournalSidebar extends JPanel {
     add(browse); add(Box.createVerticalStrut(9));
     addEntry("Home", RailTarget.HOME, new ViewTarget.Home());
     addEntry("World & maps", RailTarget.ZONES, new ViewTarget.WorldMap(947));
+    addEntry("Cities", RailTarget.ZONES, new ViewTarget.Forever("cities"));
     addEntry("Dungeons & raids", RailTarget.INSTANCES, new ViewTarget.List(EntityKind.INSTANCE));
     addEntry("Gear & items", RailTarget.ITEMS, new ViewTarget.List(EntityKind.ITEM));
     addEntry("Quests", RailTarget.QUESTS, new ViewTarget.List(EntityKind.QUEST));
@@ -69,6 +72,10 @@ public final class JournalSidebar extends JPanel {
     button.setToolTipText(label);
     button.getAccessibleContext().setAccessibleName(label);
     button.addActionListener(e -> navigate.accept(target));
+    button.addFocusListener(new FocusAdapter() {
+      @Override public void focusGained(FocusEvent e) { refreshTheme(); }
+      @Override public void focusLost(FocusEvent e) { refreshTheme(); }
+    });
     entries.add(new Entry(label, icon, target, button));
     add(button); add(Box.createVerticalStrut(3));
     return button;
@@ -126,6 +133,12 @@ public final class JournalSidebar extends JPanel {
       boolean active = matches(entry.target, selected);
       entry.button.setBackground(active ? t.selection() : t.bgRaised());
       entry.button.setForeground(t.textPrimary());
+      entry.button.setSelected(active);
+      entry.button.setBorder(BorderFactory.createCompoundBorder(
+          BorderFactory.createLineBorder(entry.button.hasFocus() || active ? t.goldText() : t.bgRaised()),
+          new EmptyBorder(10, 7, 10, 5)));
+      entry.button.getAccessibleContext().setAccessibleDescription(
+          active ? "Current section: " + entry.label : "Open " + entry.label);
       entry.button.setIcon(RailIcons.shared().small(entry.icon, 20));
       entry.button.putClientProperty("JButton.selectedState", active ? "selected" : null);
     }
@@ -133,14 +146,20 @@ public final class JournalSidebar extends JPanel {
   }
 
   static boolean matches(ViewTarget route, ViewTarget target) {
+    if (route instanceof ViewTarget.Forever city && city.section().equals("cities")) return target instanceof ViewTarget.Forever f && f.section().equals("cities");
     if (route instanceof ViewTarget.Home) return target instanceof ViewTarget.Home;
     if (route instanceof ViewTarget.WorldMap) return target instanceof ViewTarget.WorldMap
         || kind(target) == EntityKind.ZONE;
+    if (route instanceof ViewTarget.List list && list.kind() == EntityKind.INSTANCE
+        && target instanceof ViewTarget.Forever forever)
+      return forever.section().equals("ladder") || forever.section().equals("discovery");
     if (route instanceof ViewTarget.List list) return kind(target) == list.kind()
         || list.kind() == EntityKind.INSTANCE && kind(target) == EntityKind.BOSS;
     if (route instanceof ViewTarget.ItemContent) return target instanceof ViewTarget.ItemContent;
     if (route instanceof ViewTarget.Forever f && target instanceof ViewTarget.Forever actual)
-      return f.section().equals("hub") ? actual.section().equals("hub") : !actual.section().equals("hub");
+      return f.section().equals("hub")
+          ? List.of("hub", "pvp", "pvp-faction").contains(actual.section())
+          : List.of("talents", "legacy", "races", "race", "camping", "class-spells").contains(actual.section());
     return false;
   }
 

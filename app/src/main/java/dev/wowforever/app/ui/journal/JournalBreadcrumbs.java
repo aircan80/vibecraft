@@ -42,7 +42,10 @@ public final class JournalBreadcrumbs extends JPanel {
       steps.add(new Step("Gear & items",new ViewTarget.List(EntityKind.ITEM)));
       steps.add(new Step(c.section().equals("set")?"Item set #"+c.id():human(c.section()),null));
     } else if(target instanceof ViewTarget.Forever f) {
-      if(f.section().equals("ladder")) steps.add(new Step("Dungeons & raids",null));
+      if(f.section().equals("cities")) {
+        steps.add(new Step("World & maps",new ViewTarget.WorldMap(947)));
+        steps.add(new Step("Cities",null));
+      } else if(f.section().equals("ladder")) steps.add(new Step("Dungeons & raids",null));
       else if(f.section().equals("hub")) steps.add(new Step("What's changed",null));
       else if(f.section().equals("discovery")) {
         steps.add(new Step("Dungeons & raids",new ViewTarget.List(EntityKind.INSTANCE)));

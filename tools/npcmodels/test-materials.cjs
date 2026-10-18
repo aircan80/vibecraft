@@ -1,0 +1,11 @@
+const assert=require('node:assert/strict');
+const {nativeMaterials,writeGlb}=require('./materials.cjs');
+const original=()=>({materials:[{pbrMetallicRoughness:{baseColorTexture:{index:0}}}],meshes:[{primitives:[{material:0}]},{primitives:[{material:0}]}]});
+const d=nativeMaterials(original(),[{blendingMode:0,flags:0},{blendingMode:1,flags:4}],[[{materialIndex:0}],[{materialIndex:1}]]);
+assert.equal(d.materials[d.meshes[0].primitives[0].material].alphaMode,'OPAQUE');
+const mask=d.materials[d.meshes[1].primitives[0].material];assert.equal(mask.alphaMode,'MASK');assert.equal(mask.alphaCutoff,128/255);assert.equal(mask.doubleSided,true);
+assert.throws(()=>nativeMaterials(original(),[{blendingMode:2}],[[{materialIndex:0}],[{materialIndex:0}]]),/translucent/);
+assert.throws(()=>nativeMaterials(original(),[{blendingMode:0}],[[{materialIndex:0},{materialIndex:0}],[{materialIndex:0}]]),/multiple/);
+const b=Buffer.alloc(32);b.write('glTF');b.writeUInt32LE(2,4);b.writeUInt32LE(32,8);b.writeUInt32LE(4,12);b.write('{}  ',20);b.write('BIN!',24);
+const out=writeGlb(b,d);assert.equal(out.readUInt32LE(8),out.length);assert.equal(out.readUInt32LE(12)%4,0);assert.equal(out.subarray(20+out.readUInt32LE(12)).toString(),b.subarray(24).toString());
+console.log('PASS native material modes, per-primitive split, rejection and GLB chunk preservation');

@@ -1,3 +1,48 @@
+# On-demand native NPC previews
+
+Explorer Journal can resolve an exact-build appearance, generate its portrait and twelve
+turntable views in a separate background process, and reuse a hash-checked disk cache.
+Different NPCs sharing the same exact appearance reuse the same preview. Missing native
+mappings and unsupported appearance features remain explicit.
+
+The Java renderer queue invokes `preview_worker.py --request REQUEST.json --output STAGING`.
+It uses `NativeAssets` to resolve and verify every file against the official exact-build
+CASC root. The pinned wow.export adapter handles opaque and alpha-key material passes;
+additive/translucent effects, multipass materials, external skeleton assembly and equipped
+humanoids are currently rejected. Blender writes 512 px native-bind-pose previews. This is
+not an animated live 3D viewer.
+
+Configure `WOWFOREVER_NPC_PREVIEW_WORKER` or `wowforever.npcPreview.worker` when launching
+outside the repository. Optional tool paths: `NPC_PREVIEW_NODE`, `NPC_PREVIEW_BLENDER`,
+`NPC_PREVIEW_WOW_EXPORT`. `NPC_PREVIEW_ASSET_CACHE` configures the shared raw-asset cache;
+`NPC_PREVIEW_METADATA` supplies previously acquired official metadata, independently hash
+checked. Repository-local verified toolchains are discovered for development. Missing
+prerequisites produce an unavailable state, without blocking navigation.
+
+Java settings: `wowforever.npcPreview.cache`, `wowforever.npcPreview.python`, and
+`wowforever.npcPreview.rendererVersion`. Cache entries are isolated by product, build,
+appearance and renderer version; only fully verified staging output is published.
+A renderer timeout kills its process tree. Pending jobs can be reattached after navigating
+away and back; playback stops when its view is hidden.
+
+Tests: `python3 -m unittest discover -s tools/npcmodels/tests`; also run
+`python3 -m unittest discover -s tools/npcmodels -p test_preview_worker.py` and
+`node tools/npcmodels/test-materials.cjs`. Java service tests cover deduplication,
+persistent cache loading, corruption, wrong-build output and EDT-safe queuing.
+
+# Exact-build NPC appearance catalog
+
+Run `build_appearance_catalog.py --source-dir <native CSV directory> --attestation <acquisition-attempts.json> --output <catalog.json>`.
+The attestation must declare the product, build, locale, and each table's URL, SHA-256, row count and columns. The generator rejects bytes or shapes that differ. It never fetches data, executes source code, reads names to match entities, or changes the database.
+
+The bundled `data/npc-appearances/forever-70450.json` contains all 184 native Creature rows and all 193 positive display slots from the four reviewed Forever beta 1.60.1.70450 tables. Each mapping retains raw native cells, original CSV path/line, file SHA-256, and source-manifest URLs. A missing Creature row stays unresolved; the catalog is not a complete map of the app's NPCs. All variants remain distinct, including repeated display IDs in separate authored slots. Zero texture slots remain in place.
+
+`MAPPED` means only that the exact native model file, texture variations and scales can be identified. It does not attest to a rendered preview. Humanoid customization/baked materials, creature equipment, geoset overrides, conditional models and non-opaque display alpha are unsupported by the current generic request. Missing records or non-positive scales stay unresolved. Character customization and equipment are never guessed from a race, a name, or a similar NPC.
+
+The appearance cache key includes product, build, display/model identities, model file, all texture slots, both raw scales, the extra-display ID, and authored equipment IDs. NPC ID is excluded so genuinely identical appearances can share cached assets; the request still carries NPC ID and full evidence. No source from another build or Classic Era is substituted.
+
+---
+
 # Native NPC portrait proof of concept
 
 This isolated worker converts real WoW M2/SKIN/BLP inputs to a GLB, then renders

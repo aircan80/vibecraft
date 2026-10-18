@@ -1,5 +1,30 @@
 # Roadmap and ideas backlog
 
+## Current high-level direction (2026-10-17)
+
+The original release train remains in the [product backlog](superpowers/specs/2026-10-17-product-backlog.md).
+Later owner requests bring selected UI, city and rendering work forward; they do not
+mean every feature in a later release is complete.
+
+| Stage | Focus | Current position |
+| --- | --- | --- |
+| Foundation through v0.4.1 | Search, quests, maps, provenance and Forever systems/content | Implemented development; genuine collector capture acceptance remains external |
+| Explorer Journal | Mockup fidelity, persistent list/detail, compact navigation and fast loads | Active integration; Original interface retained |
+| Cities | Native city index/guides, district navigation and source-backed soundtracks | Active integration; recorded geography is partial |
+| NPC previews | Exact appearance resolution, on-demand background renders and shared disk cache | Working generic pipeline; mapping/material coverage still limited |
+| v0.5 | Loot research, equipment filters and preparation views | Planned |
+| v0.6 | Crafting, professions, recipe sources, vendors and gathering | Planned |
+| v0.7 | World guides, factions, stories, rares, pets and fishing | Planned; cities pulled forward |
+| v0.8 | Comparison, pinned pages/lists, compact tools and build changes | Planned |
+| Multiple games | Edition-scoped catalogs and a persistent game selector | Architecture researched; not imported/implemented |
+
+Owner-authorized native previews and city music may download verified assets on demand
+and then reuse an offline cache. The research database remains local and self-contained.
+This extends the older backlog's runtime-network principle for these optional asset
+features; it does not permit cross-build or Era fallback. Missing appearance mappings,
+unsupported materials and audio failures must remain visible, without blocking navigation.
+
+
 Collected 2026-10-16 after v0.1 (the first working browser). Not committed to any order yet;
 the suggested sequence is at the bottom. Items marked *Done (v0.2.0)* shipped with phase 2A
 (client data) and phase 2B (UI overhaul); their text is kept as it was planned.

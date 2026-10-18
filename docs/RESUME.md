@@ -1,5 +1,37 @@
 # Resume development — current checkpoint
 
+## Latest checkpoint: generic native previews and city guides/music
+
+The desktop runs `.local/native-city-acceptance/app-review.jar`, copied to
+`.local/running/wow-forever-browser.jar`, SHA256
+`652203d4182c79782cb0063c3e740cd9e2f52ee12c4e679b49f1da72a097c337`.
+Normal startup chooser remains. Choose Explorer Journal → Cities → Stormwind;
+Siamese and Wood Frog previews are already verified and cached for immediate review.
+
+Full Maven verify: 1900 tests, six skipped, zero failures/errors. Final artifact
+passed 51 screenshots/journeys and packaged MP3 decode. Genuine UI Generate for
+Siamese used a fresh cache and real worker, survived Home/Back, and a fresh JVM
+reused the result. Music mappings cover all six capitals (including indoor WMO
+assignments); first tracks are root-verified and decode successfully. UI screenshots
+suppress audio, with controlled playback tests and an independently opened output
+device. No human listening acceptance claim. See `docs/verification/native-preview-cities.json`.
+
+Generic appearance metadata covers only 143 installed NPCs; missing mappings stay
+unresolved. Mapped does not mean every material renders. No Era fallback. Native
+assets download on demand with official root/content verification, then cache;
+this is explicitly owner-authorized runtime acquisition. Existing SQLite unchanged.
+
+Next UI follow-ups: attached dungeon guide should carry visible catalog filters
+(current Back restores them); collapse unavailable-model panels. City districts
+are partial native coverage, never a complete inferred service directory.
+
+Parallel next work is isolated: loot filters `bcfe109` in `../loot-v05`;
+appearance collector prototype `64e9ae6` in `../npc-coverage-next`. Neither is in
+the launched JAR. Review before integrating; collector needs actual Forever-client
+acceptance. New product research: `docs/research/2026-10-17-warcraft-product-opportunities.md`.
+Previous checkpoints below are historical evidence for their original artifacts.
+
+
 ## Latest verified continuation: Journal polish, catalog loads and turntable
 
 The next preview integrates the closer Home/entity styling, hierarchical map pages

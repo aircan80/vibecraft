@@ -1,0 +1,1005 @@
+{
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "tables": {
+    "ZoneMusic": {
+      "url": "https://wago.tools/db2/ZoneMusic/csv?build=1.60.1.70450",
+      "sha256": "45c2f59b2a797396e4e8304f0e75ab9b570445cabf1b49e8424b5bbeded0e7b5",
+      "rows": 165
+    },
+    "SoundKit": {
+      "url": "https://wago.tools/db2/SoundKit/csv?build=1.60.1.70450",
+      "sha256": "3fd364f294edb44ac1a833165da75b28e0b1c5377212e129404f7a73f86c355a",
+      "rows": 23462
+    },
+    "SoundKitEntry": {
+      "url": "https://wago.tools/db2/SoundKitEntry/csv?build=1.60.1.70450",
+      "sha256": "eaed971ced65e27ad175d18c24ef025478e2d2186c9ba716cd9d6b626bca2a92",
+      "rows": 91515
+    },
+    "WMOAreaTable": {
+      "url": "https://wago.tools/db2/WMOAreaTable/csv?build=1.60.1.70450",
+      "sha256": "7d826cf4753ad757fec6c7ca2d6ed9c8826811650e2dbd1eb58e74431b1c0a17",
+      "rows": 52643
+    }
+  },
+  "cities": [
+    {
+      "id": 1497,
+      "name": "Undercity",
+      "zoneMusicId": 182,
+      "variants": {
+        "day": [
+          {
+            "fileDataId": 8181003,
+            "entryId": 1655688,
+            "soundKitId": 5074,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181005,
+            "entryId": 1655689,
+            "soundKitId": 5074,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181007,
+            "entryId": 1655690,
+            "soundKitId": 5074,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ],
+        "night": [
+          {
+            "fileDataId": 8181003,
+            "entryId": 1655688,
+            "soundKitId": 5074,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181005,
+            "entryId": 1655689,
+            "soundKitId": 5074,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181007,
+            "entryId": 1655690,
+            "soundKitId": 5074,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ]
+      },
+      "area": {
+        "AmbienceID": "3231",
+        "Ambient_multiplier": "0",
+        "AreaBit": "685",
+        "AreaName_lang": "Undercity",
+        "ContentTuningID": "0",
+        "ContinentID": "0",
+        "ExplorationLevel": "10",
+        "FactionGroupMask": "4",
+        "Flags_0": "312",
+        "Flags_1": "0",
+        "ID": "1497",
+        "IntroSound": "0",
+        "LiquidTypeID_0": "0",
+        "LiquidTypeID_1": "0",
+        "LiquidTypeID_2": "0",
+        "LiquidTypeID_3": "0",
+        "MountFlags": "1",
+        "ParentAreaID": "0",
+        "PvpCombatWorldStateID": "-1",
+        "SoundProviderPref": "0",
+        "SoundProviderPrefUnderwater": "0",
+        "UwAmbience": "2172",
+        "UwIntroSound": "0",
+        "UwZoneMusic": "0",
+        "WildBattlePetLevelMax": "0",
+        "WildBattlePetLevelMin": "0",
+        "WindSettingsID": "0",
+        "ZoneMusic": "0",
+        "ZoneName": "Undercity"
+      },
+      "areaEvidence": {
+        "path": "tables/AreaTable.1.60.1.70450.csv",
+        "line": 686,
+        "snapshot": "ee3737e3432d72b9709d9496d8e40ac8ddbaeda9aaef04449d7341b0ed01f5b0"
+      },
+      "wmoDefaults": [
+        {
+          "AreaName_lang": "",
+          "ID": "15008",
+          "WMOID": "1150",
+          "NameSetID": "0",
+          "WMOGroupID": "-1",
+          "SoundProviderPref": "73",
+          "SoundProviderPrefUnderwater": "11",
+          "AmbienceID": "22",
+          "UwAmbience": "675",
+          "ZoneMusic": "182",
+          "UwZoneMusic": "0",
+          "IntroSound": "0",
+          "UwIntroSound": "0",
+          "AreaTableID": "1497",
+          "Flags": "0"
+        },
+        {
+          "AreaName_lang": "Undercity",
+          "ID": "28743",
+          "WMOID": "1150",
+          "NameSetID": "1",
+          "WMOGroupID": "-1",
+          "SoundProviderPref": "73",
+          "SoundProviderPrefUnderwater": "11",
+          "AmbienceID": "22",
+          "UwAmbience": "675",
+          "ZoneMusic": "182",
+          "UwZoneMusic": "0",
+          "IntroSound": "0",
+          "UwIntroSound": "0",
+          "AreaTableID": "1497",
+          "Flags": "0"
+        },
+        {
+          "AreaName_lang": "Undercity",
+          "ID": "141067",
+          "WMOID": "20736",
+          "NameSetID": "1",
+          "WMOGroupID": "-1",
+          "SoundProviderPref": "75",
+          "SoundProviderPrefUnderwater": "0",
+          "AmbienceID": "22",
+          "UwAmbience": "2172",
+          "ZoneMusic": "182",
+          "UwZoneMusic": "0",
+          "IntroSound": "281",
+          "UwIntroSound": "0",
+          "AreaTableID": "1497",
+          "Flags": "0"
+        }
+      ],
+      "zoneMusic": {
+        "ID": "182",
+        "SetName": "Zone-Undercity",
+        "SilenceIntervalMin_0": "180000",
+        "SilenceIntervalMin_1": "180000",
+        "SilenceIntervalMax_0": "300000",
+        "SilenceIntervalMax_1": "300000",
+        "Sounds_0": "5074",
+        "Sounds_1": "5074"
+      },
+      "soundKits": {
+        "5074": {
+          "ID": "5074",
+          "SoundType": "28",
+          "VolumeFloat": "0.68999999762",
+          "Flags": "4128",
+          "MinDistance": "7",
+          "DistanceCutoff": "30",
+          "EAXDef": "0",
+          "SoundKitAdvancedID": "0",
+          "VolumeVariationPlus": "0",
+          "VolumeVariationMinus": "0",
+          "PitchVariationPlus": "0",
+          "PitchVariationMinus": "0",
+          "DialogType": "0",
+          "PitchAdjust": "0",
+          "BusOverwriteID": "0",
+          "MaxInstances": "0",
+          "SoundMixGroupID": "0"
+        }
+      }
+    },
+    {
+      "id": 1519,
+      "name": "Stormwind City",
+      "zoneMusicId": 13,
+      "variants": {
+        "day": [
+          {
+            "fileDataId": 8180874,
+            "entryId": 1655450,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180876,
+            "entryId": 1655451,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180878,
+            "entryId": 1655452,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180880,
+            "entryId": 1655453,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180866,
+            "entryId": 1655454,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180870,
+            "entryId": 1655455,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180872,
+            "entryId": 1655456,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180868,
+            "entryId": 1655457,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ],
+        "night": [
+          {
+            "fileDataId": 8180874,
+            "entryId": 1655450,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180876,
+            "entryId": 1655451,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180878,
+            "entryId": 1655452,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180880,
+            "entryId": 1655453,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180866,
+            "entryId": 1655454,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180870,
+            "entryId": 1655455,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180872,
+            "entryId": 1655456,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180868,
+            "entryId": 1655457,
+            "soundKitId": 2532,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ]
+      },
+      "area": {
+        "AmbienceID": "43",
+        "Ambient_multiplier": "0",
+        "AreaBit": "688",
+        "AreaName_lang": "Stormwind City",
+        "ContentTuningID": "0",
+        "ContinentID": "0",
+        "ExplorationLevel": "10",
+        "FactionGroupMask": "2",
+        "Flags_0": "312",
+        "Flags_1": "0",
+        "ID": "1519",
+        "IntroSound": "0",
+        "LiquidTypeID_0": "0",
+        "LiquidTypeID_1": "0",
+        "LiquidTypeID_2": "0",
+        "LiquidTypeID_3": "0",
+        "MountFlags": "1",
+        "ParentAreaID": "0",
+        "PvpCombatWorldStateID": "-1",
+        "SoundProviderPref": "86",
+        "SoundProviderPrefUnderwater": "0",
+        "UwAmbience": "2172",
+        "UwIntroSound": "0",
+        "UwZoneMusic": "0",
+        "WildBattlePetLevelMax": "0",
+        "WildBattlePetLevelMin": "0",
+        "WindSettingsID": "0",
+        "ZoneMusic": "13",
+        "ZoneName": "StormwindCity"
+      },
+      "areaEvidence": {
+        "path": "tables/AreaTable.1.60.1.70450.csv",
+        "line": 689,
+        "snapshot": "ee3737e3432d72b9709d9496d8e40ac8ddbaeda9aaef04449d7341b0ed01f5b0"
+      },
+      "wmoDefaults": [],
+      "zoneMusic": {
+        "ID": "13",
+        "SetName": "Zone-Stormwind",
+        "SilenceIntervalMin_0": "180000",
+        "SilenceIntervalMin_1": "180000",
+        "SilenceIntervalMax_0": "300000",
+        "SilenceIntervalMax_1": "300000",
+        "Sounds_0": "2532",
+        "Sounds_1": "2532"
+      },
+      "soundKits": {
+        "2532": {
+          "ID": "2532",
+          "SoundType": "28",
+          "VolumeFloat": "0.54954087734",
+          "Flags": "4096",
+          "MinDistance": "8",
+          "DistanceCutoff": "45",
+          "EAXDef": "2",
+          "SoundKitAdvancedID": "0",
+          "VolumeVariationPlus": "0",
+          "VolumeVariationMinus": "0",
+          "PitchVariationPlus": "0",
+          "PitchVariationMinus": "0",
+          "DialogType": "0",
+          "PitchAdjust": "0",
+          "BusOverwriteID": "0",
+          "MaxInstances": "0",
+          "SoundMixGroupID": "0"
+        }
+      }
+    },
+    {
+      "id": 1537,
+      "name": "Ironforge",
+      "zoneMusicId": 232,
+      "variants": {
+        "day": [
+          {
+            "fileDataId": 8180965,
+            "entryId": 1655602,
+            "soundKitId": 7319,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 53194,
+            "entryId": 1658575,
+            "soundKitId": 7319,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180971,
+            "entryId": 1658576,
+            "soundKitId": 7319,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ],
+        "night": [
+          {
+            "fileDataId": 8180965,
+            "entryId": 1655602,
+            "soundKitId": 7319,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 53194,
+            "entryId": 1658575,
+            "soundKitId": 7319,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180971,
+            "entryId": 1658576,
+            "soundKitId": 7319,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ]
+      },
+      "area": {
+        "AmbienceID": "42",
+        "Ambient_multiplier": "0",
+        "AreaBit": "689",
+        "AreaName_lang": "Ironforge",
+        "ContentTuningID": "0",
+        "ContinentID": "0",
+        "ExplorationLevel": "10",
+        "FactionGroupMask": "2",
+        "Flags_0": "312",
+        "Flags_1": "0",
+        "ID": "1537",
+        "IntroSound": "0",
+        "LiquidTypeID_0": "0",
+        "LiquidTypeID_1": "0",
+        "LiquidTypeID_2": "0",
+        "LiquidTypeID_3": "0",
+        "MountFlags": "1",
+        "ParentAreaID": "0",
+        "PvpCombatWorldStateID": "-1",
+        "SoundProviderPref": "0",
+        "SoundProviderPrefUnderwater": "0",
+        "UwAmbience": "2172",
+        "UwIntroSound": "0",
+        "UwZoneMusic": "0",
+        "WildBattlePetLevelMax": "0",
+        "WildBattlePetLevelMin": "0",
+        "WindSettingsID": "0",
+        "ZoneMusic": "0",
+        "ZoneName": "Ironforge"
+      },
+      "areaEvidence": {
+        "path": "tables/AreaTable.1.60.1.70450.csv",
+        "line": 690,
+        "snapshot": "ee3737e3432d72b9709d9496d8e40ac8ddbaeda9aaef04449d7341b0ed01f5b0"
+      },
+      "wmoDefaults": [
+        {
+          "AreaName_lang": "City of Ironforge",
+          "ID": "15552",
+          "WMOID": "208",
+          "NameSetID": "0",
+          "WMOGroupID": "-1",
+          "SoundProviderPref": "73",
+          "SoundProviderPrefUnderwater": "11",
+          "AmbienceID": "21",
+          "UwAmbience": "675",
+          "ZoneMusic": "232",
+          "UwZoneMusic": "0",
+          "IntroSound": "341",
+          "UwIntroSound": "0",
+          "AreaTableID": "1537",
+          "Flags": "0"
+        },
+        {
+          "AreaName_lang": "",
+          "ID": "142191",
+          "WMOID": "20884",
+          "NameSetID": "0",
+          "WMOGroupID": "-1",
+          "SoundProviderPref": "73",
+          "SoundProviderPrefUnderwater": "0",
+          "AmbienceID": "21",
+          "UwAmbience": "2172",
+          "ZoneMusic": "232",
+          "UwZoneMusic": "0",
+          "IntroSound": "341",
+          "UwIntroSound": "0",
+          "AreaTableID": "1537",
+          "Flags": "0"
+        }
+      ],
+      "zoneMusic": {
+        "ID": "232",
+        "SetName": "Zone-Ironforge",
+        "SilenceIntervalMin_0": "180000",
+        "SilenceIntervalMin_1": "180000",
+        "SilenceIntervalMax_0": "300000",
+        "SilenceIntervalMax_1": "300000",
+        "Sounds_0": "7319",
+        "Sounds_1": "7319"
+      },
+      "soundKits": {
+        "7319": {
+          "ID": "7319",
+          "SoundType": "28",
+          "VolumeFloat": "0.63095736504",
+          "Flags": "4128",
+          "MinDistance": "7",
+          "DistanceCutoff": "30",
+          "EAXDef": "0",
+          "SoundKitAdvancedID": "0",
+          "VolumeVariationPlus": "0",
+          "VolumeVariationMinus": "0",
+          "PitchVariationPlus": "0",
+          "PitchVariationMinus": "0",
+          "DialogType": "0",
+          "PitchAdjust": "0",
+          "BusOverwriteID": "0",
+          "MaxInstances": "0",
+          "SoundMixGroupID": "0"
+        }
+      }
+    },
+    {
+      "id": 1637,
+      "name": "Orgrimmar",
+      "zoneMusicId": 7,
+      "variants": {
+        "day": [
+          {
+            "fileDataId": 8181055,
+            "entryId": 1655772,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181057,
+            "entryId": 1655773,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181051,
+            "entryId": 1655774,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181053,
+            "entryId": 1655775,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181059,
+            "entryId": 1655776,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181049,
+            "entryId": 1655777,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ],
+        "night": [
+          {
+            "fileDataId": 8181055,
+            "entryId": 1655772,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181057,
+            "entryId": 1655773,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181051,
+            "entryId": 1655774,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181053,
+            "entryId": 1655775,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181059,
+            "entryId": 1655776,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181049,
+            "entryId": 1655777,
+            "soundKitId": 2536,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ]
+      },
+      "area": {
+        "AmbienceID": "36",
+        "Ambient_multiplier": "0",
+        "AreaBit": "707",
+        "AreaName_lang": "Orgrimmar",
+        "ContentTuningID": "0",
+        "ContinentID": "1",
+        "ExplorationLevel": "10",
+        "FactionGroupMask": "4",
+        "Flags_0": "312",
+        "Flags_1": "0",
+        "ID": "1637",
+        "IntroSound": "62",
+        "LiquidTypeID_0": "0",
+        "LiquidTypeID_1": "0",
+        "LiquidTypeID_2": "0",
+        "LiquidTypeID_3": "0",
+        "MountFlags": "1",
+        "ParentAreaID": "0",
+        "PvpCombatWorldStateID": "-1",
+        "SoundProviderPref": "0",
+        "SoundProviderPrefUnderwater": "0",
+        "UwAmbience": "2172",
+        "UwIntroSound": "0",
+        "UwZoneMusic": "0",
+        "WildBattlePetLevelMax": "0",
+        "WildBattlePetLevelMin": "0",
+        "WindSettingsID": "0",
+        "ZoneMusic": "7",
+        "ZoneName": "Orgrimmar"
+      },
+      "areaEvidence": {
+        "path": "tables/AreaTable.1.60.1.70450.csv",
+        "line": 708,
+        "snapshot": "ee3737e3432d72b9709d9496d8e40ac8ddbaeda9aaef04449d7341b0ed01f5b0"
+      },
+      "wmoDefaults": [],
+      "zoneMusic": {
+        "ID": "7",
+        "SetName": "Zone-BarrenDry",
+        "SilenceIntervalMin_0": "180000",
+        "SilenceIntervalMin_1": "180000",
+        "SilenceIntervalMax_0": "300000",
+        "SilenceIntervalMax_1": "300000",
+        "Sounds_0": "2536",
+        "Sounds_1": "2536"
+      },
+      "soundKits": {
+        "2536": {
+          "ID": "2536",
+          "SoundType": "28",
+          "VolumeFloat": "0.56234133244",
+          "Flags": "4096",
+          "MinDistance": "8",
+          "DistanceCutoff": "45",
+          "EAXDef": "2",
+          "SoundKitAdvancedID": "0",
+          "VolumeVariationPlus": "0",
+          "VolumeVariationMinus": "0",
+          "PitchVariationPlus": "0",
+          "PitchVariationMinus": "0",
+          "DialogType": "0",
+          "PitchAdjust": "0",
+          "BusOverwriteID": "0",
+          "MaxInstances": "0",
+          "SoundMixGroupID": "0"
+        }
+      }
+    },
+    {
+      "id": 1638,
+      "name": "Thunder Bluff",
+      "zoneMusicId": 226,
+      "variants": {
+        "day": [
+          {
+            "fileDataId": 8180997,
+            "entryId": 1655676,
+            "soundKitId": 7077,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180999,
+            "entryId": 1655677,
+            "soundKitId": 7077,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181001,
+            "entryId": 1655678,
+            "soundKitId": 7077,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ],
+        "night": [
+          {
+            "fileDataId": 8180997,
+            "entryId": 1655676,
+            "soundKitId": 7077,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180999,
+            "entryId": 1655677,
+            "soundKitId": 7077,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8181001,
+            "entryId": 1655678,
+            "soundKitId": 7077,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ]
+      },
+      "area": {
+        "AmbienceID": "45",
+        "Ambient_multiplier": "0",
+        "AreaBit": "708",
+        "AreaName_lang": "Thunder Bluff",
+        "ContentTuningID": "0",
+        "ContinentID": "1",
+        "ExplorationLevel": "10",
+        "FactionGroupMask": "4",
+        "Flags_0": "312",
+        "Flags_1": "0",
+        "ID": "1638",
+        "IntroSound": "381",
+        "LiquidTypeID_0": "0",
+        "LiquidTypeID_1": "0",
+        "LiquidTypeID_2": "0",
+        "LiquidTypeID_3": "0",
+        "MountFlags": "1",
+        "ParentAreaID": "0",
+        "PvpCombatWorldStateID": "-1",
+        "SoundProviderPref": "84",
+        "SoundProviderPrefUnderwater": "0",
+        "UwAmbience": "2172",
+        "UwIntroSound": "0",
+        "UwZoneMusic": "0",
+        "WildBattlePetLevelMax": "0",
+        "WildBattlePetLevelMin": "0",
+        "WindSettingsID": "0",
+        "ZoneMusic": "226",
+        "ZoneName": "ThunderBluff"
+      },
+      "areaEvidence": {
+        "path": "tables/AreaTable.1.60.1.70450.csv",
+        "line": 709,
+        "snapshot": "ee3737e3432d72b9709d9496d8e40ac8ddbaeda9aaef04449d7341b0ed01f5b0"
+      },
+      "wmoDefaults": [],
+      "zoneMusic": {
+        "ID": "226",
+        "SetName": "Zone-Thunderbluff",
+        "SilenceIntervalMin_0": "180000",
+        "SilenceIntervalMin_1": "180000",
+        "SilenceIntervalMax_0": "300000",
+        "SilenceIntervalMax_1": "300000",
+        "Sounds_0": "7077",
+        "Sounds_1": "7077"
+      },
+      "soundKits": {
+        "7077": {
+          "ID": "7077",
+          "SoundType": "28",
+          "VolumeFloat": "0.79000002146",
+          "Flags": "4128",
+          "MinDistance": "7",
+          "DistanceCutoff": "30",
+          "EAXDef": "0",
+          "SoundKitAdvancedID": "0",
+          "VolumeVariationPlus": "0",
+          "VolumeVariationMinus": "0",
+          "PitchVariationPlus": "0",
+          "PitchVariationMinus": "0",
+          "DialogType": "0",
+          "PitchAdjust": "0",
+          "BusOverwriteID": "0",
+          "MaxInstances": "0",
+          "SoundMixGroupID": "0"
+        }
+      }
+    },
+    {
+      "id": 1657,
+      "name": "Darnassus",
+      "zoneMusicId": 76,
+      "variants": {
+        "day": [
+          {
+            "fileDataId": 8180752,
+            "entryId": 1655331,
+            "soundKitId": 3920,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180754,
+            "entryId": 1655332,
+            "soundKitId": 3920,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180756,
+            "entryId": 1655333,
+            "soundKitId": 3920,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ],
+        "night": [
+          {
+            "fileDataId": 8180752,
+            "entryId": 1655331,
+            "soundKitId": 3920,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180754,
+            "entryId": 1655332,
+            "soundKitId": 3920,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          },
+          {
+            "fileDataId": 8180756,
+            "entryId": 1655333,
+            "soundKitId": 3920,
+            "frequency": 1,
+            "volume": 1.0,
+            "playerConditionId": 0
+          }
+        ]
+      },
+      "area": {
+        "AmbienceID": "3401",
+        "Ambient_multiplier": "0",
+        "AreaBit": "712",
+        "AreaName_lang": "Darnassus",
+        "ContentTuningID": "0",
+        "ContinentID": "1",
+        "ExplorationLevel": "10",
+        "FactionGroupMask": "2",
+        "Flags_0": "312",
+        "Flags_1": "0",
+        "ID": "1657",
+        "IntroSound": "63",
+        "LiquidTypeID_0": "0",
+        "LiquidTypeID_1": "0",
+        "LiquidTypeID_2": "0",
+        "LiquidTypeID_3": "0",
+        "MountFlags": "1",
+        "ParentAreaID": "0",
+        "PvpCombatWorldStateID": "-1",
+        "SoundProviderPref": "0",
+        "SoundProviderPrefUnderwater": "0",
+        "UwAmbience": "2172",
+        "UwIntroSound": "0",
+        "UwZoneMusic": "0",
+        "WildBattlePetLevelMax": "0",
+        "WildBattlePetLevelMin": "0",
+        "WindSettingsID": "0",
+        "ZoneMusic": "76",
+        "ZoneName": "Darnassus"
+      },
+      "areaEvidence": {
+        "path": "tables/AreaTable.1.60.1.70450.csv",
+        "line": 713,
+        "snapshot": "ee3737e3432d72b9709d9496d8e40ac8ddbaeda9aaef04449d7341b0ed01f5b0"
+      },
+      "wmoDefaults": [],
+      "zoneMusic": {
+        "ID": "76",
+        "SetName": "Zone-Darnassus",
+        "SilenceIntervalMin_0": "180000",
+        "SilenceIntervalMin_1": "180000",
+        "SilenceIntervalMax_0": "300000",
+        "SilenceIntervalMax_1": "300000",
+        "Sounds_0": "3920",
+        "Sounds_1": "3920"
+      },
+      "soundKits": {
+        "3920": {
+          "ID": "3920",
+          "SoundType": "28",
+          "VolumeFloat": "0.31622776389",
+          "Flags": "4128",
+          "MinDistance": "8",
+          "DistanceCutoff": "45",
+          "EAXDef": "0",
+          "SoundKitAdvancedID": "0",
+          "VolumeVariationPlus": "0",
+          "VolumeVariationMinus": "0",
+          "PitchVariationPlus": "0",
+          "PitchVariationMinus": "0",
+          "DialogType": "0",
+          "PitchAdjust": "0",
+          "BusOverwriteID": "0",
+          "MaxInstances": "0",
+          "SoundMixGroupID": "0"
+        }
+      }
+    }
+  ]
+}

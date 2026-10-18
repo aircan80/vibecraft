@@ -1,0 +1,70 @@
+{
+  "version": "0.4.1-SNAPSHOT / on-demand native previews and city guides",
+  "completedAt": "2026-10-18T00:27:45.695438+00:00",
+  "appJarSha256": "652203d4182c79782cb0063c3e740cd9e2f52ee12c4e679b49f1da72a097c337",
+  "databaseBuild": "40ca42c8e8c6442c0e2e633f76bf4f4638ebf23faf4029b568ee1ee038c207b7",
+  "databaseBytesChanged": false,
+  "verification": {
+    "fullMavenTests": 1900,
+    "skipped": 6,
+    "failures": 0,
+    "errors": 0,
+    "nativeCaptures": 26,
+    "headlessCaptures": 12,
+    "genericNpcCaptures": 13,
+    "scope": "Isolated X11 Robot, no Wayland automation claim",
+    "reports": [
+      ".local/native-city-acceptance/native-final/report.txt",
+      ".local/native-city-acceptance/headless-final/report.txt",
+      ".local/general-npc-acceptance/generate-final/report.txt",
+      ".local/general-npc-acceptance/cached-final/report.txt",
+      ".local/general-npc-acceptance/unresolved-final/report.txt",
+      ".local/general-npc-acceptance/variants-final/report.txt"
+    ],
+    "packaging": "Late decoder notice/license copied into final JAR; stale generated data/t.zip with no source resource removed. Final artifact self-test and MP3 decode passed."
+  },
+  "rendering": {
+    "actualUiGenerationNpc": 7380,
+    "freshPreviewCache": true,
+    "seconds": 70.06,
+    "edtDispatchP95Ms": 0.425,
+    "homeNavigationDuringRenderMs": 678.6,
+    "freshJvmCacheReload": "PASS",
+    "pendingJobReattachment": "PASS",
+    "variantsExplicitChoice": "PASS",
+    "unknownNpc247003": "UNRESOLVED, no borrowed model",
+    "actualGenericWorkerControls": [
+      7380,
+      7550
+    ],
+    "nativeCatalogRows": 184,
+    "appNpcsWithMappedMetadata": 143,
+    "mappedMetadataIsNotRenderAttestation": true
+  },
+  "cities": {
+    "verifiedIds": [
+      1497,
+      1519,
+      1537,
+      1637,
+      1638,
+      1657
+    ],
+    "nativeDistrictCoverage": "Partial; empty directories are qualified",
+    "music": "All six capitals first tracks verified against exact Forever70450 root and decoded to PCM",
+    "actualOutputDeviceOpen": "PASS; no human listening claim",
+    "automatedUiAudio": "Disabled during native screenshot journeys; lifecycle covered by controlled tests",
+    "controls": "Persistent mute and volume, asynchronous acquisition and stop on navigation"
+  },
+  "knownFollowups": [
+    "Carry visible dungeon index filters into the attached guide workspace; Back restoration already works",
+    "Collapse unavailable model blocks to keep NPC facts above fold",
+    "Broaden exact NPC mappings; equipped humanoids, complex materials and skeleton assembly remain unsupported"
+  ],
+  "nextParallelWork": {
+    "lootFiltersCommit": "bcfe109 (isolated, not in launched artifact)",
+    "appearanceCollectorCommit": "64e9ae6 (isolated prototype, real-client acceptance required)",
+    "research": "docs/research/2026-10-17-warcraft-product-opportunities.md"
+  },
+  "desktop": "Exact final artifact launched with chooser; verified Siamese and Wood Frog outputs copied to the local desktop preview cache"
+}
