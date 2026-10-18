@@ -31,11 +31,12 @@ public final class LibraryPreparationWorkflow {
  private final Operations operations;
  public LibraryPreparationWorkflow(){this(new ProductionOperations());}
  LibraryPreparationWorkflow(Operations operations){this.operations=Objects.requireNonNull(operations);}
- /** Rejection precedes staging or network. Other transports stay unsupported even when Wago is also selected. */
+ /** Permissions authorize providers; the current catalogue path still requires explicit Wago exports. */
  public void preflight(SetupPlan plan)throws IOException {
   Objects.requireNonNull(plan);var preset=Forever70450Bootstrap.wagoManifest();
   if(!plan.sources().containsAll(Set.of(SetupPlan.Source.QUESTIE,SetupPlan.Source.NATIVE_DATA))||!plan.nativeIdentity().equals(Optional.of(preset.identity())))throw new IOException("Current library builder requires exact Forever beta 1.60.1.70450/enUS native data and Questie");
-  if(!plan.acquisitions().equals(Set.of(SetupPlan.Acquisition.WAGO_EXPORT))||!plan.localGameRoots().isEmpty())throw new IOException("Current library builder supports explicitly selected Wago exports only; selected CDN/local extraction is not implemented");
+  if(!plan.allows(SetupPlan.Acquisition.WAGO_EXPORT))throw new IOException("Current catalogue construction requires explicitly selected Wago exports; local/CDN catalogue extraction is not implemented");
+  if(!Set.of(SetupPlan.Acquisition.WAGO_EXPORT,SetupPlan.Acquisition.LOCAL_INSTALLATION,SetupPlan.Acquisition.BLIZZARD_CDN).containsAll(plan.acquisitions()))throw new IOException("Selected acquisition permission is not supported by this workflow");
   if(!plan.sourcePins().equals(SetupPlan.currentPins(plan.sources())))throw new IOException("Selected source pins changed; review a new source plan");
   Set<SetupPlan.Source> supported=Set.of(SetupPlan.Source.QUESTIE,SetupPlan.Source.ATLASLOOT,SetupPlan.Source.ALL_THE_THINGS,SetupPlan.Source.NATIVE_DATA,SetupPlan.Source.RAIDBOTS_HOTFIX);
   if(!supported.containsAll(plan.sources()))throw new IOException("Selected source is not supported by this library workflow");
@@ -46,6 +47,7 @@ public final class LibraryPreparationWorkflow {
  }
  public Review review(SetupPlan plan)throws IOException{
   preflight(plan);List<String> warnings=new ArrayList<>();
+  if(plan.allows(SetupPlan.Acquisition.LOCAL_INSTALLATION)||plan.allows(SetupPlan.Acquisition.BLIZZARD_CDN))warnings.add("Catalogue tables come from selected Wago exports; this build does not extract catalogue tables from WoW folders or Blizzard CDN. Those additional permissions are preserved.");
   if(!plan.sources().contains(SetupPlan.Source.RAIDBOTS_HOTFIX))warnings.add("The selected native-table-only preset measured 73% named item detail coverage, below the unchanged 85% gate; the current projection may be rejected. No additional source will be selected automatically.");
   warnings.add("The source preset is pinned to beta build 1.60.1.70450; verified details do not establish complete beta content, media or playable availability.");
   return new Review(Forever70450Bootstrap.wagoManifest().identity(),warnings);
