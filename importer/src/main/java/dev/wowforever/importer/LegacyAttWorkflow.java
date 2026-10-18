@@ -1,5 +1,7 @@
 package dev.wowforever.importer;
 
+import dev.wowforever.importer.fs.SourcePaths;
+
 import dev.wowforever.importer.archive.SourceArchive;
 import dev.wowforever.importer.archive.SourceArchive.Artifact;
 import dev.wowforever.importer.archive.SourceArchive.Snapshot;
@@ -165,8 +167,7 @@ public final class LegacyAttWorkflow {
     }
   }
   private static void rejectSymlinks(Path path) throws IOException {
-    for (Path current = path.toAbsolutePath(); current != null; current = current.getParent())
-      if (Files.isSymbolicLink(current)) throw new IOException("Symbolic source input refused: " + current);
+    SourcePaths.rejectSymlinks(path);
   }
   private static Connection connect(Path file) throws Exception {
     return DriverManager.getConnection("jdbc:sqlite:" + file);

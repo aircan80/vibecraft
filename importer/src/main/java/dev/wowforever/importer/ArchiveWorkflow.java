@@ -1,5 +1,7 @@
 package dev.wowforever.importer;
 
+import dev.wowforever.importer.fs.SourcePaths;
+
 import dev.wowforever.importer.archive.SourceArchive;
 import dev.wowforever.importer.archive.records.SourceRecords;
 import dev.wowforever.importer.archive.SourceArchive.Artifact;
@@ -391,8 +393,7 @@ public final class ArchiveWorkflow {
     return new Snapshot(source,"unreadable metadata","unrecorded","unrecorded","unrecorded");
   }
   private static void rejectSymlinks(Path path) throws IOException {
-    for (Path p=path.toAbsolutePath();p!=null;p=p.getParent())
-      if (Files.isSymbolicLink(p)) throw new IOException("Symbolic source input refused: "+p);
+    SourcePaths.rejectSymlinks(path);
   }
   static void validateOutputs(ImportOptions options) throws IOException {
     Path database=options.out().toAbsolutePath().normalize();
@@ -407,7 +408,7 @@ public final class ArchiveWorkflow {
         throw new IOException("Database and sidecar output must be different files: "+database);
   }
   private static boolean sameFile(Path a,Path b) throws IOException {
-    return a.toAbsolutePath().normalize().equals(b.toAbsolutePath().normalize())
+    return SourcePaths.normalize(a).equals(SourcePaths.normalize(b))
         || (Files.exists(a) && Files.exists(b) && Files.isSameFile(a,b));
   }
   private static Connection connect(Path file) throws SQLException { return DriverManager.getConnection("jdbc:sqlite:"+file); }

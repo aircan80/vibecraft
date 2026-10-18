@@ -1,5 +1,7 @@
 package dev.wowforever.importer.archive;
 
+import dev.wowforever.importer.fs.SourcePaths;
+
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -170,7 +172,7 @@ public final class SourceArchive {
   /** Extracts verified bytes into an empty directory. Existing files and symbolic links are never followed. */
   public static void extract(Connection c, String id, Path destination) throws SQLException, IOException {
     List<Artifact> files = artifacts(c, id); // verify the entire snapshot before creating files
-    Path root = destination.toAbsolutePath().normalize();
+    Path root = SourcePaths.normalize(destination);
     rejectSymlinks(root);
     if (Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
       if (!Files.isDirectory(root, LinkOption.NOFOLLOW_LINKS)) throw new IOException("Not a directory: " + root);
@@ -189,8 +191,7 @@ public final class SourceArchive {
   }
 
   private static void rejectSymlinks(Path path) throws IOException {
-    for (Path p = path; p != null; p = p.getParent())
-      if (Files.isSymbolicLink(p)) throw new IOException("Symbolic link in extraction destination: " + p);
+    SourcePaths.rejectSymlinks(path);
   }
 
   private static StoredSnapshot readSnapshot(ResultSet r) throws SQLException {

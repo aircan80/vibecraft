@@ -1,5 +1,7 @@
 package dev.wowforever.importer;
 
+import dev.wowforever.importer.fs.SourcePaths;
+
 import dev.wowforever.importer.archive.SourceArchive;
 import dev.wowforever.importer.clientdata.*;
 import dev.wowforever.importer.report.ImportReport;
@@ -17,7 +19,7 @@ public final class NativeClientItemCompletionWorkflow {
 
   public static void project(Path database,String supportSnapshot,String nativeSnapshot)throws Exception {
     database=database.toAbsolutePath().normalize();
-    for(Path p=database;p!=null;p=p.getParent())if(Files.isSymbolicLink(p))throw new IOException("Symbolic database refused");
+    SourcePaths.rejectSymlinks(database);
     if(!Files.isRegularFile(database))throw new IOException("Existing candidate required");
     Path lockPath=database.resolveSibling(database.getFileName()+".lock");
     if(Files.isSymbolicLink(lockPath))throw new IOException("Symbolic lock refused");

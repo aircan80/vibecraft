@@ -1,5 +1,7 @@
 package dev.wowforever.importer.allthethings;
 
+import dev.wowforever.importer.fs.SourcePaths;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,14 +20,13 @@ public final class AllTheThingsSource {
   public static AllTheThingsParser.Result load(Path root) throws IOException { return load(root, PATHS); }
   /** Replay the retained acquisition manifest, independently of newer importer manifests. */
   public static AllTheThingsParser.Result load(Path root, List<String> paths) throws IOException {
-    Path base = root.toAbsolutePath().normalize();
+    Path base = SourcePaths.normalize(root);
     var inputs = new java.util.LinkedHashMap<String, String>();
     for (String path : paths) {
       Path file = base.resolve(path).normalize();
       if (!file.startsWith(base) || path.contains("\\") || java.util.Arrays.asList(path.split("/", -1)).contains(".."))
         throw new IOException("Unsafe ATT manifest path: " + path);
-      for (Path part = file; part != null; part = part.getParent())
-        if (Files.isSymbolicLink(part)) throw new IOException("Symbolic ATT source input refused: " + part);
+      SourcePaths.rejectSymlinks(file);
       if (isQuestInput(path)) inputs.put(path, Files.readString(file));
     }
     return AllTheThingsParser.parse(inputs);

@@ -1,5 +1,7 @@
 package dev.wowforever.importer;
 
+import dev.wowforever.importer.fs.SourcePaths;
+
 import dev.wowforever.importer.archive.SourceArchive;
 import dev.wowforever.importer.clientdata.*;
 import dev.wowforever.importer.foundation.FieldKnowledge;
@@ -132,7 +134,7 @@ public final class HotfixArchiveWorkflow {
   private static void put(Connection c,String key,String value)throws SQLException {try(var p=c.prepareStatement("INSERT OR REPLACE INTO meta VALUES (?,?)")){p.setString(1,key);p.setString(2,value);p.executeUpdate();}}
   private static Path existing(Path p)throws IOException {p=p.toAbsolutePath().normalize();rejectSymlinks(p);if(!Files.isRegularFile(p))throw new IOException("Existing candidate database required");return p;}
   private static Path lockPath(Path database)throws IOException {Path p=database.resolveSibling(database.getFileName()+".lock");if(Files.isSymbolicLink(p))throw new IOException("Symbolic lock refused");return p;}
-  private static void rejectSymlinks(Path p)throws IOException {for(Path part=p;part!=null;part=part.getParent())if(Files.isSymbolicLink(part))throw new IOException("Symbolic source/database refused");if(Files.isDirectory(p))try(var files=Files.walk(p)){if(files.anyMatch(Files::isSymbolicLink))throw new IOException("Symbolic source input refused");}}
+  private static void rejectSymlinks(Path p)throws IOException {SourcePaths.rejectSymlinks(p);if(Files.isDirectory(p))try(var files=Files.walk(p)){if(files.anyMatch(Files::isSymbolicLink))throw new IOException("Symbolic source input refused");}}
   private static Connection connect(Path p)throws SQLException{return DriverManager.getConnection("jdbc:sqlite:"+p);}
   private static void remove(Path p)throws IOException {try(var files=Files.walk(p)){for(Path f:files.sorted(Comparator.reverseOrder()).toList())Files.deleteIfExists(f);}}
 }

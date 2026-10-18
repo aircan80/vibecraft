@@ -1,5 +1,7 @@
 package dev.wowforever.importer;
 
+import dev.wowforever.importer.fs.SourcePaths;
+
 import dev.wowforever.importer.archive.SourceArchive;
 import dev.wowforever.importer.archive.records.SourceRecords;
 import dev.wowforever.lua.*;
@@ -132,10 +134,9 @@ public final class CollectorArchiveWorkflow {
         .orElseThrow(() -> new IllegalArgumentException("Collector session requires valid " + key));
   }
   private static boolean sameFile(Path a,Path b) throws IOException {
-    return a.equals(b) || (Files.exists(a) && Files.exists(b) && Files.isSameFile(a,b));
+    return SourcePaths.normalize(a).equals(SourcePaths.normalize(b)) || (Files.exists(a) && Files.exists(b) && Files.isSameFile(a,b));
   }
   private static void rejectSymlinks(Path path) throws IOException {
-    for (Path part=path;part!=null;part=part.getParent())
-      if(Files.isSymbolicLink(part)) throw new IOException("Symbolic collector input/output refused");
+    SourcePaths.rejectSymlinks(path);
   }
 }

@@ -1,5 +1,7 @@
 package dev.wowforever.importer;
 
+import dev.wowforever.importer.fs.SourcePaths;
+
 import dev.wowforever.importer.archive.SourceArchive;
 import dev.wowforever.importer.clientdata.ClientDataOptions;
 import dev.wowforever.importer.source.SourceSpec;
@@ -177,6 +179,6 @@ public final class QuestieRefreshWorkflow {
   private static String quote(String name){return "\""+name.replace("\"","\"\"")+"\"";}
   private static Path existing(Path path)throws IOException {path=path.toAbsolutePath().normalize();rejectSymlinks(path);if(!Files.isRegularFile(path))throw new IOException("Existing candidate database required");return path;}
   private static Path lockPath(Path database)throws IOException {Path p=database.resolveSibling(database.getFileName()+".lock");if(Files.isSymbolicLink(p))throw new IOException("Symbolic database lock refused");return p;}
-  private static void rejectSymlinks(Path path)throws IOException {for(Path p=path;p!=null;p=p.getParent())if(Files.isSymbolicLink(p))throw new IOException("Symbolic source/database refused");}
+  private static void rejectSymlinks(Path path)throws IOException {SourcePaths.rejectSymlinks(path);}
   private static Connection connect(Path path)throws SQLException{return DriverManager.getConnection("jdbc:sqlite:"+path);}
 }

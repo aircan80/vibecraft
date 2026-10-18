@@ -1,5 +1,7 @@
 package dev.wowforever.importer;
 
+import dev.wowforever.importer.fs.SourcePaths;
+
 import dev.wowforever.importer.archive.SourceArchive;
 import dev.wowforever.lua.*;
 import java.nio.charset.StandardCharsets;
@@ -15,8 +17,7 @@ public final class CollectorProjection {
   public static void project(Path database, String ingestion) throws Exception {
     database=database.toAbsolutePath().normalize();
     if (!Files.isRegularFile(database)) throw new IllegalArgumentException("Source database does not exist");
-    for(Path part=database;part!=null;part=part.getParent())
-      if(Files.isSymbolicLink(part)) throw new IllegalArgumentException("Symbolic database refused");
+    SourcePaths.rejectSymlinks(database);
     Path lockPath=database.resolveSibling(database.getFileName()+".lock");
     if(Files.isSymbolicLink(lockPath)) throw new IllegalArgumentException("Symbolic lock refused");
     try(var channel=FileChannel.open(lockPath,StandardOpenOption.CREATE,StandardOpenOption.WRITE);var lock=channel.tryLock()) {
