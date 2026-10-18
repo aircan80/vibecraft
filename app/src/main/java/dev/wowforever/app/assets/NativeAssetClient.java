@@ -20,6 +20,7 @@ import javax.swing.SwingUtilities;
 public final class NativeAssetClient implements AutoCloseable {
     public static final String PRODUCT = "wow_classic_beta", BUILD = "1.60.1.70450";
     public static final String CONFIG = "84bea4233331e390fda8724c6f91ffa5";
+    public static final String CDN_CONFIG = "f065eade5276a5ac05606e60a4c5a1f7";
     public enum TransportPolicy { OFFICIAL_ONLY, ALLOW_ROOT_VERIFIED_WAGO }
     @FunctionalInterface interface Transport {
         byte[] download(URI uri,int limit,BooleanSupplier cancelled)throws IOException,InterruptedException;
@@ -36,6 +37,7 @@ public final class NativeAssetClient implements AutoCloseable {
     private final RangeTransport rangeTransport;
     private final ArchiveBudget archiveBudget;
     private List<String> archives=List.of();
+    private boolean cdnPrepared;
     private int scannedIndexes,newIndexes;
     private long newIndexBytes;
     private String usedArchive="";
@@ -178,11 +180,7 @@ public final class NativeAssetClient implements AutoCloseable {
         if(!values.getOrDefault("build-name","").matches("WOW-"+java.util.regex.Pattern.quote(number)+"patch"+java.util.regex.Pattern.quote(patch)+"(?:_.*)?"))
             throw new IOException("Selected configuration build-name mismatch");
         if(!descriptor.product().equals(values.getOrDefault("build-uid",descriptor.product())))throw new IOException("Selected configuration product mismatch");
-        if(!descriptor.cdnConfigMd5().isBlank()){
-            String cdnKey=descriptor.cdnConfigMd5();Path cdnPath=cache.resolve("config/"+cdnKey);
-            byte[] cdn=Files.exists(cdnPath)?read(cdnPath,1024*1024,cancelled):official("config/"+keyPath(cdnKey),1024*1024,cancelled);
-            verify(cdn,cdnKey);check(cancelled);archives=parseArchives(cdn);atomic(cdnPath,cdn);
-        }
+        prepareCdn(cancelled);
         String[] pair = values.getOrDefault("encoding", "").split("\\s+");
         if (pair.length != 2) throw new IOException("Missing encoding identity");
         String candidateRoot = values.get("root");
@@ -194,6 +192,14 @@ public final class NativeAssetClient implements AutoCloseable {
         if (candidate.length != rootEncoding.size()) throw new IOException("Root encoded size mismatch");
         atomic(configPath, config);
         encoding = candidateEncoding; root = candidate; rootKey = candidateRoot;
+    }
+    private void prepareCdn(BooleanSupplier cancelled)throws IOException,InterruptedException {
+        if(cdnPrepared||descriptor.cdnConfigMd5().isBlank())return;
+        String cdnKey=descriptor.cdnConfigMd5();Path cdnPath=cache.resolve("config/"+cdnKey);
+        // Existing exact root/content cache remains usable without acquiring optional archive metadata.
+        if(sharedRuntime&&!AssetDownloadPermissions.current().allowBlizzardCdn()&&!Files.exists(cdnPath))return;
+        byte[] cdn=Files.exists(cdnPath)?read(cdnPath,1024*1024,cancelled):official("config/"+keyPath(cdnKey),1024*1024,cancelled);
+        verify(cdn,cdnKey);check(cancelled);archives=parseArchives(cdn);atomic(cdnPath,cdn);cdnPrepared=true;
     }
     private byte[] content(String key, List<String> keys, BooleanSupplier cancelled) throws IOException, InterruptedException {
         return content(key, keys, cancelled, LIMIT);
@@ -261,6 +267,7 @@ public final class NativeAssetClient implements AutoCloseable {
         throw unavailable;
     }
     private byte[] archiveContent(String encodedKey,BooleanSupplier cancelled,int encodedLimit)throws IOException,InterruptedException {
+        prepareCdn(cancelled);
         Path location=cache.resolve("archive-locations/"+descriptor.cdnConfigMd5()+"/"+encodedKey);
         if(Files.exists(location)) {
             String archive=new String(read(location,32,cancelled),java.nio.charset.StandardCharsets.US_ASCII);

@@ -60,14 +60,24 @@ No game bytes are committed.
 
 ## Remaining runtime work
 
-The shared audio client currently uses the reviewed Forever 70450 compatibility
-descriptor with no CDN configuration. Its permission gate is implemented, but that
-blank configuration supplies no archive list. It needs the matching reviewed exact
-CDN identity before the managed shared runtime can use this archive path.
+A follow-up pins the same reviewed Forever 70450 CDN configuration on the shared
+compatibility descriptor. At 05:22:28Z, the actual shared descriptor revalidated this
+asset through its selected configuration with fail-if-called asset transport and
+CACHE_ONLY consent. Its authenticated CDN configuration supplied 1424 archives and
+included the successful archive above. The descriptor remains exactly Forever 70450;
+this does not discover or substitute another build.
+
+Optional archive metadata is deferred for shared cache-only/Wago-only users when it
+is absent, preserving existing verified root/content cache reuse without granting
+CDN access. Explicit selected-descriptor clients retain their strict configuration
+checks. A later permitted archive miss can load the matching pinned CDN metadata.
+34 focused standalone tests pass, including actual shared-profile identity and
+cache-only/Wago-only reuse with the optional CDN-config cache file absent.
 
 Cold index discovery also needs an explicit permission-aware background workflow:
 serialize shared index work, reuse verified metadata across assets, publish bounded
 progress, retain progress after cancellation, and resume in bounded batches rather
 than asking for repeated city visits. A retry must not restart at the first 64
 indexes. Cache hits should remain immediate and no whole archive should be prefetched.
-This workflow is not implemented by this proof or silently enabled here.
+This workflow is tracked in [#15](https://github.com/aircan80/vibecraft/issues/15)
+and is not implemented by this proof or silently enabled here.

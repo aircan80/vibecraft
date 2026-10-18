@@ -14,6 +14,13 @@ class SharedNativeAssetPermissionsTest {
     void managed(boolean cdn,boolean wago,List<Path> games) {
         AssetDownloadPermissions.configureManaged(cache.resolve("library.sqlite"),new AssetDownloadPermissions.Consent(AssetDownloadPermissions.Mode.MANAGED,cdn,wago,games));
     }
+    @Test void actualSharedProfilePinsReviewedForeverCdnWithoutOtherBuildSubstitution() {
+        var descriptor=NativeAssetClient.shared().descriptor();
+        assertEquals("wow_classic_beta",descriptor.product());assertEquals("1.60.1.70450",descriptor.build());
+        assertEquals("84bea4233331e390fda8724c6f91ffa5",descriptor.buildConfigMd5());
+        assertEquals("f065eade5276a5ac05606e60a4c5a1f7",descriptor.cdnConfigMd5());
+        assertEquals(List.of(URI.create("https://us.cdn.blizzard.com/tpr/wow/")),descriptor.cdnBases());
+    }
     @Test void unresolvedCatalogIsCacheOnlyBeforeAnyTransportCall()throws Exception {
         AssetDownloadPermissions.resetForCatalogResolution();var f=SelectedNativeAssetClientTest.fixture(2);var requests=new ArrayList<URI>();
         try(var client=new NativeAssetClient(cache,f.descriptor(),NativeAssetClient.TransportPolicy.ALLOW_ROOT_VERIFIED_WAGO,
@@ -35,6 +42,7 @@ class SharedNativeAssetPermissionsTest {
         try(var seed=new NativeAssetClient(cache,f.descriptor(),NativeAssetClient.TransportPolicy.OFFICIAL_ONLY,
                 SelectedNativeAssetClientTest.transport(f,new ArrayList<>(),false,null))){seed.fetch(567490,()->false);}
         Files.delete(cache.resolve("content/"+f.assetKey()+".bin"));Files.delete(cache.resolve("encoded/"+f.assetEncodedKey()+".blte"));
+        Files.delete(cache.resolve("config/"+f.descriptor().cdnConfigMd5()));
         managed(false,true,List.of());var requests=new ArrayList<URI>();
         try(var client=new NativeAssetClient(cache,f.descriptor(),NativeAssetClient.TransportPolicy.ALLOW_ROOT_VERIFIED_WAGO,
                 SelectedNativeAssetClientTest.transport(f,requests,true,f.asset())).withSharedPermissions()) {
@@ -46,6 +54,7 @@ class SharedNativeAssetPermissionsTest {
         var f=SelectedNativeAssetClientTest.fixture(2);
         try(var seed=new NativeAssetClient(cache,f.descriptor(),NativeAssetClient.TransportPolicy.OFFICIAL_ONLY,
                 SelectedNativeAssetClientTest.transport(f,new ArrayList<>(),false,null))){seed.fetch(567490,()->false);}
+        Files.delete(cache.resolve("config/"+f.descriptor().cdnConfigMd5()));
         AssetDownloadPermissions.resetForCatalogResolution();
         try(var client=new NativeAssetClient(cache,f.descriptor(),NativeAssetClient.TransportPolicy.ALLOW_ROOT_VERIFIED_WAGO,
                 (u,b,c)->{throw new AssertionError("cache-only hit must not request network");}).withSharedPermissions()) {

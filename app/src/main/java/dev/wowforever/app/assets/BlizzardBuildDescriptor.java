@@ -62,7 +62,7 @@ public final class BlizzardBuildDescriptor {
     }
     /** Compatibility profile for previously reviewed audio callers; it does not claim a new discovery capture. */
     static BlizzardBuildDescriptor legacyForever(){
-        return new BlizzardBuildDescriptor(NativeAssetClient.PRODUCT,NativeAssetClient.BUILD,"us","enUS",NativeAssetClient.CONFIG,"",
+        return new BlizzardBuildDescriptor(NativeAssetClient.PRODUCT,NativeAssetClient.BUILD,"us","enUS",NativeAssetClient.CONFIG,NativeAssetClient.CDN_CONFIG,
                 List.of(URI.create("https://us.cdn.blizzard.com/tpr/wow/")),Map.of(),Instant.EPOCH);
     }
     private static String sha(byte[] bytes){try{return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));}catch(NoSuchAlgorithmException impossible){throw new AssertionError(impossible);}}
