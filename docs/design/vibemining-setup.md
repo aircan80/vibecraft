@@ -1,12 +1,14 @@
-# Vibemining and first-run data setup
+# Vibecraft first-run data setup and source management
 
 Status: consolidated product/design decision and implementation plan. The complete workflow below is not yet shipped. Existing Java importers and initial asset/runtime services provide parts of the engine; they do not yet implement all source choices, local-client decoding or resumable database creation.
 
 ## Product experience
 
-**Vibemining is an area inside the main Vibecraft application**, not another application or an end-user command-line tool. Journal remains focused on reference browsing. Vibemining contains build discovery, sources, download plans, jobs, extraction inspection, provenance/conflicts, and candidate-database validation/activation.
+**Vibecraft owns its first-run setup and Sources & Updates inside the main application.** Journal remains focused on reference browsing. Sources & Updates owns source choices, read-only local installation inspection, explicit acquisition permissions, download plans, import jobs, provenance and candidate-database validation/activation.
 
-First-run setup uses the same engine. With a compatible installed or bundled runtime database, start Journal directly. Without one, show the source picker and setup progress, then open Journal after a validated database is installed. Choosing Blizzard acquisition links into the Vibemining workspace. No end-user Python, Node, Blender, manually launched importer or terminal commands are part of the intended workflow.
+**vibeMiner is a separate planned application**, following the owner’s subsequent decision in [issue #10](https://github.com/aircan80/vibecraft/issues/10). It explores Blizzard CDN data without a local game installation or a Vibecraft database. Vibecraft setup must not require vibeMiner. This document’s historical filename is retained for existing links; it no longer specifies an embedded Vibe Miner workspace.
+
+First-run setup uses the same engine. With a compatible installed or bundled runtime database, start Journal directly. Without one, show the source picker and setup progress, then open Journal after a validated database is installed. Choosing Blizzard acquisition opens the game-data tools within Sources & Updates. No end-user Python, Node, Blender, manually launched importer or terminal commands are part of the intended workflow.
 
 Support both a small application that builds local data and an optional reviewed compact-database bundle. Neither requires a populated database in Git. Existing local data and the active app stay available while a replacement is prepared. Static NPC images take priority; a 3D viewer is outside this scope.
 
@@ -22,7 +24,7 @@ Candidate source capabilities:
 | --- | --- | --- |
 | Forever core identity/schema | Required for a Forever catalog; identity must be genuine | Cannot activate a catalog with invented native metadata |
 | Questie entities/quests | Recommended; current pipeline structurally requires it until refactored | Explain absent entity/quest coverage; do not fabricate rows |
-| AtlasLoot loot/rates | Optional; current mandatory importer dependency must be removed | Loot sections explain that this source was not selected |
+| AtlasLoot loot/rates | Optional; explicit omission is implemented for live and archived imports | Loot sections explain that this source was not selected |
 | AllTheThings connections | Optional, with quest-detail dependencies shown | Connection coverage unavailable; no inferred prerequisite chains |
 | Native items/spells/recipes | Selected pinned client tables; dependency closure visible | Dependent detail panels report missing table coverage |
 | Maps/icons/static portraits | Optional selected artwork capabilities | Text/reference browsing continues with honest placeholders |
@@ -32,13 +34,17 @@ Candidate source capabilities:
 
 If a capability needs another selected source/table, show that dependency and require a visible choice. Do not silently add downloads. License information is per selected source and revision: the code's GPL license does not license Blizzard assets, and attribution alone does not establish permission for sources with no declared license. Preserve the necessary notices and provenance.
 
-The current importer requires Questie plus AtlasLoot and runs a broad native-table loader. Making these optional is substantive adapter/model work. A two-table native sample or `--skip-client-data` does not currently create the full supported catalog: `EditionRegistry` requires actual Forever product/build metadata. Use a real pinned native input set or explicitly design a distinct honest community-only context; never fake metadata to bypass the gate.
+The current importer structurally requires Questie and runs a broad native-table loader. AtlasLoot can now be explicitly omitted in live imports and archived replay; its baseline, rates and provenance are then omitted too. The production setup/source manager still needs to call this selection API. Making Questie optional remains substantive adapter/model work. A two-table native sample or `--skip-client-data` does not currently create the full supported catalog: `EditionRegistry` requires actual Forever product/build metadata. Use a real pinned native input set or explicitly design a distinct honest community-only context; never fake metadata to bypass the gate.
 
 ## Autodetect a local WoW installation first
 
 Before asking the user to Browse, check remembered locations, supported Battle.net installation records, and bounded platform-specific locations: Windows installation records and common program directories, macOS applications, and known Linux Wine/Bottles/Lutris prefixes. Run discovery in the background with cancellation, time/candidate/file-size limits and stale-result guards. Do not recursively crawl disks.
 
 Deduplicate canonical paths and validate typed `.build.info` records, active product, build, locale and expected CASC metadata. Multiple compatible results produce a selection list; one can be preselected; no compatible result offers Browse. Show incompatible Era, Retail or Anniversary installations clearly instead of treating them as Forever. Finding a directory proves neither complete files nor decoder support.
+
+The approved setup offers an optional autodetected/Browse Blizzard folder and a separate checkbox: **Download missing data from Blizzard CDN into Vibecraft’s data folder.** Local reuse and CDN permission are complementary. A missing installation for a selected game can use CDN-only acquisition when its exact build/content is available. Wago export consent is independent; CDN permission never enables another provider implicitly.
+
+The review separates the **source folder (read-only)** from the **Vibecraft-owned destination**. All downloads, partial files, extracted assets, caches and generated databases go to app-owned storage. Reject writable destinations inside any selected game installation, including paths whose existing ancestors resolve there through aliases. No operation may patch or populate a Blizzard folder.
 
 Local WoW files are read-only. Put caches, extracted images, staging files and databases in Vibecraft user storage. Revalidate identity around reads to detect the client being patched. Missing, encrypted or unsupported files are explicit capability gaps. Prefer verified local files when that acquisition method is selected, but never fall back to the network unless the corresponding network source is enabled.
 
@@ -72,7 +78,7 @@ Reuse Java `SourceFetcher`, `ArchiveWorkflow` ingestion/projection, existing tab
 
 Implementation slices:
 
-1. Source capability/selection model, persisted plans, structured progress and first-run/Vibemining shell.
+1. Source capability/selection model, persisted plans, structured progress and first-run/Sources & Updates shell.
 2. Exact selected community acquisition, optional AtlasLoot refactor, worker cancellation and atomic candidate lifecycle.
 3. Direct pinned native table acquisition; satisfy the real loader dependency set and catalog identity before claiming a usable fresh build.
 4. Local WoW autodetection plus verified Java CASC/DB2 extraction; optional BLP image conversion and other selected asset capabilities.
