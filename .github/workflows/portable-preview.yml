@@ -1,0 +1,141 @@
+name: Manual portable preview
+
+# No push/PR/release trigger and no release/tag publication. Dispatch uploads the
+# explicitly reviewed populated packages as short-lived Actions artifacts only.
+'on':
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Native platform to build and self-test
+        type: choice
+        options: [windows-x64, macos-arm64, macos-x64, all]
+        default: windows-x64
+      version:
+        description: Product preview version (native numeric bundle version is separate)
+        required: true
+        default: 0.4.1-preview.1
+        type: string
+      dataset_url:
+        description: HTTPS ZIP containing exactly the five reviewed data paths; never paste credentials
+        required: true
+        type: string
+      dataset_sha256:
+        description: Exact lowercase SHA256 of that ZIP
+        required: true
+        type: string
+      test_fixture_url:
+        description: Optional HTTPS original development SQLite fixture, needed only if absent from checkout
+        required: false
+        type: string
+      test_fixture_sha256:
+        description: Optional pinned original fixture SHA256 (see docs/releases/MANUAL-ACTIONS.md)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  native:
+    if: github.event_name == 'workflow_dispatch'
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: windows-x64
+            runner: windows-2022
+            os: windows
+            arch: x64
+          - target: macos-arm64
+            runner: macos-15
+            os: macos
+            arch: arm64
+          - target: macos-x64
+            runner: macos-15-intel
+            os: macos
+            arch: x64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+        if: inputs.target == matrix.target || inputs.target == 'all'
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v6
+        if: inputs.target == matrix.target || inputs.target == 'all'
+        with:
+          distribution: temurin
+          java-version: '21'
+          architecture: ${{ matrix.arch }}
+          cache: maven
+      - uses: actions/setup-python@v7
+        if: inputs.target == matrix.target || inputs.target == 'all'
+        with:
+          python-version: '3.12'
+      - name: Verify external reviewed data and original full-test fixture
+        if: inputs.target == matrix.target || inputs.target == 'all'
+        shell: bash
+        env:
+          DATASET_URL: ${{ inputs.dataset_url }}
+          DATASET_SHA256: ${{ inputs.dataset_sha256 }}
+          TEST_FIXTURE_URL: ${{ inputs.test_fixture_url }}
+          TEST_FIXTURE_SHA256: ${{ inputs.test_fixture_sha256 }}
+          PRODUCT_VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          python tools/releases/prepare_preview.py --output "$RUNNER_TEMP/preview" --fixture app/src/main/resources/data/wowforever.sqlite
+      - name: Verify application against original populated test resources
+        if: inputs.target == matrix.target || inputs.target == 'all'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./mvnw -B verify -Dwowforever.music.enabled=false -Dwowforever.sound.enabled=false > "$RUNNER_TEMP/preview/full-verify.log" 2>&1
+          python tools/releases/check_portable.py --root . --work "$RUNNER_TEMP/preview" --version "$PRODUCT_VERSION" --os "$TARGET_OS" --arch "$TARGET_ARCH" --summarize-only
+        env:
+          PRODUCT_VERSION: ${{ inputs.version }}
+          TARGET_OS: ${{ matrix.os }}
+          TARGET_ARCH: ${{ matrix.arch }}
+      - name: Build data-free audited application JAR
+        if: inputs.target == matrix.target || inputs.target == 'all'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./mvnw -B -Psource-only -pl app -am clean package -DskipTests > "$RUNNER_TEMP/preview/source-only-package.log" 2>&1
+      - name: Package Windows complete portable archive
+        if: matrix.os == 'windows' && (inputs.target == matrix.target || inputs.target == 'all')
+        shell: pwsh
+        env:
+          PRODUCT_VERSION: ${{ inputs.version }}
+        run: |
+          ./packaging/jpackage.ps1 -Type app-image -Version $env:PRODUCT_VERSION -NativeVersion '0.4.1' -ReleaseDataDir "$env:RUNNER_TEMP/preview/reviewed" -ReleaseDataManifest './tools/releases/preview-data.tsv'
+          if ($LASTEXITCODE -ne 0) { throw 'Portable packaging failed' }
+      - name: Package macOS complete portable archive
+        if: matrix.os == 'macos' && (inputs.target == matrix.target || inputs.target == 'all')
+        shell: bash
+        env:
+          APP_VERSION: ${{ inputs.version }}
+          # JDK21/macOS requires a positive-major CFBundleVersion. Product version
+          # remains 0.4.1-preview.1 in archive name/config/release-version.txt.
+          NATIVE_APP_VERSION: '1.4.1'
+        run: |
+          set -euo pipefail
+          RELEASE_DATA_DIR="$RUNNER_TEMP/preview/reviewed" RELEASE_DATA_MANIFEST="$PWD/tools/releases/preview-data.tsv" bash packaging/jpackage.sh
+      - name: Extract, relocate and self-test actual bundled native launcher
+        if: inputs.target == matrix.target || inputs.target == 'all'
+        shell: bash
+        env:
+          PRODUCT_VERSION: ${{ inputs.version }}
+          TARGET_OS: ${{ matrix.os }}
+          TARGET_ARCH: ${{ matrix.arch }}
+        run: |
+          set -euo pipefail
+          python tools/releases/check_portable.py --root . --work "$RUNNER_TEMP/preview" --version "$PRODUCT_VERSION" --os "$TARGET_OS" --arch "$TARGET_ARCH"
+      - name: Upload only complete tested package and bounded evidence
+        if: success() && (inputs.target == matrix.target || inputs.target == 'all')
+        uses: actions/upload-artifact@v7
+        with:
+          name: vibecraft-${{ inputs.version }}-${{ matrix.target }}-manual-preview
+          path: ${{ runner.temp }}/preview/upload/*
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
