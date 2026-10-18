@@ -21,6 +21,12 @@ class JournalCitiesTest {
   @Test void citiesRequireExactPinnedForeverAreaAndUseItsName() throws Exception {
     Path file=temp.resolve("cities.sqlite");
     try(var c=DriverManager.getConnection("jdbc:sqlite:"+file);var s=c.createStatement()) {
+      s.execute("CREATE TABLE npc(id INTEGER PRIMARY KEY,name TEXT)");
+      s.execute("CREATE TABLE npc_spawn(npc_id INTEGER,zone_id INTEGER,x REAL,y REAL)");
+      s.execute("CREATE TABLE item_vendor(item_id INTEGER,npc_id INTEGER)");
+      s.execute("CREATE TABLE quest_giver(quest_id INTEGER,kind TEXT,entity_id INTEGER,role TEXT)");
+      s.execute("CREATE TABLE item(id INTEGER,name TEXT)");
+      s.execute("CREATE TABLE quest(id INTEGER,name TEXT)");
       s.execute("CREATE TABLE meta(key TEXT,value TEXT)");
       s.execute("INSERT INTO meta VALUES('forever_diff_forever_snapshot_id','forever')");
       s.execute("CREATE TABLE zone(id INTEGER,name TEXT,kind TEXT)");
@@ -51,6 +57,20 @@ class JournalCitiesTest {
       List<ViewTarget> opened=new ArrayList<>();var page=JournalCities.render(snapshot,opened::add);
       buttons(page).stream().filter(b->b.getText().equals("Explore Stormwind City")).findFirst().orElseThrow().doClick();
       assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(EntityKind.ZONE,1519)));
+    });
+  }
+  @Test void serviceLinksOpenExactRecordsWithoutInventingServiceTypes() throws Exception {
+    var person=new dev.wowforever.app.db.CityServicesRepository.Person(1,"Recorded person",List.of("20.0, 30.0"),
+        List.of(new dev.wowforever.app.db.CityServicesRepository.Link(7,null,"stock")),
+        List.of(new dev.wowforever.app.db.CityServicesRepository.Link(9,"Real quest","start")),1,1);
+    var data=new JournalCities.GuideSnapshot(new JournalCities.City(1519,"Stormwind",null),"test",List.of(),
+        new dev.wowforever.app.db.CityServicesRepository.Snapshot(List.of(person),false));
+    SwingUtilities.invokeAndWait(()->{
+      List<ViewTarget> opened=new ArrayList<>();var page=new JournalCityPage(data,new javax.swing.JPanel(),opened::add,null);
+      for(String label:List.of("Recorded person  ›","Item #7","start: Real quest"))
+        buttons(page).stream().filter(b->label.equals(b.getText())).findFirst().orElseThrow().doClick();
+      assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(EntityKind.NPC,1)),
+          new ViewTarget.Entity(new EntityRef(EntityKind.ITEM,7)),new ViewTarget.Entity(new EntityRef(EntityKind.QUEST,9)));
     });
   }
   private static List<JButton> buttons(Container root) {

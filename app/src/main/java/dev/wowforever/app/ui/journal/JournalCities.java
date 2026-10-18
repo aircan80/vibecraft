@@ -1,6 +1,7 @@
 package dev.wowforever.app.ui.journal;
 
 import dev.wowforever.app.db.Database;
+import dev.wowforever.app.db.CityServicesRepository;
 import dev.wowforever.app.model.EntityKind;
 import dev.wowforever.app.model.EntityRef;
 import dev.wowforever.app.nav.Navigator;
@@ -21,7 +22,8 @@ public final class JournalCities {
     public Snapshot { cities=List.copyOf(cities); }
   }
   public record District(long id,String name,boolean guideAvailable) {}
-  public record GuideSnapshot(City city,String build,List<District> districts) {
+  public record GuideSnapshot(City city,String build,List<District> districts,CityServicesRepository.Snapshot services) {
+    public GuideSnapshot(City city,String build,List<District> districts){this(city,build,districts,CityServicesRepository.Snapshot.empty());}
     public GuideSnapshot { districts=List.copyOf(districts); }
   }
 
@@ -45,7 +47,7 @@ public final class JournalCities {
       }
       return List.copyOf(result);
     });
-    return new GuideSnapshot(city,catalog.build(),districts);
+    return new GuideSnapshot(city,catalog.build(),districts,new CityServicesRepository(db).load(cityId));
   }
 
   /** Called by the catalog worker. No Era snapshot, names, or inferred services are used. */
