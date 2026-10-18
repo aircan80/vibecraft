@@ -1,0 +1,6 @@
+## Interface: 16001
+## Title: WoW Forever Appearance Collector (experimental)
+## Notes: Opt-in, exact-build target display observations. No names or raw GUIDs saved.
+## Version: 0.1.0
+## SavedVariables: WowForeverAppearanceCollectorDB
+Core.lua
