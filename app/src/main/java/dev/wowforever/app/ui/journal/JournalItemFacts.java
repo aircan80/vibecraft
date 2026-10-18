@@ -26,11 +26,21 @@ final class JournalItemFacts extends JPanel {
     for(var line:data.detail().card().lines()) {
       if("name".equals(line.kind()))continue;
       if(line.text()==null||line.text().isBlank()){facts.add(Box.createVerticalStrut(8));continue;}
+      String safeText=TooltipLinesPanel.withoutSpellTokens(line.text());
       JComponent row;
       if("set_item".equals(line.kind())&&line.itemId()!=null)
-        row=LinkButton.create(line.text().replace('\t',' '),new EntityRef(EntityKind.ITEM,line.itemId()),nav);
-      else row=new FactText(line.text().replace("\t","    "),"use".equals(line.kind())||"equip".equals(line.kind())||"set_bonus".equals(line.kind()));
-      row.setAlignmentX(LEFT_ALIGNMENT);facts.add(row);facts.add(Box.createVerticalStrut(5));
+        row=LinkButton.create(safeText.replace('\t',' '),new EntityRef(EntityKind.ITEM,line.itemId()),nav);
+      else row=new FactText(safeText.replace("\t","    "),"use".equals(line.kind())||"equip".equals(line.kind())||"proc".equals(line.kind())||"set_bonus".equals(line.kind()));
+      if(java.util.List.of("use","equip","proc","set_bonus").contains(line.kind()))
+        row.setToolTipText(TooltipLinesPanel.evidenceDetails(line));
+      row.setAlignmentX(LEFT_ALIGNMENT);facts.add(row);
+      String explanation=TooltipLinesPanel.statusExplanation(line);
+      if(explanation!=null) {
+        FactText status=new FactText(explanation,false);
+        status.setToolTipText(TooltipLinesPanel.evidenceDetails(line));
+        status.setAlignmentX(LEFT_ALIGNMENT);facts.add(status);
+      }
+      facts.add(Box.createVerticalStrut(5));
     }
     acquisition.setBorder(BorderFactory.createEmptyBorder(12,6,12,6));
     JLabel where=new JLabel("Where does this come from?");where.setFont(Fonts.heading(UIScale.scale(21f)));acquisition.add(where);
@@ -46,7 +56,7 @@ final class JournalItemFacts extends JPanel {
     acquisition.add(new WrappingText("Exact sources and drop-rate qualifications are listed below. A loot-list entry and an NPC drop can describe the same item; these counts describe evidence records.","Acquisition evidence scope"));
     columns.add(facts);columns.add(acquisition);add(columns,BorderLayout.CENTER);
     JPanel optional=stack();JToggleButton toggle=new JToggleButton("In-game tooltip");toggle.setAlignmentX(LEFT_ALIGNMENT);
-    optional.add(toggle);JPanel holder=new JPanel(new FlowLayout(FlowLayout.LEADING,0,8));holder.setOpaque(false);
+    optional.add(toggle);JPanel holder=new TooltipHolder(original);
     if(original.getParent()!=null)original.getParent().remove(original);holder.add(original);holder.setVisible(false);optional.add(holder);
     toggle.addActionListener(e->{holder.setVisible(toggle.isSelected());revalidate();repaint();});add(optional,BorderLayout.SOUTH);
   }
@@ -58,6 +68,20 @@ final class JournalItemFacts extends JPanel {
   private void entry(String label,int count){if(count>0){acquisition.add(new FactText(count+" · "+label,false));acquisition.add(Box.createVerticalStrut(5));}}
   @Override public Dimension getMaximumSize(){return new Dimension(UIScale.scale(1000),Integer.MAX_VALUE);}
   private static JPanel stack(){JPanel p=new JPanel(new JournalSurface.Stack());p.setOpaque(false);return p;}
+  /** Keeps the familiar card width on desktop, but wraps it inside the available narrow viewport. */
+  static final class TooltipHolder extends JPanel {
+    private final ItemCardPanel card;
+    TooltipHolder(ItemCardPanel card){super(null);this.card=card;setOpaque(false);}
+    private Dimension measured(){
+      int available=getParent()==null?getWidth():getParent().getWidth()-getParent().getInsets().left-getParent().getInsets().right;
+      int width=card.getPreferredSize().width;
+      if(available>0)width=Math.min(width,available);
+      card.setSize(Math.max(1,width),card.getHeight());
+      return new Dimension(width,card.getPreferredSize().height+16);
+    }
+    @Override public Dimension getPreferredSize(){return measured();}
+    @Override public void doLayout(){Dimension size=measured();card.setBounds(0,8,size.width,size.height-16);card.doLayout();}
+  }
   private static final class FactText extends JTextArea {
     FactText(String text,boolean effect){
       super(text,0,24);setEditable(false);setFocusable(false);setOpaque(false);setLineWrap(true);setWrapStyleWord(true);
