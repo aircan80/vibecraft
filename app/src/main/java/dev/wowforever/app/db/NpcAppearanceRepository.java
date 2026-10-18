@@ -1,6 +1,7 @@
 package dev.wowforever.app.db;
 
 import com.google.gson.Gson;
+import dev.wowforever.app.assets.ReviewedDataFiles;
 import dev.wowforever.app.model.NpcAppearance;
 import dev.wowforever.app.model.NpcAppearance.*;
 import java.io.InputStreamReader;
@@ -92,13 +93,13 @@ public final class NpcAppearanceRepository {
   private static final class CatalogHolder {
     static final Catalog VALUE=load();
     private static Catalog load(){
-      var stream=NpcAppearanceRepository.class.getResourceAsStream("/data/npc-appearances/forever-70450.json");
-      if(stream==null)return null;
-      try(var reader=new InputStreamReader(stream,StandardCharsets.UTF_8)){
+      try(var stream=ReviewedDataFiles.open("npc-appearances/forever-70450.json",
+          "4f036894ae143394e2ee851e23711538d504b11510cb1a538ebda5c15f227896",2*1024*1024);
+          var reader=new InputStreamReader(stream,StandardCharsets.UTF_8)){
         Catalog c=new Gson().fromJson(reader,Catalog.class);
         if(!"npc-appearance-v1".equals(c.schema()))throw new IllegalStateException("Unsupported NPC appearance catalog schema");
         return c;
-      }catch(java.io.IOException e){throw new IllegalStateException("Cannot read NPC appearance catalog",e);}
+      }catch(java.io.IOException|RuntimeException failure){return null;}
     }
   }
 }
