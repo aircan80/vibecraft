@@ -113,9 +113,10 @@ jobs:
         env:
           PRODUCT_VERSION: ${{ needs.version.outputs.version }}
           TARGET: ${{ matrix.target }}
+          SOURCE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          python tools/releases/source_release.py package --work "$RUNNER_TEMP/source-release" --target "$TARGET" --version "$PRODUCT_VERSION"
+          python tools/releases/source_release.py package --work "$RUNNER_TEMP/source-release" --target "$TARGET" --version "$PRODUCT_VERSION" --source-commit "$SOURCE_COMMIT"
       - uses: actions/upload-artifact@v7
         with:
           name: portable-${{ matrix.target }}
@@ -147,9 +148,10 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
           PRODUCT_VERSION: ${{ needs.version.outputs.version }}
           PRERELEASE: ${{ needs.version.outputs.prerelease }}
+          SOURCE_COMMIT: ${{ github.sha }}
         run: |
           set -euo pipefail
-          python tools/releases/source_release.py verify-set --directory "$RUNNER_TEMP/release-assets" --version "$PRODUCT_VERSION"
+          python tools/releases/source_release.py verify-set --directory "$RUNNER_TEMP/release-assets" --version "$PRODUCT_VERSION" --source-commit "$SOURCE_COMMIT"
           cd "$RUNNER_TEMP/release-assets"
           flags=()
           if [ "$PRERELEASE" = true ]; then flags+=(--prerelease); fi
