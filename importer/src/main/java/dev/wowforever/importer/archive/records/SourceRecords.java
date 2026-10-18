@@ -1,6 +1,7 @@
 package dev.wowforever.importer.archive.records;
 
 import dev.wowforever.importer.clientdata.CsvTable;
+import dev.wowforever.importer.archive.SourceArchive;
 import dev.wowforever.lua.LuaChunk;
 import dev.wowforever.lua.LuaString;
 import dev.wowforever.lua.ast.Expr;
@@ -34,6 +35,7 @@ public final class SourceRecords {
   private record Parsed(List<Record> rows, String status, String detail) {}
 
   public static void initialize(Connection c) throws SQLException {
+    SourceArchive.requireDevelopmentDataset(c);
     try (var s = c.createStatement()) {
       s.execute("CREATE TABLE IF NOT EXISTS source_record (snapshot_id TEXT NOT NULL, extraction_version INTEGER NOT NULL, artifact_path TEXT NOT NULL,"
           + " record_key TEXT NOT NULL, format TEXT NOT NULL, payload TEXT NOT NULL, sha256 TEXT NOT NULL,"
@@ -83,6 +85,7 @@ public final class SourceRecords {
 
   /** Available generations, oldest first. A v1-only snapshot remains readable after parser upgrades. */
   public static List<Integer> generations(Connection c, String snapshotId) throws SQLException {
+    SourceArchive.requireDevelopmentDataset(c);
     List<Integer> out = new ArrayList<>();
     try (var s = c.prepareStatement("SELECT DISTINCT extraction_version FROM source_record_parse"
         + " WHERE snapshot_id=? ORDER BY extraction_version")) {
@@ -98,6 +101,7 @@ public final class SourceRecords {
   }
 
   private static List<Record> records(Connection c, String snapshotId, String path, int generation) throws SQLException {
+    SourceArchive.requireDevelopmentDataset(c);
     List<Record> out = new ArrayList<>();
     try (var s = c.prepareStatement("SELECT artifact_path,record_key,format,payload,sha256 FROM source_record"
         + " WHERE snapshot_id=? AND extraction_version=" + generation + (path == null ? "" : " AND artifact_path=?") + " ORDER BY artifact_path,record_key")) {
@@ -127,6 +131,7 @@ public final class SourceRecords {
   }
 
   public static List<ParseStatus> statuses(Connection c, String snapshotId, int generation) throws SQLException {
+    SourceArchive.requireDevelopmentDataset(c);
     List<ParseStatus> out = new ArrayList<>();
     try (var s = c.prepareStatement("SELECT artifact_path,status,detail FROM source_record_parse"
         + " WHERE snapshot_id=? AND extraction_version=" + generation + " ORDER BY artifact_path")) {

@@ -47,7 +47,21 @@ public final class SourceArchive {
   public enum Kind { ADDED, REMOVED, CHANGED }
   public record Change(String path, Kind kind, String oldSha256, String newSha256) {}
 
+  /** Runtime datasets deliberately omit rebuild evidence; never treat omission as corruption or empty input. */
+  public static void requireDevelopmentDataset(Connection c) throws SQLException {
+    try (var statement = c.createStatement(); var tables = statement.executeQuery(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='meta'")) {
+      if (!tables.next()) return;
+    }
+    try (var statement = c.createStatement(); var rows = statement.executeQuery(
+        "SELECT value FROM meta WHERE key='release_dataset_profile'")) {
+      if (rows.next()) throw new SQLException(
+          "Runtime release database omits raw source evidence and cannot be rebuilt or ingested. Use the development database.");
+    }
+  }
+
   public static void initialize(Connection c) throws SQLException {
+    requireDevelopmentDataset(c);
     try (var s = c.createStatement()) {
       s.execute("CREATE TABLE IF NOT EXISTS source_archive_snapshot (id TEXT PRIMARY KEY, source TEXT NOT NULL,"
           + " version TEXT, product TEXT, build TEXT, locale TEXT, captured_at TEXT NOT NULL)");
@@ -61,6 +75,7 @@ public final class SourceArchive {
 
   /** Idempotent capture. Requires an explicit caller transaction; rolls back only this capture on failure. */
   public static String capture(Connection c, Snapshot metadata, List<Artifact> artifacts) throws SQLException {
+    requireDevelopmentDataset(c);
     Objects.requireNonNull(metadata, "metadata");
     if (c.getAutoCommit()) throw new SQLException("source capture requires a caller-owned transaction");
     List<Artifact> sorted = checked(artifacts);
@@ -111,6 +126,7 @@ public final class SourceArchive {
 
   /** Returns exact source bytes after verifying their stored content hashes and snapshot fingerprint. */
   public static List<Artifact> artifacts(Connection c, String id) throws SQLException {
+    requireDevelopmentDataset(c);
     StoredSnapshot stored = snapshot(c, id);
     List<Artifact> result = new ArrayList<>();
     try (var p = c.prepareStatement("SELECT f.path,f.url,f.sha256,b.bytes FROM source_archive_file f"

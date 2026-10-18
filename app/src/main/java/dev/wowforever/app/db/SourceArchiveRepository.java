@@ -112,6 +112,11 @@ public final class SourceArchiveRepository {
           metadata.put(row[0],row[1]);
         baselineReferences.addAll(legacy(metadata));
       }
+      if (Sql.hasTable(c, "meta") && Sql.one(c,
+          "SELECT value FROM meta WHERE key='release_dataset_profile'", rs -> rs.getString(1)).isPresent()) {
+        note += " Compact release dataset: source identities, versions, file hashes and field conflicts are retained; "
+            + "raw source records and original archive bytes are omitted. Rebuilding requires the development database.";
+      }
       return new Catalog(true, result, active, projection, baselineReferences, history, note);
     });
   }

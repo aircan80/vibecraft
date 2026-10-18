@@ -70,6 +70,19 @@ class SourceArchiveRepositoryTest {
       assertThat(result.projection().transformVersion()).isEqualTo("rules1");
     }
   }
+  @Test void compactReleaseKeepsSourceMetadataAndExplainsMissingBytes() throws Exception {
+    var file = historyDatabase("1", true);
+    try (var c = DriverManager.getConnection("jdbc:sqlite:" + file); var sql = c.createStatement()) {
+      sql.execute("INSERT INTO meta VALUES('release_dataset_profile','runtime-v1')");
+    }
+    try (var db = Database.open(file)) {
+      var catalog = new SourceArchiveRepository(db).catalog();
+      assertThat(catalog.available()).isTrue();
+      assertThat(catalog.snapshots()).hasSize(2);
+      assertThat(catalog.historyNote()).contains("Compact release dataset", "original archive bytes are omitted", "development database");
+    }
+  }
+
   private Path historyDatabase(String execution, boolean metadataColumns) throws Exception {
     var file = dir.resolve("history.sqlite");
     try (var c = DriverManager.getConnection("jdbc:sqlite:" + file); var sql = c.createStatement()) {
