@@ -6,6 +6,35 @@
 
 # Resume development — current checkpoint
 
+## Repository moved after successful branded build
+
+Canonical app repository is now `/home/aircan/Development/vibecraft`.
+User explicitly requested full history here and NO PUSH. All refs and 362 reachable commits
+were preserved; destination origin remote retained; connectivity check passed. All 41 registered
+worktrees resolve after repair. Do not create agent/task directories inside the app repository.
+Developer artifacts/toolchains/caches moved to `/home/aircan/Development/vibecraft-work/development`;
+source its `env.sh` before Maven. `.local`, `.superpowers` and `.worktrees` are absent from app root.
+Collector worktree is external at `/home/aircan/Development/vibecraft-worktrees/collector-addon`.
+Other existing agent worktrees remain external under the old parent directory.
+Empty destination Git metadata is backed up under `vibecraft-work/migration`.
+
+Approved brand: Vibecraft; “Every place. Every drop. Every adventure.”;
+“A World of Warcraft companion for exploration, loot, crafting, and lore.”;
+About credit: “Built with artificial intelligence and natural stupidity. Works on my gryphon.”
+Production branding committed 3fa061f, packaging b10a68d. No game/product/cache IDs renamed.
+
+Final full Maven verification completed 2026-10-17T22:03:30-04:00: 2011 tests
+(71 lua-table, 584 importer, 1356 app), six skipped, zero failures/errors.
+Frozen full-data private QA JAR is external development/portable-release-acceptance/frozen-private.jar,
+SHA256 da257dfe2b78edf42018a8988ea80ec1a68be42fbd9da92c12f53c1c10623637.
+Full-data JAR is private QA, not the public source snapshot. Compact DB is external
+development/release-database/runtime-v1.sqlite, SHA ee10d3ec2680551c4aff232cad1cd7a5a0abc9d0549badbbce9979e5c65b0066.
+Native core/static/research acceptance is running against this compact DB. Source-only packaging
+is running from the new repository; then the final complete Vibecraft portable bundle will be
+built externally. No branded launch, final archive size, or release publication claimed yet.
+Prior test blockers fixed: atomic FlatLaf test restoration 9422494 and actual compact-table
+scroll reachability test 037f876. Old failed logs remain as superseded evidence.
+
 ## Current release work — supersedes older rendering and packaging plans
 
 Owner wants versioned portable releases with Java AND a usable compact gameplay database

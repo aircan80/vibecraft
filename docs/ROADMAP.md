@@ -4,9 +4,14 @@
 
 A World of Warcraft companion for exploration, loot, crafting, and lore.
 
-Owner-approved product name: **Vibecraft**. Branding is integrated for verification;
-the existing running artifact predates the rename. Game names and historical evidence
+Owner-approved product name: **Vibecraft**. Branding passed full Maven verification (2,011 tests, six skipped, zero failures/errors);
+native acceptance and launch are pending. The existing running artifact predates the rename. Game names and historical evidence
 remain unchanged: the installed gameplay catalog is still WoW Forever.
+
+The application repository is now `/home/aircan/Development/vibecraft`. Migration
+preserved all 362 commits and references and repaired 41 linked worktrees. Task and
+development folders remain external under `vibecraft-work/development`; no GitHub
+push is claimed.
 
 ## Current high-level direction (2026-10-17)
 
@@ -115,9 +120,9 @@ validation are recorded below; complete packaged release acceptance remains pend
 
 Proposed version: **0.4.1-preview.1**, not an RC. Static Java portraits, Java-only
 asset/audio support, complete packaging, preview notes and manifest tooling are
-integrated in source. Fresh full verification is blocked by a test restoring UI
-defaults incorrectly and causing cascading UI errors; its correction and a rebuilt
-candidate are pending. The older verified artifact remains the running baseline.
+integrated in source. Fresh full Maven verification passed after correcting the UI-default restoration
+test: 2,011 tests, six skipped, zero failures/errors. Final packaged/native acceptance
+and launch remain pending. The older verified artifact remains the running baseline.
 Do not claim the latest source passed or was launched.
 
 The derived database measures 1,050,083,328 bytes versus 2,283,749,376 bytes, a
