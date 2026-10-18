@@ -1,6 +1,7 @@
 package dev.wowforever.importer.setup;
 
 import java.io.IOException;
+import dev.wowforever.importer.acquisition.PinnedItemSparseOverlayMaterializer;
 import java.nio.file.*;
 import java.sql.*;
 import java.util.*;
@@ -75,8 +76,12 @@ public final class LibraryCandidateValidator {
         throw new IOException("Unselected AtlasLoot facts appeared in the candidate");
       if(!plan.sources().contains(SetupPlan.Source.ALL_THE_THINGS)&&meta.keySet().stream().anyMatch(key->key.startsWith("att_")))
         throw new IOException("Unselected AllTheThings metadata appeared in the candidate");
-      if(count(c,"SELECT count(*) FROM item WHERE client_source IN ('era','hotfix')",cancelled)>0)
-        throw new IOException("Unselected fallback or hotfix item data appeared in the candidate");
+      if(count(c,"SELECT count(*) FROM item WHERE client_source='era'",cancelled)>0 || meta.containsKey("client_fallback_product") || meta.containsKey("client_fallback_build"))
+        throw new IOException("Unselected Era fallback data appeared in the candidate");
+      boolean selectedHotfix=plan.sources().contains(SetupPlan.Source.RAIDBOTS_HOTFIX);
+      if(selectedHotfix)validateHotfix(c,plan,ingestion,meta,warnings,cancelled);
+      else if(count(c,"SELECT count(*) FROM item WHERE client_source='hotfix'",cancelled)>0 || meta.keySet().stream().anyMatch(key->key.startsWith("client_hotfix_")))
+        throw new IOException("Unselected hotfix data appeared in the candidate");
       Map<String,Long> counts=new LinkedHashMap<>();
       for(String table:List.of("item","npc","quest","zone","game_object","instance")) {
         // Fixed identifiers only. This also checks the query shape expected by browser navigation.
@@ -89,10 +94,62 @@ public final class LibraryCandidateValidator {
           "SELECT quest_id FROM quest_giver LIMIT 0","SELECT kind,id,name FROM search_index LIMIT 0"))
         try(var s=c.createStatement();var r=s.executeQuery(sql)){check(cancelled);}
       check(cancelled);
-      warnings.add("This job performs core/client projection only; additive foundation, map, hotfix and collector replay is not performed.");
+      warnings.add("This job performs core/client projection"+(selectedHotfix?" with the explicitly selected conservative ItemSparse hotfix policy":" only")+"; additive foundation, map and collector replay is not performed.");
       warnings.add("Validation covers selected inputs and structural usability; missing artwork and source gaps remain explicit coverage limitations.");
       return new Validated(buildId,identity,ingestion,counts,warnings);
     }
+  }
+  /** Full candidates retain raw evidence. Compacted runtime receipts use their separate verified-export path. */
+  private static void validateHotfix(Connection connection,SetupPlan plan,String ingestion,Map<String,String> meta,
+      List<String> warnings,BooleanSupplier cancelled)throws IOException,SQLException {
+    String pin=plan.sourcePins().get(SetupPlan.Source.RAIDBOTS_HOTFIX);
+    if(!PinnedItemSparseOverlayMaterializer.SNAPSHOT_SHA.equals(pin)
+        || !pin.equals(meta.get("client_hotfix_sha256")) || !"70450".equals(meta.get("client_hotfix_header_build")))
+      throw new IOException("Candidate hotfix metadata differs from the selected exact snapshot");
+    if(meta.containsKey("release_dataset_profile"))
+      throw new IOException("Compacted runtime libraries require verified export validation, not full raw-candidate validation");
+    String snapshot;
+    try(var query=connection.prepareStatement("SELECT snapshot_id FROM source_ingestion_input WHERE ingestion_id=? AND role='client'")) {
+      query.setString(1,ingestion);
+      try(var rows=query.executeQuery()){if(!rows.next())throw new IOException("Archived selected native input is missing");snapshot=rows.getString(1);}
+    }
+    var proof=new PinnedItemSparseOverlayMaterializer().validate(new PinnedItemSparseOverlayMaterializer.Input(){
+      public Set<String> paths()throws IOException {
+        Set<String> result=new HashSet<>();
+        try(var query=connection.prepareStatement("SELECT path FROM source_archive_file WHERE snapshot_id=?")) {
+          query.setString(1,snapshot);try(var rows=query.executeQuery()){while(rows.next()){
+            check(cancelled);if(!result.add(rows.getString(1))||result.size()>100_000)throw new IOException("Invalid archived native file manifest");
+          }}
+          return Set.copyOf(result);
+        }catch(SQLException failure){throw new IOException("Cannot read archived native manifest",failure);}
+      }
+      public byte[] read(String relative,long maximum)throws IOException {
+        check(cancelled);
+        try(var query=connection.prepareStatement("SELECT b.bytes,length(b.bytes) FROM source_archive_file f LEFT JOIN source_archive_blob b ON b.sha256=f.sha256 WHERE f.snapshot_id=? AND f.path=?")) {
+          query.setString(1,snapshot);query.setString(2,relative);
+          try(var rows=query.executeQuery()) {
+            if(!rows.next() || rows.getObject(2)==null)throw new IOException("Full archived hotfix evidence is unavailable: "+relative);
+            long length=rows.getLong(2);if(length<0||length>maximum||maximum>Integer.MAX_VALUE-1)throw new IOException("Archived hotfix evidence exceeds its byte bound");
+            try(var input=rows.getBinaryStream(1);var output=new java.io.ByteArrayOutputStream((int)Math.min(length,65536))) {
+              byte[] buffer=new byte[65536];int count;long total=0;
+              while((count=input.read(buffer))!=-1){check(cancelled);total+=count;if(total>maximum)throw new IOException("Archived hotfix evidence exceeds its byte bound");output.write(buffer,0,count);}
+              if(total!=length)throw new IOException("Archived hotfix evidence length changed");return output.toByteArray();
+            }
+          }
+        }catch(SQLException failure){throw new IOException("Cannot read archived hotfix evidence",failure);}
+      }
+    },cancelled);
+    Set<Long> expected=new HashSet<>(),actual=new HashSet<>();
+    try(var statement=connection.createStatement();var rows=statement.executeQuery("SELECT id,client_source,has_client_data FROM item")) {
+      while(rows.next()) {
+        check(cancelled);long id=rows.getLong(1);
+        if(proof.overlayIds().contains(id))expected.add(id);
+        if("hotfix".equals(rows.getString(2)))actual.add(id);
+        if(proof.excludedIds().contains(id)&&rows.getInt(3)!=0)throw new IOException("An excluded hotfix ID unexpectedly has native detail data");
+      }
+    }
+    if(!actual.equals(expected))throw new IOException("Projected hotfix item identities do not match the proven archived overlay");
+    warnings.add("Selected Raidbots hotfix mirror: "+proof.rows()+" proven ItemSparse rows; "+actual.size()+" applied catalog items; "+proof.excludedIds().size()+" excluded IDs; conservative exact-snapshot policy, not CASC authentication.");
   }
   private static long count(Connection c,String sql,BooleanSupplier cancelled)throws SQLException {return Long.parseLong(scalar(c,sql,cancelled));}
   private static String scalar(Connection c,String sql,BooleanSupplier cancelled)throws SQLException {

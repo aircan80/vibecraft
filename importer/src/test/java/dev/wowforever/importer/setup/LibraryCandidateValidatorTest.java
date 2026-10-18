@@ -30,6 +30,23 @@ class LibraryCandidateValidatorTest {
     LibraryJobFixtures.execute(file,"DELETE FROM instance");LibraryJobFixtures.execute(file,"DELETE FROM item");
     assertThatIOException().isThrownBy(()->new LibraryCandidateValidator().validate(file,plan,ingestion,()->false));
   }
+  @Test void hotfixSelectionNeverAcceptsMissingProofOrMetadataOnlyClaims()throws Exception {
+    var base=LibraryJobFixtures.plan();var job=base.prepareJob(temporary.resolve("app"),Optional.empty(),"hotfix-proof",List.of());
+    String ingestion=LibraryJobFixtures.captureSynthetic(base,job,LibraryJobFixtures.inputs(temporary));Path file=job.paths().archiveDatabase();
+    LibraryJobFixtures.execute(file,"INSERT INTO meta VALUES ('client_hotfix_sha256','"+dev.wowforever.importer.acquisition.PinnedItemSparseOverlayMaterializer.SNAPSHOT_SHA+"')");
+    LibraryJobFixtures.execute(file,"INSERT INTO meta VALUES ('client_hotfix_header_build','70450')");
+    assertThatIOException().isThrownBy(()->new LibraryCandidateValidator().validate(file,base,ingestion,()->false)).withMessageContaining("Unselected hotfix");
+    var selected=Set.of(SetupPlan.Source.QUESTIE,SetupPlan.Source.NATIVE_DATA,SetupPlan.Source.RAIDBOTS_HOTFIX);
+    var hotfix=new SetupPlan(selected,base.acquisitions(),base.nativeIdentity(),List.of(),SetupPlan.currentPins(selected));
+    byte[] before=Files.readAllBytes(file);
+    assertThatIOException().isThrownBy(()->new LibraryCandidateValidator().validate(file,hotfix,ingestion,()->false));
+    assertThat(Files.readAllBytes(file)).isEqualTo(before);
+    LibraryJobFixtures.execute(file,"INSERT INTO meta VALUES ('release_dataset_profile','runtime-v1')");
+    assertThatIOException().isThrownBy(()->new LibraryCandidateValidator().validate(file,hotfix,ingestion,()->false)).withMessageContaining("Compacted runtime");
+    LibraryJobFixtures.execute(file,"DELETE FROM meta WHERE key='release_dataset_profile'");
+    LibraryJobFixtures.execute(file,"UPDATE item SET client_source='era'");
+    assertThatIOException().isThrownBy(()->new LibraryCandidateValidator().validate(file,hotfix,ingestion,()->false)).withMessageContaining("Era");
+  }
   @Test void declaredForeignKeyFailureAndFailedProjectionCoverageCannotBeAccepted()throws Exception {
     var plan=LibraryJobFixtures.plan();var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"job",List.of());
     String ingestion=LibraryJobFixtures.captureSynthetic(plan,job,LibraryJobFixtures.inputs(temporary));Path file=job.paths().archiveDatabase();
