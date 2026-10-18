@@ -28,7 +28,7 @@ public final class InstanceRepository {
 
   /** The boss loot columns with the item's; append WHERE and ORDER BY. */
   private static String bossLootSelect(Connection c) throws SQLException {
-    return "SELECT bl.item_id, " + NpcRepository.ITEM_COLUMNS
+    return "SELECT bl.item_id, " + NpcRepository.itemColumns(c)
         + ", bl.drop_pct, bl.pct_source, bl.slot, bl.disagrees, bl.source_count, "
         + ForeverLootFacts.origin(c)+" AS presence_origin FROM boss_loot bl " + NpcRepository.itemJoin("bl");
   }
@@ -91,7 +91,7 @@ public final class InstanceRepository {
   /** Distinct capture-confirmed items, without inferred rates or difficulty. */
   private static List<LootRow> observedLoot(Connection c, long bossId) throws SQLException {
     if (!Sql.hasTable(c, "collector_fact")) return List.of();
-    return Sql.list(c, "SELECT d.item_id, " + NpcRepository.ITEM_COLUMNS
+    return Sql.list(c, "SELECT d.item_id, " + NpcRepository.itemColumns(c)
         + " FROM (SELECT DISTINCT item_id FROM collector_fact WHERE category = 'boss-drop'"
         + " AND entity_type = 'boss' AND entity_id = ?) d " + NpcRepository.itemJoin("d")
         + " ORDER BY i.name IS NULL, i.name COLLATE NOCASE, d.item_id",

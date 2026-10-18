@@ -16,7 +16,7 @@ public record LootFilter(Integer classId, Integer inventoryType) {
       boolean classMismatch = classId != null && !classUnknown && row.allowableClass() != -1
           && (row.allowableClass() & (1 << (classId - 1))) == 0;
       boolean slotMismatch = inventoryType != null && !slotUnknown
-          && !inventoryType.equals(row.inventoryType());
+          && !sameSlot(inventoryType, row.inventoryType());
       // A known mismatch is excluded even if the other selected field is unknown.
       if (classMismatch || slotMismatch) excluded++;
       else if (classUnknown || slotUnknown) {
@@ -27,4 +27,8 @@ public record LootFilter(Integer classId, Integer inventoryType) {
     }
     return new Result(List.copyOf(matches), excluded, unknown, classes, slots);
   }
+  private static boolean sameSlot(int selected, int actual) {
+    return selected == actual || selected == 5 && actual == 20 || selected == 15 && actual == 26;
+  }
+
 }

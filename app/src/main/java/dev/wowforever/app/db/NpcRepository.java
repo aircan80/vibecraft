@@ -45,6 +45,19 @@ public final class NpcRepository {
       i.allowable_class, i.inventory_type, (SELECT t.text FROM item_tooltip_line t WHERE t.item_id = i.id AND t.kind = 'req_skill' \
       ORDER BY t.ordinal LIMIT 1) AS skill_line""";
 
+  /** Exact active Forever native slot, independent from masked Era ItemSparse metadata. */
+  static String itemColumns(Connection c) throws SQLException {
+    if (!Sql.hasTable(c,"client_table_row") || !Sql.hasTable(c,"client_table_dataset")) return ITEM_COLUMNS;
+    String value="CAST(json_extract(native_item.payload,'$.InventoryType') AS TEXT)";
+    String nativeSlot="(SELECT CASE WHEN " + value + " <> '' AND " + value
+        + " NOT GLOB '*[^0-9]*' THEN CAST(" + value + " AS INTEGER) END"
+        + " FROM client_table_row native_item WHERE native_item.snapshot_id=(SELECT snapshot_id"
+        + " FROM client_table_dataset WHERE product='wow_classic_beta' AND locale='enUS'"
+        + " AND build=(SELECT value FROM meta WHERE key='client_build') ORDER BY snapshot_id LIMIT 1)"
+        + " AND native_item.table_name='Item' AND native_item.row_id=CAST(i.id AS TEXT))";
+    return ITEM_COLUMNS.replace("i.inventory_type", "COALESCE("+nativeSlot+",i.inventory_type) AS inventory_type");
+  }
+
   /** How many NPC ids one {@link #bosses} query asks about, each bound once: under SQLite's classic 999 limit. */
   static final int BOSS_CHUNK = 900;
 
@@ -66,7 +79,7 @@ public final class NpcRepository {
       }
       NpcDetail h = head.get();
       // dropper_count: how many NPCs drop the item (a primary-key prefix count), which tells the world drops
-      List<LootRow> drops = Sql.list(c, "SELECT d.item_id, " + ITEM_COLUMNS
+      List<LootRow> drops = Sql.list(c, "SELECT d.item_id, " + itemColumns(c)
           + ", d.drop_pct, d.pct_source, d.origin, d.disagrees, d.source_count,"
           + CollectorFacts.observed(c, "npc-drop", "npc", "d.npc_id") + " AS observed_in_game,"
           + " (SELECT count(*) FROM item_npc_drop x WHERE x.item_id = d.item_id) AS dropper_count"
@@ -76,7 +89,7 @@ public final class NpcRepository {
           ORDER BY d.drop_pct IS NULL, d.drop_pct DESC, i.name IS NULL, i.name COLLATE NOCASE, d.item_id""",
           rs -> withDropperCount(ratedLoot(rs, rs.getString("origin"), null), rs.getInt("dropper_count")).withObservation(rs.getBoolean("observed_in_game")),
           id);
-      List<LootRow> sells = Sql.list(c, "SELECT v.item_id, " + ITEM_COLUMNS
+      List<LootRow> sells = Sql.list(c, "SELECT v.item_id, " + itemColumns(c)
           + ", " + CollectorFacts.observed(c, "vendor", "npc", "v.npc_id", "v.item_id") + " AS observed_in_game"
           + " FROM item_vendor v " + itemJoin("v") + """
 

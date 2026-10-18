@@ -32,4 +32,11 @@ class LootFilterTest {
   @Test void observationPreservesEquipmentSlot() {
     assertThat(row(1,256,6).withObservation(true).inventoryType()).isEqualTo(6);
   }
+  @Test void semanticChestAndRangedChoicesIncludeEquivalentClientTypes() {
+    assertThat(new LootFilter(null,5).apply(List.of(row(1,256,5),row(2,256,20),row(3,256,6))).rows())
+        .extracting(r->r.item().id()).containsExactly(1L,2L);
+    assertThat(new LootFilter(null,15).apply(List.of(row(1,256,15),row(2,256,26),row(3,256,25))).rows())
+        .extracting(r->r.item().id()).containsExactly(1L,2L);
+  }
+
 }

@@ -417,7 +417,9 @@ class InstancePageTest {
       assertThat(findLootSlot(page)).isSameAs(combo);
       Object saved=page.saveState();
       combo.setSelectedIndex(0);
+      int beforeRestore=lookups.get();
       page.restoreState(saved);
+      assertThat(lookups).hasValue(beforeRestore+1);
       assertThat(findLootSlot(page).getSelectedItem().toString()).isEqualTo("Waist");
       assertThat(page.lootTable().model().getRowCount()).isEqualTo(2);
     });

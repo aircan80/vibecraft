@@ -147,7 +147,7 @@ public final class QuestRepository {
         ORDER BY g.role <> 'start', g.kind, giver_name IS NULL, giver_name COLLATE NOCASE, g.entity_id""",
         QuestRepository::giver, id).stream().filter(Objects::nonNull).toList();
     return Optional.of(new QuestDetail(head.get().summary(), head.get().objectivesText(), givers,
-        Sql.list(c, "SELECT r.item_id, " + NpcRepository.ITEM_COLUMNS
+        Sql.list(c, "SELECT r.item_id, " + NpcRepository.itemColumns(c)
             + " FROM quest_reward_item r " + NpcRepository.itemJoin("r") + """
 
             WHERE r.quest_id = ?

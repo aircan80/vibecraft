@@ -446,7 +446,6 @@ public final class InstancePage extends JPanel implements PageState {
       return;
     }
     lootFilters.restore(s.filter());
-    if (shown != null) showLoot(shown);
     if (s.difficulty() != null && difficulties.contains(s.difficulty()) && !s.difficulty().equals(difficulty)) {
       difficulty = s.difficulty();
       if (difficultyControl != null) {
@@ -456,13 +455,12 @@ public final class InstancePage extends JPanel implements PageState {
           }
         }
       }
-      if (shown != null) {
-        showLoot(shown);
-      }
     }
-    if (s.boss() >= 0) {
-      selectBoss(s.boss());
-    }
+    if (s.boss() >= 0 && s.boss() < mainBosses.size() + extraBosses.size()) {
+      BossSummary target = bossAt(s.boss());
+      if (target.equals(shown)) showLoot(target);
+      else selectBoss(s.boss());
+    } else if (shown != null) showLoot(shown);
   }
 
   private BossSummary bossAt(int index) {

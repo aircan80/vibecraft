@@ -29,7 +29,7 @@ public final class ObjectRepository {
         return Optional.empty();
       }
       return Optional.of(new ObjectDetail(summary.get(),
-          Sql.list(c, "SELECT d.item_id, " + NpcRepository.ITEM_COLUMNS
+          Sql.list(c, "SELECT d.item_id, " + NpcRepository.itemColumns(c)
               + ", " + CollectorFacts.observed(c, "object-drop", "object", "d.object_id") + " AS observed_in_game"
               + " FROM item_object_drop d " + NpcRepository.itemJoin("d") + """
 

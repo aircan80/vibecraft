@@ -15,13 +15,13 @@ final class LootFilterControls extends JPanel {
       new Choice("Mage",8), new Choice("Warlock",9), new Choice("Druid",11)});
   private final JComboBox<Choice> slots = new JComboBox<>(new Choice[] {
       new Choice("All slots",null), new Choice("Head",1), new Choice("Neck",2), new Choice("Shoulder",3),
-      new Choice("Shirt",4), new Choice("Chest",5), new Choice("Waist",6), new Choice("Legs",7),
+      new Choice("Shirt",4), new Choice("Chest / robe",5), new Choice("Waist",6), new Choice("Legs",7),
       new Choice("Feet",8), new Choice("Wrist",9), new Choice("Hands",10), new Choice("Finger",11),
       new Choice("Trinket",12), new Choice("One-hand",13), new Choice("Shield",14), new Choice("Ranged",15),
       new Choice("Back",16), new Choice("Two-hand",17), new Choice("Bag",18), new Choice("Tabard",19),
-      new Choice("Robe",20), new Choice("Main hand",21), new Choice("Off hand",22),
+      new Choice("Main hand",21), new Choice("Off hand",22),
       new Choice("Held in off hand",23), new Choice("Ammo",24), new Choice("Thrown",25),
-      new Choice("Ranged right",26), new Choice("Quiver",27), new Choice("Relic",28)});
+      new Choice("Quiver",27), new Choice("Relic",28)});
   private boolean restoring;
   LootFilterControls(Runnable changed) {
     super(new java.awt.GridLayout(0,2,8,4));

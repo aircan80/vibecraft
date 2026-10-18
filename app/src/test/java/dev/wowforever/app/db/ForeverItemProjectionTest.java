@@ -64,4 +64,31 @@ class ForeverItemProjectionTest {
     }
   }
 
+  @Test void activeForeverNativeSlotSurvivesEraSparseMaskWithoutImportingEraFields() throws Exception {
+    Path file=temp.resolve("native-slot.sqlite");Files.copy(FixtureDb.path(),file);
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+file);var statement=c.createStatement()) {
+      statement.execute("UPDATE item SET client_source='era',inventory_type=6,allowable_class=256 WHERE id=14149");
+      statement.execute("INSERT OR REPLACE INTO meta(key,value) VALUES('client_build','1.60.1.70450')");
+      statement.execute("CREATE TABLE client_table_dataset(snapshot_id TEXT,product TEXT,build TEXT,locale TEXT)");
+      statement.execute("CREATE TABLE client_table_row(snapshot_id TEXT,table_name TEXT,row_id TEXT,payload TEXT,source_path TEXT,source_line INTEGER)");
+      statement.execute("INSERT INTO client_table_dataset VALUES('active','wow_classic_beta','1.60.1.70450','enUS'),('era','wow_classic_era','1.60.1.70450','enUS'),('old','wow_classic_beta','1.60.1.70000','enUS')");
+      statement.execute("INSERT INTO client_table_row VALUES('active','Item','14149','{\"InventoryType\":\"7\"}','Item.csv',1),('era','Item','14149','{\"InventoryType\":\"6\"}','Era.csv',1),('old','Item','14149','{\"InventoryType\":\"10\"}','Old.csv',1)");
+    }
+    try(var db=Database.open(file)) {
+      assertThat(new NpcRepository(db).detail(11520).orElseThrow().drops())
+          .filteredOn(r->r.item().id()==14149).singleElement().satisfies(r->{
+            assertThat(r.inventoryType()).isEqualTo(7);
+            assertThat(r.allowableClass()).isNull();
+            assertThat(r.itemName()).isNull();
+          });
+    }
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+file);var statement=c.createStatement()) {
+      statement.execute("DELETE FROM client_table_row WHERE snapshot_id='active'");
+    }
+    try(var db=Database.open(file)) {
+      assertThat(new NpcRepository(db).detail(11520).orElseThrow().drops())
+          .filteredOn(r->r.item().id()==14149).singleElement().satisfies(r->assertThat(r.inventoryType()).isNull());
+    }
+  }
+
 }
