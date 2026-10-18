@@ -1,20 +1,23 @@
-# Builds a Windows package for WoW Forever Browser with jpackage.
-# Usage: packaging\jpackage.ps1                   (msi, needs WiX 3.x)
+# Builds a portable Windows app-image + ZIP with its own Java runtime.
+# Usage: packaging\jpackage.ps1                   (portable folder + ZIP)
 #        packaging\jpackage.ps1 -Type app-image   (self-contained folder, no WiX needed)
 param(
     [ValidateSet('msi', 'exe', 'app-image')]
-    [string]$Type = 'msi'
+    [string]$Type = 'app-image',
+    [string]$JarPath = '',
+    [switch]$PrivateQa
 )
 $ErrorActionPreference = 'Stop'
 
 $Root = Split-Path -Parent $PSScriptRoot
 $JarName = 'wow-forever-browser.jar'
 $Jar = Join-Path $Root "app\target\$JarName"
+if ($JarPath) { $Jar = (Resolve-Path $JarPath).Path }
 $Dest = Join-Path $Root 'packaging\dist'
 $Stage = Join-Path $Dest 'input'
 
 if (-not (Test-Path $Jar)) {
-    Write-Error "Missing $Jar`nBuild it first: ./mvnw -B -pl app -am package -DskipTests"
+    Write-Error "Missing $Jar`nBuild it first: ./mvnw -B -Psource-only -pl app -am clean package -DskipTests"
     exit 1
 }
 if (-not (Get-Command jpackage -ErrorAction SilentlyContinue)) {
@@ -30,10 +33,18 @@ if ($Type -ne 'app-image') {
     }
 }
 
+$auditArgs = @((Join-Path $PSScriptRoot 'ArchiveAudit.java'), $Jar)
+if ($PrivateQa) {
+    Write-Warning 'PRIVATE QA ONLY: asset-containing output must not be published.'
+    $auditArgs += '--private-qa'
+}
+& java @auditArgs
+if ($LASTEXITCODE -ne 0) { throw 'Archive audit rejected the input JAR.' }
+
 # Stage only the shaded jar so test jars and class dirs are not bundled.
 if (Test-Path $Stage) { Remove-Item -Recurse -Force $Stage }
 New-Item -ItemType Directory -Force $Stage | Out-Null
-Copy-Item $Jar $Stage
+Copy-Item $Jar (Join-Path $Stage $JarName)
 
 $jpArgs = @(
     '--input', $Stage,
@@ -56,4 +67,9 @@ Write-Host "Running jpackage (type: $Type)..."
 if ($LASTEXITCODE -ne 0) { throw "jpackage failed with exit code $LASTEXITCODE" }
 
 Remove-Item -Recurse -Force $Stage
+if ($Type -eq 'app-image') {
+    $label = 'wow-forever-browser-0.1.0-Windows-' + $env:PROCESSOR_ARCHITECTURE
+    if ($PrivateQa) { $label += '-PRIVATE-QA' }
+    Compress-Archive -Path (Join-Path $Dest 'WoW Forever Browser') -DestinationPath (Join-Path $Dest ($label + '.zip')) -Force
+}
 Write-Host "Done. Output in $Dest"
