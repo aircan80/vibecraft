@@ -72,6 +72,22 @@ class PinLegendTest {
     assertThat(yellow).as("the yellow \"!\" (antialiased)").isTrue();
   }
 
+  @Test
+  void compactLegendWrapsEveryEntryWithoutClippingAtMapWidth() {
+    PinLegend legend = new PinLegend();
+    javax.swing.JPanel footer = new javax.swing.JPanel(new java.awt.BorderLayout());
+    footer.add(legend, java.awt.BorderLayout.NORTH);
+    footer.setSize(300, 200);
+    footer.doLayout(); legend.doLayout();
+    assertThat(java.util.Arrays.stream(legend.getComponents()).mapToInt(java.awt.Component::getY).distinct().count())
+        .as("the six keys wrap onto multiple rows").isGreaterThan(1);
+    for (java.awt.Component entry : legend.getComponents()) {
+      assertThat(entry.getY() + entry.getHeight()).isLessThanOrEqualTo(legend.getHeight());
+      assertThat(entry.getX() + entry.getWidth()).isLessThanOrEqualTo(legend.getWidth());
+      assertThat(entry.getFont().getSize2D()).isGreaterThanOrEqualTo(12f);
+    }
+  }
+
   /** The RGB at the centre of {@code icon} painted for {@code c}. */
   private static int centre(Icon icon, JLabel c) {
     BufferedImage image = new BufferedImage(icon.getIconWidth(), icon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);

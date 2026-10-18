@@ -45,10 +45,14 @@ public final class JournalZonePage extends JPanel implements PageState {
             if (target instanceof ViewTarget.Entity entity && selection.get() != null) selection.get().selectEntity(entity.ref());
           }, quests, routes, loaded.travel());
       mapPanel.mapView().setZoneName(detail.summary().displayName());
-      // This Journal-owned panel puts its controls and evidence in the inspector instead of duplicating them.
+      // Layer switches live in the inspector; the compact legend stays under the map.
       var mapLayout = (BorderLayout) mapPanel.getLayout();
       mapLayout.getLayoutComponent(BorderLayout.NORTH).setVisible(false);
-      mapLayout.getLayoutComponent(BorderLayout.SOUTH).setVisible(false);
+      var footer = (JPanel) mapLayout.getLayoutComponent(BorderLayout.SOUTH);
+      var footerLayout = (BorderLayout) footer.getLayout();
+      var source = footerLayout.getLayoutComponent(BorderLayout.CENTER);
+      if (source != null) source.setVisible(false); // evidence remains available in the inspector
+
       inspector = JournalMapInspector.zone(detail.summary().displayName(), mapPanel, loaded.travel(), nav, clipboard);
       selection.set(inspector);
       var workspace = new JournalMapWorkspace(mapPanel, inspector, width -> {

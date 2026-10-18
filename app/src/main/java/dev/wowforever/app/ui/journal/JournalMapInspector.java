@@ -31,15 +31,12 @@ public final class JournalMapInspector extends JPanel {
   private JournalMapInspector(String mapName, Consumer<Location> open, ClipboardPort clipboard) {
     this.mapName = mapName; this.open = open; this.clipboard = clipboard;
     setLayout(new JournalSurface.Stack());
-    setBackground(Theme.current().bgRaised());
+    setBackground(Theme.current().bgSurface());
     setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Theme.current().hairline()),
         BorderFactory.createEmptyBorder(16, 16, 16, 16)));
     getAccessibleContext().setAccessibleName("On this map");
-    JToggleButton drawer = new JToggleButton("On this map", true);
-    drawer.setFont(drawer.getFont().deriveFont(Font.BOLD, 17f));
-    drawer.addActionListener(e -> { contents.setVisible(drawer.isSelected()); revalidate(); });
-    add(drawer); add(Box.createVerticalStrut(12)); add(contents);
-    JournalSurface.add(contents, JournalSurface.copy(mapName));
+    add(JournalSurface.heading("On this map", 16));
+    add(Box.createVerticalStrut(12)); add(contents);
     JournalSurface.add(contents, selection);
     showSelection(null);
   }
@@ -49,22 +46,30 @@ public final class JournalMapInspector extends JPanel {
     var inspector = new JournalMapInspector(name,
         location -> { if (location.target() != null) navigator.open(new ViewTarget.Entity(location.target())); }, clipboard);
     JPanel layers = JournalSurface.stack();
-    JournalSurface.add(layers, JournalSurface.heading("Layers & legend", 14));
-    var legend = PinLegend.interactive(panel.mapView());
-    JournalSurface.add(layers, legend);
+    for (String id : List.of(MapLayer.ENTRANCES, MapLayer.FLIGHTS)) {
+      var layer = MapLayer.REGISTERED.stream().filter(item -> item.id().equals(id)).findFirst().orElseThrow();
+      JCheckBox toggle = new JCheckBox(id.equals(MapLayer.ENTRANCES) ? "Dungeon entrances" : "Flight points",
+          panel.mapView().isLayerVisible(layer));
+      toggle.setOpaque(false);
+      toggle.addActionListener(e -> panel.mapView().setLayerVisible(layer, toggle.isSelected()));
+      panel.mapView().addPropertyChangeListener("layerVisibility", e ->
+          toggle.setSelected(panel.mapView().isLayerVisible(layer)));
+      JournalSurface.add(layers, toggle);
+    }
+    inspector.contents.add(layers, 0);
+    JPanel more = JournalSurface.stack();
     JCheckBox quests = new JCheckBox("Quest givers"); quests.setModel(panel.questsToggle().getModel());
     JCheckBox patrols = new JCheckBox("Patrol routes"); patrols.setModel(panel.routesToggle().getModel());
-    JournalSurface.add(layers, quests); JournalSurface.add(layers, patrols);
+    JournalSurface.add(more, quests); JournalSurface.add(more, patrols);
     JRadioButton bosses = new JRadioButton("Bosses & rares"); bosses.setModel(panel.bossesToggle().getModel());
     JRadioButton npcs = new JRadioButton("All NPCs"); npcs.setModel(panel.allNpcsToggle().getModel());
     JCheckBox objects = new JCheckBox("Objects"); objects.setModel(panel.objectsToggle().getModel());
-    JournalSurface.add(layers, bosses); JournalSurface.add(layers, npcs); JournalSurface.add(layers, objects);
+    JournalSurface.add(more, bosses); JournalSurface.add(more, npcs); JournalSurface.add(more, objects);
     JButton travelOnly = new JButton("Travel layers only");
     travelOnly.addActionListener(e -> panel.mapView().applyPreset(MapLayer.TRAVEL));
-    JournalSurface.add(layers, travelOnly);
-    inspector.contents.add(layers, 2);
-    JournalSurface.add(inspector.contents, JournalSurface.heading("Recorded locations", 14));
-    JournalSurface.add(inspector.contents, inspector.locations);
+    JournalSurface.add(more, travelOnly);
+    inspector.disclosure("More map layers", more);
+    inspector.disclosure("Recorded locations", inspector.locations);
     for (var entrance : data.entrances()) inspector.recorded.add(new Location("entrance:" + entrance.instance().id()
         + ":" + entrance.x() + ":" + entrance.y(), entrance.name(), entrance.tooltip()
         + (entrance.exitHere() ? " · Exit lands here" : ""), entrance.instance(), entrance.x(), entrance.y()));
@@ -133,6 +138,15 @@ public final class JournalMapInspector extends JPanel {
     return inspector;
   }
 
+  private void disclosure(String title, JComponent body) {
+    JToggleButton toggle = new JToggleButton(title + " ▾");
+    toggle.setHorizontalAlignment(SwingConstants.LEADING);
+    toggle.putClientProperty("JButton.buttonType", "borderless");
+    body.setVisible(false);
+    toggle.addActionListener(e -> { body.setVisible(toggle.isSelected()); revalidate(); repaint(); });
+    JournalSurface.add(contents, toggle); JournalSurface.add(contents, body);
+  }
+
   private void rebuildLocations() {
     locations.removeAll();
     for (Location location : recorded) {
@@ -153,10 +167,10 @@ public final class JournalMapInspector extends JPanel {
     selected = location; selection.removeAll();
     JournalSurface.add(selection, JournalSurface.title(location == null ? "Explore " + mapName : location.name(), 18));
     JournalSurface.add(selection, JournalSurface.copy(location == null
-        ? "Select a marker or recorded destination to inspect it, then open its page or copy its location."
+        ? "Select a pin for its destination and a clear next action."
         : location.facts()));
     if (location != null) {
-      JButton openButton = new JButton("Open destination →");
+      JButton openButton = new JButton("Open record →");
       boolean worldRegion = location.key().startsWith("region:");
       openButton.setEnabled(worldRegion || location.target() != null);
       if (worldRegion && location.facts().contains("Not in the database yet")) openButton.setEnabled(false);

@@ -51,7 +51,7 @@ class JournalMapInspectorTest {
       assertThat(history.size()).isEqualTo(2);
       button(page.inspector(), "Copy /way").doClick();
       assertThat(copied).containsExactly("/way Westfall 38.0 77.0");
-      button(page.inspector(), "Open destination →").doClick();
+      button(page.inspector(), "Open record →").doClick();
       assertThat(history.current()).contains(new ViewTarget.Entity(new EntityRef(EntityKind.INSTANCE, 3)));
       assertThat(history.back()).contains(zone);
       assertThat(history.back()).contains(parent);
@@ -65,7 +65,7 @@ class JournalMapInspectorTest {
       var first = page(loaded, ignored -> {}, work, new ArrayList<>());
       button(first.inspector(), "The Deadmines").doClick();
       var entrance = descendants(first.inspector()).stream().filter(JToggleButton.class::isInstance)
-          .map(JToggleButton.class::cast).filter(b -> b.getText().equals("Entrances")).findFirst().orElseThrow();
+          .map(JToggleButton.class::cast).filter(b -> b.getText().equals("Dungeon entrances")).findFirst().orElseThrow();
       entrance.doClick();
       var layer = MapLayer.REGISTERED.stream().filter(l -> l.id().equals(MapLayer.ENTRANCES)).findFirst().orElseThrow();
       assertThat(first.mapPanel().mapView().isLayerVisible(layer)).isFalse();
@@ -94,7 +94,7 @@ class JournalMapInspectorTest {
       button(page.inspector(), "Westfall").doClick();
       assertThat(page.inspector().selected().facts()).contains("Levels 10–20", "98 quests");
       assertThat(descendants(page.inspector())).noneMatch(c -> c instanceof JButton b && b.getText().equals("Copy /way"));
-      button(page.inspector(), "Open destination →").doClick();
+      button(page.inspector(), "Open record →").doClick();
       assertThat(history.back()).contains(new ViewTarget.WorldMap(1415, 1436L));
     });
   }
@@ -112,6 +112,29 @@ class JournalMapInspectorTest {
           assertThat(inspector.getY()).isGreaterThanOrEqualTo(map.getY() + map.getHeight());
           assertThat(inspector.getWidth()).isEqualTo(map.getWidth());
         } else assertThat(inspector.getX()).isGreaterThanOrEqualTo(map.getX() + map.getWidth());
+      }
+    });
+  }
+
+  @Test void legendStaysBelowMapAndOutOfInspectorAtBothWidths() throws Exception {
+    var loaded = loaded();
+    SwingUtilities.invokeAndWait(() -> {
+      for (int width : new int[]{420, 1280}) {
+        var page = page(loaded, ignored -> {}, new ArrayList<>(), new ArrayList<>());
+        page.setSize(width, 900);
+        for (int i = 0; i < 8; i++) layout(page);
+        var map = page.mapPanel();
+        assertThat(SwingUtilities.isDescendingFrom(map.legend(), page.inspector())).isFalse();
+        assertThat(map.legend().isVisible()).isTrue();
+        Point footer = SwingUtilities.convertPoint(map.legend(), 0, 0, map);
+        assertThat(footer.y).isGreaterThanOrEqualTo(map.mapView().getY() + map.mapView().getHeight());
+        assertThat(map.legend().getHeight()).isGreaterThan(0);
+        for (Component entry : map.legend().getComponents()) {
+          assertThat(entry.getFont().getSize2D()).isGreaterThanOrEqualTo(12f);
+          assertThat(entry.getY() + entry.getHeight()).isLessThanOrEqualTo(map.legend().getHeight());
+        }
+        assertThat(descendants(page.inspector())).noneMatch(c -> c instanceof JLabel label
+            && label.getText().equals("Layers & legend"));
       }
     });
   }

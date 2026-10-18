@@ -33,7 +33,7 @@ public final class PinLegend extends JPanel {
   private final List<JLabel> entries = new ArrayList<>();
 
   public PinLegend() {
-    super(new FlowLayout(FlowLayout.LEADING, UIScale.scale(10), 0));
+    super(new FlowLayout(FlowLayout.LEADING, UIScale.scale(8), UIScale.scale(3)));
     setOpaque(false);
     setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
     for (PinKind kind : KINDS) {
@@ -44,7 +44,7 @@ public final class PinLegend extends JPanel {
         }
       };
       entry.setIconTextGap(UIScale.scale(4));
-      entry.setFont(entry.getFont().deriveFont(entry.getFont().getSize2D() * 0.9f));
+      entry.setFont(entry.getFont().deriveFont(Math.max(12f, entry.getFont().getSize2D() * 0.9f)));
       entries.add(entry);
       add(entry);
     }
@@ -84,6 +84,11 @@ public final class PinLegend extends JPanel {
         JToggleButton toggle = new JToggleButton(layer.label(), icon, map.isLayerVisible(layer));
         toggle.putClientProperty("mapLayer", layer);
         toggle.setFocusable(true);
+        toggle.setFont(toggle.getFont().deriveFont(Math.max(12f, toggle.getFont().getSize2D() * .85f)));
+        toggle.setMargin(new java.awt.Insets(2, 5, 2, 5));
+        toggle.setIconTextGap(UIScale.scale(4));
+        toggle.putClientProperty("JButton.buttonType", "borderless");
+        toggle.setToolTipText("Show or hide " + layer.label().toLowerCase(java.util.Locale.ROOT));
         toggle.addActionListener(e -> map.setLayerVisible(layer, toggle.isSelected()));
         legend.add(toggle);
       }
