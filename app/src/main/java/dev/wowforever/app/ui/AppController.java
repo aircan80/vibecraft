@@ -178,7 +178,7 @@ public final class AppController implements Navigator {
     this.meta = Map.copyOf(meta);
     String buildId = meta.get("build_id");
     view.status().setBuild(buildId);
-    view.configureResearchScope("forever:"+java.util.Objects.requireNonNullElse(buildId,"unknown-build"));
+    view.configureResearchScope(buildId==null || buildId.isBlank()?null:"forever:"+buildId);
     view.status().setProvenance(this.meta);
     view.masterList().onPreview(e -> preview(e.ref()));
     view.masterList().onCommit(e -> commit(e.ref()));

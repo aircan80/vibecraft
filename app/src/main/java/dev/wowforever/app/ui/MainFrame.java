@@ -739,9 +739,10 @@ public final class MainFrame extends JFrame implements MainView {
 
   @Override public void navigationStarted() { researchTarget=null; }
 
-  @Override public void configureResearchScope(String scope) { research=new dev.wowforever.app.ui.journal.PinnedResearch(uiState,scope); }
+  @Override public void configureResearchScope(String scope) { research=scope==null || scope.isBlank()?null:new dev.wowforever.app.ui.journal.PinnedResearch(uiState,scope); }
 
   @Override public JComponent pinnedResearchPage(java.util.function.Consumer<ViewTarget> open) {
+    if(research==null) return new JLabel("Pinned research requires an identified game and data build.");
     return new dev.wowforever.app.ui.journal.PinnedResearchPage(research,open);
   }
 
