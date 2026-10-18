@@ -24,3 +24,23 @@ self-test; that output is explicitly labeled PRIVATE-QA and is not suitable for 
 
 Remaining integrated acceptance: fresh first-run dataset selection, static portrait loading, Java-only
 audio acquisition/playback, relocated extracted folder, and Windows/macOS native platform launches.
+
+## Reviewed-data packaging mechanism check (preliminary application build)
+
+A second local Linux x86_64 archive included the compact runtime-v1 database plus four exact reviewed
+runtime catalog/portrait files. It is **not the final integrated application candidate**: its source-only
+JAR predates the final Java audio and external portrait resource changes.
+
+- Database: 1,050,083,328 bytes; SHA-256
+  `ee10d3ec2680551c4aff232cad1cd7a5a0abc9d0549badbbce9979e5c65b0066`.
+- Five staged data files: 1,051,321,927 bytes total; generated hash/size inventory included.
+- Complete gzip archive: 163,430,240 bytes; SHA-256
+  `58d217beedac6e9026e1248be523f3716b1eba40837d58e6e499678afc388aa3`.
+- Product and native Linux metadata: `0.4.1-preview.1`; no publication performed.
+
+After moving the application folder to a different parent directory, its native launcher passed
+`--self-test` with `PATH=/nonexistent`, fresh XDG data/cache/config directories, and **no manually supplied
+JVM properties**. Counts remained `items=32136 npcs=13392 instances=37`. The generated launcher expands
+`$APPDIR` for both its database path and external data directory. This demonstrates relocatable bundled
+data, not final end-to-end audio/portrait acceptance. Rebuild and repeat acceptance using the final
+integrated JAR before producing the candidate release inventory.
