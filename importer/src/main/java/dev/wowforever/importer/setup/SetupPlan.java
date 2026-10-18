@@ -66,13 +66,135 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
   public record MaterializedClient(Path directory, Acquisition acquiredBy) {}
   public record MaterializedInputs(Path questie, Optional<Path> atlasLoot, Optional<Path> allTheThings,
       Optional<MaterializedClient> client) {}
-  public record PreparedImport(ImportOptions options, CoreSourceSelection coreSelection,
-      SetupStorage storage, SetupStorage.JobPaths job) {
-    /** Capture into the job archive only. Projection/validation/activation are separate subsequent stages. */
+  public static final class PreparedImport {
+    private final ImportOptions options;
+    private final CoreSourceSelection coreSelection;
+    private final SetupStorage storage;
+    private final SetupStorage.JobPaths job;
+    private final Map<String,FrozenInput> inputs;
+    private PreparedImport(ImportOptions options, CoreSourceSelection coreSelection,
+        SetupStorage storage, SetupStorage.JobPaths job, Map<String,FrozenInput> inputs) {
+      this.options=options;this.coreSelection=coreSelection;this.storage=storage;this.job=job;this.inputs=Map.copyOf(inputs);
+    }
+    public ImportOptions options(){return options;}
+    public CoreSourceSelection coreSelection(){return coreSelection;}
+    public SetupStorage storage(){return storage;}
+    public SetupStorage.JobPaths job(){return job;}
+
+    /** Capture verified private copies, then check the actual archived bytes before returning an ingestion ID. */
     public String capture() throws Exception {
       storage.verifyJob(job);
       if (!options.out().equals(job.archiveDatabase())) throw new IOException("Capture output must be the staged source archive");
-      return ArchiveWorkflow.ingest(options,coreSelection);
+      for(FrozenInput input:inputs.values()) input.verifyOriginal();
+      Path snapshot=storage.verifyDestination(job.directory().resolve("capture-"+UUID.randomUUID()));
+      Files.createDirectory(snapshot);
+      try {
+        for(var entry:inputs.entrySet()) entry.getValue().copyTo(storage,snapshot.resolve(entry.getKey()));
+        ImportOptions frozen=new ImportOptions(options.out(),options.cacheDir(),Optional.of(snapshot.resolve("questiedb")),
+            inputs.containsKey("atlasloot")?Optional.of(snapshot.resolve("atlasloot")):Optional.empty(),
+            options.failOnUnsupported(),options.buildIdOut(),ClientDataOptions.of(snapshot.resolve("client")),
+            options.coverageMinPct(),Optional.empty(),inputs.containsKey("allthethings")?Optional.of(snapshot.resolve("allthethings")):Optional.empty(),
+            options.skipAllTheThings());
+        storage.verifyJob(job);
+        String ingestion=ArchiveWorkflow.ingest(frozen,coreSelection);
+        verifyArchive(ingestion);
+        return ingestion;
+      } finally {
+        // Only remove paths belonging to our fresh snapshot, never an aliased game/cache directory.
+        dev.wowforever.importer.fs.SourcePaths.rejectSymlinks(snapshot);
+        try(var files=Files.walk(snapshot)) {
+          for(Path path:files.sorted(Comparator.reverseOrder()).toList()) {
+            dev.wowforever.importer.fs.SourcePaths.rejectSymlinks(path);
+            Files.deleteIfExists(storage.verifyDestination(path));
+          }
+        }
+      }
+    }
+    private void verifyArchive(String ingestion) throws Exception {
+      try(var connection=java.sql.DriverManager.getConnection("jdbc:sqlite:"+job.archiveDatabase())) {
+        for(var entry:inputs.entrySet()) {
+          Map<String,String> actual=new TreeMap<>();
+          try(var query=connection.prepareStatement("SELECT f.path,b.bytes FROM source_ingestion_input i JOIN source_archive_file f ON f.snapshot_id=i.snapshot_id JOIN source_archive_blob b ON b.sha256=f.sha256 WHERE i.ingestion_id=? AND i.role=?")) {
+            query.setString(1,ingestion);query.setString(2,entry.getKey());
+            try(var rows=query.executeQuery()) {
+              while(rows.next())try(var bytes=rows.getBinaryStream(2)){actual.put(rows.getString(1),hash(bytes));}
+            }
+          }
+          if(!actual.equals(entry.getValue().archivedHashes()))
+            throw new IOException("Captured input differs from the reviewed setup manifest: "+entry.getKey()+"; do not project this archive");
+        }
+      }
+    }
+  }
+
+  /** Hashes are computed before capture; selected community paths exclude unrelated checkout content. */
+  private record FrozenInput(Path root,List<String> selected,Map<String,String> hashes) {
+    private static final int MAX_FILES=100_000;
+    private static final long MAX_FILE_BYTES=512L<<20,MAX_TOTAL_BYTES=16L<<30;
+    FrozenInput { selected=List.copyOf(selected);hashes=Map.copyOf(hashes); }
+    static FrozenInput inspect(Path root,List<String> selected) throws IOException {
+      dev.wowforever.importer.fs.SourcePaths.rejectSymlinks(root);
+      List<String> paths=selected;
+      if(paths==null)try(var walk=Files.walk(root)) {
+        paths=new ArrayList<>();
+        var iterator=walk.iterator();int entries=0;
+        while(iterator.hasNext()) {
+          if(++entries>MAX_FILES*2)throw new IOException("Too many setup input entries");
+          Path path=iterator.next();dev.wowforever.importer.fs.SourcePaths.rejectSymlinks(path);
+          if(Files.isRegularFile(path,LinkOption.NOFOLLOW_LINKS)) {
+            paths.add(root.relativize(path).toString().replace('\\','/'));
+            if(paths.size()>MAX_FILES)throw new IOException("Too many setup input files");
+          } else if(!Files.isDirectory(path,LinkOption.NOFOLLOW_LINKS))throw new IOException("Unsupported setup input file");
+        }
+        paths.sort(String::compareTo);
+      }
+      if(paths.size()>MAX_FILES)throw new IOException("Too many setup input files");
+      Map<String,String> hashes=new TreeMap<>();long total=0;
+      for(String name:paths) {
+        Path relative=Path.of(name);
+        if(relative.isAbsolute()||relative.normalize().startsWith(".."))throw new IOException("Unsafe setup input path");
+        Path file=root.resolve(relative);dev.wowforever.importer.fs.SourcePaths.rejectSymlinks(file);
+        if(Files.notExists(file,LinkOption.NOFOLLOW_LINKS))continue;
+        if(!Files.isRegularFile(file,LinkOption.NOFOLLOW_LINKS))throw new IOException("Setup input is not a regular file: "+name);
+        long bytes=Files.size(file);total+=bytes;
+        if(bytes>MAX_FILE_BYTES||total>MAX_TOTAL_BYTES)throw new IOException("Setup input exceeds staging byte limit");
+        hashes.put(name,hash(file));
+      }
+      return new FrozenInput(root,selected==null?List.of():selected,hashes);
+    }
+    void verifyOriginal() throws IOException {
+      FrozenInput current=inspect(root,selected.isEmpty()?null:selected);
+      if(!hashes.equals(current.hashes))throw new IOException("Setup input changed after review: "+root.getFileName());
+    }
+    void copyTo(SetupStorage storage,Path destination) throws IOException {
+      Files.createDirectory(storage.verifyDestination(destination));
+      long copiedTotal=0;
+      for(var entry:hashes.entrySet()) {
+        Path source=root.resolve(entry.getKey());dev.wowforever.importer.fs.SourcePaths.rejectSymlinks(source);
+        Path target=storage.verifyDestination(destination.resolve(entry.getKey()));
+        Files.createDirectories(storage.verifyDestination(target.getParent()));
+        // Fresh bounded copies never write to the original input, even if it grows while being read.
+        try(var input=Files.newInputStream(source);var output=Files.newOutputStream(target,StandardOpenOption.CREATE_NEW)) {
+          byte[] buffer=new byte[65536];int count;long copied=0;
+          while((count=input.read(buffer))!=-1) {
+            if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Setup capture interrupted");
+            copied+=count;copiedTotal+=count;
+            if(copied>MAX_FILE_BYTES||copiedTotal>MAX_TOTAL_BYTES)throw new IOException("Setup input exceeds staging byte limit");
+            output.write(buffer,0,count);
+          }
+        }
+        if(!entry.getValue().equals(hash(target)))throw new IOException("Setup input changed while staging: "+entry.getKey());
+      }
+    }
+    Map<String,String> archivedHashes() throws IOException {
+      Map<String,String> result=new TreeMap<>(hashes);
+      List<String> missing=selected.stream().filter(name->!hashes.containsKey(name)).toList();
+      if(!missing.isEmpty()) {
+        try(var bytes=new java.io.ByteArrayInputStream(String.join("\n",missing).getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+          result.put("__capture__/missing-inputs.txt",hash(bytes));
+        }
+      }
+      return result;
     }
   }
 
@@ -98,6 +220,7 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
     MaterializedClient client = inputs.client().orElseThrow(() -> new IOException("Selected native tables are not materialized"));
     if (!allows(client.acquiredBy())) throw new IOException("Native input used an acquisition method that was not selected");
     if (!Files.isDirectory(client.directory())) throw new IOException("Native input directory is unavailable");
+    String reviewedLockHash=hash(client.directory().resolve("build.lock"));
     BuildLock lock;
     try { lock = BuildLock.read(client.directory().resolve("build.lock")); }
     catch (RuntimeException failure) { throw new IOException("Native build lock is unreadable",failure); }
@@ -135,7 +258,25 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
     }
     ImportOptions options = new ImportOptions(job.archiveDatabase(),job.cache(),Optional.of(inputs.questie()),atlas,
         true,job.buildId(),ClientDataOptions.of(client.directory()),85,Optional.empty(),att,!sources.contains(Source.ALL_THE_THINGS));
-    return new PreparedImport(options,coreSelection(),storage,job);
+    Map<String,FrozenInput> frozen=new LinkedHashMap<>();
+    for(SourceSpec spec:SourceSpec.load()) {
+      if(spec.key().equals("questiedb"))frozen.put("questiedb",FrozenInput.inspect(inputs.questie(),spec.paths()));
+      else if(spec.key().equals("atlasloot")&&atlas.isPresent())frozen.put("atlasloot",FrozenInput.inspect(atlas.orElseThrow(),spec.paths()));
+    }
+    if(att.isPresent())frozen.put("allthethings",FrozenInput.inspect(att.orElseThrow(),dev.wowforever.importer.allthethings.AllTheThingsSource.paths()));
+    FrozenInput nativeInput=FrozenInput.inspect(client.directory(),null);
+    // Ensure the frozen snapshot still matches the lock and table bytes just validated above.
+    if(!reviewedLockHash.equals(nativeInput.hashes().get("build.lock")))
+      throw new IOException("Native build metadata changed while preparing capture");
+    for(String name:nativeInput.hashes().keySet()) {
+      if(name.equals("hotfix.json") || (name.startsWith("csv/")&&name.endsWith(".csv")
+          &&!lock.tableSha().containsKey(name.substring(4,name.length()-4))))
+        throw new IOException("Native input selection changed while preparing capture");
+    }
+    for(var table:lock.tableSha().entrySet())
+      if(!table.getValue().equals(nativeInput.hashes().get("csv/"+table.getKey()+".csv")))throw new IOException("Native table changed while preparing capture");
+    frozen.put("client",nativeInput);
+    return new PreparedImport(options,coreSelection(),storage,job,frozen);
   }
 
   private static boolean isWago(String baseUrl) {
@@ -145,11 +286,17 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
     } catch (IllegalArgumentException ignored) { return false; }
   }
   private static String hash(Path file) throws IOException {
+    try(var input=Files.newInputStream(file)){return hash(input);}
+  }
+  private static String hash(java.io.InputStream input) throws IOException {
     try {
       var digest = java.security.MessageDigest.getInstance("SHA-256");
-      try (var input=Files.newInputStream(file)) {
-        byte[] buffer=new byte[65536];int count;
-        while((count=input.read(buffer))!=-1) digest.update(buffer,0,count);
+      byte[] buffer=new byte[65536];int count;
+      long total=0;
+      while((count=input.read(buffer))!=-1) {
+        if(Thread.currentThread().isInterrupted())throw new java.io.InterruptedIOException("Setup capture interrupted");
+        total+=count;if(total>FrozenInput.MAX_FILE_BYTES)throw new IOException("Setup input exceeds staging byte limit");
+        digest.update(buffer,0,count);
       }
       return java.util.HexFormat.of().formatHex(digest.digest());
     } catch (java.security.NoSuchAlgorithmException failure) { throw new IllegalStateException(failure); }

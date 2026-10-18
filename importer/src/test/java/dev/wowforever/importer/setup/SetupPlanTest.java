@@ -107,6 +107,71 @@ class SetupPlanTest {
     var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"job",List.of());
     assertThatIOException().isThrownBy(() -> plan.prepareCapture(job.storage(),job.paths(),new MaterializedInputs(temporary,Optional.empty(),Optional.empty(),Optional.empty())));
   }
+  @Test void nativeBytesChangedAfterPreparationCannotBeCaptured() throws Exception {
+    SetupPlan plan=nativePlan(Acquisition.WAGO_EXPORT);
+    var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"changed",List.of());
+    Path data=client("https://wago.tools","1.60.1.70450",false);
+    var prepared=plan.prepareCapture(job.storage(),job.paths(),inputs(
+        dev.wowforever.importer.Fixtures.questieDbRoot(),data,Acquisition.WAGO_EXPORT));
+    Files.writeString(data.resolve("csv/Item.csv"),"ID,Name\n1,Changed after review\n");
+    assertThatIOException().isThrownBy(prepared::capture).withMessageContaining("changed after review");
+    assertThat(job.paths().archiveDatabase()).doesNotExist();assertNoSnapshots(job.paths().directory());
+  }
+  @Test void metadataReplacementAndUnselectedFilesAfterPreparationAreRejected() throws Exception {
+    SetupPlan plan=nativePlan(Acquisition.WAGO_EXPORT);
+    for(String changed:List.of("build.lock","csv/ItemSparse.era.csv","hotfix.json")) {
+      var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"change-"+changed.replaceAll("[^A-Za-z]",""),List.of());
+      Path data=client("https://wago.tools","1.60.1.70450",false);
+      var prepared=plan.prepareCapture(job.storage(),job.paths(),inputs(
+          dev.wowforever.importer.Fixtures.questieDbRoot(),data,Acquisition.WAGO_EXPORT));
+      Files.writeString(data.resolve(changed),"unreviewed replacement or new input");
+      assertThatIOException().isThrownBy(prepared::capture).withMessageContaining("changed after review");
+      assertThat(job.paths().archiveDatabase()).doesNotExist();assertNoSnapshots(job.paths().directory());
+    }
+  }
+  @Test void selectedCommunityBytesAreFrozenAndSourcesRemainUnchangedOnSuccessfulCapture() throws Exception {
+    SetupPlan plan=nativePlan(Acquisition.WAGO_EXPORT);
+    Path questie=Files.createDirectory(temporary.resolve("local-questie"));
+    Path fixture=dev.wowforever.importer.Fixtures.questieDbRoot();
+    try(var files=Files.walk(fixture)) {
+      for(Path file:files.filter(Files::isRegularFile).toList()) {
+        Path target=questie.resolve(fixture.relativize(file));Files.createDirectories(target.getParent());Files.copy(file,target);
+      }
+    }
+    Path data=client("https://wago.tools","1.60.1.70450",false);
+    var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"community",List.of());
+    var prepared=plan.prepareCapture(job.storage(),job.paths(),inputs(questie,data,Acquisition.WAGO_EXPORT));
+    String selected=dev.wowforever.importer.source.SourceSpec.load().stream().filter(spec->spec.key().equals("questiedb"))
+        .findFirst().orElseThrow().paths().stream().filter(name->Files.isRegularFile(questie.resolve(name))).findFirst().orElseThrow();
+    Files.writeString(questie.resolve(selected),"changed source");
+    assertThatIOException().isThrownBy(prepared::capture).withMessageContaining("changed after review");
+    assertThat(job.paths().archiveDatabase()).doesNotExist();
+    var accepted=plan.prepareCapture(job.storage(),job.paths(),inputs(questie,data,Acquisition.WAGO_EXPORT));
+    String ingestion=accepted.capture();
+    assertThat(Files.readString(questie.resolve(selected))).isEqualTo("changed source");
+    assertNoSnapshots(job.paths().directory());
+    try(var connection=java.sql.DriverManager.getConnection("jdbc:sqlite:"+job.paths().archiveDatabase());
+        var statement=connection.prepareStatement("SELECT b.bytes FROM source_ingestion_input i JOIN source_archive_file f ON f.snapshot_id=i.snapshot_id JOIN source_archive_blob b ON b.sha256=f.sha256 WHERE i.ingestion_id=? AND i.role='questiedb' AND f.path=?")) {
+      statement.setString(1,ingestion);statement.setString(2,selected);
+      try(var rows=statement.executeQuery()){assertThat(rows.next()).isTrue();assertThat(new String(rows.getBytes(1),java.nio.charset.StandardCharsets.UTF_8)).isEqualTo("changed source");}
+    }
+  }
+  @Test void failedArchiveWriteCleansPrivateCopiesWithoutChangingSources() throws Exception {
+    SetupPlan plan=nativePlan(Acquisition.WAGO_EXPORT);
+    var job=plan.prepareJob(temporary.resolve("app"),Optional.empty(),"failed-write",List.of());
+    Path data=client("https://wago.tools","1.60.1.70450",false);
+    String original=Files.readString(data.resolve("csv/Item.csv"));
+    var prepared=plan.prepareCapture(job.storage(),job.paths(),inputs(
+        dev.wowforever.importer.Fixtures.questieDbRoot(),data,Acquisition.WAGO_EXPORT));
+    Files.createDirectory(job.paths().archiveDatabase());
+    assertThatThrownBy(prepared::capture).isInstanceOf(java.sql.SQLException.class);
+    assertNoSnapshots(job.paths().directory());
+    assertThat(Files.readString(data.resolve("csv/Item.csv"))).isEqualTo(original);
+    assertThat(job.paths().candidateDatabase()).doesNotExist();
+  }
+  private void assertNoSnapshots(Path directory) throws Exception {
+    try(var files=Files.list(directory)){assertThat(files.map(path->path.getFileName().toString()).toList()).noneMatch(name->name.startsWith("capture-"));}
+  }
   private MaterializedInputs inputs(Path questie,Path client,Acquisition method){return new MaterializedInputs(questie,Optional.empty(),Optional.empty(),Optional.of(new MaterializedClient(client,method)));}
   private Path client(String base,String build,boolean era) throws Exception {
     Path dir=Files.createTempDirectory(temporary,"client-");Files.createDirectory(dir.resolve("csv"));
