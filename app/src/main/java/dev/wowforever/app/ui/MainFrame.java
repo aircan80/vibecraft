@@ -163,7 +163,10 @@ public final class MainFrame extends JFrame implements MainView {
     themeButton.setName("journal-theme-toggle");
     themeButton.getAccessibleContext().setAccessibleName("Toggle light and dark theme");
     themeButton.addActionListener(event -> toggleTheme());
-    toolbar.add(themeButton, BorderLayout.EAST);
+    JPanel themeControl = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.TRAILING, 0, 0));
+    themeControl.setOpaque(false);
+    themeControl.add(themeButton);
+    toolbar.add(themeControl, BorderLayout.EAST);
     refreshJournalChrome();
     detailSlot.add(pageHolder, BorderLayout.CENTER);
     JComponent navigation;
@@ -284,13 +287,15 @@ public final class MainFrame extends JFrame implements MainView {
         BorderFactory.createEmptyBorder(18, 24, 18, 24)));
     for(JButton button:new JButton[]{back,forward,themeButton}) {
       button.setPreferredSize(new Dimension(34, 36));
-      button.setBackground(theme.bgBase());
+      button.setBackground(theme.bgSurface());
       button.setForeground(theme.textPrimary());
-      button.setBorder(BorderFactory.createCompoundBorder(
-          BorderFactory.createLineBorder(theme.hairline(),1,true),
-          BorderFactory.createEmptyBorder(5,5,5,5)));
-      button.putClientProperty("JButton.buttonType","roundRect");
-      button.putClientProperty("JButton.arc",8);
+      button.setBorder(javax.swing.UIManager.getBorder("Button.border"));
+      button.putClientProperty("JButton.buttonType", null);
+      button.putClientProperty("FlatLaf.style", java.util.Map.of(
+          "arc", 14, "borderWidth", 1f, "focusWidth", 1,
+          "borderColor", theme.hairline(), "focusedBorderColor", theme.link(),
+          "hoverBorderColor", theme.link(), "margin", new java.awt.Insets(5, 5, 5, 5),
+          "disabledBackground", theme.bgSurface()));
       button.setBorderPainted(true);
     }
     themeButton.setIcon(dev.wowforever.app.ui.widgets.Icons.icon(theme.dark()?"sun":"moon",18));

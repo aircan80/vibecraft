@@ -307,20 +307,11 @@ public final class SearchBar extends JPanel {
     var theme=dev.wowforever.app.ui.theme.Theme.current();
     text.setBackground(theme.bgBase());
     text.setForeground(theme.textPrimary());
-    text.setBorder(new javax.swing.border.AbstractBorder() {
-      @Override public java.awt.Insets getBorderInsets(java.awt.Component c) {
-        return new java.awt.Insets(10,14,10,14);
-      }
-      @Override public java.awt.Insets getBorderInsets(java.awt.Component c,java.awt.Insets insets) {
-        insets.set(10,14,10,14);return insets;
-      }
-      @Override public void paintBorder(java.awt.Component c,java.awt.Graphics g,int x,int y,int width,int height) {
-        var copy=(java.awt.Graphics2D)g.create();
-        copy.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
-        copy.setColor(dev.wowforever.app.ui.theme.Theme.current().hairline());
-        copy.drawRoundRect(x,y,width-1,height-1,8,8);copy.dispose();
-      }
-    });
+    text.setBorder(javax.swing.UIManager.getBorder("TextField.border"));
+    text.setMargin(new java.awt.Insets(9, 13, 9, 13));
+    text.putClientProperty("FlatLaf.style", java.util.Map.of(
+        "arc", 14, "borderWidth", 1f, "focusWidth", 1,
+        "borderColor", theme.hairline(), "focusedBorderColor", theme.link()));
     text.putClientProperty("JTextField.placeholderText","Search the library… (Ctrl+F)");
   }
 
