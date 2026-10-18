@@ -21,15 +21,17 @@ class LibrarySetupPanelTest {
     try{SwingUtilities.invokeAndWait(()->{
       var panel=new LibrarySetupPanel(prefs,path->{throw new AssertionError("Unexpected database open");},null,
           (product,cancelled)->{count.incrementAndGet();return "";},(path,cancelled)->{count.incrementAndGet();return new LibrarySetupPanel.Inspection("","");});
+      advance(panel,2);
       assertThat(find(panel,"setup-source-atlas",JCheckBox.class).isSelected()).isFalse();
       assertThat(find(panel,"setup-source-wago",JCheckBox.class).isSelected()).isFalse();
+      advance(panel,1);
       assertThat(find(panel,"setup-allow-cdn",JCheckBox.class).isSelected()).isFalse();
     });assertThat(count).hasValue(0);}finally{prefs.removeNode();}
   }
   @Test void preferencesRemainEditionScopedAndWagoDoesNotActivateWithoutNative()throws Exception{
     var prefs=prefs();
     try{SwingUtilities.invokeAndWait(()->{
-      var panel=panel(prefs);
+      var panel=panel(prefs);advance(panel,2);
       find(panel,"setup-source-atlas",JCheckBox.class).doClick();
       find(panel,"setup-source-wago",JCheckBox.class).doClick();
       assertThat(find(panel,"setup-source-native",JCheckBox.class).isSelected()).isTrue();
@@ -41,7 +43,7 @@ class LibrarySetupPanelTest {
       assertThat(prefs.getBoolean("classic.source.atlas",true)).isFalse();
       assertThat(prefs.getBoolean("forever.source.wago",true)).isFalse();
       assertThat(prefs.getBoolean("forever.cdn",true)).isFalse();
-      var restored=panel(prefs);
+      var restored=panel(prefs);advance(restored,2);
       assertThat(find(restored,"setup-source-atlas",JCheckBox.class).isSelected()).isTrue();
     });}finally{prefs.removeNode();}
   }
@@ -55,7 +57,7 @@ class LibrarySetupPanelTest {
           try{release.await(3,TimeUnit.SECONDS);}catch(InterruptedException ignored){release.await(3,TimeUnit.SECONDS);}finally{exited.countDown();}
           return "late build result";
         },(path,cancelled)->new LibrarySetupPanel.Inspection("local result",""));ref.set(panel);
-        find(panel,"setup-discover-builds",JButton.class).doClick();
+        advance(panel,3);find(panel,"setup-discover-builds",JButton.class).doClick();
       });
       assertThat(entered.await(3,TimeUnit.SECONDS)).isTrue();
       SwingUtilities.invokeAndWait(()->find(ref.get(),"setup-navigation",JTabbedPane.class).setSelectedIndex(1));
@@ -69,12 +71,29 @@ class LibrarySetupPanelTest {
       SwingUtilities.invokeAndWait(()->{
         var panel=new LibrarySetupPanel(prefs,path->{throw new AssertionError("Unexpected database open");},null,(product,cancelled)->"",(path,cancelled)->{
           assertThat(path).isNull();assertThat(SwingUtilities.isEventDispatchThread()).isFalse();called.countDown();return new LibrarySetupPanel.Inspection("No recognized installation found.","");});
-        ref.set(panel);find(panel,"setup-detect-local",JButton.class).doClick();
+        ref.set(panel);advance(panel,3);find(panel,"setup-detect-local",JButton.class).doClick();
       });assertThat(called.await(3,TimeUnit.SECONDS)).isTrue();
       SwingUtilities.invokeAndWait(()->{assertThat(find(ref.get(),"setup-allow-cdn",JCheckBox.class).isSelected()).isFalse();ref.get().removeNotify();});
       assertThat(prefs.get("forever.folder","")).isEmpty();
     }finally{prefs.removeNode();}
   }
+  @Test void wizardBackPreservesChoicesAndReviewDoesNotPretendBuildIsAvailable()throws Exception{
+    var prefs=prefs();try{SwingUtilities.invokeAndWait(()->{
+      var panel=panel(prefs);advance(panel,2);find(panel,"setup-source-atlas",JCheckBox.class).doClick();
+      find(panel,"setup-back",JButton.class).doClick();advance(panel,1);
+      assertThat(find(panel,"setup-source-atlas",JCheckBox.class).isSelected()).isTrue();advance(panel,2);
+      assertThat(find(panel,"setup-build-library",JButton.class).isEnabled()).isFalse();
+      assertThat(allText(panel)).contains("AtlasLoot","Database generation is not ready yet");
+    });}finally{prefs.removeNode();}
+  }
+  @Test void sourceManagementHasNoDatabaseSwitchEscape()throws Exception{
+    var prefs=prefs();try{SwingUtilities.invokeAndWait(()->{
+      var panel=LibrarySetupPanel.sourceManager(prefs);
+      assertThat(find(panel,"setup-navigation",JTabbedPane.class).getSelectedIndex()).isEqualTo(1);
+      org.assertj.core.api.Assertions.assertThatThrownBy(()->find(panel,"setup-open-database",JButton.class)).isInstanceOf(AssertionError.class);
+    });}finally{prefs.removeNode();}
+  }
+  private static void advance(Container panel,int steps){for(int i=0;i<steps;i++)find(panel,"setup-next",JButton.class).doClick();}
   private static LibrarySetupPanel panel(Preferences prefs){return new LibrarySetupPanel(prefs,path->{},null,(product,cancelled)->"",(path,cancelled)->new LibrarySetupPanel.Inspection("",""));}
   private static Preferences prefs(){Theme.current();Theme.setCurrent(JournalAppearance.palette(Tokens.DARK));return Preferences.userRoot().node("vibecraft-tests/setup-"+UUID.randomUUID());}
   private static <T extends Component>T find(Container root,String name,Class<T>type){for(Component component:root.getComponents()){if(type.isInstance(component)&&name.equals(component.getName()))return type.cast(component);if(component instanceof Container nested){try{return find(nested,name,type);}catch(AssertionError ignored){}}}throw new AssertionError("Missing "+name);}
