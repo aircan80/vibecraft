@@ -1,11 +1,11 @@
 # Vibecraft 0.4.1-preview.1
 
-**Status: local candidate preparation. Not published or signed.**
+**Status: local Linux preview candidate. Not published or signed.**
 
 This preview targets a portable application that includes Java and the gameplay
 database: extract the archive and run its launcher. No separate Java, database
-server, Python, Node or Blender installation is required. The exact candidate build
-and its acceptance evidence must be frozen before this document becomes release notes.
+server, Python, Node or Blender installation is required. The Linux artifact is frozen for acceptance; its evidence is recorded below.
+Windows and Mac candidates are still pending.
 
 ## Included changes
 
@@ -33,15 +33,16 @@ size, not the complete download size. Full-row digests matched across the 81 ret
 tables; integrity and foreign-key checks passed in the database export verification.
 See [database export details](../publishing/release-database.md).
 
-Complete archive sizes, extracted sizes and checksums will come from the final
-integrated candidate. Earlier source-only measurements and superseded packaging
-proofs are not release download measurements.
+The complete Linux archive is **163,412,349 bytes** (155.84 MiB); its extracted
+application is **1,242,483,170 bytes** (approximately 1.24 GB). These measurements
+include Java and the compact database. Earlier source-only measurements and
+superseded packaging proofs are not release download measurements.
 
 ## Platform status
 
 | Platform | Complete candidate archive | Candidate native launch | Signing |
 | --- | --- | --- | --- |
-| Linux x64 | Pending final integrated build | Pending; earlier relocated packaging proof passed | Not signed |
+| Linux x64 | Built: 163,412,349 bytes | Relocated launcher self-test and native Journal startup passed with empty tool PATH | Not signed |
 | Windows x64 | Not built | Not run | Not signed |
 | macOS Apple Silicon | Not built | Not run | Not signed or notarized |
 | macOS Intel | Not built | Not run | Not signed or notarized |
@@ -65,10 +66,44 @@ needs its own build, extraction/relocation and native-launch checks. Product ver
 
 ## Evidence and publication boundary
 
-Final application test totals, GUI acceptance results, source commit, packaged Java
-version and artifact hashes are deliberately not claimed here before the frozen
-candidate completes verification. Attach the measured inventory and evidence when
-available; failures or unrun checks remain visible.
+The final integrated build passed **2,011 tests, with six skipped and no failures**.
+The portable Linux archive bundles Java **21.0.12.1** and product version
+`0.4.1-preview.1` (numeric native-package version `0.4.1`). Its relocated launcher
+self-test passed with a fresh user-data directory and no system Java/tool PATH,
+reporting 32,136 items, 13,392 NPCs and 37 instances.
+
+Native isolated GUI acceptance passed **149 component assertions across five suites**,
+with 65 component captures. Those component checks used the frozen private QA JAR
+with the same compact dataset. Separately, the exact packaged source JAR launched
+through its relocated native executable, with the bundled Java runtime, fresh user
+data/cache/settings and no system tool PATH or manual database property. Its branded
+Journal Home and gameplay data were inspected in a 66th capture. This distinction
+keeps component evidence separate from the actual distributable launch proof. The
+compact database hash remained unchanged after browsing.
+
+Source build commit: `447020f2f53c38a7b56769e0b0159b8ad9f2a558`.
+
+Known minor UI issues: a long item title may clip at 420 pixels while its full name
+remains in the breadcrumb/search; two optional Marcellus font warnings use working
+fallback headings. GUI sound checks establish settings behavior, not human-listening
+acceptance.
+
+Linux archive: `vibecraft-0.4.1-preview.1-Linux-x86_64-with-data.tar.gz`
+
+SHA256: `54e5bd64bf75df5d207a035dfdb36539b7d6541aec72cdec828dd20338c4f219`
+
+Application JAR SHA256:
+`0dbc143a89c2452bb50f1aa9cd82c17f3501a4362b7d4ab059bf0cc250c08d35`.
+
+Compact DB SHA256:
+`ee10d3ec2680551c4aff232cad1cd7a5a0abc9d0549badbbce9979e5c65b0066`.
+
+Dataset build:
+`40ca42c8e8c6442c0e2e633f76bf4f4638ebf23faf4029b568ee1ee038c207b7`.
+
+The local candidate inventory includes SHA256SUMS, packaging evidence, full-build
+output and native acceptance reports. Windows/Mac unrun checks remain visible; the
+inventory does not approve publication or third-party redistribution rights.
 
 The GitHub source snapshot is a separate reviewed, data-free artifact. Existing
 development Git history and its populated JAR must not be uploaded as that snapshot.
