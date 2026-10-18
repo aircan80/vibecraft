@@ -2,6 +2,7 @@ package dev.wowforever.app.ui.setup;
 
 import dev.wowforever.app.assets.BlizzardBuildDiscovery;
 import dev.wowforever.app.assets.LocalWowDiscovery;
+import dev.wowforever.app.assets.NativeAssetClient;
 import dev.wowforever.app.db.UserDataDir;
 import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.widgets.WrappingText;
@@ -80,8 +81,8 @@ public final class LibrarySetupPanel extends JPanel {
     var nav=new JTabbedPane(JTabbedPane.TOP,JTabbedPane.SCROLL_TAB_LAYOUT);
     style(nav);
     nav.setName("setup-navigation");
-    for(String name:new String[]{"Build your library","Sources & updates","Game data"})nav.addTab(name,new JPanel());
-    nav.addChangeListener(e->{cancel();page=new String[]{"setup","sources","data"}[nav.getSelectedIndex()];render();scrollTop();});
+    for(String name:new String[]{"Build your library","Sources & updates"})nav.addTab(name,new JPanel());
+    nav.addChangeListener(e->{cancel();page=new String[]{"setup","sources"}[nav.getSelectedIndex()];render();scrollTop();});
     center.add(nav,BorderLayout.NORTH);
     scroll=new JScrollPane(body,ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
     scroll.setBorder(null);scroll.getViewport().setBackground(Theme.current().bgBase());scroll.getVerticalScrollBar().setUnitIncrement(24);
@@ -136,16 +137,13 @@ public final class LibrarySetupPanel extends JPanel {
         case 0 -> welcome();
         case 1 -> games();
         case 2 -> {body.add(title("Choose your sources",34));body.add(copy("Choose what goes into each edition's library. AtlasLoot and All The Things are optional."));if(context())sourceChoices();}
-        case 3 -> {body.add(title("Find your game files",34));body.add(copy("Optional: inspect your local installation or discover an official build. Nothing is imported."));if(context())addDataTools();}
+        case 3 -> {body.add(title("Find your game files",34));body.add(copy("Optional: check your installation or the supported Blizzard download source for this library. Nothing is imported."));if(context())addDataTools();}
         case 4 -> review();
         default -> throw new IllegalStateException("Unknown setup step");
       }
     }else if(page.equals("sources")){
       body.add(title("Sources & updates",34));
       if(context()){sourceChoices();body.add(notice("No successful import or update is recorded here. Preferences do not imply coverage. Update checking and safe activation are still being connected."));var save=button("Save source preferences");save.setName("setup-save");save.addActionListener(e->save());body.add(save);}
-    }else{
-      body.add(title("Official game data",34));
-      if(context()){addDataTools();var save=button("Save source preferences");save.setName("setup-save");save.addActionListener(e->save());body.add(save);}
     }
     finish();
   }
@@ -199,9 +197,9 @@ public final class LibrarySetupPanel extends JPanel {
     var allow=new JCheckBox("Allow missing-file CDN downloads",cdn.get(game().id()));style(allow);allow.setName("setup-allow-cdn");
     allow.addActionListener(e->cdn.put(game().id(),allow.isSelected()));nativeCard.add(allow);
     nativeCard.add(copy("Optional Blizzard CDN permission for a future supported exact-build job only. Missing files stay gaps when off. All downloads go to Vibecraft storage, never the WoW folder."));body.add(nativeCard);body.add(gap());
-    var official=card("Official Blizzard builds");official.add(copy("Discover current and advertised preload pointers for "+game().channel()+". A published pointer is not proof of availability, extractability or a supported library."));
-    var check=button("Check available builds");check.setName("setup-discover-builds");check.addActionListener(e->{String product=game().channel();run("Checking Blizzard build metadata…",cancelled->buildLookup.discover(product,cancelled));});official.add(check);
-    official.add(copy("No game data is downloaded by this check. Product/build pins and locale must be validated before a future import."));body.add(official);body.add(report);
+    var official=card("Blizzard download source");official.add(copy("Check whether Blizzard advertises the exact build supported by this library. Downloads remain subject to your source permission and a supported import job."));
+    var check=button("Check supported download build");check.setEnabled(!game().planned());check.setName("setup-discover-builds");check.addActionListener(e->{String product=game().channel();run("Checking the supported library build…",cancelled->buildLookup.discover(product,cancelled));});official.add(check);
+    official.add(copy("This checks compatibility only. No content is downloaded. Exact files and locale still require validation before import."));body.add(official);body.add(report);
   }
   @FunctionalInterface private interface Work { String perform(BooleanSupplier cancelled)throws Exception; }
   private void runLocal(Path path){String gameId=game().id();run("Inspecting local installation metadata…",cancelled->{Inspection inspection=localLookup.inspect(path,cancelled);if(!cancelled.getAsBoolean()&&!inspection.selectedFolder().isBlank())SwingUtilities.invokeLater(()->{if(!cancelled.getAsBoolean())folders.put(gameId,inspection.selectedFolder());});return inspection.text();});}
@@ -225,7 +223,15 @@ public final class LibrarySetupPanel extends JPanel {
   private void finish(){body.revalidate();body.repaint();}
   public void close(){cancel();}
   @Override public void removeNotify(){close();super.removeNotify();}
-  private static String discover(String product,BooleanSupplier cancelled)throws Exception{try(var client=new BlizzardBuildDiscovery()){var found=client.discover(product,cancelled,p->{});var result=new StringBuilder("Official build pointers · ").append(found.discoveredAt()).append('\n');for(var build:found.builds())result.append(build.product()).append(" · ").append(build.version()).append(" · ").append(build.region()).append(" · ").append(build.channel()).append('\n');return result.toString();}}
+  private static String discover(String product,BooleanSupplier cancelled)throws Exception{
+    try(var client=new BlizzardBuildDiscovery()){
+      var found=client.discover(product,cancelled,p->{});
+      var compatible=found.builds().stream().filter(build->build.product().equals(NativeAssetClient.PRODUCT)
+          &&build.version().equals(NativeAssetClient.BUILD)&&build.buildConfigMd5().equals(NativeAssetClient.CONFIG)).toList();
+      if(compatible.isEmpty())return "No advertised build matches the currently supported Forever target ("+NativeAssetClient.BUILD+"). No replacement build or edition was selected.";
+      return "Supported Forever build "+NativeAssetClient.BUILD+" is advertised by Blizzard. Checked "+found.discoveredAt()+". Exact content availability and locale are not yet verified. No download or import started.";
+    }
+  }
   private static Inspection inspect(Path folder,BooleanSupplier cancelled)throws Exception{var client=new LocalWowDiscovery();var found=folder==null?client.scan(List.of(),true,cancelled,p->{}):client.inspect(folder,cancelled,p->{});var result=new StringBuilder("Inspected ").append(found.inspectedCandidates()).append(" candidate locations.\n");for(var installation:found.installations())result.append(installation.directory()).append('\n').append(installation.product()).append(" · ").append(installation.version()).append(" · ").append(installation.status()).append('\n').append(installation.explanation()).append("\n\n");if(found.installations().isEmpty())result.append("No recognized installation found. Use Browse to choose another folder.\n");for(String note:found.notes())result.append(note).append('\n');return new Inspection(result.toString(),folder==null?"":folder.toAbsolutePath().normalize().toString());}
   private static JPanel stack(){var panel=new WidthPanel();panel.setLayout(new BoxLayout(panel,BoxLayout.Y_AXIS));panel.setOpaque(false);return panel;}
   private static JPanel card(String title){var panel=stack();panel.setOpaque(true);panel.setBackground(Theme.current().bgSurface());panel.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(Theme.current().hairline()),new EmptyBorder(20,20,20,20)));panel.add(title(title,25));panel.add(gap());panel.setAlignmentX(LEFT_ALIGNMENT);return panel;}

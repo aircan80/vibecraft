@@ -21,6 +21,8 @@ class LibrarySetupPanelTest {
     try{SwingUtilities.invokeAndWait(()->{
       var panel=new LibrarySetupPanel(prefs,path->{throw new AssertionError("Unexpected database open");},null,
           (product,cancelled)->{count.incrementAndGet();return "";},(path,cancelled)->{count.incrementAndGet();return new LibrarySetupPanel.Inspection("","");});
+      assertThat(find(panel,"setup-navigation",JTabbedPane.class).getTabCount()).isEqualTo(2);
+      assertThat(find(panel,"setup-navigation",JTabbedPane.class).getTitleAt(1)).isEqualTo("Sources & updates");
       advance(panel,2);
       assertThat(find(panel,"setup-source-atlas",JCheckBox.class).isSelected()).isFalse();
       assertThat(find(panel,"setup-source-wago",JCheckBox.class).isSelected()).isFalse();
