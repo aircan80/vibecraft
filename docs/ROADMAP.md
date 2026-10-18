@@ -10,8 +10,8 @@ remain unchanged: the installed gameplay catalog is still WoW Forever.
 
 The application repository is now `/home/aircan/Development/vibecraft`. Migration
 preserved all 362 commits and references and repaired 41 linked worktrees. Task and
-development folders remain external under `vibecraft-work/development`; no GitHub
-push is claimed.
+development folders remain external under `vibecraft-work/development`; the owner-authorized initial source push is complete; later changes are not
+claimed pushed.
 
 ## Current high-level direction (2026-10-17)
 
@@ -88,7 +88,8 @@ asset fetching is included in the launched package; final sound-suite checks pas
 A source-only export/bootstrap plan is in preparation locally. Code licensing and
 Blizzard art attribution/rights are separate questions: a code GPL licence does not
 confer redistribution rights to game art. Do not include bulk game assets in a GitHub
-source export. No GitHub push or publication is authorized or claimed by this work.
+source export. The owner-authorized initial source push is complete at
+https://github.com/aircan80/vibecraft. No database, packages, releases or tags were uploaded.
 
 ## Portable Java-only delivery and release data
 
@@ -110,7 +111,8 @@ Final release readiness still depends on open capture and asset-review gates. En
 must not need developer toolchains or separately installed Java for portable delivery.
 
 The existing Git history includes game assets, so it cannot be published unchanged.
-A clean source export remains under review; no GitHub push is authorized or claimed.
+The cleaned source was pushed with owner authorization; no gameplay database or
+portable release assets were uploaded.
 A separate derived release database removes raw development archives while
 preserving selected facts, provenance and conflicts. Measured reduction and current
 validation are recorded below; complete packaged release acceptance remains pending.
@@ -140,8 +142,8 @@ Fresh-location, fresh-user-data and empty-PATH self-tests passed, with no extern
 renderer runtimes included. Native home inspection confirmed branding, maps and
 icons; all final native suites passed 149 assertions and 66 captures. Windows ZIP is cross-built at approximately 147 MiB using a verified Temurin
 Windows runtime and Launch4j-generated PE executable; **native Windows testing has not run**. macOS is not built. Manual
-native Windows/macOS CI workflow preparation is local only, with no push or run
-claimed. This is a preview, not an RC or final release; genuine capture gates remain open.
+native Windows/macOS workflow source may be present in the pushed repository;
+no native workflow run or binary release publication is claimed. This is a preview, not an RC or final release; genuine capture gates remain open.
 
 ## Vibemining: in-app data rebuilding
 
@@ -162,8 +164,8 @@ Repository history cleanup is complete locally: 370 commits rewritten one-to-one
 51 references and 42 worktree indexes reconciled, dates/topology and pending work
 preserved. Database files are removed from reachable history; external Git/data
 backups remain. The Git directory is about 24 MiB, with no reachable file above
-100 MiB. Existing artifact hashes are unchanged. No GitHub push is claimed; final
-history review precedes the next publication.
+100 MiB. Existing artifact hashes are unchanged. The owner-authorized initial source push is complete and remotely verified;
+later source changes are not claimed pushed.
 
 ## Verified clean-source baseline
 
@@ -174,8 +176,9 @@ dataset-profile run remains **2,011 tests, six skipped**; it predates the nine n
 discovery backend tests. Do not sum these into an unexecuted full-data total.
 Ordinary CI verifies the data-free source/package/audit and does not automatically
 upload artifacts. Manual native workflow requires a dataset. The polished README and actual app screenshot are integrated; relative file links
-and keymap checks passed. Local main is technically ready, with the no-push hold
-active. **No GitHub push, release or workflow run is claimed.** Future commits use
+and keymap checks passed. Local main is technically ready, with the owner-authorized initial source push now complete. No gameplay database,
+portable packages, releases or tags were uploaded. Later work and CI results are
+not claimed published or passed without verification. Future commits use
 the requested noreply identity.
 
 Independent history/privacy inspection covered 371 commits, 3,448 blobs and 376
@@ -198,7 +201,7 @@ The World Map nested-scroll issue hiding Zephras Isle is fixed in source; twelve
 focused tests passed, including 420/1280-width destination visibility. Updated
 source/provenance and WoW-style map breadcrumb dropdown mockups are available
 for review. Those two interaction designs are not yet implemented in Java.
-No push or new release is claimed.
+The initial source push is complete; no new binary release is claimed.
 
 ## Current setup and import priority
 
@@ -216,6 +219,19 @@ optional AtlasLoot refactoring are being implemented. **Full zero-database boots
 is not ready.** Production importer dependency integration, staged validation and
 activation, and native extraction remain missing. Existing-data review launches do
 not prove that an empty installation can build its gameplay database.
+
+## Initial source publication
+
+The owner explicitly authorized the initial source push, now complete and remotely
+verified at https://github.com/aircan80/vibecraft. Pushed source checkpoint:
+`623f91e789e137e5188808dff8a6eccf34fc12b4`. No gameplay database, portable packages,
+release assets or tags were uploaded. Later development changes are not claimed
+pushed unless separately verified; initial CI results are not yet claimed.
+
+Local WoW detection is source-integrated with 10 passing tests, and optional
+AtlasLoot support with 29 focused passing tests. Setup mockups and GUI work continue.
+These backend slices do not close zero-data bootstrap, staging/activation or native
+extraction requirements.
 
 ## Accepted future exploration: map zoom and pan
 
