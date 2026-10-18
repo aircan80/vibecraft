@@ -23,6 +23,17 @@ class CommunitySourceMaterializerTest {
   SetupPlan.JobContext job(SetupPlan plan,String id)throws Exception{return plan.prepareJob(temp.resolve("app"),Optional.empty(),id,List.of());}
   static CommunitySourceMaterializer.Limits limits(){return new CommunitySourceMaterializer.Limits(10000,100000,100,Duration.ofSeconds(2),Duration.ZERO);}
   static CommunitySourceMaterializer.Transport fake(List<URI> requests){return(uri,file,max,cancel,progress)->{requests.add(uri);byte[] bytes=("-- "+uri.getPath()+"\n").getBytes();Files.write(file,bytes,StandardOpenOption.CREATE_NEW);progress.accept((long)bytes.length,(long)bytes.length);};}
+  @Test void raidbotsSelectionIsNotMistakenForAnotherGithubCommunitySource()throws Exception {
+    var selected=Set.of(QUESTIE,NATIVE_DATA,RAIDBOTS_HOTFIX);
+    var pins=Map.of(QUESTIE,"a".repeat(40),RAIDBOTS_HOTFIX,PinnedItemSparseOverlayMaterializer.SNAPSHOT_SHA);
+    var plan=new SetupPlan(selected,Set.of(SetupPlan.Acquisition.WAGO_EXPORT),Optional.of(new SetupPlan.NativeIdentity("wow_classic_beta","1.60.1.70450","enUS")),List.of(),pins);
+    List<URI> requests=new ArrayList<>();
+    try(var materializer=new CommunitySourceMaterializer(specs(),limits(),fake(requests))) {
+      var result=materializer.materialize(plan,job(plan,"hotfix-community"),()->false,p->{});
+      assertEquals(2,requests.size());assertEquals(2,result.evidence().size());
+      assertTrue(result.evidence().stream().allMatch(file->file.source()==QUESTIE));
+    }
+  }
   @Test void uncheckedSourcesNeverDownloadOrAppearInMaterializedInputs()throws Exception{
     var plan=plan(Set.of(QUESTIE),specs());var job=job(plan,"selected");List<URI> requests=new ArrayList<>();
     try(var materializer=new CommunitySourceMaterializer(specs(),limits(),fake(requests))){var result=materializer.materialize(plan,job,()->false,p->{});assertEquals(2,requests.size());assertTrue(requests.stream().allMatch(uri->uri.getPath().contains("a".repeat(40))));assertTrue(result.atlasLoot().isEmpty());assertTrue(result.allTheThings().isEmpty());assertTrue(Files.isRegularFile(result.questie().resolve("data/Forever/items.lua")));assertEquals(2,result.evidence().size());assertTrue(result.inputs(Optional.empty()).atlasLoot().isEmpty());}

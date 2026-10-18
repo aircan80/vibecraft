@@ -18,6 +18,15 @@ class SetupPlanStoreTest {
     assertThat(SetupPlanStore.load(file).allows(SetupPlan.Acquisition.BLIZZARD_CDN)).isFalse();
     assertThat(Files.exists(temporary.resolve("draft.properties.tmp"))).isFalse();
   }
+  @Test void explicitRaidbotsChoiceAndSnapshotPinRoundTripWithoutAddingCdn() throws Exception {
+    var sources=Set.of(SetupPlan.Source.QUESTIE,SetupPlan.Source.NATIVE_DATA,SetupPlan.Source.RAIDBOTS_HOTFIX);
+    var plan=new SetupPlan(sources,Set.of(SetupPlan.Acquisition.WAGO_EXPORT),
+        Optional.of(new SetupPlan.NativeIdentity("wow_classic_beta","1.60.1.70450","enUS")),List.of(),SetupPlan.currentPins(sources));
+    var storage=new SetupStorage(temporary,List.of(),Optional.empty());
+    Path file=temporary.resolve("hotfix.properties");SetupPlanStore.save(storage,file,plan);
+    assertThat(SetupPlanStore.load(file)).isEqualTo(plan);
+    assertThat(SetupPlanStore.load(file).allows(SetupPlan.Acquisition.BLIZZARD_CDN)).isFalse();
+  }
   @Test void unknownVersionOrFieldsAndGameFolderDestinationsAreRejected() throws Exception {
     Path file=temporary.resolve("bad.properties");Files.writeString(file,"version=2\n");
     assertThatIOException().isThrownBy(() -> SetupPlanStore.load(file));

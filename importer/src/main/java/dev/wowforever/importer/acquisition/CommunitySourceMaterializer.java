@@ -73,7 +73,7 @@ public final class CommunitySourceMaterializer implements AutoCloseable {
   private List<Spec> selected(SetupPlan plan)throws IOException {
     List<Spec> result=new ArrayList<>();
     for(SetupPlan.Source source:SetupPlan.Source.values()){
-      if(source==SetupPlan.Source.NATIVE_DATA||!plan.sources().contains(source))continue;
+      if(source==SetupPlan.Source.NATIVE_DATA||source==SetupPlan.Source.RAIDBOTS_HOTFIX||!plan.sources().contains(source))continue;
       List<Spec> matching=specs.stream().filter(s->s.source()==source).toList();
       if(matching.size()!=1)throw new IOException("Selected source has no supported reviewed GitHub manifest: "+source);
       Spec spec=matching.getFirst();

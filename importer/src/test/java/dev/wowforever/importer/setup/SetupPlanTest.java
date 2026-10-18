@@ -172,6 +172,29 @@ class SetupPlanTest {
   private void assertNoSnapshots(Path directory) throws Exception {
     try(var files=Files.list(directory)){assertThat(files.map(path->path.getFileName().toString()).toList()).noneMatch(name->name.startsWith("capture-"));}
   }
+  @Test void raidbotsSelectionRequiresExactReviewedIdentityPinAndWagoConsent() throws Exception {
+    var selected=Set.of(Source.QUESTIE,Source.NATIVE_DATA,Source.RAIDBOTS_HOTFIX);
+    var pins=SetupPlan.currentPins(selected);
+    var enabled=new SetupPlan(selected,Set.of(Acquisition.WAGO_EXPORT),Optional.of(BUILD),List.of(),pins);
+    assertThat(enabled.sources()).contains(Source.RAIDBOTS_HOTFIX);
+    assertThat(nativePlan(Acquisition.WAGO_EXPORT).sources()).doesNotContain(Source.RAIDBOTS_HOTFIX);
+    assertThatIllegalArgumentException().isThrownBy(()->new SetupPlan(selected,Set.of(Acquisition.BLIZZARD_CDN),Optional.of(BUILD),List.of(),pins));
+    assertThatIllegalArgumentException().isThrownBy(()->new SetupPlan(selected,Set.of(Acquisition.WAGO_EXPORT),Optional.of(new NativeIdentity("wow_classic_beta","1.60.1.70000","enUS")),List.of(),pins));
+    var wrong=new EnumMap<Source,String>(Source.class);wrong.putAll(pins);wrong.put(Source.RAIDBOTS_HOTFIX,"0".repeat(64));
+    assertThatIllegalArgumentException().isThrownBy(()->new SetupPlan(selected,Set.of(Acquisition.WAGO_EXPORT),Optional.of(BUILD),List.of(),wrong));
+    var job=enabled.prepareJob(temporary.resolve("app"),Optional.empty(),"missing-hotfix",List.of());
+    Path nativeData=client("https://wago.tools",BUILD.build(),false);
+    assertThatIOException().isThrownBy(()->enabled.prepareCapture(job.storage(),job.paths(),inputs(
+        dev.wowforever.importer.Fixtures.questieDbRoot(),nativeData,Acquisition.WAGO_EXPORT))).withMessageContaining("typed hotfix");
+    var forged=new dev.wowforever.importer.acquisition.PinnedItemSparseOverlayMaterializer.Result(nativeData,
+        new dev.wowforever.importer.acquisition.PinnedItemSparseOverlayMaterializer.Validation("0".repeat(64),Set.of(),Set.of(),0));
+    var unselected=nativePlan(Acquisition.WAGO_EXPORT);
+    assertThatIOException().isThrownBy(()->unselected.prepareCapture(job.storage(),job.paths(),new MaterializedInputs(
+        dev.wowforever.importer.Fixtures.questieDbRoot(),Optional.empty(),Optional.empty(),Optional.empty(),Optional.of(forged)))).withMessageContaining("not selected");
+    assertThatIOException().isThrownBy(()->enabled.prepareCapture(job.storage(),job.paths(),new MaterializedInputs(
+        dev.wowforever.importer.Fixtures.questieDbRoot(),Optional.empty(),Optional.empty(),Optional.empty(),Optional.of(forged))));
+    assertThat(job.paths().archiveDatabase()).doesNotExist();
+  }
   private MaterializedInputs inputs(Path questie,Path client,Acquisition method){return new MaterializedInputs(questie,Optional.empty(),Optional.empty(),Optional.of(new MaterializedClient(client,method)));}
   private Path client(String base,String build,boolean era) throws Exception {
     Path dir=Files.createTempDirectory(temporary,"client-");Files.createDirectory(dir.resolve("csv"));

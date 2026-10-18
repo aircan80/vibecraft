@@ -2,6 +2,7 @@ package dev.wowforever.importer.setup;
 
 import dev.wowforever.importer.*;
 import dev.wowforever.importer.clientdata.*;
+import dev.wowforever.importer.acquisition.PinnedItemSparseOverlayMaterializer;
 import dev.wowforever.importer.source.SourceSpec;
 import java.io.IOException;
 import java.nio.file.*;
@@ -10,7 +11,7 @@ import java.util.*;
 /** One immutable Forever job, separate from per-edition UI drafts and discovery results. */
 public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Optional<NativeIdentity> nativeIdentity,
     List<Path> localGameRoots, Map<Source,String> sourcePins) {
-  public enum Source { QUESTIE, ATLASLOOT, ALL_THE_THINGS, NATIVE_DATA }
+  public enum Source { QUESTIE, ATLASLOOT, ALL_THE_THINGS, NATIVE_DATA, RAIDBOTS_HOTFIX }
   public enum Acquisition { LOCAL_INSTALLATION, BLIZZARD_CDN, WAGO_EXPORT }
   public record NativeIdentity(String product, String build, String locale) {
     public NativeIdentity {
@@ -32,9 +33,15 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
     if (acquisitions.contains(Acquisition.LOCAL_INSTALLATION) != !localGameRoots.isEmpty())
       throw new IllegalArgumentException("Local acquisition requires selected read-only WoW folders; other methods do not implicitly use them");
     Set<Source> pinned = new HashSet<>(sources);pinned.remove(Source.NATIVE_DATA);
-    if (!sourcePins.keySet().equals(pinned)) throw new IllegalArgumentException("Only selected community sources may have pins");
+    if (!sourcePins.keySet().equals(pinned)) throw new IllegalArgumentException("Only selected sources may have pins");
     if (sourcePins.values().stream().anyMatch(pin -> pin == null || pin.isBlank() || pin.length() > 200))
-      throw new IllegalArgumentException("Every selected community source needs an exact pin");
+      throw new IllegalArgumentException("Every selected source needs an exact pin");
+    if(sources.contains(Source.RAIDBOTS_HOTFIX)) {
+      if(!nativeSelected || !nativeIdentity.orElseThrow().equals(new NativeIdentity("wow_classic_beta","1.60.1.70450","enUS"))
+          || !acquisitions.contains(Acquisition.WAGO_EXPORT)
+          || !PinnedItemSparseOverlayMaterializer.SNAPSHOT_SHA.equals(sourcePins.get(Source.RAIDBOTS_HOTFIX)))
+        throw new IllegalArgumentException("Raidbots hotfix requires the reviewed exact snapshot, Forever 70450 enUS and explicit Wago selection");
+    }
   }
 
   public record JobContext(SetupStorage storage, SetupStorage.JobPaths paths) {}
@@ -60,12 +67,17 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
     }
     if (selected.contains(Source.ALL_THE_THINGS)) result.put(Source.ALL_THE_THINGS,
         dev.wowforever.importer.allthethings.AllTheThingsSource.PIN);
+    if(selected.contains(Source.RAIDBOTS_HOTFIX))result.put(Source.RAIDBOTS_HOTFIX,PinnedItemSparseOverlayMaterializer.SNAPSHOT_SHA);
     return Map.copyOf(result);
   }
 
   public record MaterializedClient(Path directory, Acquisition acquiredBy) {}
   public record MaterializedInputs(Path questie, Optional<Path> atlasLoot, Optional<Path> allTheThings,
-      Optional<MaterializedClient> client) {}
+      Optional<MaterializedClient> client,Optional<PinnedItemSparseOverlayMaterializer.Result> raidbotsOverlay) {
+    public MaterializedInputs(Path questie,Optional<Path> atlasLoot,Optional<Path> allTheThings,Optional<MaterializedClient> client) {
+      this(questie,atlasLoot,allTheThings,client,Optional.empty());
+    }
+  }
   public static final class PreparedImport {
     private final ImportOptions options;
     private final CoreSourceSelection coreSelection;
@@ -96,6 +108,8 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
             options.coverageMinPct(),Optional.empty(),inputs.containsKey("allthethings")?Optional.of(snapshot.resolve("allthethings")):Optional.empty(),
             options.skipAllTheThings());
         storage.verifyJob(job);
+        if(inputs.get("client").hashes().containsKey("overlay-policy.properties"))
+          new PinnedItemSparseOverlayMaterializer().validate(snapshot.resolve("client"),()->Thread.currentThread().isInterrupted());
         String ingestion=ArchiveWorkflow.ingest(frozen,coreSelection);
         verifyArchive(ingestion);
         return ingestion;
@@ -217,7 +231,18 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
     Optional<Path> att = selectedDirectory(Source.ALL_THE_THINGS,inputs.allTheThings());
     if (sources.contains(Source.ATLASLOOT) && SourceSpec.load().stream().anyMatch(s -> s.key().equals("atlasloot") && s.baseline() != null))
       throw new IOException("This AtlasLoot pin requires explicit baseline materialization, which setup does not yet support");
-    MaterializedClient client = inputs.client().orElseThrow(() -> new IOException("Selected native tables are not materialized"));
+    boolean selectedHotfix=sources.contains(Source.RAIDBOTS_HOTFIX);
+    MaterializedClient client;
+    if(selectedHotfix) {
+      if(inputs.client().isPresent())throw new IOException("Select only the typed hotfix client input, not a second native directory");
+      var supplied=inputs.raidbotsOverlay().orElseThrow(()->new IOException("Selected Raidbots overlay is not materialized"));
+      var validated=new PinnedItemSparseOverlayMaterializer().validate(supplied.directory(),()->Thread.currentThread().isInterrupted());
+      if(!validated.validation().equals(supplied.validation()))throw new IOException("Selected hotfix receipt changed after materialization");
+      client=new MaterializedClient(validated.directory(),Acquisition.WAGO_EXPORT);
+    } else {
+      if(inputs.raidbotsOverlay().isPresent())throw new IOException("Raidbots hotfix acquisition was not selected");
+      client=inputs.client().orElseThrow(()->new IOException("Selected native tables are not materialized"));
+    }
     if (!allows(client.acquiredBy())) throw new IOException("Native input used an acquisition method that was not selected");
     if (!Files.isDirectory(client.directory())) throw new IOException("Native input directory is unavailable");
     String reviewedLockHash=hash(client.directory().resolve("build.lock"));
@@ -238,7 +263,7 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
       throw new IOException("Unselected fallback game data is not permitted in a setup job");
     if (lock.tableSha().keySet().stream().anyMatch(name -> name.endsWith(".era")))
       throw new IOException("Unselected Era tables are not permitted in a setup job");
-    if (lock.hotfixSha256() != null || Files.exists(client.directory().resolve("hotfix.json")))
+    if (!selectedHotfix && (lock.hotfixSha256() != null || Files.exists(client.directory().resolve("hotfix.json"))))
       throw new IOException("Hotfix inputs require separately selected acquisition support; no implicit overlay is permitted");
     Path csvDirectory = client.directory().resolve("csv");
     if (Files.isDirectory(csvDirectory)) try (var files = Files.list(csvDirectory)) {
@@ -269,7 +294,7 @@ public record SetupPlan(Set<Source> sources, Set<Acquisition> acquisitions, Opti
     if(!reviewedLockHash.equals(nativeInput.hashes().get("build.lock")))
       throw new IOException("Native build metadata changed while preparing capture");
     for(String name:nativeInput.hashes().keySet()) {
-      if(name.equals("hotfix.json") || (name.startsWith("csv/")&&name.endsWith(".csv")
+      if((!selectedHotfix&&name.equals("hotfix.json")) || (name.startsWith("csv/")&&name.endsWith(".csv")
           &&!lock.tableSha().containsKey(name.substring(4,name.length()-4))))
         throw new IOException("Native input selection changed while preparing capture");
     }
