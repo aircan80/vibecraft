@@ -19,9 +19,9 @@ public final class JournalHomePage extends JPanel implements PageState {
     super(new BorderLayout());
     JournalSurface.Body body=new JournalSurface.Body();scroll=JournalSurface.scroll(body);add(scroll);
     JPanel intro=JournalSurface.stack();
-    JournalSurface.add(intro,eyebrow("YOUR NEXT ADVENTURE"));
-    JournalSurface.add(intro,JournalSurface.title("Where do you want to go?",36));
-    JournalSurface.add(intro,JournalSurface.copy("Explore Forever’s world, find dungeon encounters, or look up an item. Start with a question, then follow the connections."));
+    JournalSurface.add(intro,eyebrow(dev.wowforever.app.Branding.NAME.toUpperCase(java.util.Locale.ROOT)));
+    JournalSurface.add(intro,JournalSurface.title(dev.wowforever.app.Branding.TAGLINE,28));
+    JournalSurface.add(intro,JournalSurface.copy(dev.wowforever.app.Branding.DESCRIPTION));
     JPanel badge=new JPanel(new FlowLayout(FlowLayout.LEADING,0,0));badge.setOpaque(false);badge.add(new Chip("Forever beta reference",Chip.Style.PLAIN));
     JournalSurface.add(intro,badge);JournalSurface.add(body,intro);
 

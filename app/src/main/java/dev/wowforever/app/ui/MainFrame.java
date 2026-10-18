@@ -60,7 +60,7 @@ import org.slf4j.LoggerFactory;
  * in the new layout; each layout has its own saved bounds.
  */
 public final class MainFrame extends JFrame implements MainView {
-  public static final String APP_NAME = "WoW Forever Item & Drop Browser";
+  public static final String APP_NAME = dev.wowforever.app.Branding.NAME;
   private static final Logger LOG = LoggerFactory.getLogger(MainFrame.class);
   /** The content's action that hides or shows the master list (Ctrl+B through {@link KeyMap}). */
   static final String TOGGLE_LIST = "toggleList";
@@ -440,7 +440,11 @@ public final class MainFrame extends JFrame implements MainView {
 
   /** The About text: the bundled NOTICE.md, then the database meta values. */
   public static String aboutText(Map<String, String> meta) {
-    StringBuilder text = new StringBuilder(notice().strip()).append("\n\n# Database\n\n");
+    StringBuilder text = new StringBuilder(APP_NAME).append("\n")
+        .append(dev.wowforever.app.Branding.TAGLINE).append("\n\n")
+        .append(dev.wowforever.app.Branding.DESCRIPTION).append("\n\n")
+        .append(dev.wowforever.app.Branding.CREDIT).append("\n\n")
+        .append(notice().strip()).append("\n\n# Database\n\n");
     meta.forEach((k, v) -> text.append(k).append(": ").append(v).append('\n'));
     return text.toString();
   }
@@ -828,7 +832,7 @@ public final class MainFrame extends JFrame implements MainView {
   @Override
   public void setTitleSuffix(String s) {
     researchLabel=s;
-    String app = "WoW Forever — Explorer Journal";
+    String app = APP_NAME;
     setTitle(s == null || s.isEmpty() ? app : app + " — " + s);
     if (journalBreadcrumbs != null) journalBreadcrumbs.setPageTitle(s);
   }

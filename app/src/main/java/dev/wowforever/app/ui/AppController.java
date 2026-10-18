@@ -906,7 +906,7 @@ public final class AppController implements Navigator {
   /** The home page text, ending in the short build id ({@link StatusBar#buildLabel}); About has the whole one. */
   static JComponent welcome(Map<String, String> meta) {
     String build = meta.get("build_id");
-    return placeholder("<html><h2>WoW Forever Item &amp; Drop Browser</h2>"
+    return placeholder("<html><h2>" + dev.wowforever.app.Branding.NAME + "</h2>"
         + "<p>Search with the box above (Ctrl+F) or browse with the icons on the left.</p>"
         + "<p>Arrow through the list to preview a row here; Enter or a click opens it.<br>"
         + "Ctrl+B hides or shows the list. Alt+Left and Alt+Right go back and forward.</p>"

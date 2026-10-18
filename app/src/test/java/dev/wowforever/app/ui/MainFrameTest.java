@@ -71,7 +71,10 @@ class MainFrameTest {
     meta.put("build_id", "b-42");
     meta.put("built_at", "2026-10-16T12:00:00Z");
     String text = MainFrame.aboutText(meta);
-    assertThat(text).contains("QuestieDB").contains("AtlasLootClassic").contains("GPL-2.0")
+    assertThat(text).contains(dev.wowforever.app.Branding.NAME)
+        .contains(dev.wowforever.app.Branding.TAGLINE)
+        .contains(dev.wowforever.app.Branding.DESCRIPTION)
+        .contains(dev.wowforever.app.Branding.CREDIT).contains("QuestieDB").contains("AtlasLootClassic").contains("GPL-2.0")
         .contains("build_id: b-42").contains("built_at: 2026-10-16T12:00:00Z");
   }
 

@@ -20,7 +20,7 @@ public final class JournalSidebar extends JPanel {
   private record Entry(String label, RailTarget icon, ViewTarget target, JButton button) {}
   private final Consumer<ViewTarget> navigate;
   private final List<Entry> entries = new ArrayList<>();
-  private final JLabel brand = new JLabel("WoW Forever");
+  private final JLabel brand = new JLabel(dev.wowforever.app.Branding.NAME);
   private final JLabel edition = new JLabel("EXPLORER JOURNAL · BETA");
   private final JLabel browse = new JLabel("EXPLORE");
   private final JLabel footer = new JLabel("Offline knowledge. Ready to explore.");
@@ -100,8 +100,8 @@ public final class JournalSidebar extends JPanel {
   /** Compact mode keeps all destinations available, with accessible names and hover labels. */
   public void setCollapsed(boolean collapsed) {
     this.collapsed = collapsed;
-    brand.setText(collapsed ? "W" : "WoW Forever");
-    brand.setToolTipText("WoW Forever · Explorer Journal");
+    brand.setText(collapsed ? "V" : dev.wowforever.app.Branding.NAME);
+    brand.setToolTipText(dev.wowforever.app.Branding.NAME + " · " + dev.wowforever.app.Branding.TAGLINE);
     edition.setVisible(!collapsed); browse.setVisible(!collapsed); footer.setVisible(!collapsed);
     int width = collapsed ? 56 : 216;
     setPreferredSize(new Dimension(width, 600));

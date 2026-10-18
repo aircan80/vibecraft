@@ -334,7 +334,7 @@ class LayoutSwitchTest {
     layout.toggle();
     assertThat(view.masterList().entries()).isNotEmpty();
     assertThat(view.detail).isInstanceOf(JLabel.class); // the welcome text, not a blank page
-    assertThat(((JLabel) view.detail).getText()).contains("WoW Forever Item");
+    assertThat(((JLabel) view.detail).getText()).contains("Vibecraft");
   }
 
   /** Whether mouse button 4 released on {@code source} goes back, with the navigation installed on the root pane. */

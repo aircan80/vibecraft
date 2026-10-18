@@ -1,4 +1,10 @@
-# WoW Forever Item & Drop Browser
+# Vibecraft
+
+**Every place. Every drop. Every adventure.**
+
+A World of Warcraft companion for exploration, loot, crafting, and lore.
+
+*Built with artificial intelligence and natural stupidity. Works on my gryphon.*
 
 ## What it is
 
@@ -6,9 +12,9 @@ A desktop browser for World of Warcraft: Forever items and their sources. You se
 
 ![The home page: the rail, the search box over the results list, and the page](docs/screenshots/home.png)
 
-## Original interface and Explorer Journal
+## Explorer Journal
 
-Every normal launch asks which interface to open. **Original interface** preserves the existing browser; **Explorer Journal** adds labelled navigation, a task-based Home, a unified dungeon catalog, section breadcrumbs and tabbed dungeon/item details. Both use the same offline data. Window layout and list preferences are separate. The explicit `--ui=classic` and `--ui=journal` options bypass the chooser for automation; ordinary startup always asks.
+Vibecraft opens directly into Explorer Journal, with labelled navigation, a task-based Home, section breadcrumbs and cross-linked detail pages. The original interface is retired.
 
 Database reads, map/portrait decoding and catalog acquisition run on workers. Stale results are discarded when navigating away. Journal retains bounded transient page state so Back restores filters, selection and tabs. Atlas floors decode asynchronously in Journal.
 
