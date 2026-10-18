@@ -22,3 +22,9 @@ there. All writes go to Vibecraft-owned storage; reject configured writable
 locations inside a selected game installation. Local-file reuse and explicit CDN
 permission are complementary. Missing content must not trigger an unselected
 CDN, export provider or game-edition fallback.
+
+vibeMiner is a separate project. Vibecraft includes normal source selection,
+installation compatibility checks and library acquisition/update controls only.
+Do not add datamining workspaces, raw-record explorers, build-diff browsers or
+new-item discovery interfaces to Vibecraft. Low-level readers may support normal
+imports and be reused later; Vibecraft must not require the separate app.

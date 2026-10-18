@@ -47,13 +47,13 @@ Keep the extracted application folder together. Settings and caches use per-user
 
 See [preview notes](docs/releases/PREVIEW-0.4.1-preview.1.md), [packaging instructions](packaging/README.md) and [release preparation](docs/releases/README.md) for evidence and remaining gates. These are development previews, with incomplete data/portrait coverage and outstanding genuine collector-capture acceptance.
 
-## Coming next: Vibemining
+## Coming next: Sources & Updates
 
-**Vibemining is planned as an area inside the main app.** The goal: choose your sources, inspect available Blizzard builds, and generate a local database without a terminal or a separate importer application.
+Vibecraft’s setup will let you choose game versions and data sources, reuse matching files from an optional read-only WoW installation, and explicitly allow missing content to download into Vibecraft-owned storage. Each source explains what it adds and what is unavailable when omitted. The application never writes into a Blizzard installation.
 
-The design includes optional sources such as AtlasLoot, automatic discovery of compatible local WoW installations before asking you to browse, read-only client extraction, and explicitly selected direct Blizzard CDN acquisition. Beta/preload data would be usable only when the required files are actually available and readable. Source selection, progress, provenance and conflicts belong in the same workflow.
+This complete workflow is **not shipped yet**. The Java setup workspace, source plans and verified acquisition services are being integrated; full local extraction, table decoding and end-to-end database generation remain development work. Existing compatible databases can still be opened. See the [setup and source-management design](docs/design/vibemining-setup.md).
 
-This complete setup is **not shipped yet**. Official build-discovery backend work is implemented; the full source picker, local-client extraction and end-to-end database generation remain development work. Today, a source-built app can select an existing compatible database. See the [Vibemining design](docs/design/vibemining-setup.md).
+**vibeMiner is a separate planned application**, intended for exploring Blizzard CDN records and comparing builds. Raw-data exploration, new-item discovery and datamining interfaces do not belong in Vibecraft. Normal Vibecraft setup will not require vibeMiner. The separate project is tracked in [issue #10](https://github.com/aircan80/vibecraft/issues/10).
 
 ## Build from source
 
@@ -92,7 +92,7 @@ Bug reports are especially useful with the app version, operating system, select
 | Reproducible builds and dataset tests | [Local-data development](docs/development/local-data-builds.md) |
 | Portable packages and platform checks | [Packaging](packaging/README.md) |
 | Small release datasets with provenance retained | [Runtime database export](docs/publishing/release-database.md) |
-| Source selection and client datamining | [Vibemining design](docs/design/vibemining-setup.md) |
+| First-run imports and source management | [Setup design](docs/design/vibemining-setup.md) |
 | Data and artwork attribution | [Third-party notices](NOTICE.md) |
 
 <details>
