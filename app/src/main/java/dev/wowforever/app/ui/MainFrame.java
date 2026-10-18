@@ -70,6 +70,7 @@ public final class MainFrame extends JFrame implements MainView {
 
   private final JButton back = HistoryButtons.back();
   private final JButton forward = HistoryButtons.forward();
+  private final JButton themeButton = new JButton();
   private final SearchBar searchBar;
   private final MasterList list = new MasterList();
   private final StatusBar status = new StatusBar();
@@ -159,6 +160,11 @@ public final class MainFrame extends JFrame implements MainView {
     detailHolder.add(new JLabel("Loading…", SwingConstants.CENTER), BorderLayout.CENTER);
 
     toolbar = toolbar(back, forward, searchBar);
+    themeButton.setName("journal-theme-toggle");
+    themeButton.getAccessibleContext().setAccessibleName("Toggle light and dark theme");
+    themeButton.addActionListener(event -> toggleTheme());
+    toolbar.add(themeButton, BorderLayout.EAST);
+    refreshJournalChrome();
     detailSlot.add(pageHolder, BorderLayout.CENTER);
     JComponent navigation;
     {
@@ -168,7 +174,7 @@ public final class MainFrame extends JFrame implements MainView {
       journalNavigation = sidebarScroll;
       navigationWidth(false);
       navigation = sidebarScroll;
-      toolbar.setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
+      refreshJournalChrome();
     }
     content = buildContent(toolbar, navigation, list, detailSlot, status, uiState);
     if (journalSidebar != null) {
@@ -252,23 +258,49 @@ public final class MainFrame extends JFrame implements MainView {
       dev.wowforever.app.ui.journal.JournalAppearance.apply();
       SwingUtilities.updateComponentTreeUI(this);
       journalSidebar.refreshTheme();
+      refreshJournalChrome();
       rerender();
     }
   }
 
-  /** The top bar: {@code back}, {@code forward}, then {@code search}. */
+  /** Main-panel header: bordered history controls, flexible search, then theme control. */
   static JToolBar toolbar(JButton back, JButton forward, SearchBar search) {
     JToolBar toolbar = new JToolBar();
+    toolbar.setLayout(new BorderLayout(12, 0));
     toolbar.setFloatable(false);
-    toolbar.setBorder(BorderFactory.createEmptyBorder(4, 4, 4, 8));
-    toolbar.add(back);
-    toolbar.add(forward);
-    toolbar.add(search);
+    JPanel history = new JPanel(new java.awt.FlowLayout(java.awt.FlowLayout.LEADING, 5, 0));
+    history.setOpaque(false);
+    history.add(back); history.add(forward);
+    toolbar.add(history, BorderLayout.WEST);
+    toolbar.add(search, BorderLayout.CENTER);
     return toolbar;
   }
 
+  private void refreshJournalChrome() {
+    var theme=dev.wowforever.app.ui.theme.Theme.current();
+    toolbar.setBackground(theme.bgSurface());
+    toolbar.setBorder(BorderFactory.createCompoundBorder(
+        BorderFactory.createMatteBorder(0, 0, 1, 0, theme.hairline()),
+        BorderFactory.createEmptyBorder(18, 24, 18, 24)));
+    for(JButton button:new JButton[]{back,forward,themeButton}) {
+      button.setPreferredSize(new Dimension(34, 36));
+      button.setBackground(theme.bgBase());
+      button.setForeground(theme.textPrimary());
+      button.setBorder(BorderFactory.createCompoundBorder(
+          BorderFactory.createLineBorder(theme.hairline(),1,true),
+          BorderFactory.createEmptyBorder(5,5,5,5)));
+      button.putClientProperty("JButton.buttonType","roundRect");
+      button.putClientProperty("JButton.arc",8);
+      button.setBorderPainted(true);
+    }
+    themeButton.setIcon(dev.wowforever.app.ui.widgets.Icons.icon(theme.dark()?"sun":"moon",18));
+    themeButton.setToolTipText(theme.dark()?"Switch to light mode":"Switch to dark mode");
+    searchBar.styleForJournal();
+  }
+
   /**
-   * The window content: {@code toolbar} on top; {@code rail} at the left of a {@code list | detail} split whose
+   * The window content: full-height {@code rail} at the left; {@code toolbar} above the main
+   * {@code list | detail} split whose
    * divider starts at, and is saved to, {@code state}; {@code status} below. When the list shows is up to the
    * content's {@link ListVisibility} ({@link #listVisibility}): the content's {@link #TOGGLE_LIST} action (Ctrl+B)
    * goes through it, and the list starts shown when {@code state} saved it pinned.
@@ -284,12 +316,12 @@ public final class MainFrame extends JFrame implements MainView {
         state.setDividerLocation(split.getDividerLocation());
       }
     });
-    JPanel middle = new JPanel(new BorderLayout());
-    middle.add(rail, BorderLayout.WEST);
-    middle.add(split, BorderLayout.CENTER);
+    JPanel workspace = new JPanel(new BorderLayout());
+    workspace.add(toolbar, BorderLayout.NORTH);
+    workspace.add(split, BorderLayout.CENTER);
     JPanel content = new JPanel(new BorderLayout());
-    content.add(toolbar, BorderLayout.NORTH);
-    content.add(middle, BorderLayout.CENTER);
+    content.add(rail, BorderLayout.WEST);
+    content.add(workspace, BorderLayout.CENTER);
     content.add(status, BorderLayout.SOUTH);
     ListVisibility visibility = new ListVisibility(state.listVisible());
     Runnable apply = () -> showList(split, list, state, visibility.visible());

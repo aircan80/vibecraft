@@ -114,6 +114,7 @@ public final class SearchBar extends JPanel {
   private final KindChips chips;
   private final KindMenu kindMenu;
   private final JLabel label = new JLabel("Search:");
+  private boolean journalStyle;
   private final JTextField text = new JTextField(32) {
     @Override
     public void paste() {
@@ -287,7 +288,7 @@ public final class SearchBar extends JPanel {
    * kind control beside the box: the chips are the dropdown's top row); or back.
    */
   public void setCompact(boolean compact) {
-    label.setVisible(!compact);
+    label.setVisible(!compact && !journalStyle);
     if (compact) {
       add(kindMenu, BorderLayout.EAST);
     } else {
@@ -296,6 +297,31 @@ public final class SearchBar extends JPanel {
     kindMenu.refresh();
     revalidate();
     repaint();
+  }
+
+  /** Journal search stays inside its field, without the legacy external label. */
+  public void styleForJournal() {
+    journalStyle=true;
+    label.setVisible(false);
+    setOpaque(false);
+    var theme=dev.wowforever.app.ui.theme.Theme.current();
+    text.setBackground(theme.bgBase());
+    text.setForeground(theme.textPrimary());
+    text.setBorder(new javax.swing.border.AbstractBorder() {
+      @Override public java.awt.Insets getBorderInsets(java.awt.Component c) {
+        return new java.awt.Insets(10,14,10,14);
+      }
+      @Override public java.awt.Insets getBorderInsets(java.awt.Component c,java.awt.Insets insets) {
+        insets.set(10,14,10,14);return insets;
+      }
+      @Override public void paintBorder(java.awt.Component c,java.awt.Graphics g,int x,int y,int width,int height) {
+        var copy=(java.awt.Graphics2D)g.create();
+        copy.setRenderingHint(java.awt.RenderingHints.KEY_ANTIALIASING,java.awt.RenderingHints.VALUE_ANTIALIAS_ON);
+        copy.setColor(dev.wowforever.app.ui.theme.Theme.current().hairline());
+        copy.drawRoundRect(x,y,width-1,height-1,8,8);copy.dispose();
+      }
+    });
+    text.putClientProperty("JTextField.placeholderText","Search the library… (Ctrl+F)");
   }
 
   public KindMenu kindMenu() {

@@ -48,13 +48,36 @@ class MainFrameContentTest {
   void contentIsToolbarRailListDetailAndStatus() {
     JPanel content = content();
     BorderLayout layout = (BorderLayout) content.getLayout();
-    assertThat(layout.getLayoutComponent(BorderLayout.NORTH)).isSameAs(toolbar);
+    assertThat(layout.getLayoutComponent(BorderLayout.NORTH)).isNull();
+    assertThat(((BorderLayout) center(content).getLayout()).getLayoutComponent(BorderLayout.NORTH)).isSameAs(toolbar);
     assertThat(layout.getLayoutComponent(BorderLayout.SOUTH)).isSameAs(status);
-    assertThat(((BorderLayout) center(content).getLayout()).getLayoutComponent(BorderLayout.WEST)).isSameAs(rail);
+    assertThat(layout.getLayoutComponent(BorderLayout.WEST)).isSameAs(rail);
     JSplitPane split = split(content);
     assertThat(split.getOrientation()).isEqualTo(JSplitPane.HORIZONTAL_SPLIT);
     assertThat(split.getLeftComponent()).isSameAs(list);
     assertThat(split.getRightComponent()).isSameAs(detail);
+  }
+
+  @Test
+  void sidebarReachesTheTopAndSearchOnlyOccupiesTheMainPanel() {
+    JPanel content=content();
+    toolbar.setPreferredSize(new java.awt.Dimension(300,74));
+    for(int width:new int[]{1280,420}) {
+      content.setSize(width,900);
+      for(int i=0;i<4;i++)layoutTree(content);
+      java.awt.Point header=javax.swing.SwingUtilities.convertPoint(toolbar,0,0,content);
+      java.awt.Point side=javax.swing.SwingUtilities.convertPoint(rail,0,0,content);
+      assertThat(side.y).isZero();
+      assertThat(header.y).isEqualTo(side.y);
+      assertThat(header.x).isEqualTo(side.x+rail.getWidth());
+      assertThat(rail.getHeight()).isGreaterThan(toolbar.getHeight());
+      assertThat(split(content).getY()).isGreaterThanOrEqualTo(toolbar.getHeight());
+    }
+  }
+
+  private static void layoutTree(java.awt.Container parent) {
+    parent.doLayout();
+    for(var child:parent.getComponents())if(child instanceof java.awt.Container nested)layoutTree(nested);
   }
 
   @Test
