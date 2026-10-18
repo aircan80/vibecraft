@@ -32,6 +32,24 @@ public final class NativeAssetClient implements AutoCloseable {
     public record Asset(Path path, long fileDataId, String contentMd5, String sha256, long bytes,
                         String product, String build, String rootContentMd5) {}
     private record Encoding(long size, List<String> keys) {}
+    /** Shared audio metadata/cache owner, initialized lazily by the first worker request. */
+    private static final class Shared {
+        static final NativeAssetClient INSTANCE = create();
+        private static NativeAssetClient create() {
+            NativeAssetClient client = new NativeAssetClient(systemCache(), PRODUCT, BUILD);
+            Runtime.getRuntime().addShutdownHook(new Thread(client::close, "native-audio-assets-shutdown"));
+            return client;
+        }
+    }
+    public static NativeAssetClient shared() { return Shared.INSTANCE; }
+    public static Path systemCache() {
+        String configured = System.getProperty("wowforever.nativeAssets.cache", System.getenv("NPC_PREVIEW_ASSET_CACHE"));
+        if (configured != null && !configured.isBlank()) return Path.of(configured);
+        String base = System.getenv("XDG_CACHE_HOME");
+        if (base == null || base.isBlank()) base = System.getProperty("user.home") + "/.cache";
+        return Path.of(base, "wowforever-browser", "native-assets");
+    }
+
     public NativeAssetClient(Path cache, String product, String build) {
         if (!PRODUCT.equals(product) || !BUILD.equals(build))
             throw new IllegalArgumentException("No authenticated native asset profile for " + product + " " + build);
@@ -41,27 +59,32 @@ public final class NativeAssetClient implements AutoCloseable {
     }
     /** Cancellation is checked during cache reads, transport and metadata parsing. */
     public Asset fetch(long fileDataId, BooleanSupplier cancelled) throws IOException, InterruptedException {
+        return fetch(fileDataId, cancelled, LIMIT);
+    }
+    public Asset fetch(long fileDataId, BooleanSupplier cancelled, int maxAssetBytes) throws IOException, InterruptedException {
+        if (maxAssetBytes <= 0 || maxAssetBytes > LIMIT) throw new IllegalArgumentException("Invalid asset bound");
         if (SwingUtilities.isEventDispatchThread()) throw new IllegalStateException("Native assets must load off the EDT");
         if (fileDataId <= 0 || fileDataId > 0xffffffffL) throw new IllegalArgumentException("Invalid native file ID");
         Objects.requireNonNull(cancelled);
         check(cancelled);
         while (!lock.tryLock(50, java.util.concurrent.TimeUnit.MILLISECONDS)) check(cancelled);
-        try { return fetchLocked(fileDataId, cancelled); }
+        try { return fetchLocked(fileDataId, cancelled, maxAssetBytes); }
         finally { lock.unlock(); }
     }
-    private Asset fetchLocked(long fileDataId, BooleanSupplier cancelled) throws IOException, InterruptedException {
+    private Asset fetchLocked(long fileDataId, BooleanSupplier cancelled, int maxAssetBytes) throws IOException, InterruptedException {
         check(cancelled);
         prepare(cancelled);
         String key = rootEntry(root, fileDataId, cancelled);
         if (key == null) throw new FileNotFoundException("No neutral/enUS native asset " + fileDataId + " in " + BUILD);
         Encoding entry = encodingEntry(encoding, key, cancelled);
         if (entry == null) throw new IOException("Root asset absent from authenticated encoding");
+        if (entry.size() > maxAssetBytes) throw new IOException("Native asset exceeds requested size bound");
         byte[] bytes;
-        try { bytes = content(key, entry.keys(), cancelled); }
+        try { bytes = content(key, entry.keys(), cancelled, maxAssetBytes); }
         catch (IOException officialUnavailable) {
             // Transport only: the exact root's MD5 and encoding size remain mandatory.
             bytes = download(URI.create("https://wago.tools/api/casc/" + fileDataId
-                    + "?download&version=" + BUILD + "&branch=" + PRODUCT), LIMIT, cancelled);
+                    + "?download&version=" + BUILD + "&branch=" + PRODUCT), maxAssetBytes, cancelled);
             verify(bytes, key);
             atomic(cache.resolve("content/" + key + ".bin"), bytes);
         }
@@ -102,9 +125,12 @@ public final class NativeAssetClient implements AutoCloseable {
         encoding = candidateEncoding; root = candidate; rootKey = candidateRoot;
     }
     private byte[] content(String key, List<String> keys, BooleanSupplier cancelled) throws IOException, InterruptedException {
+        return content(key, keys, cancelled, LIMIT);
+    }
+    private byte[] content(String key, List<String> keys, BooleanSupplier cancelled, int limit) throws IOException, InterruptedException {
         validKey(key);
         Path path = cache.resolve("content/" + key + ".bin");
-        if (Files.exists(path)) { byte[] bytes = read(path, LIMIT, cancelled); verify(bytes, key); return bytes; }
+        if (Files.exists(path)) { byte[] bytes = read(path, limit, cancelled); verify(bytes, key); return bytes; }
         IOException failure = new IOException("No verified native encoding for " + key);
         for (String encodedKey : keys) {
             validKey(encodedKey);
@@ -112,7 +138,7 @@ public final class NativeAssetClient implements AutoCloseable {
                 Path encodedPath = cache.resolve("encoded/" + encodedKey + ".blte");
                 byte[] encoded = Files.exists(encodedPath) ? read(encodedPath, LIMIT, cancelled)
                         : download(URI.create(BASE + "data/" + encodedKey.substring(0, 2) + "/" + encodedKey.substring(2, 4) + "/" + encodedKey), LIMIT, cancelled);
-                byte[] decoded = decodeBlte(encoded, LIMIT);
+                byte[] decoded = decodeBlte(encoded, limit);
                 verify(decoded, key); check(cancelled);
                 atomic(encodedPath, encoded); atomic(path, decoded); return decoded;
             } catch (IOException e) { failure.addSuppressed(e); }

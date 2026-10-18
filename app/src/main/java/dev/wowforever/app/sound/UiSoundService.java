@@ -1,10 +1,9 @@
 package dev.wowforever.app.sound;
 
-import com.google.gson.*;
+import dev.wowforever.app.assets.NativeAssetClient;
 import dev.wowforever.app.music.CityMusicService;
 import java.io.*;
 import java.nio.file.*;
-import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.*;
@@ -24,7 +23,6 @@ public final class UiSoundService implements AutoCloseable {
   public static UiSoundService shared(){return Shared.INSTANCE;}
   private final ExecutorService downloads=pool("ui-sound-assets",8),audio=pool("ui-sound-audio",1),control=pool("ui-sound-preferences",1);
   private final ConcurrentMap<Cue,Path> ready=new ConcurrentHashMap<>();
-  private final Set<Process> processes=ConcurrentHashMap.newKeySet();
   private final Set<Cue> pending=ConcurrentHashMap.newKeySet();
   private final Preferences preferences;
   private final CityMusicService.Assets assets;
@@ -75,30 +73,13 @@ public final class UiSoundService implements AutoCloseable {
     });
   }
   private boolean valid(long token){return enabled()&&!muted&&volume>0&&generation.get()==token;}
-  @Override public void close(){if(closed)return;closed=true;generation.incrementAndGet();processes.forEach(Process::destroyForcibly);downloads.shutdownNow();audio.shutdownNow();control.shutdown();Thread stop=new Thread(player::stop,"ui-sound-stop");stop.setDaemon(true);stop.start();ready.clear();}
+  @Override public void close(){if(closed)return;closed=true;generation.incrementAndGet();downloads.shutdownNow();audio.shutdownNow();control.shutdown();Thread stop=new Thread(player::stop,"ui-sound-stop");stop.setDaemon(true);stop.start();ready.clear();}
   private Path acquire(String product,String build,long fileDataId)throws Exception {
     if(SwingUtilities.isEventDispatchThread())throw new IllegalStateException("UI sound asset IO on EDT");
-    Files.createDirectories(cache);
-    Path result=cache.resolve(product+"-"+build+"-"+fileDataId+".json");
-    // Worker always revalidates native root membership and content-addressed bytes.
-    String shared=System.getProperty("wowforever.nativeAssets.cache",System.getenv("NPC_PREVIEW_ASSET_CACHE"));
-    if(shared==null||shared.isBlank()){String base=System.getenv("XDG_CACHE_HOME");if(base==null||base.isBlank())base=System.getProperty("user.home")+"/.cache";shared=base+"/wowforever-browser/native-assets";}
-    Process process=new ProcessBuilder(System.getProperty("wowforever.sound.python","python3"),Path.of(System.getProperty("wowforever.sound.worker","tools/npcmodels/native_asset_worker.py")).toAbsolutePath().toString(),"--product",product,"--build",build,
-        "--file-data-id",Long.toString(fileDataId),"--cache",shared,"--output",result.toString())
-        .redirectErrorStream(true).redirectOutput(cache.resolve("worker-"+fileDataId+".log").toFile()).start();
-    processes.add(process);
-    try {
-      if(!process.waitFor(240000,TimeUnit.MILLISECONDS)){process.destroyForcibly();throw new IOException("UI sound acquisition timed out");}
-      if(process.exitValue()!=0)throw new IOException("UI sound acquisition failed");
-    } finally {processes.remove(process);if(process.isAlive())process.destroyForcibly();}
-    if(Files.size(result)>1024*1024)throw new IOException("Oversized ui-sound proof");
-    JsonObject proof=JsonParser.parseString(Files.readString(result)).getAsJsonObject();
-    if(!product.equals(proof.get("product").getAsString())||!build.equals(proof.get("build").getAsString())||fileDataId!=proof.get("fileDataID").getAsLong())throw new IOException("Wrong ui-sound identity");
-    Path asset=Path.of(proof.get("path").getAsString());if(Files.size(asset)>2L*1024*1024)throw new IOException("Oversized ui-sound asset");
-    MessageDigest hash=MessageDigest.getInstance("SHA-256");
-    try(var input=Files.newInputStream(asset)){byte[] buffer=new byte[65536];for(int n;(n=input.read(buffer))>=0;)hash.update(buffer,0,n);}
-    if(!HexFormat.of().formatHex(hash.digest()).equals(proof.get("sha256").getAsString()))throw new IOException("UI sound cache checksum mismatch");
-    return ShortVorbis.wave(asset,cache.resolve(product+"-"+build+"-"+fileDataId+".wav"));
+    if(!PRODUCT.equals(product)||!BUILD.equals(build))throw new IOException("Unsupported native UI sound catalog");
+    var asset=NativeAssetClient.shared().fetch(fileDataId,()->closed,2*1024*1024);
+    if(asset.bytes()>2L*1024*1024)throw new IOException("Oversized UI sound asset");
+    if(closed||Thread.currentThread().isInterrupted())throw new CancellationException("UI sound acquisition cancelled");
+    return ShortVorbis.wave(asset.path(),cache.resolve(product+"-"+build+"-"+fileDataId+".wav"));
   }
-
 }

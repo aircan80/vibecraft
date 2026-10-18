@@ -1,9 +1,8 @@
 package dev.wowforever.app.music;
 
-import com.google.gson.*;
+import dev.wowforever.app.assets.NativeAssetClient;
 import java.io.*;
 import java.nio.file.*;
-import java.security.MessageDigest;
 import java.time.*;
 import java.util.*;
 import java.util.concurrent.*;
@@ -16,14 +15,6 @@ import javax.swing.SwingUtilities;
 /** City soundtrack controller. Neither navigation nor Swing waits for asset/audio IO. */
 public final class CityMusicService implements AutoCloseable {
   public record State(long cityId,String cityName,String status,boolean muted,int volume) {}
-  public record Config(Path cache,Path worker,String python,Duration timeout) {
-    public static Config system() {
-      String base=System.getenv("XDG_CACHE_HOME");if(base==null||base.isBlank())base=System.getProperty("user.home")+"/.cache";
-      return new Config(Path.of(System.getProperty("wowforever.music.cache",base+"/wowforever-browser/city-music")),
-          Path.of(System.getProperty("wowforever.music.worker","tools/npcmodels/native_asset_worker.py")).toAbsolutePath(),
-          System.getProperty("wowforever.music.python","python3"),Duration.ofSeconds(240));
-    }
-  }
   @FunctionalInterface public interface Assets {Path acquire(String product,String build,long fileDataId)throws Exception;}
   public interface Player {void play(Path file,BooleanSupplier current,DoubleSupplier volume)throws Exception;void stop();}
   private static final class Shared {static final CityMusicService INSTANCE=new CityMusicService();}
@@ -34,7 +25,6 @@ public final class CityMusicService implements AutoCloseable {
   private final Preferences preferences;
   private final ExecutorService downloads=pool("city-music-assets",2),audio=pool("city-music-audio",1),control=pool("city-music-control",1);
   private final ConcurrentMap<String,CompletableFuture<Path>> jobs=new ConcurrentHashMap<>();
-  private final Set<Process> processes=ConcurrentHashMap.newKeySet();
   private final CopyOnWriteArrayList<Consumer<State>> listeners=new CopyOnWriteArrayList<>();
   private final AtomicLong generation=new AtomicLong();
   private volatile CompletableFuture<Void> stopBarrier=CompletableFuture.completedFuture(null);
@@ -42,16 +32,15 @@ public final class CityMusicService implements AutoCloseable {
   private volatile State state;
   private volatile boolean closed;
   private volatile String activeBuild="";
-  private final Config config;
 
   public CityMusicService() {
-    this.catalog=CityMusicCatalog.bundled();this.config=Config.system();this.player=new SoundPlayer();
+    this.catalog=CityMusicCatalog.bundled();this.player=new SoundPlayer();
     this.preferences=Preferences.userNodeForPackage(CityMusicService.class);this.assets=this::acquire;
     this.state=new State(0,"","City music",preferences.getBoolean("muted",false),Math.max(0,Math.min(100,preferences.getInt("volume",35))));
     Runtime.getRuntime().addShutdownHook(new Thread(()->{close();player.stop();},"city-music-shutdown"));
   }
   public CityMusicService(CityMusicCatalog catalog,Assets assets,Player player,Preferences preferences) {
-    this.catalog=catalog;this.assets=assets;this.player=player;this.preferences=preferences;this.config=null;
+    this.catalog=catalog;this.assets=assets;this.player=player;this.preferences=preferences;
     this.state=new State(0,"","City music",preferences.getBoolean("muted",false),Math.max(0,Math.min(100,preferences.getInt("volume",35))));
   }
   private static ExecutorService pool(String name,int threads) {
@@ -123,33 +112,17 @@ public final class CityMusicService implements AutoCloseable {
   }
   @Override public synchronized void close() {
     if(closed)return;closed=true;generation.incrementAndGet();
-    processes.forEach(Process::destroyForcibly);control.execute(player::stop);
+    control.execute(player::stop);
     downloads.shutdownNow();audio.shutdownNow();control.shutdown();listeners.clear();
   }
 
   private Path acquire(String product,String build,long fileDataId)throws Exception {
     if(SwingUtilities.isEventDispatchThread())throw new IllegalStateException("Music asset IO on EDT");
-    Files.createDirectories(config.cache());
-    Path result=config.cache().resolve(product+"-"+build+"-"+fileDataId+".json");
-    // Worker always revalidates native root membership and content-addressed bytes.
-    String shared=System.getProperty("wowforever.nativeAssets.cache",System.getenv("NPC_PREVIEW_ASSET_CACHE"));
-    if(shared==null||shared.isBlank()){String base=System.getenv("XDG_CACHE_HOME");if(base==null||base.isBlank())base=System.getProperty("user.home")+"/.cache";shared=base+"/wowforever-browser/native-assets";}
-    Process process=new ProcessBuilder(config.python(),config.worker().toString(),"--product",product,"--build",build,
-        "--file-data-id",Long.toString(fileDataId),"--cache",shared,"--output",result.toString())
-        .redirectErrorStream(true).redirectOutput(config.cache().resolve("worker-"+fileDataId+".log").toFile()).start();
-    processes.add(process);
-    try {
-      if(!process.waitFor(config.timeout().toMillis(),TimeUnit.MILLISECONDS)){process.destroyForcibly();throw new IOException("Music acquisition timed out");}
-      if(process.exitValue()!=0)throw new IOException("Music acquisition failed");
-    } finally {processes.remove(process);if(process.isAlive())process.destroyForcibly();}
-    if(Files.size(result)>1024*1024)throw new IOException("Oversized music proof");
-    JsonObject proof=JsonParser.parseString(Files.readString(result)).getAsJsonObject();
-    if(!product.equals(proof.get("product").getAsString())||!build.equals(proof.get("build").getAsString())||fileDataId!=proof.get("fileDataID").getAsLong())throw new IOException("Wrong music identity");
-    Path asset=Path.of(proof.get("path").getAsString());if(Files.size(asset)>64L*1024*1024)throw new IOException("Oversized music asset");
-    MessageDigest hash=MessageDigest.getInstance("SHA-256");
-    try(var input=Files.newInputStream(asset)){byte[] buffer=new byte[65536];for(int n;(n=input.read(buffer))>=0;)hash.update(buffer,0,n);}
-    if(!HexFormat.of().formatHex(hash.digest()).equals(proof.get("sha256").getAsString()))throw new IOException("Music cache checksum mismatch");
-    return asset;
+    if(!NativeAssetClient.PRODUCT.equals(product)||!NativeAssetClient.BUILD.equals(build))throw new IOException("Unsupported native music catalog");
+    var asset=NativeAssetClient.shared().fetch(fileDataId,()->closed,64*1024*1024);
+    if(!product.equals(asset.product())||!build.equals(asset.build()))throw new IOException("Wrong music identity");
+    if(asset.bytes()>64L*1024*1024)throw new IOException("Oversized music asset");
+    return asset.path();
   }
 
   /** Software gain works even where the Linux mixer exposes no MASTER_GAIN. */

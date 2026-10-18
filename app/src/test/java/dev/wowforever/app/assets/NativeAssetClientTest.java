@@ -16,6 +16,13 @@ class NativeAssetClientTest {
         assertThrows(IllegalArgumentException.class, () -> new NativeAssetClient(cache,"wow_classic_era",NativeAssetClient.BUILD));
         assertThrows(IllegalArgumentException.class, () -> new NativeAssetClient(cache,NativeAssetClient.PRODUCT,"1.60.1.70451"));
     }
+    @Test void rejectsInvalidPerAssetBoundsBeforeIo() throws Exception {
+        try(var client = new NativeAssetClient(cache,NativeAssetClient.PRODUCT,NativeAssetClient.BUILD)) {
+            assertThrows(IllegalArgumentException.class,()->client.fetch(567490,()->false,0));
+            assertThrows(IllegalArgumentException.class,()->client.fetch(567490,()->false,Integer.MAX_VALUE));
+            assertFalse(Files.exists(cache.resolve("content")));
+        }
+    }
     @Test void cancelledRequestNeverStartsTransport() throws Exception {
         try(var client = new NativeAssetClient(cache,NativeAssetClient.PRODUCT,NativeAssetClient.BUILD)) {
             assertThrows(CancellationException.class,()->client.fetch(567490,()->true));

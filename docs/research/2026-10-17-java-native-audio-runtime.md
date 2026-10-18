@@ -1,6 +1,6 @@
 # Java native audio acquisition proof
 
-This is a developer-verified Java implementation, not yet wired into music or UI sound playback. It removes the Python asset worker from the acquisition path; existing services still need integration. It does not implement model rendering or rotations, which are outside the current product scope.
+This Java implementation is wired into both city music and UI sound acquisition. It removes the Python asset worker and external process lifecycle from both services. It does not implement model rendering or rotations, which are outside the current product scope.
 
 `dev.wowforever.app.assets.NativeAssetClient` uses only JDK 21 APIs. Construct with the cache root, `wow_classic_beta` and `1.60.1.70450`. Call `fetch(fileDataId, cancellationSupplier)` from a worker and close the client when its owner shuts down. The returned immutable `Asset` contains the verified content path, file ID, MD5, SHA-256, byte count, product, build and root identity. No subprocess is launched. UI calls fail before waiting for the client lock; queued workers can cancel while waiting.
 
@@ -31,4 +31,15 @@ The metadata seed accelerates this proof but is not trusted: every content hash 
 
 ## Remaining integration and footprint
 
-Production music and sound service wiring, full empty-cache acceptance, playback lifecycle, and packaged-app regression remain before claiming this replaces their workers. The exact encoding table is about 135 MiB decoded, plus the root; a first installation currently needs that metadata download and corresponding temporary memory. This is developer source code only: no game audio or metadata blob is added to the repository. A reviewed compact per-file manifest could reduce metadata cost later, but would introduce a separate manifest trust model and must not be described as runtime root parsing.
+Full empty-cache acceptance and packaged-app GUI regression remain before claiming end-user acceptance. Existing controlled playback/lifecycle tests pass. Both services share one lazy Java client and authenticated metadata cache; service closure cancels its pending worker without shutting down the other service. UI assets are bounded to 2 MiB and music to 64 MiB before downloading their payload, using the authenticated encoding size. The exact encoding table is about 135 MiB decoded, plus the root; a first installation currently needs that metadata download and corresponding temporary memory. This is developer source code only: no game audio or metadata blob is added to the repository. A reviewed compact per-file manifest could reduce metadata cost later, but would introduce a separate manifest trust model and must not be described as runtime root parsing.
+
+
+## Audio service integration verification
+
+After integrating the Java client into both services, **19 focused JUnit tests passed** (native client, city music lifecycle, interface feedback). A separate actual-service acquisition smoke called the production acquisition methods:
+
+- UI sound 567490 produced the 14,208-frame PCM WAV above using Java only.
+- Undercity music 8181003 downloaded into the fresh audio cache, verified exact root content `e0b5b10b5844443b940d00d37d393158`, and decoded its first 8,192 PCM bytes as stereo 44,100 Hz / 16 bit through Java Sound.
+- No Python, Node, Blender or subprocess is used by either audio service. The developer render tooling remains separate.
+
+The proof deliberately stops short of claiming human listening, full track playback or a fresh packaged-app GUI launch.
