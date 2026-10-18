@@ -79,20 +79,20 @@ jpackage \
   --input "$INPUT" \
   --main-jar "$JAR_NAME" \
   --main-class dev.wowforever.app.Main \
-  --name "WoW Forever Browser" \
+  --name "Vibecraft" \
   --app-version "$NATIVE_VERSION" \
   --dest "$DEST" \
   --java-options "-Djava.awt.headless=false" \
-  --vendor "wow-forever-browser contributors" \
-  --description "Browse World of Warcraft: Forever items and their sources" \
+  --vendor "Vibecraft contributors" \
+  --description "A World of Warcraft companion for exploration, loot, crafting, and lore" \
   --type "$TYPE" \
   "${EXTRA[@]}"
 
 rm -rf "$INPUT"
 if [ "$TYPE" = app-image ]; then
-  IMAGE="WoW Forever Browser"
+  IMAGE="Vibecraft"
   if [ "$OS" = Darwin ]; then IMAGE="$IMAGE.app"; fi
-  LABEL="wow-forever-browser-${APP_VERSION}-$(uname -s)-$(uname -m)"
+  LABEL="vibecraft-${APP_VERSION}-$(uname -s)-$(uname -m)"
   if [ "$RELEASE_DATA" = 1 ]; then LABEL="$LABEL-with-data"; fi
   if [ "${ALLOW_PRIVATE_ASSETS:-0}" = 1 ]; then LABEL="$LABEL-PRIVATE-QA"; fi
   tar -czf "$DEST/$LABEL.tar.gz" -C "$DEST" "$IMAGE"

@@ -70,13 +70,13 @@ $jpArgs = @(
     '--input', $Stage,
     '--main-jar', $JarName,
     '--main-class', 'dev.wowforever.app.Main',
-    '--name', 'WoW Forever Browser',
+    '--name', 'Vibecraft',
     '--app-version', $NativeVersion,
     '--dest', $Dest,
     '--java-options', '-Djava.awt.headless=false',
     '--java-options', "-Dwowforever.release.version=$Version",
-    '--vendor', 'wow-forever-browser contributors',
-    '--description', 'Browse World of Warcraft: Forever items and their sources',
+    '--vendor', 'Vibecraft contributors',
+    '--description', 'A World of Warcraft companion for exploration, loot, crafting, and lore',
     '--type', $Type
 )
 if ($withData) {
@@ -93,9 +93,9 @@ if ($LASTEXITCODE -ne 0) { throw "jpackage failed with exit code $LASTEXITCODE" 
 
 Remove-Item -Recurse -Force $Stage
 if ($Type -eq 'app-image') {
-    $label = 'wow-forever-browser-' + $Version + '-Windows-' + $env:PROCESSOR_ARCHITECTURE
+    $label = 'vibecraft-' + $Version + '-Windows-' + $env:PROCESSOR_ARCHITECTURE
     if ($withData) { $label += '-with-data' }
     if ($PrivateQa) { $label += '-PRIVATE-QA' }
-    Compress-Archive -Path (Join-Path $Dest 'WoW Forever Browser') -DestinationPath (Join-Path $Dest ($label + '.zip')) -Force
+    Compress-Archive -Path (Join-Path $Dest 'Vibecraft') -DestinationPath (Join-Path $Dest ($label + '.zip')) -Force
 }
 Write-Host "Done. Output in $Dest"

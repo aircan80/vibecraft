@@ -1,4 +1,8 @@
-# Portable Java application
+# Vibecraft portable Java application
+
+Every place. Every drop. Every adventure.
+
+A World of Warcraft companion for exploration, loot, crafting, and lore.
 
 The portable package is a self-contained application folder and compressed archive. Users extract it and
 open its native launcher; Java is included. Python, Node and Blender are development tools and are not
@@ -47,9 +51,9 @@ chosen before rebuilding an app-image, so an old launcher cannot silently surviv
 
 ## Run after extracting
 
-- Linux: open `WoW Forever Browser/bin/WoW Forever Browser`.
-- macOS: open `WoW Forever Browser.app` (unsigned builds may require the normal macOS security override).
-- Windows: open `WoW Forever Browser/WoW Forever Browser.exe`.
+- Linux: open `Vibecraft/bin/Vibecraft`.
+- macOS: open `Vibecraft.app` (unsigned builds may require the normal macOS security override).
+- Windows: open `Vibecraft/Vibecraft.exe`.
 
 Keep the whole folder together; the launcher needs its adjacent runtime and app files. The folder can
 be moved without reinstalling. User preferences, datasets and caches currently remain in the normal
