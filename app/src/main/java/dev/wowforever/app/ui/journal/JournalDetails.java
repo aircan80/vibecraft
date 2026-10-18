@@ -36,8 +36,12 @@ public final class JournalDetails {
     if (loaded instanceof DetailPanels.LoadedNpc p) {
       var npc=new NpcPage(p.detail(),p.mapZoneId(),p.map(),p.rateSources(),p.bossNpcs(),filter,
           onFilter,p.involvement(),nav,ClipboardPort.system(),p.routes());
-      if(p.portrait()!=null)return new JournalNpcPortrait(npc,p.portrait(),p.detail().summary().id(),worker);
-      if(p.appearance()!=null)return new JournalNpcPreview(npc,p.appearance(),dev.wowforever.app.preview.NpcPreviewService.shared());
+      if(p.appearance()!=null){
+        var source=p.appearance();
+        var key=new dev.wowforever.app.portrait.NpcPortraitProvider.Key(source.product(),source.build().isBlank()?"unknown":source.build(),p.detail().summary().id());
+        return new JournalNpcPortrait(npc,key,dev.wowforever.app.portrait.NpcPortraitRepository.shared());
+      }
+      if(p.portrait()!=null)return new JournalNpcPortrait(npc,p.portrait());
       return npc;
     }
     return DetailPanels.render(loaded,repos,nav,worker,sink,filter,onFilter,questPins,routes);

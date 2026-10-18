@@ -260,7 +260,7 @@ public final class DetailPanels {
         return new LoadedNpc(d, zone, zoneMap(zone, repos), repos.items().sourcesOfNpc(id, rated),
             rated.isEmpty() ? Set.of() : repos.npcs().bosses(List.of(id)), repos.npcs().routes(id),
             repos.quests().involvingResult(ref),
-            dev.wowforever.app.db.NpcPortraits.load(id,repos.instances().clientBuild()).orElse(null),
+            null,
             new dev.wowforever.app.db.NpcAppearanceRepository(repos.database()).resolve(id));
       });
       case OBJECT -> repos.objects().detail(id).map(d -> warmed(d, d.contains())).map(d -> {

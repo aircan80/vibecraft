@@ -1,6 +1,7 @@
 package dev.wowforever.app.db;
 
 import dev.wowforever.app.ui.widgets.Images;
+import dev.wowforever.app.assets.ReviewedDataFiles;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -22,8 +23,8 @@ public final class NpcPortraits {
     cached=read();return cached;
   }
   private static Optional<Portrait> read() {
-    try(var image=NpcPortraits.class.getResourceAsStream("/data/npc-portraits/mechanical-squirrel.png");
-        var manifest=NpcPortraits.class.getResourceAsStream("/data/npc-portraits/mechanical-squirrel.json")) {
+    try(var image=ReviewedDataFiles.open("npc-portraits/mechanical-squirrel.png","71982d7beff2d6452c37bd3c92ca784b08ca74bed7b482fea550da6a6308b10d",4*1024*1024);
+        var manifest=ReviewedDataFiles.open("npc-portraits/mechanical-squirrel.json","606e902230ee6bd0d4b957dd5cb79bae796204644c1448f8977f1c6746a0b5b9",1024*1024)) {
       if(image==null || manifest==null)return Optional.empty();
       byte[] bytes=image.readAllBytes();
       String hash=HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(bytes));
