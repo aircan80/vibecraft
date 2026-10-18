@@ -200,6 +200,23 @@ source/provenance and WoW-style map breadcrumb dropdown mockups are available
 for review. Those two interaction designs are not yet implemented in Java.
 No push or new release is claimed.
 
+## Current setup and import priority
+
+The rounded-header candidate passed native acceptance: **111 assertions, four
+captures, zero severe errors**. It is running in a desktop development launch using
+the development JDK and existing reviewed data. Exact accepted JAR SHA-256:
+`4cc6dad8794f557d68dd233ada8fdbf19905c778c3c5658fae3b4bd647e781aa`.
+The original portable preview 2 bundles are unchanged; this is not a new portable
+release or a Windows launch test.
+
+The next focus is a polished **Sources & Updates** experience for an installation
+with no data: setup, WoW-folder selection/detection, optional sources and an import
+flow. Setup/source mockups are in progress; bounded read-only local detection and
+optional AtlasLoot refactoring are being implemented. **Full zero-database bootstrap
+is not ready.** Production importer dependency integration, staged validation and
+activation, and native extraction remain missing. Existing-data review launches do
+not prove that an empty installation can build its gameplay database.
+
 ## Accepted future exploration: map zoom and pan
 
 **Planned, owner-approved; not implemented.** Add city and zone map zoom/pan as a
