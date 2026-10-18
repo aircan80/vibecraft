@@ -98,6 +98,11 @@ public final class InstancePage extends JPanel implements PageState {
   private String difficulty;
   private BossSummary shown;
   private HeaderPanel bossHeader;
+  private List<LootRow> shownLoot = List.of();
+  private Map<RateSource.Key, List<RateSource>> shownSources = Map.of();
+  private final LootFilterControls lootFilters = new LootFilterControls(() -> {
+    if (shown != null) renderLoot(shown, shownLoot, shownSources);
+  });
   private SourceSection lootSection;
   private LinkTable<GroupedRows.Row<LootRow>> lootTable;
   private final SourceSection questsSection;
@@ -425,13 +430,13 @@ public final class InstancePage extends JPanel implements PageState {
   }
 
   /** The selected encounter (by {@link #selectBoss} index, -1 for none) and difficulty. */
-  private record Selection(int boss, String difficulty) {}
+  private record Selection(int boss, String difficulty, dev.wowforever.app.model.LootFilter filter) {}
 
   @Override
   public Object saveState() {
     int index = shown == null ? -1 : mainBosses.contains(shown) ? mainBosses.indexOf(shown)
         : mainBosses.size() + extraBosses.indexOf(shown);
-    return new Selection(index, difficulty);
+    return new Selection(index, difficulty, lootFilters.filter());
   }
 
   /** Selects the saved encounter in the saved difficulty (when this instance has them). */
@@ -440,6 +445,8 @@ public final class InstancePage extends JPanel implements PageState {
     if (!(state instanceof Selection s)) {
       return;
     }
+    lootFilters.restore(s.filter());
+    if (shown != null) showLoot(shown);
     if (s.difficulty() != null && difficulties.contains(s.difficulty()) && !s.difficulty().equals(difficulty)) {
       difficulty = s.difficulty();
       if (difficultyControl != null) {
@@ -475,6 +482,13 @@ public final class InstancePage extends JPanel implements PageState {
     List<LootRow> loot = difficulty == null ? List.of() : bossLoot.lookup(boss.id(), difficulty);
     Map<RateSource.Key, List<RateSource>> sources = boss.npcId() == null || loot.isEmpty() ? Map.of()
         : bossLoot.sources(boss.npcId(), RateSource.ratedItems(loot));
+    shownLoot = loot;
+    shownSources = sources;
+    renderLoot(boss, loot, sources);
+  }
+
+  private void renderLoot(BossSummary boss, List<LootRow> loot,
+      Map<RateSource.Key, List<RateSource>> sources) {
     String level = levelText(boss.level());
     bossHeader = new HeaderPanel(boss.displayName(), Labels.join(level == null ? null : "Level " + level));
     bossHeader.setAlignmentX(LEFT_ALIGNMENT);
@@ -486,12 +500,27 @@ public final class InstancePage extends JPanel implements PageState {
       return;
     }
     noLootNote = null;
+    var filtered = lootFilters.filter().apply(loot);
+    List<LootRow> displayedLoot = filtered.rows();
     // AtlasLoot's entry order ("#") orders the rows but is no equipment slot: the column is left out
-    lootTable = LootTables.grouped(loot, new LootTables.Grouping(SlotGroups::of, SlotGroups.ORDER, null, Set.of(),
+    lootTable = LootTables.grouped(displayedLoot, new LootTables.Grouping(SlotGroups::of, SlotGroups.ORDER, null, Set.of(),
         Set.of(Columns.LOOT_ORDER)),
         boss.npcId() == null ? LootTables.NO_SOURCES : LootTables.sourcesOf(boss.npcId(), sources),
         dungeonBosses, nav);
-    lootSection = new SourceSection(LOOT, loot.size(), lootTable);
+    lootSection = new SourceSection(LOOT, displayedLoot.size(), lootTable);
+    JPanel filterLead = new JPanel();
+    filterLead.setOpaque(false);
+    filterLead.setLayout(new javax.swing.BoxLayout(filterLead, javax.swing.BoxLayout.Y_AXIS));
+    filterLead.add(lootFilters);
+    JLabel filterSummary = new JLabel(displayedLoot.size() + " shown · " + filtered.excluded()
+        + " excluded · " + filtered.unknown() + " unknown");
+    filterSummary.setToolTipText("Forever metadata only. Unknown class: " + filtered.unknownClass()
+        + "; unknown slot: " + filtered.unknownSlot() + ". Counts overlap. Unknowns do not match active filters; no Era fallback.");
+    filterLead.add(filterSummary);
+    if (displayedLoot.isEmpty() && !loot.isEmpty()) {
+      filterLead.add(new JLabel("No known Forever matches."));
+    }
+    lootSection.addAboveTable(filterLead);
     if (InstanceRepository.OBSERVED_DIFFICULTY.equals(difficulty)) {
       lootSection.setNote("Observed in game; difficulty unknown.");
     } else if (loot.stream().anyMatch(l -> l.origin()!=null && l.origin().endsWith(" (reported)"))) {

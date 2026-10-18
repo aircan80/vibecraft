@@ -15,7 +15,7 @@ class ForeverItemProjectionTest {
   @Test void eraCardsAndFiltersStaySeparateFromForeverWithoutDeletingArchive() throws Exception {
     Path file=temp.resolve("scope.sqlite");Files.copy(FixtureDb.path(),file);
     try(var c=DriverManager.getConnection("jdbc:sqlite:"+file);var s=c.createStatement()) {
-      s.execute("UPDATE item SET client_source='era',has_client_data=1,item_level=66,required_level=60,quality=4 WHERE id=14149");
+      s.execute("UPDATE item SET client_source='era',has_client_data=1,item_level=66,required_level=60,quality=4,inventory_type=6,allowable_class=256 WHERE id=14149");
       s.execute("UPDATE item SET client_source='hotfix' WHERE id=2874");
       s.execute("INSERT INTO quest(id,name) VALUES(999999,'Boundary reward')");
       s.execute("INSERT INTO quest_reward_item VALUES(999999,14149)");
@@ -31,7 +31,7 @@ class ForeverItemProjectionTest {
       assertThat(era.summary().name()).isNull();assertThat(era.summary().quality()).isNull();
       assertThat(era.summary().itemLevel()).isNull();assertThat(era.summary().requiredLevel()).isNull();
       assertThat(era.droppedBy()).isNotEmpty();
-      assertThat(new NpcRepository(db).detail(11520).orElseThrow().drops()).filteredOn(i->i.item().id()==14149).singleElement().satisfies(i->{assertThat(i.itemName()).isNull();assertThat(i.itemLevel()).isNull();assertThat(i.quality()).isNull();});
+      assertThat(new NpcRepository(db).detail(11520).orElseThrow().drops()).filteredOn(i->i.item().id()==14149).singleElement().satisfies(i->{assertThat(i.inventoryType()).isNull();assertThat(i.allowableClass()).isNull();assertThat(i.itemName()).isNull();assertThat(i.itemLevel()).isNull();assertThat(i.quality()).isNull();});
       assertThat(new QuestRepository(db).detail(999999).orElseThrow().rewards()).singleElement().satisfies(i->{assertThat(i.item().id()).isEqualTo(14149);assertThat(i.itemLevel()).isNull();assertThat(i.quality()).isNull();});
       assertThat(repo.classicComparison(14149)).get().satisfies(i->{assertThat(i.name()).isEqualTo("Genuine Classic name");assertThat(i.itemLevel()).isEqualTo(66);assertThat(i.requiredLevel()).isEqualTo(60);assertThat(i.evidence()).contains("Era/ItemSparse.csv:10");});
       assertThat(repo.detail(2874).orElseThrow().card().lines()).isNotEmpty();
@@ -47,4 +47,21 @@ class ForeverItemProjectionTest {
       assertThat(archivedLevel).isEqualTo(66);
     }
   }
+  @Test void nativeForeverEquipmentSlotReachesLootIndependentlyFromAddonOrder() throws Exception {
+    Path file=temp.resolve("known-loot.sqlite");Files.copy(FixtureDb.path(),file);
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+file);var s=c.createStatement()) {
+      s.execute("UPDATE item SET client_source='hotfix',inventory_type=6,allowable_class=256 WHERE id=14149");
+    }
+    try(var db=Database.open(file)) {
+      var rows=new NpcRepository(db).detail(11520).orElseThrow().drops();
+      assertThat(rows).filteredOn(r->r.item().id()==14149).singleElement().satisfies(r->{
+        assertThat(r.inventoryType()).isEqualTo(6);
+        assertThat(r.allowableClass()).isEqualTo(256);
+        assertThat(r.slot()).isNull();
+        assertThat(new dev.wowforever.app.model.LootFilter(9,6).apply(java.util.List.of(r)).rows())
+            .containsExactly(r);
+      });
+    }
+  }
+
 }

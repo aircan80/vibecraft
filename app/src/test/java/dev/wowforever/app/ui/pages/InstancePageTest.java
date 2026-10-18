@@ -400,4 +400,37 @@ class InstancePageTest {
     layOut(p);
     assertThat(p.isStacked()).isTrue();
   }
+  @Test void equipmentFilterUsesLoadedRowsAndStaysVisibleAfterRenderingAndHistory() throws Exception {
+    javax.swing.SwingUtilities.invokeAndWait(() -> {
+      var lookups = new java.util.concurrent.atomic.AtomicInteger();
+      BossLoot source=(boss,difficulty)-> {
+        lookups.incrementAndGet();
+        return List.of(new LootRow(new EntityRef(ITEM,1),"Waist",null,null,null,99).withInventoryType(6),
+            new LootRow(new EntityRef(ITEM,2),"Legs",null,null,null,6).withInventoryType(7));
+      };
+      var page=new InstancePage(repos.instances().detail(2).orElseThrow(),source,t->{});
+      var combo=findLootSlot(page);
+      int loaded=lookups.get();
+      combo.setSelectedIndex(6);
+      assertThat(lookups).hasValue(loaded);
+      assertThat(page.lootTable().model().getRowCount()).isEqualTo(2); // Other heading + true Waist
+      assertThat(findLootSlot(page)).isSameAs(combo);
+      Object saved=page.saveState();
+      combo.setSelectedIndex(0);
+      page.restoreState(saved);
+      assertThat(findLootSlot(page).getSelectedItem().toString()).isEqualTo("Waist");
+      assertThat(page.lootTable().model().getRowCount()).isEqualTo(2);
+    });
+  }
+
+  private static javax.swing.JComboBox<?> findLootSlot(java.awt.Container root) {
+    for (Component child:root.getComponents()) {
+      if (child instanceof javax.swing.JComboBox<?> combo && "loot-slot-filter".equals(combo.getName())) return combo;
+      if (child instanceof java.awt.Container container) {
+        var found=findLootSlot(container); if(found!=null)return found;
+      }
+    }
+    return null;
+  }
+
 }

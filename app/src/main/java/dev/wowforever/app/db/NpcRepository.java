@@ -42,7 +42,7 @@ public final class NpcRepository {
    */
   static final String ITEM_COLUMNS = """
       i.name, i.item_level, i.class_id, ic.name AS class_name, i.subclass_id, i.quality, i.icon_id, \
-      i.allowable_class, (SELECT t.text FROM item_tooltip_line t WHERE t.item_id = i.id AND t.kind = 'req_skill' \
+      i.allowable_class, i.inventory_type, (SELECT t.text FROM item_tooltip_line t WHERE t.item_id = i.id AND t.kind = 'req_skill' \
       ORDER BY t.ordinal LIMIT 1) AS skill_line""";
 
   /** How many NPC ids one {@link #bosses} query asks about, each bound once: under SQLite's classic 999 limit. */
@@ -234,13 +234,13 @@ public final class NpcRepository {
     return new LootRow(new EntityRef(EntityKind.ITEM, rs.getLong("item_id")), rs.getString("name"),
         Sql.integer(rs, "item_level"), dropPct, origin, slot, Sql.integer(rs, "class_id"),
         rs.getString("class_name"), Sql.integer(rs, "subclass_id"), false, 0, Sql.integer(rs, "quality"),
-        Sql.longValue(rs, "icon_id"), rs.getString("skill_line"), Sql.integer(rs, "allowable_class"), 0);
+        Sql.longValue(rs, "icon_id"), rs.getString("skill_line"), Sql.integer(rs, "allowable_class"), 0).withInventoryType(Sql.integer(rs, "inventory_type"));
   }
 
   private static LootRow withDropperCount(LootRow r, int dropperCount) {
     return new LootRow(r.item(), r.itemName(), r.itemLevel(), r.dropPct(), r.origin(), r.slot(), r.classId(),
         r.className(), r.subclassId(), r.disagrees(), r.sourceCount(), r.quality(), r.iconId(), r.skillLine(),
-        r.allowableClass(), dropperCount, r.pctSource());
+        r.allowableClass(), dropperCount, r.pctSource()).withInventoryType(r.inventoryType());
   }
 
   /**
@@ -251,7 +251,7 @@ public final class NpcRepository {
     LootRow row = loot(rs, Sql.doubleValue(rs, "drop_pct"), origin, slot);
     return new LootRow(row.item(), row.itemName(), row.itemLevel(), row.dropPct(), row.origin(), row.slot(),
         row.classId(), row.className(), row.subclassId(), rs.getInt("disagrees") != 0, rs.getInt("source_count"),
-        row.quality(), row.iconId(), row.skillLine(), row.allowableClass(), 0, rs.getString("pct_source"));
+        row.quality(), row.iconId(), row.skillLine(), row.allowableClass(), 0, rs.getString("pct_source")).withInventoryType(row.inventoryType());
   }
 
   /** The spawn points of an NPC or object from {@code table} (npc_spawn or object_spawn), in import order. */

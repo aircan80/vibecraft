@@ -8,14 +8,28 @@ package dev.wowforever.app.model;
  * {@code disagrees} whether they disagree on it (false and 0 for lists without drop rates). {@code quality} and
  * {@code iconId} come from the client data and are null for items without it, as are {@code skillLine} (the
  * tooltip's required-skill line, {@code "Requires Leatherworking (65)"}, null when the item has none) and
- * {@code allowableClass} (the client's class mask; null, -1 and every class mean unrestricted). {@code dropperCount}
+ * {@code allowableClass} (the client's class mask; null is unknown, -1 and every class mean unrestricted).
+ * {@code inventoryType} is the equipment slot, separate from addon ordering in {@code slot}. {@code dropperCount}
  * is how many NPCs drop the item, filled on NPC drop lists only (0 elsewhere). {@code pctSource} is the source of the
  * headline rate ({@code pct_source}: {@code questie-wowhead}, {@code vmangos}, ...), null without one or for lists
  * without drop rates.
  */
 public record LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
     Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
-    Long iconId, String skillLine, Integer allowableClass, int dropperCount, String pctSource, boolean observedInGame) {
+    Long iconId, String skillLine, Integer allowableClass, int dropperCount, String pctSource, boolean observedInGame, Integer inventoryType) {
+
+  /** Compatibility constructor; equipment slot must never be inferred from AtlasLoot row order. */
+  public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
+      Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
+      Long iconId, String skillLine, Integer allowableClass, int dropperCount, String pctSource, boolean observedInGame) {
+    this(item, itemName, itemLevel, dropPct, origin, slot, classId, className, subclassId, disagrees, sourceCount,
+        quality, iconId, skillLine, allowableClass, dropperCount, pctSource, observedInGame, null);
+  }
+
+  public LootRow withInventoryType(Integer value) {
+    return new LootRow(item, itemName, itemLevel, dropPct, origin, slot, classId, className, subclassId,
+        disagrees, sourceCount, quality, iconId, skillLine, allowableClass, dropperCount, pctSource, observedInGame, value);
+  }
 
   public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
       Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
@@ -28,7 +42,7 @@ public record LootRow(EntityRef item, String itemName, Integer itemLevel, Double
 
   public LootRow withObservation(boolean observed) {
     return new LootRow(item, itemName, itemLevel, dropPct, origin, slot, classId, className, subclassId,
-        disagrees, sourceCount, quality, iconId, skillLine, allowableClass, dropperCount, pctSource, observed);
+        disagrees, sourceCount, quality, iconId, skillLine, allowableClass, dropperCount, pctSource, observed, inventoryType);
   }
 
   /** A row without a headline rate source. */
