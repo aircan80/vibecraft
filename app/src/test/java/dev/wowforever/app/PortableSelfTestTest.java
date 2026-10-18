@@ -12,7 +12,10 @@ import org.junit.jupiter.api.io.TempDir;
 class PortableSelfTestTest {
   @TempDir Path temporary;
   String oldTmp,oldVersion;
-  @BeforeEach void saveProperties(){oldTmp=System.getProperty("org.sqlite.tmpdir");oldVersion=System.getProperty("wowforever.release.version");}
+  @BeforeEach void saveProperties()throws java.io.IOException {
+    temporary=temporary.toRealPath();
+    oldTmp=System.getProperty("org.sqlite.tmpdir");oldVersion=System.getProperty("wowforever.release.version");
+  }
   @AfterEach void restoreProperties(){restore("org.sqlite.tmpdir",oldTmp);restore("wowforever.release.version",oldVersion);}
   private static void restore(String key,String value){if(value==null)System.clearProperty(key);else System.setProperty(key,value);}
   private Path report(String suffix)throws Exception{return Files.createDirectory(temporary.resolve("vibecraft-portable-self-test-"+suffix)).resolve("report.json");}
@@ -50,12 +53,16 @@ class PortableSelfTestTest {
     assertThat(PortableSelfTest.run(Path.of("relative-report.json"),probe)).isEqualTo(2);
     assertThat(probes).hasValue(0);
   }
-  @Test void gameAncestorAndArbitrarySymlinkAliasesCannotBecomeExtractionStorage()throws Exception {
+  @Test void gameAncestorCannotBecomeExtractionStorage()throws Exception {
     Path game=Files.createDirectory(temporary.resolve("game"));Files.writeString(game.resolve(".build.info"),"read-only fixture");
     Path report=Files.createDirectory(game.resolve("vibecraft-portable-self-test-forbidden")).resolve("report.json");
     assertThat(PortableSelfTest.run(report,directory->{throw new AssertionError("must not probe");})).isEqualTo(2);
     try(var children=Files.list(report.getParent())){assertThat(children.toList()).isEmpty();}
-    Path target=report("symlink-target").getParent();Path alias=temporary.resolve("vibecraft-portable-self-test-alias");Files.createSymbolicLink(alias,target);
+  }
+  @Test void arbitrarySymlinkAliasesCannotBecomeExtractionStorage()throws Exception {
+    Path target=report("symlink-target").getParent();Path alias=temporary.resolve("vibecraft-portable-self-test-alias");
+    try{Files.createSymbolicLink(alias,target);}
+    catch(java.io.IOException|UnsupportedOperationException unavailable){Assumptions.abort("Host cannot create test symbolic links: "+unavailable.getMessage());}
     assertThat(PortableSelfTest.run(alias.resolve("report.json"),directory->{throw new AssertionError("must not probe");})).isEqualTo(2);
     try(var children=Files.list(target)){assertThat(children.toList()).isEmpty();}
   }
