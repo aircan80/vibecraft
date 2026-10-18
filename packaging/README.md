@@ -99,3 +99,39 @@ PKG_TYPE=dmg packaging/jpackage.sh       # macOS; needs Xcode command-line tools
 
 Windows falls back to an app-image with a warning when WiX 3 is absent. Native installers are optional; the
 portable app-image with reviewed gameplay data is the intended end-user distribution.
+
+## Assemble a Windows x64 ZIP from Linux
+
+`cross-windows.py` is a developer-only alternative when a Windows jpackage runner is unavailable.
+It cross-assembles a portable folder from the frozen application JAR, the same reviewed data manifest,
+and an official pinned Temurin Windows x64 JRE. Python and the JDK are build tools only; neither Python
+nor developer scripts are copied into the ZIP. Native Windows `jpackage.ps1` remains the preferred
+platform build and acceptance path.
+
+```
+python3 packaging/cross-windows.py \
+  --jar /external/frozen/source-only.jar \
+  --jar-sha256 REVIEWED_FROZEN_JAR_SHA256 \
+  --data-root /external/reviewed-root \
+  --data-manifest /external/reviewed-data.tsv \
+  --output /external/windows-bundle \
+  --version 0.4.1-preview.1
+```
+
+Build outputs must be outside the source checkout. The runtime pin is committed in
+`windows-runtime.json`; changing Java versions requires reviewing that pin. The script verifies both
+the official checksum sidecar and pinned SHA-256/size before extracting the runtime, preserves its
+`legal/` tree, and retains runtime provenance and a complete file inventory. It runs the same Java
+source-JAR audit and reviewed-data staging checks used by native packaging. ZIP CRC integrity is checked.
+The package includes Java's Windows dependency DLLs from the official distribution.
+
+The fallback `Vibecraft.cmd` uses only its adjacent `runtime/bin/javaw.exe`, with paths relative to the
+launcher. An independently generated native `Vibecraft.exe` can be added using `--launcher-exe`,
+`--launcher-sha256`, one or more `--launcher-license` files, and `--launcher-provenance`. The EXE's
+SHA-256 and Windows PE header are checked; attribution/license files are included. Launch4j is a build
+tool only; its builder and GNU binutils must not be copied into the end-user folder.
+
+The ZIP name, README and inventory explicitly say **NOT LAUNCH-TESTED ON WINDOWS**. Assembly on Linux,
+valid PE headers, hashes and ZIP integrity do not establish that the application has launched on Windows.
+Extract the entire ZIP on a Windows x64 machine and double-click `Vibecraft.exe` (or `Vibecraft.cmd` when
+using the fallback package) to perform that acceptance step. No archive is uploaded by this tool.
