@@ -2,15 +2,19 @@
 
 This directory does not publish anything. Keep the active repository and local game data private.
 
+Normal end-user releases may include a separately reviewed compact runtime database and bypass this setup. The source-only profile is for the public source/build boundary and optional existing-local-data usage, not the default end-user package.
+
 ## Local-data startup
 
-A source-only application can use an existing compatible, locally obtained database:
+A source-only graphical launch opens a file chooser for an existing local database and remembers a successfully validated selection. Invalid or moved files prompt again; Cancel closes the application. No command line is needed for this selection. It does not create or download a database.
+
+For automation, a source-only application can use an existing compatible, locally obtained database:
 
 ```
 java -Dwowforever.database=/absolute/path/to/wowforever.sqlite -jar app.jar
 ```
 
-The database is validated and opened read-only. It is not copied, updated, or replaced. Forever schema 4, product `wow_classic_beta`, build `1.60.*`, enUS (the existing legacy database omits locale and is treated as enUS, matching the app registry), a nonblank projection ID, and core entity tables are required. This is structural validation, not proof of provenance or permission. Without a database, startup reports the required property; an interactive setup wizard is future work.
+The database is validated and opened read-only. It is not copied, updated, or replaced. Forever schema 4, product `wow_classic_beta`, build `1.60.*`, enUS (the existing legacy database omits locale and is treated as enUS, matching the app registry), a nonblank projection ID, and core entity tables are required. This is structural validation, not proof of provenance or permission. Without a database, graphical startup offers local file selection; headless self-test reports the required property. A complete data-creation wizard is future work.
 
 Build from a clean isolated checkout using `./mvnw -Psource-only -pl app -am clean package -DskipTests`. This profile includes authored UI theme/SVG resources and notices, not gameplay data, NPC portraits/turntables, extracted tables, music or sound catalogs. Dependencies still carry their own licensed resources. Audit the final JAR before distribution. Never reuse an existing full-data `target/classes` directory. The normal local full-data build remains unchanged.
 

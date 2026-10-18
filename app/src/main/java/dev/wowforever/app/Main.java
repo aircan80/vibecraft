@@ -118,7 +118,7 @@ public final class Main {
     });
     frame.status().setMessage("Loading database…");
     frame.setVisible(true);
-    Async.run(Main::load, loaded -> runOrFail(() -> {
+    Async.run(() -> load(frame), loaded -> runOrFail(() -> {
       open.set(loaded.db());
       IconCache.install(new IconCache(loaded.repos().assets()));
       AppController controller = new AppController(loaded.repos(), frame, Async.SWING_WORKER, loaded.meta());
@@ -128,7 +128,10 @@ public final class Main {
       frame.attach(controller);
       controller.start();
     }, e -> startupFailed(frame, "The browser could not start:\n", e)),
-        e -> startupFailed(frame, "The database could not be opened:\n", e));
+        e -> {
+          if (e instanceof java.util.concurrent.CancellationException) frame.dispose();
+          else startupFailed(frame, "The database could not be opened:\n", e);
+        });
   }
 
   /** Runs {@code body}; anything it throws goes to {@code onFailure} instead of escaping. */
@@ -155,9 +158,9 @@ public final class Main {
     System.exit(1);
   }
 
-  private static Loaded load() {
+  private static Loaded load(MainFrame frame) {
     try {
-      Path file = new DatabaseInstaller(UserDataDir.resolve()).install();
+      Path file = dev.wowforever.app.db.ExternalDatabaseSetup.resolve(frame, UserDataDir.resolve());
       Database db = Database.open(file);
       try {
         Map<String, String> meta = db.meta();
