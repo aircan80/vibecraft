@@ -34,6 +34,7 @@ class SourceReleaseTest(unittest.TestCase):
   for key,value in [('formatVersion',2),('osName','Mac OS X'),('osArch','aarch64')]:
    broken=json.loads(json.dumps(original));broken['native_smoke'][key]=value;file.write_text(json.dumps(broken))
    with self.subTest(key=key),self.assertRaises(ValueError):r.verify_set(self.root,'0.4.1','a'*40)
+ @unittest.skipIf(os.name=="nt", "POSIX executable bits and symlinks; Windows release uses ZIP")
  def test_tar_extract_preserves_launcher_mode_and_internal_link(self):
   source=self.root/'Vibecraft';source.mkdir();launcher=source/'launcher';launcher.write_text('native');launcher.chmod(0o755);(source/'alias').symlink_to('launcher')
   archive=self.root/'app.tar.gz'
@@ -49,6 +50,13 @@ class SourceReleaseTest(unittest.TestCase):
     else:member.size=1;t.addfile(member,io.BytesIO(b'x'))
    dest=self.root/('dest'+str(bool(link)));dest.mkdir()
    with self.assertRaises(ValueError):r.extract_archive(archive,dest,'Vibecraft')
+ def test_windows_zip_round_trip_retains_native_files(self):
+  archive=self.root/'windows.zip'
+  entries={'Vibecraft/Vibecraft.exe':b'MZ-authored-launcher','Vibecraft/runtime/bin/java.dll':b'MZ-authored-runtime','Vibecraft/app/wow-forever-browser.jar':b'authored-jar'}
+  with zipfile.ZipFile(archive,'w') as z:
+   for name,payload in entries.items():z.writestr(name,payload)
+  dest=self.root/'Windows path with spaces';dest.mkdir();r.extract_archive(archive,dest,'Vibecraft')
+  for name,payload in entries.items():self.assertEqual((dest/name).read_bytes(),payload)
  def test_zip_traversal_rejected(self):
   archive=self.root/'bad.zip'
   with zipfile.ZipFile(archive,'w') as z:z.writestr('Vibecraft/../../escape','bad')
