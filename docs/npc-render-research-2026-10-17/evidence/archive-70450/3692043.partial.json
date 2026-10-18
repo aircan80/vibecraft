@@ -1,0 +1,243 @@
+{
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+  "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+  "file_data_id": 3692043,
+  "selected_root_entry": {
+    "file_data_id": 3692043,
+    "content_key": "e94a83ca2f54b5036c3ef2437a8f36f4",
+    "content_flags": 304087040,
+    "locale_flags": 95222
+  },
+  "expected_content_md5": "e94a83ca2f54b5036c3ef2437a8f36f4",
+  "encoding_key": "39b283108fb6f3fd480dfed2d647c4e1",
+  "encoded_sha256": "5c4be47ffa40e3fe251de380e501dc19158948e017dca05e6ddb20f0d070d403",
+  "partial_sha256": "2c8755e5b5f81fa05c15d1e7e936189c89b3db506d8bdd2b5f891e9cb9f71879",
+  "bytes": 1328246,
+  "content_md5_verified": false,
+  "status": "PARTIAL_WITH_EXPLICIT_ERASURES",
+  "key_registry_sha256": "e5695072ed09e4e17462204da60cda7f22a71ef69d6cf2481f563b4d533b6d6a",
+  "decoder_commit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+  "chunks": [
+    {
+      "index": 0,
+      "encoded_start": 204,
+      "encoded_length": 4711,
+      "encoded_md5": "5b45bab0870920de1088092384a1137f",
+      "decoded_start": 0,
+      "decoded_end": 9300,
+      "decoded_length": 9300,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 1,
+      "encoded_start": 4915,
+      "encoded_length": 63889,
+      "encoded_md5": "a7d7f88e5348121139055069a8807c96",
+      "decoded_start": 9300,
+      "decoded_end": 271444,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 2,
+      "encoded_start": 68804,
+      "encoded_length": 92111,
+      "encoded_md5": "8356b4bb14418624b2b2db3ccdf9e266",
+      "decoded_start": 271444,
+      "decoded_end": 533588,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 3,
+      "encoded_start": 160915,
+      "encoded_length": 74598,
+      "encoded_md5": "8edcdf8a708dacbe6ea714c3f4d2af55",
+      "decoded_start": 533588,
+      "decoded_end": 795732,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 4,
+      "encoded_start": 235513,
+      "encoded_length": 64323,
+      "encoded_md5": "498bc5537e03de008f4325882e5a3526",
+      "decoded_start": 795732,
+      "decoded_end": 1057876,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 5,
+      "encoded_start": 299836,
+      "encoded_length": 78219,
+      "encoded_md5": "fc5c686f35db3ed204d321eef0115f13",
+      "decoded_start": 1057876,
+      "decoded_end": 1320020,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 6,
+      "encoded_start": 378055,
+      "encoded_length": 1854,
+      "encoded_md5": "88cb4c4b908622534472f10aaa3b3ac1",
+      "decoded_start": 1320020,
+      "decoded_end": 1328099,
+      "decoded_length": 8079,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 7,
+      "encoded_start": 379909,
+      "encoded_length": 110,
+      "encoded_md5": "294449a936559455db7c09b5a6faec6d",
+      "decoded_start": 1328099,
+      "decoded_end": 1328246,
+      "decoded_length": 147,
+      "status": "erased-unknown-key",
+      "key_name": "057dc814574bd5b6",
+      "mode": "E"
+    }
+  ],
+  "erased_ranges": [
+    {
+      "start": 1328099,
+      "end": 1328246,
+      "length": 147,
+      "key_name": "057dc814574bd5b6",
+      "chunk_index": 7,
+      "reason": "Public key unavailable; zero placeholder"
+    }
+  ],
+  "consumption_rule": "Exclude every WDC section touching erased bytes; never use placeholders as actual data",
+  "encoding_table_content_md5": "c441a5427cb86b23bbfb6ed9c6cf0114",
+  "schema": "authenticated-partial-blte-v1",
+  "fileDataId": 3692043,
+  "encodingKey": "39b283108fb6f3fd480dfed2d647c4e1",
+  "expectedContentMD5": "e94a83ca2f54b5036c3ef2437a8f36f4",
+  "decodedSha256": "2c8755e5b5f81fa05c15d1e7e936189c89b3db506d8bdd2b5f891e9cb9f71879",
+  "decodedSize": 1328246,
+  "erasedRanges": [
+    {
+      "offset": 1328099,
+      "length": 147,
+      "keyName": "057dc814574bd5b6"
+    }
+  ],
+  "chunkProofs": [
+    {
+      "index": 0,
+      "encoded_start": 204,
+      "encoded_length": 4711,
+      "encoded_md5": "5b45bab0870920de1088092384a1137f",
+      "decoded_start": 0,
+      "decoded_end": 9300,
+      "decoded_length": 9300,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 1,
+      "encoded_start": 4915,
+      "encoded_length": 63889,
+      "encoded_md5": "a7d7f88e5348121139055069a8807c96",
+      "decoded_start": 9300,
+      "decoded_end": 271444,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 2,
+      "encoded_start": 68804,
+      "encoded_length": 92111,
+      "encoded_md5": "8356b4bb14418624b2b2db3ccdf9e266",
+      "decoded_start": 271444,
+      "decoded_end": 533588,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 3,
+      "encoded_start": 160915,
+      "encoded_length": 74598,
+      "encoded_md5": "8edcdf8a708dacbe6ea714c3f4d2af55",
+      "decoded_start": 533588,
+      "decoded_end": 795732,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 4,
+      "encoded_start": 235513,
+      "encoded_length": 64323,
+      "encoded_md5": "498bc5537e03de008f4325882e5a3526",
+      "decoded_start": 795732,
+      "decoded_end": 1057876,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 5,
+      "encoded_start": 299836,
+      "encoded_length": 78219,
+      "encoded_md5": "fc5c686f35db3ed204d321eef0115f13",
+      "decoded_start": 1057876,
+      "decoded_end": 1320020,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 6,
+      "encoded_start": 378055,
+      "encoded_length": 1854,
+      "encoded_md5": "88cb4c4b908622534472f10aaa3b3ac1",
+      "decoded_start": 1320020,
+      "decoded_end": 1328099,
+      "decoded_length": 8079,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 7,
+      "encoded_start": 379909,
+      "encoded_length": 110,
+      "encoded_md5": "294449a936559455db7c09b5a6faec6d",
+      "decoded_start": 1328099,
+      "decoded_end": 1328246,
+      "decoded_length": 147,
+      "status": "erased-unknown-key",
+      "key_name": "057dc814574bd5b6",
+      "mode": "E"
+    }
+  ]
+}

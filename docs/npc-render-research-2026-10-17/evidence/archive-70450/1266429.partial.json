@@ -1,0 +1,291 @@
+{
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+  "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+  "file_data_id": 1266429,
+  "selected_root_entry": {
+    "file_data_id": 1266429,
+    "content_key": "29120c29774d2bcdda084f1b6f2fa582",
+    "content_flags": 304087040,
+    "locale_flags": 95222
+  },
+  "expected_content_md5": "29120c29774d2bcdda084f1b6f2fa582",
+  "encoding_key": "ddbaa5989bec1cc97e2bca024e51a1fd",
+  "encoded_sha256": "cf24ece1b048c7543dcf6aad94bfbaaa43dba9be97441f8effa5e1fbf0aa20ff",
+  "partial_sha256": "ece6402428c9756ccd7d53056db7a65f2d96fcbdea30ae30308054fea284a8a4",
+  "bytes": 427139,
+  "content_md5_verified": false,
+  "status": "PARTIAL_WITH_EXPLICIT_ERASURES",
+  "key_registry_sha256": "e5695072ed09e4e17462204da60cda7f22a71ef69d6cf2481f563b4d533b6d6a",
+  "decoder_commit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+  "chunks": [
+    {
+      "index": 0,
+      "encoded_start": 252,
+      "encoded_length": 12248,
+      "encoded_md5": "0250c05536dca17a03daa831c154f185",
+      "decoded_start": 0,
+      "decoded_end": 37296,
+      "decoded_length": 37296,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 1,
+      "encoded_start": 12500,
+      "encoded_length": 67306,
+      "encoded_md5": "9ba17369720f7bf6b6d460b29548f2bf",
+      "decoded_start": 37296,
+      "decoded_end": 299440,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 2,
+      "encoded_start": 79806,
+      "encoded_length": 35489,
+      "encoded_md5": "2d8d649775792f793bb16ed47bd92ec5",
+      "decoded_start": 299440,
+      "decoded_end": 426882,
+      "decoded_length": 127442,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 3,
+      "encoded_start": 115295,
+      "encoded_length": 44,
+      "encoded_md5": "1a55c73f1971487cd596d43fb1a5bbb6",
+      "decoded_start": 426882,
+      "decoded_end": 426912,
+      "decoded_length": 30,
+      "status": "erased-unknown-key",
+      "key_name": "057dc814574bd5b6",
+      "mode": "E"
+    },
+    {
+      "index": 4,
+      "encoded_start": 115339,
+      "encoded_length": 80,
+      "encoded_md5": "a829f8a77133a69069acd526406f899f",
+      "decoded_start": 426912,
+      "decoded_end": 427019,
+      "decoded_length": 107,
+      "status": "decoded",
+      "key_name": "39862674cb78d0cd",
+      "mode": "E"
+    },
+    {
+      "index": 5,
+      "encoded_start": 115419,
+      "encoded_length": 36,
+      "encoded_md5": "de3501346898ad5b344b5118a9afc762",
+      "decoded_start": 427019,
+      "decoded_end": 427034,
+      "decoded_length": 15,
+      "status": "decoded",
+      "key_name": "5699db626e0cd467",
+      "mode": "E"
+    },
+    {
+      "index": 6,
+      "encoded_start": 115455,
+      "encoded_length": 72,
+      "encoded_md5": "f862c3a296bc3a2465aaf39a01e0aa13",
+      "decoded_start": 427034,
+      "decoded_end": 427094,
+      "decoded_length": 60,
+      "status": "decoded",
+      "key_name": "630ed39c028f266b",
+      "mode": "E"
+    },
+    {
+      "index": 7,
+      "encoded_start": 115527,
+      "encoded_length": 40,
+      "encoded_md5": "769f743960457685c66d8e002680fafd",
+      "decoded_start": 427094,
+      "decoded_end": 427109,
+      "decoded_length": 15,
+      "status": "decoded",
+      "key_name": "a25f88cb0fda1966",
+      "mode": "E"
+    },
+    {
+      "index": 8,
+      "encoded_start": 115567,
+      "encoded_length": 38,
+      "encoded_md5": "fd7421a891580e22388ce829b3e878c8",
+      "decoded_start": 427109,
+      "decoded_end": 427124,
+      "decoded_length": 15,
+      "status": "decoded",
+      "key_name": "d14a84aaf3dfa283",
+      "mode": "E"
+    },
+    {
+      "index": 9,
+      "encoded_start": 115605,
+      "encoded_length": 40,
+      "encoded_md5": "a7b21585e420bff6ecf951e628faf815",
+      "decoded_start": 427124,
+      "decoded_end": 427139,
+      "decoded_length": 15,
+      "status": "decoded",
+      "key_name": "defe949ff04343d4",
+      "mode": "E"
+    }
+  ],
+  "erased_ranges": [
+    {
+      "start": 426882,
+      "end": 426912,
+      "length": 30,
+      "key_name": "057dc814574bd5b6",
+      "chunk_index": 3,
+      "reason": "Public key unavailable; zero placeholder"
+    }
+  ],
+  "consumption_rule": "Exclude every WDC section touching erased bytes; never use placeholders as actual data",
+  "encoding_table_content_md5": "c441a5427cb86b23bbfb6ed9c6cf0114",
+  "schema": "authenticated-partial-blte-v1",
+  "fileDataId": 1266429,
+  "encodingKey": "ddbaa5989bec1cc97e2bca024e51a1fd",
+  "expectedContentMD5": "29120c29774d2bcdda084f1b6f2fa582",
+  "decodedSha256": "ece6402428c9756ccd7d53056db7a65f2d96fcbdea30ae30308054fea284a8a4",
+  "decodedSize": 427139,
+  "erasedRanges": [
+    {
+      "offset": 426882,
+      "length": 30,
+      "keyName": "057dc814574bd5b6"
+    }
+  ],
+  "chunkProofs": [
+    {
+      "index": 0,
+      "encoded_start": 252,
+      "encoded_length": 12248,
+      "encoded_md5": "0250c05536dca17a03daa831c154f185",
+      "decoded_start": 0,
+      "decoded_end": 37296,
+      "decoded_length": 37296,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 1,
+      "encoded_start": 12500,
+      "encoded_length": 67306,
+      "encoded_md5": "9ba17369720f7bf6b6d460b29548f2bf",
+      "decoded_start": 37296,
+      "decoded_end": 299440,
+      "decoded_length": 262144,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 2,
+      "encoded_start": 79806,
+      "encoded_length": 35489,
+      "encoded_md5": "2d8d649775792f793bb16ed47bd92ec5",
+      "decoded_start": 299440,
+      "decoded_end": 426882,
+      "decoded_length": 127442,
+      "status": "decoded",
+      "key_name": null,
+      "mode": "Z"
+    },
+    {
+      "index": 3,
+      "encoded_start": 115295,
+      "encoded_length": 44,
+      "encoded_md5": "1a55c73f1971487cd596d43fb1a5bbb6",
+      "decoded_start": 426882,
+      "decoded_end": 426912,
+      "decoded_length": 30,
+      "status": "erased-unknown-key",
+      "key_name": "057dc814574bd5b6",
+      "mode": "E"
+    },
+    {
+      "index": 4,
+      "encoded_start": 115339,
+      "encoded_length": 80,
+      "encoded_md5": "a829f8a77133a69069acd526406f899f",
+      "decoded_start": 426912,
+      "decoded_end": 427019,
+      "decoded_length": 107,
+      "status": "decoded",
+      "key_name": "39862674cb78d0cd",
+      "mode": "E"
+    },
+    {
+      "index": 5,
+      "encoded_start": 115419,
+      "encoded_length": 36,
+      "encoded_md5": "de3501346898ad5b344b5118a9afc762",
+      "decoded_start": 427019,
+      "decoded_end": 427034,
+      "decoded_length": 15,
+      "status": "decoded",
+      "key_name": "5699db626e0cd467",
+      "mode": "E"
+    },
+    {
+      "index": 6,
+      "encoded_start": 115455,
+      "encoded_length": 72,
+      "encoded_md5": "f862c3a296bc3a2465aaf39a01e0aa13",
+      "decoded_start": 427034,
+      "decoded_end": 427094,
+      "decoded_length": 60,
+      "status": "decoded",
+      "key_name": "630ed39c028f266b",
+      "mode": "E"
+    },
+    {
+      "index": 7,
+      "encoded_start": 115527,
+      "encoded_length": 40,
+      "encoded_md5": "769f743960457685c66d8e002680fafd",
+      "decoded_start": 427094,
+      "decoded_end": 427109,
+      "decoded_length": 15,
+      "status": "decoded",
+      "key_name": "a25f88cb0fda1966",
+      "mode": "E"
+    },
+    {
+      "index": 8,
+      "encoded_start": 115567,
+      "encoded_length": 38,
+      "encoded_md5": "fd7421a891580e22388ce829b3e878c8",
+      "decoded_start": 427109,
+      "decoded_end": 427124,
+      "decoded_length": 15,
+      "status": "decoded",
+      "key_name": "d14a84aaf3dfa283",
+      "mode": "E"
+    },
+    {
+      "index": 9,
+      "encoded_start": 115605,
+      "encoded_length": 40,
+      "encoded_md5": "a7b21585e420bff6ecf951e628faf815",
+      "decoded_start": 427124,
+      "decoded_end": 427139,
+      "decoded_length": 15,
+      "status": "decoded",
+      "key_name": "defe949ff04343d4",
+      "mode": "E"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+  "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+  "file_data_id": 1266429,
+  "expected_content_md5": "29120c29774d2bcdda084f1b6f2fa582",
+  "encoding_key": "ddbaa5989bec1cc97e2bca024e51a1fd",
+  "archive_location": {
+    "archive": "29608f9bfe8244a6f97a5b86dcf1f417",
+    "size": 115645,
+    "offset": 93789871
+  },
+  "transport": "https://us.cdn.blizzard.com/tpr/wow/data/29/60/29608f9bfe8244a6f97a5b86dcf1f417",
+  "cdn_config_md5": "f065eade5276a5ac05606e60a4c5a1f7",
+  "encoded_sha256": "cf24ece1b048c7543dcf6aad94bfbaaa43dba9be97441f8effa5e1fbf0aa20ff",
+  "status": "AUTHENTICATED_ENCODING_ONLY",
+  "content_md5_verified": false
+}
