@@ -128,12 +128,14 @@ public final class NativeAssetClient implements AutoCloseable {
         if (entry == null) throw new IOException("Root asset absent from authenticated encoding");
         if (entry.size() > maxAssetBytes) throw new IOException("Native asset exceeds requested size bound");
         byte[] bytes;
+        usedArchive="";usedArchiveOffset=0;usedArchiveBytes=0;
         String usedTransport="official CDN or verified content cache";
         try { bytes = content(key, entry.keys(), cancelled, maxAssetBytes); }
         catch (IOException officialUnavailable) {
             if(policy==TransportPolicy.OFFICIAL_ONLY)throw officialUnavailable;
             // Separate opt-in transport only: exact root MD5 and encoding size remain mandatory.
             usedTransport="root-verified Wago transport";
+            usedArchive="";usedArchiveOffset=0;usedArchiveBytes=0;
             bytes = received(URI.create("https://wago.tools/api/casc/" + fileDataId
                     + "?download&version=" + descriptor.build() + "&branch=" + descriptor.product()), maxAssetBytes, cancelled);
             verify(bytes, key);
