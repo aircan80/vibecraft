@@ -9,9 +9,23 @@ import java.util.prefs.Preferences;
 import javax.swing.SwingUtilities;
 import static org.junit.jupiter.api.Assertions.*;
 class UiSoundServiceTest {
-  Preferences prefs;UiSoundService service;
-  @BeforeEach void setup(){prefs=Preferences.userRoot().node("/wowforever-tests/sounds-"+System.nanoTime());}
-  @AfterEach void cleanup()throws Exception{if(service!=null)service.close();prefs.removeNode();}
+  Preferences prefs;UiSoundService service;String originalEnabled;
+  @BeforeEach void setup(){
+    originalEnabled=System.getProperty("wowforever.sound.enabled");
+    System.setProperty("wowforever.sound.enabled","true");
+    prefs=Preferences.userRoot().node("/wowforever-tests/sounds-"+System.nanoTime());
+  }
+  @AfterEach void cleanup()throws Exception{
+    try{if(service!=null)service.close();if(prefs!=null)prefs.removeNode();}
+    finally{if(originalEnabled==null)System.clearProperty("wowforever.sound.enabled");else System.setProperty("wowforever.sound.enabled",originalEnabled);}
+  }
+  @Test void globallyDisabledEffectsNeverAcquireOrPlay()throws Exception{
+    System.setProperty("wowforever.sound.enabled","false");
+    AtomicInteger acquires=new AtomicInteger(),plays=new AtomicInteger();
+    service=new UiSoundService((p,b,id)->{acquires.incrementAndGet();return Path.of("x");},player(plays),prefs,System::nanoTime);
+    service.configure(UiSoundService.PRODUCT,UiSoundService.BUILD);service.prewarm();service.play(UiSoundService.Cue.OPEN);
+    Thread.sleep(50);assertEquals(0,acquires.get());assertEquals(0,plays.get());
+  }
   @Test void coldClickNeverPlaysLateAndAcquisitionNeverRunsOnEdt()throws Exception{
     CountDownLatch entered=new CountDownLatch(1),release=new CountDownLatch(1);AtomicInteger plays=new AtomicInteger();
     service=new UiSoundService((p,b,id)->{assertFalse(SwingUtilities.isEventDispatchThread());entered.countDown();release.await();return Path.of("sound");},player(plays),prefs,System::nanoTime);
@@ -29,6 +43,16 @@ class UiSoundServiceTest {
     service.configure(UiSoundService.PRODUCT,UiSoundService.BUILD);await(()->acquires.get()==5);Thread.sleep(30);
     service.play(UiSoundService.Cue.OPEN);await(()->plays.get()==1);service.play(UiSoundService.Cue.TAB);Thread.sleep(30);assertEquals(1,plays.get());
     now.addAndGet(150_000_000);service.muted(true);service.play(UiSoundService.Cue.CLOSE);Thread.sleep(30);assertEquals(1,plays.get());
+  }
+  @Test void controlsFitA420PixelDialogWithoutFlowWrapping()throws Exception{
+    service=new UiSoundService((p,b,id)->Path.of("x"),player(new AtomicInteger()),prefs,System::nanoTime);
+    javax.swing.SwingUtilities.invokeAndWait(()->{
+      UiSoundPanel panel=new UiSoundPanel(service);panel.setSize(380,panel.getPreferredSize().height);panel.doLayout();
+      for(java.awt.Component child:panel.getComponents()){
+        assertTrue(child.getWidth()>0);assertTrue(child.getHeight()>0);
+        assertTrue(child.getX()+child.getWidth()<=panel.getWidth());assertTrue(child.getY()+child.getHeight()<=panel.getHeight());
+      }
+    });
   }
   @Test void settingsAreIndependentAndBounded(){service=new UiSoundService((p,b,id)->Path.of("x"),player(new AtomicInteger()),prefs,System::nanoTime);assertEquals(22,service.volume());service.volume(999);assertEquals(100,service.volume());service.volume(-4);assertEquals(0,service.volume());}
   static CityMusicService.Player player(AtomicInteger count){return new CityMusicService.Player(){public void play(Path p,BooleanSupplier valid,DoubleSupplier volume){assertFalse(SwingUtilities.isEventDispatchThread());if(valid.getAsBoolean())count.incrementAndGet();}public void stop(){}};}

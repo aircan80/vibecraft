@@ -10,20 +10,29 @@ mean every feature in a later release is complete.
 | Stage | Focus | Current position |
 | --- | --- | --- |
 | Foundation through v0.4.1 | Search, quests, maps, provenance and Forever systems/content | Development verified; not released; genuine collector capture acceptance remains external |
-| Explorer Journal | Mockup fidelity, persistent list/detail, compact navigation and fast loads | Running baseline; Original interface retained; further polish remains |
-| Cities | Native city guides, districts and source-backed soundtracks | Six-city baseline running; recorded vendor/giver directory integrated, in verification; geography/service coverage partial |
+| Explorer Journal | Mockup fidelity, persistent list/detail, compact navigation and fast loads | Journal running directly; Original interface and chooser retirement in progress per latest owner instruction; further polish remains |
+| Cities | Native city guides, districts and source-backed soundtracks | Six-city baseline running; recorded vendor/giver directory running; geography/service coverage partial |
 | NPC previews | Exact appearance resolution, background renders and shared cache | Generic pipeline running; mapping/material coverage limited; metadata coverage is not successful-render coverage |
-| v0.5 | Loot research and preparation | Filters integrated, in verification; instance-wide pools and dungeon/raid preparation remain |
-| v0.6 | Crafting and economy | Native crafting-guide slice integrated, in verification; profession browser, graph, source resolver, trainers, economics, gathering and disenchanting remain |
-| v0.7 | Lore and exploration | City baseline running; reward trails and quest-text search integrated, in verification; full gazetteer, storylines, pets, rares and fishing remain |
-| v0.8 | Glance and compare | Pinned-reference slice integrated, in verification; item compare, wishlist/export, compact pinned tabs and two-build changes remain |
-| Multiple games | Edition-scoped catalogs and selector | Foundation and picker integrated, in verification; only Forever installed; Classic, Retail and Anniversary/TBC data not imported |
+| v0.5 | Loot research and preparation | Filters running; source-reported shared loot and recorded quest preparation in progress; full release acceptance remains |
+| v0.6 | Crafting and economy | Native crafting-guide slice running; profession browser, graph, source resolver, trainers, economics, gathering and disenchanting remain |
+| v0.7 | Lore and exploration | City baseline running; reward trails and quest-text search running; full gazetteer, storylines, pets, rares and fishing remain |
+| v0.8 | Glance and compare | Pinned-reference slice running; item compare, wishlist/export, compact pinned tabs and two-build changes remain |
+| Multiple games | Edition-scoped catalogs and selector | Foundation and picker running; only Forever installed; Classic, Retail and Anniversary/TBC data not imported |
+
+The owner has superseded the earlier requirement to retain both interfaces: Explorer
+Journal is now the sole product direction. The current service launches Journal directly;
+removal of Original GUI code and the startup chooser is in progress for the next build.
+Do not infer that code retirement is already present in the launched artifact.
 
 “Integrated, in verification” means source implementation exists, not that the new artifact
 is running or that the whole release is accepted. The dashboard records the exact running
 artifact and completed evidence independently. The owner uses it to monitor status: reconcile
 it after every meaningful batch, launch, acceptance result or blocker change. Product management
 owns scope and acceptance; project management verifies actual implementation and evidence.
+
+The current launched research batch passed full verification (1,954 Java tests, six skipped,
+zero failures/errors) and 44 final native captures. Exact artifact identity and timestamps
+remain in the dashboard evidence; this does not close partial later releases.
 
 The strict Forever boundary supersedes the original v0.5 Felheart Belt must-show example:
 class/slot/resistance filters use recorded Forever facts. Missing fields remain unknown and
@@ -37,6 +46,27 @@ This extends the older backlog's runtime-network principle for these optional as
 features; it does not permit cross-build or Era fallback. Missing appearance mappings,
 unsupported materials and audio failures must remain visible, without blocking navigation.
 
+
+## Native WoW interface sounds
+
+**Owner-approved, in progress; not yet verified or running.** Add optional native
+Forever-build sound-kit feedback for key interface open/close, confirmation and tab
+actions. Resolve assets against the exact selected Forever build, with asynchronous
+loading/playback and separate persistent mute/volume controls. Keep city music
+independent and avoid sounds on every keystroke. Actual asset coverage and audible
+behavior require verification before this work is marked implemented or running.
+
+## Accepted future exploration: map zoom and pan
+
+**Planned, owner-approved; not implemented.** Add city and zone map zoom/pan as a
+v0.7 exploration slice after current portrait and loot/preparation work. Support
+mouse-wheel zoom, pinch where the platform supports it, drag pan, Reset/Fit and
+keyboard equivalents. Keep markers aligned with the map while transforming,
+preserve marker hit-testing and selection, and retain geographic breadcrumbs,
+map hierarchy and source attribution. Compact layouts must keep controls reachable.
+Zoom enlarges the existing source raster; it does not invent finer map detail.
+Higher-resolution assets, new tiles and new district geography require separate
+source acquisition and are outside this interaction slice.
 
 Collected 2026-10-16 after v0.1 (the first working browser). Not committed to any order yet;
 the suggested sequence is at the bottom. Items marked *Done (v0.2.0)* shipped with phase 2A

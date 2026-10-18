@@ -32,6 +32,15 @@ class JournalTeachingItemsTest {
     SwingUtilities.invokeAndWait(()->{var thread=new Thread(jobs.getFirst());thread.start();try{thread.join();}catch(InterruptedException e){throw new RuntimeException(e);}page[0].removeNotify();});
     SwingUtilities.invokeAndWait(()->{assertThat(descendants(page[0])).noneMatch(TeachingItemsPanel.class::isInstance);assertThat(button(page[0],"Find teaching items")).isNotNull();});
   }
+  @Test void restoredSnapshotsAreScopedToNativeSnapshotAndCreationSpell()throws Exception {
+    SwingUtilities.invokeAndWait(()->{
+      var source=new JournalTeachingItems(JournalTeachingItemsTest::empty,Runnable::run,t->{},StatusSink.NONE,"f",2543);
+      button(source,"Find teaching items").doClick();Object state=source.saveState();var jobs=new ArrayList<Runnable>();
+      var same=new JournalTeachingItems(JournalTeachingItemsTest::empty,jobs::add,t->{},StatusSink.NONE,"f",2543);same.restoreState(state);assertThat(descendants(same)).anyMatch(TeachingItemsPanel.class::isInstance);assertThat(jobs).isEmpty();
+      var other=new JournalTeachingItems(JournalTeachingItemsTest::empty,jobs::add,t->{},StatusSink.NONE,"different",2543);other.restoreState(state);assertThat(descendants(other)).noneMatch(TeachingItemsPanel.class::isInstance);assertThat(button(other,"Find teaching items")).isNotNull();
+      var otherSpell=new JournalTeachingItems(JournalTeachingItemsTest::empty,jobs::add,t->{},StatusSink.NONE,"f",999);otherSpell.restoreState(state);assertThat(descendants(otherSpell)).noneMatch(TeachingItemsPanel.class::isInstance);
+    });
+  }
   private static JButton button(Container root,String text){return descendants(root).stream().filter(JButton.class::isInstance).map(JButton.class::cast).filter(b->b.getText().equals(text)).findFirst().orElseThrow();}
   private static List<Component> descendants(Container root){var result=new ArrayList<Component>();for(Component child:root.getComponents()){result.add(child);if(child instanceof Container c)result.addAll(descendants(c));}return result;}
 }

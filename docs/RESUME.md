@@ -6,6 +6,109 @@
 
 # Resume development — current checkpoint
 
+## Latest launched checkpoint — sounds, teaching items, compact guide
+
+Exact frozen `.local/sounds-teaching-acceptance/app-review.jar`, SHA256
+`e7e5ff657b70042378b74110cfef1f66645dfad354535e19db7e29dead3e011c`, copiedto
+`.local/running/wow-forever-browser.jar` and launched noargs via wowforever-browser.service
+PID341802. Journal-only startup, no chooser/Original shell. FullMaven82453 passed1984tests,
+6skipped0fail/errors. Finalnative acceptance153assertions/64captures allsixsuitesPASS;
+compactrealwheel reacheslootrows andteaching+soundssettingsinspected. All5packaged
+nativeclips decodecorrect/nonzero; actualoutputdeviceplayedopenat22% (nohumanlisteningclaim).
+See docs/verification/sounds-teaching-compact.json. SQLite unchanged.
+
+Sound effects Settings→Interface sounds; independentmute/volume fromcitymusic.
+Teachinglookup Craftingguide→Findteachingitems isexplicitlazy; item251525→251526
+actualnative link. Sharedloot+preparation are usefullaterslices, notfullreleasecompletion.
+Rootmustupdatenextdashboard Running/evidence afterthislaunch. Prior481artifact failedcompact
+review; superseded bynewheaderdisclosures, actualtablebelowfoldisreachablebyscroll.
+
+Nextcoding: portrait-first1framegeneration withoptionalturntable inisolatednpcagentbranch
+(no partialhumanoidproductionpromotion); recordedobject-sourcegeography commit2908ff2
+readyisolated fornextintegration. Humanoidhelmetprototype tools/docs integrated1225589;
+root34Python+9Nodeattachmentchecks passed. NPC246mappingtool+3testsalsoPASS butno246link.
+Pendingownerfeedback isoptional; continuedevelopment. Sourcechangesforcurrentbatchneed
+commit(checkgitstatus) beforeintegratingnextJavafiles. No concurrentMaven.
+
+
+## Active combined batch — compact guide, teaching items and interface sounds
+
+Current stable desktop still artifact4397...74af, Journaldirectservice. Frozen481af3a144965d3637ab43c9b8850de017567f25b78edcfab3f2bebc02d7b304
+passed1966Maven tests6skip0fail, packagedselftest and45 native captures/functionaljourneys,
+includingactualMainnoargsJournalstartup. DO NOT LAUNCH481: compactSharedLoot layout
+review found list/table both0visible due header height. Sharedagent fixesJournalDungeonPage
+compact indexchrome behind Destinationfilters, sharedsourceintrocloseddisclosure.
+Its isolated actual420×740 nestedgeometry test nowPASS; finishingtests/sourcefreeze.
+
+Teaching-item backend ecc7066 integrated. Agent multigame_architecture has frozen
+4existingprod+2testminimalhooks: explicitFindbutton, exactnativecreationSpell→teachingitem,
+lazy worker, context-scopedPageState/Back, no eagerquery. UiSoundbackend b5ef75d +
+agentui_sound_effects frozen Main/MainFrame/AppController/UiSoundPanel+3tests:
+validatedForeverconfigure/prewarmoffEDT, independent22%volume/mute, deliberateopen/close
++directtabs, silentstart/restoration/typing, compactcontrols. All5actualclips rootverified
+anddecodePCM afterShortVorbis JOrbisfix. NextcombinedfullMaven runs onlyoncecompactagent
+reportsfreeze. No concurrentMaven. Nextacceptance agent journal_acceptance hasnewshared/prep,
+noargsstartup andfutureteaching/soundssettingsjourneys; sound.enabled=false duringcaptures.
+
+Nativeportrait tools integrated f5dca29,85653ab,327bfa3,d5df2f3. Agentnpc_coverage_next +
+itsarchive/prototype/geosethelpers continue isolated. Authenticated archive recoveredplaintext
+NPCgear53120/options87919/ItemDisplay42541 rows, but6/9/2encryptedrowsomitted: nofullsource
+completenessclaim. ActualsingleviewFatherWinterHelper prototype exists at ../npc-coverage-next/
+.local/humanoid-70450/portrait-prototype/rendered/partial-humanoid.png; known-datapartialonly,
+notproductioncache, missingheadwear/hairdetails beingresolved. NPC246linkstillunknown.
+Portraitfirst priority. Root sawimage: actualgnomeface+greenclothing, nofabricatedgear.
+
+Dashboardv22 publishedsuccessfully source83e1ec224940331b8288f88d75c51dc992641e8a,
+URLsame. MarksnewfeaturesInverification/soundInprogress/zoomPlanned. CurrentSitescredential
+infunctionsstore refreshed01:16UTC; sourcehelper reopening/pack usespluginSitesworkflow.
+No credentials persisted. Nextpublish afteractualnextlaunch, retainingpartialreleases.
+
+
+## Current owner steering — Journal only, portrait first, future zoom
+
+Owner explicitly retired the Original GUI; earlier preserve-both/chooser instructions
+are superseded. Running service4397 is launched with --ui=journal directly now.
+Next source removes ExperienceChooser and old MainFrame rail, defaults JOURNAL,
+and rejects --ui=classic with a retired-interface message. Shared detail components
+remain because Journal uses them; UiExperience.CLASSIC is a deprecated internal
+compatibility marker. Agent edition_foundation source is frozen; final full Maven
+32954 `.local/journal-only-final-verify.log` running (stale app surefire reports cleared
+after deleting chooser tests). Do not call prior build verification of this startup.
+
+Shared/preparation exact-source verification30073 passed1966tests6skip beforestartup
+retirement; sharedslice committed231c21c. New instance native harness awaits final
+combined artifact; acceptance agent owns it. Portrait tooling commitsf5dca29,
+85653ab,327bfa3 integrated tools/docs only; actualportrait progress not yet claimed.
+
+Future accepted map feature: city/zone zoom+pan, wheel/pinch where supported,
+drag/keyboard/reset-to-fit with aligned pins and hierarchy. Planned, not implemented.
+Next6teaching-item acquisition component being built newfilesonly by
+multigame_architecture; integrate after currentcombinedacceptance.
+
+
+## Active continuation — portraits first, shared loot/preparation verification
+
+Owner reaffirmed continuous development, then prioritized accurate NPC images over
+3D rotation. NPC246 Auntie Bernice Stonefield exists in NPC DB but lacks an exact
+Forever Creature appearance mapping; never substitute Era/name-guessed model.
+Agent npc_coverage_next is acquiring root-verified native composition/portrait
+resources for mapped humanoids; TextureFileData58,693 rows verified so far.
+Mappings and composition remain separate gates; 33mappedhumanoidvariants are potential
+next coverage, not generated portraits. Portrait first; rotation secondary.
+
+Shared loot workspace and preparation research are now integrated in JournalDetails.
+Initial full Maven10730 passed but component lifecycle fix b2f9ba0 landed after
+compilation, so final app/reactor verification30073 is running; use its outcome,
+not prior build, before freezing. New component/model/repo files are root/shared
+agent edits; prepagent committed only owned files9d15780+b2f9ba0. Acceptance agent
+is adding real shared-list and preparation native journeys. Source freeze until
+final verify; do not launch unverified replacement. Current4397artifact staysrunning.
+
+Dashboard version21 successfully published from sourcef3a0ff81b7d26239adafab3fdd3746f9a0a8f807,
+marking accepted research featuresRunning. Later portrait-first/integration status
+edits are in dashboard-refresh/status.json awaiting next publication.
+
+
 ## Research integration launched — 2026-10-18 01:05 UTC
 
 The exact frozen research-layout artifact `4397a9f4debaef9e2117365f353f1a0cf86376515895d15abae69080a3d074af`

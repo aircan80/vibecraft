@@ -28,7 +28,7 @@ public final class GeneralNpcPreviewAcceptance {
     report.add("Created: "+Instant.now());report.add("JAR SHA-256: "+JournalSnapshots.hash(jar));report.add("Scope: isolated X11 native UI; actual configured preview worker, no fixture Renderer");report.add("NPC: "+npcId+"; requested mode: "+mode+"; cache: "+cache.toAbsolutePath());
     ExecutorService worker=Executors.newSingleThreadExecutor();
     try(var db=Database.open(Path.of(args[1]))){
-      report.add("Database build: "+db.meta().get("build_id"));JournalSnapshots.edt(()->{Fonts.install();ThemeManager.apply(ThemeManager.Mode.DARK);JournalSnapshots.frame=new MainFrame(UiExperience.JOURNAL);JournalSnapshots.controller=JournalSnapshots.wire(JournalSnapshots.frame,db,worker);JournalSnapshots.frame.setBounds(20,20,1280,900);JournalSnapshots.frame.setVisible(true);JournalSnapshots.controller.open(new ViewTarget.Entity(new EntityRef(EntityKind.NPC,npcId)));return null;});
+      report.add("Database build: "+db.meta().get("build_id"));JournalSnapshots.edt(()->{Fonts.install();ThemeManager.apply(ThemeManager.Mode.DARK);JournalSnapshots.frame=new MainFrame();JournalSnapshots.controller=JournalSnapshots.wire(JournalSnapshots.frame,db,worker);JournalSnapshots.frame.setBounds(20,20,1280,900);JournalSnapshots.frame.setVisible(true);JournalSnapshots.controller.open(new ViewTarget.Entity(new EntityRef(EntityKind.NPC,npcId)));return null;});
       JournalSnapshots.robot=new Robot();JournalSnapshots.robot.setAutoDelay(55);JournalSnapshots.waitFor(JournalNpcPreview.class);
       if(!mode.equals("variants"))JournalSnapshots.edt(()->{JournalSnapshots.all(JournalSnapshots.frame).stream().filter(c->c instanceof JComboBox<?> combo&&"Display variant".equals(combo.getAccessibleContext().getAccessibleName())).map(c->(JComboBox<?>)c).findFirst().ifPresent(combo->{if(combo.getItemCount()>1&&combo.getSelectedIndex()==0)combo.setSelectedIndex(1);});return null;});
       if(mode.equals("variants")){
@@ -55,9 +55,7 @@ public final class GeneralNpcPreviewAcceptance {
         JournalSnapshots.click(JournalSnapshots.toggle("Rotating preview"));JournalSnapshots.waitFor(JournalTurntable.class);JournalTurntable turntable=JournalSnapshots.find(JournalTurntable.class);int initial=JournalSnapshots.edt(turntable::frameIndex);JournalSnapshots.click(JournalSnapshots.button("Rotate right"));check(JournalSnapshots.edt(turntable::frameIndex)==(initial+1)%12,"Generic NPC rotates its own verified twelve-view preview");JournalSnapshots.snap(mode+"-rotating-"+npcId+"-420");
         try(var paths=Files.walk(cache)){report.add("Verified manifest files on disk: "+paths.filter(p->p.getFileName().toString().equals("manifest.json")).count());}
       }
-      if(mode.equals("cached")){
-        JournalSnapshots.edt(()->{JournalSnapshots.frame.dispose();ThemeManager.apply(ThemeManager.Mode.DARK);JournalSnapshots.frame=new MainFrame();JournalSnapshots.controller=JournalSnapshots.wire(JournalSnapshots.frame,db,worker);JournalSnapshots.frame.setBounds(20,20,1280,900);JournalSnapshots.frame.setVisible(true);JournalSnapshots.controller.open(new ViewTarget.Entity(new EntityRef(EntityKind.NPC,npcId)));return null;});JournalSnapshots.waitFor(NpcPage.class);check(JournalSnapshots.frame.uiExperience()==UiExperience.CLASSIC&&JournalSnapshots.find(JournalNpcPreview.class)==null,"Original interface retains its existing NPC page without Journal preview controls");JournalSnapshots.snap("original-npc-"+npcId);
-      }
+
     }catch(Throwable error){report.add("FAIL: "+error);throw error;}finally{if(JournalSnapshots.frame!=null)JournalSnapshots.edt(()->{JournalSnapshots.frame.dispose();return null;});worker.shutdownNow();dev.wowforever.app.preview.NpcPreviewService.shared().close();Files.write(out.resolve("report.txt"),report);System.out.println(String.join("\n",report));}System.exit(0);
   }
 }

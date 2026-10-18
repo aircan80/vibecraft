@@ -62,6 +62,28 @@ class JournalRecipeGuideTest {
     });
     SwingUtilities.invokeAndWait(()->{assertThat(((Recipe)combo(restored[0]).getSelectedItem()).variant()).isEqualTo("two");assertThat(scroll(restored[0]).getVerticalScrollBar().getValue()).isEqualTo(123);});
   }
+  @Test void teachingOnlyLoadsOnButtonAndVariantChangeSkipsOldJobsWhileBackRestoresLoadedEvidence()throws Exception {
+    var jobs=new ArrayList<Runnable>();var calls=new ArrayList<Long>();
+    Recipe second=new Recipe(2,"Other recipe",10,"Output","1","two",List.of(),List.of(),List.of(),"Native");
+    Snapshot data=new Snapshot("native","70450",List.of(recipe("one"),second));
+    java.util.function.LongFunction<dev.wowforever.app.db.NativeTeachingItemRepository.Snapshot> load=spell->{calls.add(spell);return new dev.wowforever.app.db.NativeTeachingItemRepository.Snapshot("native","70450","enUS",spell,List.of(),"No teaching item recorded.");};
+    SwingUtilities.invokeAndWait(()->{
+      var page=new JournalRecipeGuide(()->data,jobs::add,t->{},StatusSink.NONE,load);
+      assertThat(jobs).isEmpty();page.setActive(true);jobs.removeFirst().run();assertThat(calls).isEmpty();assertThat(jobs).isEmpty();
+      button(page,"Find teaching items").doClick();combo(page).setSelectedIndex(1);jobs.removeFirst().run();assertThat(calls).isEmpty();
+      button(page,"Find teaching items").doClick();jobs.removeFirst().run();assertThat(calls).containsExactly(2L);
+      Object state=page.saveState();var returned=new JournalRecipeGuide(()->data,jobs::add,t->{},StatusSink.NONE,load);returned.restoreState(state);assertThat(jobs).isEmpty();returned.setActive(true);jobs.removeFirst().run();
+      assertThat(((Recipe)combo(returned).getSelectedItem()).spellId()).isEqualTo(2);assertThat(descendants(returned)).anyMatch(TeachingItemsPanel.class::isInstance);assertThat(calls).containsExactly(2L);assertThat(jobs).isEmpty();
+    });
+  }
+  @Test void hidingCraftingTabCancelsQueuedTeachingLookup()throws Exception {
+    var jobs=new ArrayList<Runnable>();var calls=new AtomicInteger();
+    SwingUtilities.invokeAndWait(()->{
+      var page=new JournalRecipeGuide(JournalRecipeGuideTest::snapshot,jobs::add,t->{},StatusSink.NONE,spell->{calls.incrementAndGet();return new dev.wowforever.app.db.NativeTeachingItemRepository.Snapshot("native","70450","enUS",spell,List.of(),"None recorded");});
+      page.setActive(true);jobs.removeFirst().run();button(page,"Find teaching items").doClick();page.setActive(false);jobs.removeFirst().run();assertThat(calls).hasValue(0);
+    });
+  }
+  private static JButton button(Container root,String text){return descendants(root).stream().filter(JButton.class::isInstance).map(JButton.class::cast).filter(b->b.getText().equals(text)).findFirst().orElseThrow();}
   private static JScrollPane scroll(Container root){return descendants(root).stream().filter(JScrollPane.class::isInstance).map(JScrollPane.class::cast).findFirst().orElseThrow();}
   private static void layout(Container root){root.doLayout();for(Component c:root.getComponents())if(c instanceof Container child)layout(child);}
   private static JComboBox<?> combo(Container root){return descendants(root).stream().filter(JComboBox.class::isInstance).map(JComboBox.class::cast).findFirst().orElseThrow();}

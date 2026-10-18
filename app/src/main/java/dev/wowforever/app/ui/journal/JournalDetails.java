@@ -125,7 +125,8 @@ public final class JournalDetails {
       findResearchAction(item,()->page.tabs.setSelectedIndex(trailIndex));
     }
     var crafting=new JournalRecipeGuide(()->new dev.wowforever.app.db.NativeRecipeGuideRepository(repos.database())
-        .forItem(p.detail().summary().id()),worker,nav,sink);
+        .forItem(p.detail().summary().id()),worker,nav,sink,
+        spell->new dev.wowforever.app.db.NativeTeachingItemRepository(repos.database()).forSpell(spell));
     page.tab("Crafting guide",KeyEvent.VK_C,crafting);
     int craftingIndex=page.tabs.getTabCount()-1;
     page.tabs.addChangeListener(e->crafting.setActive(page.tabs.getSelectedIndex()==craftingIndex));

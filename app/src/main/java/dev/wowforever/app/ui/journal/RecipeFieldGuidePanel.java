@@ -12,6 +12,10 @@ import javax.swing.*;
 /** A recipe's exact native evidence, supplied as an immutable worker snapshot. */
 public final class RecipeFieldGuidePanel extends JPanel {
   public RecipeFieldGuidePanel(NativeRecipeGuideRepository.Snapshot data,Navigator nav) {
+    this(data,nav,null);
+  }
+  /** Optional selected-variant teaching section remains an explicit, independently asynchronous request. */
+  public RecipeFieldGuidePanel(NativeRecipeGuideRepository.Snapshot data,Navigator nav,JComponent teaching) {
     super(new BorderLayout());var body=new JournalSurface.Body();add(JournalSurface.scroll(body));
     JournalSurface.add(body,JournalSurface.title("Crafting field guide",30));
     if(!data.available()) {
@@ -35,6 +39,7 @@ public final class RecipeFieldGuidePanel extends JPanel {
       disclosure.addActionListener(event->{evidence.setVisible(disclosure.isSelected());disclosure.setText(disclosure.isSelected()?"Hide recipe source evidence":"Show recipe source evidence");revalidate();});
       JournalSurface.add(card,disclosure);JournalSurface.add(card,evidence);JournalSurface.add(body,card);
     }
+    if(teaching!=null)JournalSurface.add(body,teaching);
   }
   private static String value(Long value){return value==null?"Unknown":value.toString();}
   private static void itemLink(JPanel parent,String text,long item,Navigator nav) {

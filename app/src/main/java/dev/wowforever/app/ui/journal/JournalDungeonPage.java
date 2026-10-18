@@ -24,6 +24,9 @@ public final class JournalDungeonPage extends JPanel implements PageState {
   private final JPanel workspace=new JPanel(new WorkspaceLayout());
   private final JPanel modeBar=new JPanel(new FlowLayout(FlowLayout.LEADING,8,0));
   private final JToggleButton destinations=new JToggleButton("Destinations"),guideMode=new JToggleButton("Selected guide");
+  private final JPanel destinationControls=JournalSurface.stack();
+  private final JPanel indexIntroduction=JournalSurface.stack();
+  private final JToggleButton filterDisclosure=new JToggleButton("Destination filters");
   private final JComponent attachedGuide;
   private final Long attachedInstance;
   private boolean compactDetail;
@@ -53,19 +56,24 @@ public final class JournalDungeonPage extends JPanel implements PageState {
     if(instanceId!=null){selected="instance:"+instanceId;compactDetail=true;}
     setBorder(BorderFactory.createEmptyBorder(20,24,24,24));
     JPanel header=JournalSurface.stack();
-    JournalSurface.add(header,JournalSurface.heading("Dungeons & raids",32));
-    JournalSurface.add(header,JournalSurface.copy("Choose a destination, then explore its encounters, loot and maps without losing your place."));
+    JournalSurface.add(indexIntroduction,JournalSurface.heading("Dungeons & raids",32));
+    JournalSurface.add(indexIntroduction,JournalSurface.copy("Choose a destination, then explore its encounters, loot and maps without losing your place."));
+    header.add(indexIntroduction);
     search.putClientProperty("JTextField.placeholderText","Search dungeon, raid, or zone…");
     search.getAccessibleContext().setAccessibleName("Search dungeons, raids, and zones");
-    search.putClientProperty("JComponent.minimumHeight",36);JournalSurface.add(header,search);
+    search.putClientProperty("JComponent.minimumHeight",36);JournalSurface.add(destinationControls,search);
     JPanel filters=new JPanel(new FilterLayout());filters.setOpaque(false);filter(filters,"Source",scope);filter(filters,"Content",kind);filter(filters,"Level range",level);filter(filters,"Evidence",knowledge);
-    JournalSurface.add(header,filters);JournalSurface.add(header,count);
+    JournalSurface.add(destinationControls,filters);JournalSurface.add(destinationControls,count);
+    filterDisclosure.setName("dungeon-destination-filters");
+    filterDisclosure.getAccessibleContext().setAccessibleDescription("Expand destination search and filters while keeping the selected guide open");
+    filterDisclosure.addActionListener(e->{revalidate();repaint();});
+    header.add(filterDisclosure);header.add(destinationControls);
     modeBar.setOpaque(false);ButtonGroup modes=new ButtonGroup();modes.add(destinations);modes.add(guideMode);
     destinations.setSelected(!compactDetail);guideMode.setSelected(compactDetail);
     destinations.getAccessibleContext().setAccessibleDescription("Show the dungeon destination list in a compact window");
     guideMode.getAccessibleContext().setAccessibleDescription("Show the selected dungeon guide in a compact window");
-    destinations.addActionListener(e->{compactDetail=false;workspace.revalidate();workspace.repaint();});
-    guideMode.addActionListener(e->{compactDetail=true;workspace.revalidate();workspace.repaint();});
+    destinations.addActionListener(e->{compactDetail=false;revalidate();repaint();});
+    guideMode.addActionListener(e->{compactDetail=true;revalidate();repaint();});
     modeBar.add(destinations);modeBar.add(guideMode);header.add(modeBar);add(header,BorderLayout.NORTH);
     rows.setBorder(BorderFactory.createEmptyBorder(0,0,8,8));scroll=JournalSurface.scroll(rows);
     scroll.getAccessibleContext().setAccessibleName("Dungeon destinations");
@@ -79,6 +87,17 @@ public final class JournalDungeonPage extends JPanel implements PageState {
     for(JComboBox<String> combo:List.of(scope,kind,level,knowledge))combo.addActionListener(e->changed());
     search.getDocument().addDocumentListener(new DocumentListener(){public void insertUpdate(DocumentEvent e){changed();}public void removeUpdate(DocumentEvent e){changed();}public void changedUpdate(DocumentEvent e){changed();}});
     previous.addActionListener(e->{page--;refresh();});next.addActionListener(e->{page++;refresh();});refresh();
+  }
+  @Override public void doLayout(){
+    boolean compact=getWidth()<848;
+    boolean compactGuide=compact&&attachedGuide!=null&&compactDetail;
+    indexIntroduction.setVisible(!compactGuide);
+    filterDisclosure.setVisible(compactGuide);
+    destinationControls.setVisible(!compactGuide||filterDisclosure.isSelected());
+    modeBar.setVisible(compact);
+    Insets desired=new Insets(compactGuide?8:20,compactGuide?10:24,compactGuide?10:24,compactGuide?10:24);
+    if(!getInsets().equals(desired))setBorder(BorderFactory.createEmptyBorder(desired.top,desired.left,desired.bottom,desired.right));
+    super.doLayout();
   }
   private static void filter(JPanel parent,String text,JComboBox<String> combo){
     JPanel field=JournalSurface.stack();JLabel label=new JLabel(text);label.setLabelFor(combo);combo.getAccessibleContext().setAccessibleName(text);
@@ -172,15 +191,15 @@ public final class JournalDungeonPage extends JPanel implements PageState {
   private static String levelLabel(Entry e){
     return e.min()==null&&e.max()==null?"Level not recorded":e.min()==null?"Up to level "+e.max():e.max()==null?"Level "+e.min()+"+":"Levels "+e.min()+"–"+e.max();
   }
-  private record WorkspaceState(State index,boolean compactDetail,Object guide) {}
+  private record WorkspaceState(State index,boolean compactDetail,boolean filtersExpanded,Object guide) {}
   /** Destination filters can be shared across different instance targets without copying boss or tab state. */
   public State destinationState(){return new State(search.getText(),scope.getSelectedIndex(),kind.getSelectedIndex(),level.getSelectedIndex(),knowledge.getSelectedIndex(),page,selected,scroll.getVerticalScrollBar().getValue());}
   public Object saveState(){
     State index=destinationState();
-    return attachedGuide==null?index:new WorkspaceState(index,compactDetail,attachedGuide instanceof PageState p?p.saveState():null);
+    return attachedGuide==null?index:new WorkspaceState(index,compactDetail,filterDisclosure.isSelected(),attachedGuide instanceof PageState p?p.saveState():null);
   }
   public void restoreState(Object state){
-    if(state instanceof WorkspaceState w){compactDetail=w.compactDetail();if(attachedGuide instanceof PageState p)p.restoreState(w.guide());state=w.index();}
+    if(state instanceof WorkspaceState w){compactDetail=w.compactDetail();filterDisclosure.setSelected(w.filtersExpanded());if(attachedGuide instanceof PageState p)p.restoreState(w.guide());state=w.index();}
     if(!(state instanceof State s))return;restoring=true;
     search.setText(s.query());scope.setSelectedIndex(s.scope());kind.setSelectedIndex(s.kind());level.setSelectedIndex(s.level());knowledge.setSelectedIndex(s.knowledge());page=s.page();selected=attachedInstance==null?s.selected():"instance:"+attachedInstance;restoring=false;refresh();
     SwingUtilities.invokeLater(()->scroll.getVerticalScrollBar().setValue(s.scroll()));
@@ -208,7 +227,7 @@ public final class JournalDungeonPage extends JPanel implements PageState {
     public Dimension minimumLayoutSize(Container parent){return new Dimension(0,240);}
     public Dimension preferredLayoutSize(Container parent){return new Dimension(900,450);}
     public void layoutContainer(Container parent){
-      boolean wide=parent.getWidth()>=800;int width=parent.getWidth(),height=parent.getHeight();
+      boolean wide=JournalDungeonPage.this.getWidth()>=848;int width=parent.getWidth(),height=parent.getHeight();
       Component results=parent.getComponent(0),detail=parent.getComponent(1);
       if(modeBar.isVisible()==wide){modeBar.setVisible(!wide);JournalDungeonPage.this.revalidate();}
       results.setVisible(wide||!compactDetail);detail.setVisible(wide||compactDetail);

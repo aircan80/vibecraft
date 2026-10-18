@@ -14,6 +14,7 @@ public final class SharedLootPage extends JPanel implements PageState {
   public static final String EMPTY = "No shared or extra loot list recorded for this instance. Unknown is not proof that no shared pool exists.";
   public static final String EVIDENCE = "These are the source's original list names. A shared or extra list is not necessarily trash, all bosses or world drops. Reported membership does not establish Forever drop confirmation, rates, equal probabilities or eligible mobs. Class, slot and resistance filters use recorded Forever item fields; missing fields remain unknown.";
   private final InstancePage lists;
+  private final JToggleButton evidenceDisclosure=new JToggleButton("About shared loot evidence");
 
   /** Call with the preloaded detail snapshot. No repository or worker is needed here. */
   public SharedLootPage(InstanceDetail detail, BossLoot loaded, String clientBuild, Navigator nav) {
@@ -26,8 +27,17 @@ public final class SharedLootPage extends JPanel implements PageState {
     JLabel heading = new JLabel(HEADING);
     heading.setFont(heading.getFont().deriveFont(Font.BOLD));
     heading.setAlignmentX(LEFT_ALIGNMENT); intro.add(heading);
-    var explanation = new WrappingText(snapshot.lists().isEmpty() ? EMPTY : EVIDENCE, "Shared loot evidence coverage");
-    explanation.setAlignmentX(LEFT_ALIGNMENT); intro.add(explanation);
+    var caption = new WrappingText(snapshot.lists().isEmpty() ? EMPTY : "Choose a source list. Reported membership is separate from Forever item-field knowledge.", "Shared loot coverage summary");
+    caption.setAlignmentX(LEFT_ALIGNMENT); intro.add(caption);
+    var explanation = new WrappingText(EVIDENCE, "Shared loot evidence coverage");
+    explanation.setAlignmentX(LEFT_ALIGNMENT);
+    JScrollPane evidenceScroll=new JScrollPane(explanation,JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+    evidenceScroll.setAlignmentX(LEFT_ALIGNMENT);evidenceScroll.setPreferredSize(new Dimension(0,96));
+    evidenceScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE,96));evidenceScroll.setVisible(false);
+    evidenceScroll.getVerticalScrollBar().setUnitIncrement(16);
+    evidenceDisclosure.setAlignmentX(LEFT_ALIGNMENT);evidenceDisclosure.setName("shared-loot-evidence-disclosure");
+    evidenceDisclosure.addActionListener(e->{evidenceScroll.setVisible(evidenceDisclosure.isSelected());revalidate();repaint();});
+    if(!snapshot.lists().isEmpty()){intro.add(evidenceDisclosure);intro.add(evidenceScroll);}
     JPanel identities = new JPanel(new GridLayout(0, 1, 0, 3));
     identities.setAlignmentX(LEFT_ALIGNMENT); intro.add(identities);
     add(intro, BorderLayout.NORTH);
@@ -68,12 +78,13 @@ public final class SharedLootPage extends JPanel implements PageState {
     panel.add(link);
   }
 
-  private record State(Object selection, List<Integer> scroll) {}
+  private record State(Object selection, List<Integer> scroll, boolean evidenceExpanded) {}
   @Override public Object saveState() {
-    return new State(lists == null ? null : lists.saveState(), scrollbars(this).stream().map(JScrollBar::getValue).toList());
+    return new State(lists == null ? null : lists.saveState(), scrollbars(this).stream().map(JScrollBar::getValue).toList(),evidenceDisclosure.isSelected());
   }
   @Override public void restoreState(Object value) {
     if (!(value instanceof State state)) return;
+    if(evidenceDisclosure.isSelected()!=state.evidenceExpanded())evidenceDisclosure.doClick(0);
     if (lists != null) lists.restoreState(state.selection());
     SwingUtilities.invokeLater(() -> {
       var bars = scrollbars(this);

@@ -1,0 +1,51 @@
+{
+  "completedAt": "2026-10-18T01:31:59.869991+00:00",
+  "appJarSha256": "e7e5ff657b70042378b74110cfef1f66645dfad354535e19db7e29dead3e011c",
+  "fullMaven": {
+    "tests": 1984,
+    "skipped": 6,
+    "failures": 0,
+    "errors": 0,
+    "appTests": 1331
+  },
+  "native": {
+    "assertions": 153,
+    "captures": 64,
+    "suites": [
+      "startup-final",
+      "native-final",
+      "instance-scrolled",
+      "research-final",
+      "sounds-final",
+      "teaching-final"
+    ],
+    "scope": "Isolated X11 JFrame/Robot, music and sound disabled; no Wayland desktop automation claim",
+    "reportsRoot": ".local/sounds-teaching-acceptance",
+    "compact": "Shared source list remains visible and native scrolling reaches actual MC302x153 / Deadmines302x40 loot table; preparation and408px sound settings dialog reviewed"
+  },
+  "sound": {
+    "exactNativeClips": 5,
+    "packagedPcmDecode": "PASS; authenticated source hashes, expected frame counts and nonzero PCM",
+    "actualOutputPlayback": "PASS: native open cue through actual output device at22%; no human listening assertion",
+    "controls": "Independent mute and volume from city music",
+    "worker": "Bounded asynchronous acquisition and playback; cold actions dropped; debounced"
+  },
+  "databaseBuild": "40ca42c8e8c6442c0e2e633f76bf4f4638ebf23faf4029b568ee1ee038c207b7",
+  "databaseBytesChanged": false,
+  "desktop": "Exact frozen artifact launched with no args; Journal-only startup",
+  "features": [
+    "Original GUI/chooser retired",
+    "Shared source loot lists separated from encounters",
+    "Lazy recorded quest preparation research, unknown access explicitly qualified",
+    "Explicit native teaching-item lookup and acquisition navigation",
+    "Native interface sounds with separate settings",
+    "Compact guide filter/evidence disclosures preserve content"
+  ],
+  "limits": [
+    "No aggregate performance benchmark rerun in this batch",
+    "Long item heading may clip at420px; full title remains elsewhere",
+    "Genuine collector capture acceptance remains open",
+    "Humanoid known-data portrait reconstruction remains lab-only; NPC246 missing appearance mapping",
+    "Full pool/access rules and broader later releases remain partial"
+  ]
+}

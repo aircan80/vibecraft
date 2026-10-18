@@ -90,6 +90,20 @@ class AppControllerTest {
   }
 
   @Test
+  void soundFeedbackOnlyFollowsDeliberateNavigationAndAvailableHistory() {
+    AppController c=new AppController(repos,view,Runnable::run);
+    List<dev.wowforever.app.sound.UiSoundService.Cue> sounds=new ArrayList<>();
+    c.onNavigationSound(sounds::add);
+    c.start();c.back();c.forward();assertThat(sounds).isEmpty();
+    c.open(new ViewTarget.List(ITEM));
+    c.open(new ViewTarget.List(ITEM));
+    assertThat(sounds).containsExactly(dev.wowforever.app.sound.UiSoundService.Cue.OPEN);
+    c.back();c.forward();
+    assertThat(sounds).containsExactly(dev.wowforever.app.sound.UiSoundService.Cue.OPEN,
+        dev.wowforever.app.sound.UiSoundService.Cue.CLOSE,dev.wowforever.app.sound.UiSoundService.Cue.OPEN);
+  }
+
+  @Test
   void searchFillsTheListAndPushesHistory() {
     AppController c = new AppController(repos, view, Runnable::run);
     c.open(new ViewTarget.Search("subterr", Optional.empty()));

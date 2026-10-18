@@ -97,6 +97,7 @@ public final class MainFrame extends JFrame implements MainView {
   private dev.wowforever.app.catalog.EditionRegistry editions;
   private dev.wowforever.app.catalog.CatalogSession catalogSession;
   private final JMenuItem gameCatalog = new JMenuItem("Game catalog…");
+  private final JMenuItem interfaceSounds = new JMenuItem("Interface sounds…");
 
 
   /** Retained argument validation for callers migrating from the retired shell. */
@@ -587,6 +588,10 @@ public final class MainFrame extends JFrame implements MainView {
       catalog.setEnabled(catalogSession != null);
       catalog.addActionListener(event -> showGameCatalog());
       menu.add(catalog);
+      JMenuItem sounds = new JMenuItem("Interface sounds…");
+      sounds.setEnabled(catalogSession != null);
+      sounds.addActionListener(event -> showInterfaceSounds());
+      menu.add(sounds);
       menu.addSeparator();
     }
     menu.add(full);
@@ -624,6 +629,10 @@ public final class MainFrame extends JFrame implements MainView {
       gameCatalog.setEnabled(false);
       gameCatalog.addActionListener(event -> showGameCatalog());
       settings.add(gameCatalog);
+      interfaceSounds.setName("interface-sounds-menu");
+      interfaceSounds.setEnabled(false);
+      interfaceSounds.addActionListener(event -> showInterfaceSounds());
+      settings.add(interfaceSounds);
       bar.add(settings);
     }
     bar.add(help);
@@ -638,7 +647,24 @@ public final class MainFrame extends JFrame implements MainView {
     this.editions = java.util.Objects.requireNonNull(editions);
     this.catalogSession = java.util.Objects.requireNonNull(session);
     gameCatalog.setEnabled(true);
+    interfaceSounds.setEnabled(true);
     gameCatalog.setToolTipText("Current game: WoW Forever · " + session.token().context().clientBuild());
+  }
+
+  private void showInterfaceSounds() {
+    if (catalogSession == null) return;
+    var effects = dev.wowforever.app.sound.UiSoundService.shared();
+    JPanel panel = new JPanel(new BorderLayout(8, 8));
+    panel.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+    JTextArea explanation = new JTextArea("Optional feedback for navigation, windows and tabs. City music has separate controls.");
+    explanation.setEditable(false);explanation.setLineWrap(true);explanation.setWrapStyleWord(true);
+    explanation.setOpaque(false);explanation.setFont(panel.getFont());
+    explanation.setPreferredSize(new Dimension(360,54));
+    panel.add(explanation, BorderLayout.NORTH);
+    panel.add(new dev.wowforever.app.sound.UiSoundPanel(effects), BorderLayout.CENTER);
+    effects.play(dev.wowforever.app.sound.UiSoundService.Cue.OPEN);
+    try { JOptionPane.showMessageDialog(this, panel, "Interface sounds", JOptionPane.PLAIN_MESSAGE); }
+    finally { effects.play(dev.wowforever.app.sound.UiSoundService.Cue.CLOSE); }
   }
 
   private void showGameCatalog() {
@@ -727,6 +753,7 @@ public final class MainFrame extends JFrame implements MainView {
     boolean keepFocusInPage = focusStaysInPage(owner, detailHolder);
     detailHolder.removeAll();
     detailHolder.add(c, BorderLayout.CENTER);
+    installTabSounds(c, cue -> dev.wowforever.app.sound.UiSoundService.shared().play(cue));
     detailHolder.revalidate();
     detailHolder.repaint();
     if (keepFocusInPage) {
@@ -735,6 +762,44 @@ public final class MainFrame extends JFrame implements MainView {
       // searches never pop open.
       focusTargetIn(c).requestFocusInWindow();
     }
+  }
+
+  /** Only direct tab input qualifies: state restoration and lazy loading stay silent. */
+  static boolean userTabSelection(javax.swing.JTabbedPane tabs, java.awt.AWTEvent event) {
+    if (event instanceof java.awt.event.MouseEvent mouse && mouse.getSource() == tabs) {
+      int index = tabs.indexAtLocation(mouse.getX(), mouse.getY());
+      return (mouse.getID() == java.awt.event.MouseEvent.MOUSE_PRESSED
+          || mouse.getID() == java.awt.event.MouseEvent.MOUSE_RELEASED)
+          && index >= 0 && index == tabs.getSelectedIndex();
+    }
+    if (event instanceof java.awt.event.KeyEvent key && key.getSource() == tabs
+        && key.getID() == java.awt.event.KeyEvent.KEY_PRESSED) {
+      return switch (key.getKeyCode()) {
+        case java.awt.event.KeyEvent.VK_LEFT, java.awt.event.KeyEvent.VK_RIGHT,
+            java.awt.event.KeyEvent.VK_UP, java.awt.event.KeyEvent.VK_DOWN,
+            java.awt.event.KeyEvent.VK_PAGE_UP, java.awt.event.KeyEvent.VK_PAGE_DOWN -> true;
+        default -> false;
+      };
+    }
+    return false;
+  }
+
+  static void installTabSounds(Component component,
+      Consumer<dev.wowforever.app.sound.UiSoundService.Cue> feedback) {
+    if (!(component instanceof JComponent jc) || Boolean.TRUE.equals(jc.getClientProperty("ui-sound-tabs-installed"))) return;
+    jc.putClientProperty("ui-sound-tabs-installed", true);
+    if (jc instanceof javax.swing.JTabbedPane tabs) {
+      tabs.addChangeListener(event -> {
+        if (userTabSelection(tabs, java.awt.EventQueue.getCurrentEvent()))
+          feedback.accept(dev.wowforever.app.sound.UiSoundService.Cue.TAB);
+      });
+    }
+    jc.addContainerListener(new java.awt.event.ContainerAdapter() {
+      @Override public void componentAdded(java.awt.event.ContainerEvent event) {
+        installTabSounds(event.getChild(), feedback);
+      }
+    });
+    for (Component child : jc.getComponents()) installTabSounds(child, feedback);
   }
 
   /** Whether the keyboard focus, held by {@code owner}, sits inside {@code holder} (a page about to be replaced). */

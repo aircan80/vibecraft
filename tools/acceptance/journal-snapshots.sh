@@ -8,4 +8,4 @@ mkdir -p "$journal_temp/classes" "$journal_temp/prefs"
 javac -encoding UTF-8 -cp "$1" -d "$journal_temp/classes" "$journal_source/JournalSnapshots.java"
 journal_headless=true
 if [[ "$4" == native ]]; then journal_headless=false; fi
-java --enable-native-access=ALL-UNNAMED -Dwowforever.music.enabled=false -Djava.awt.headless="$journal_headless" -Dflatlaf.uiScale=1 -Djava.util.prefs.userRoot="$journal_temp/prefs" -cp "$journal_temp/classes:$1" JournalSnapshots "$1" "$2" "$3" "$4"
+java --enable-native-access=ALL-UNNAMED -Dwowforever.music.enabled=false -Dwowforever.sound.enabled=false -Djava.awt.headless="$journal_headless" -Dflatlaf.uiScale=1 -Djava.util.prefs.userRoot="$journal_temp/prefs" -cp "$journal_temp/classes:$1" JournalSnapshots "$1" "$2" "$3" "$4"

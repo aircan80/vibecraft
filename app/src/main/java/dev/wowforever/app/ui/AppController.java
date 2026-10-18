@@ -248,6 +248,13 @@ public final class AppController implements Navigator {
     };
   }
 
+  private java.util.function.Consumer<dev.wowforever.app.sound.UiSoundService.Cue> navigationSound = cue -> {};
+
+  /** Optional feedback for deliberate navigation, separate from loading and rendering. */
+  public void onNavigationSound(java.util.function.Consumer<dev.wowforever.app.sound.UiSoundService.Cue> feedback) {
+    navigationSound = Objects.requireNonNull(feedback);
+  }
+
   /** Opens the home page. */
   public void start() {
     open(new ViewTarget.Home());
@@ -255,6 +262,7 @@ public final class AppController implements Navigator {
 
   @Override
   public void open(ViewTarget t) {
+    if (current() != null && !isCurrent(t)) navigationSound.accept(dev.wowforever.app.sound.UiSoundService.Cue.OPEN);
     history.push(t);
     previewSlot = false;
     show(t);
@@ -287,6 +295,7 @@ public final class AppController implements Navigator {
     view.onResultOpened();
     ViewTarget t = new ViewTarget.Entity(ref);
     if (isCurrent(t)) {
+      if (previewSlot) navigationSound.accept(dev.wowforever.app.sound.UiSoundService.Cue.CONFIRM);
       previewSlot = false;
       pageSearchEditRevision = view.searchEditRevision();
       if (loaded != null && loaded.ref().equals(ref) && t.equals(pageTarget)) {
@@ -300,6 +309,7 @@ public final class AppController implements Navigator {
       history.push(t);
     }
     previewSlot = false;
+    navigationSound.accept(dev.wowforever.app.sound.UiSoundService.Cue.OPEN);
     show(t);
   }
 
@@ -421,6 +431,7 @@ public final class AppController implements Navigator {
   /** Re-shows the previous target, if any. */
   public void back() {
     history.back().ifPresent(t -> {
+      navigationSound.accept(dev.wowforever.app.sound.UiSoundService.Cue.CLOSE);
       previewSlot = false;
       show(t);
     });
@@ -429,6 +440,7 @@ public final class AppController implements Navigator {
   /** Re-shows the next target, if any. */
   public void forward() {
     history.forward().ifPresent(t -> {
+      navigationSound.accept(dev.wowforever.app.sound.UiSoundService.Cue.OPEN);
       previewSlot = false;
       show(t);
     });

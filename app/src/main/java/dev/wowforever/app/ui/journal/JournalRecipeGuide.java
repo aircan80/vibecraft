@@ -12,6 +12,9 @@ import java.awt.Component;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.function.Supplier;
+import java.util.function.LongFunction;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import javax.swing.*;
 
 /** Explicitly selected, lazy native recipe section. Queries never run during construction/rendering. */
@@ -20,6 +23,7 @@ final class JournalRecipeGuide extends JPanel implements PageState {
   private final Executor worker;
   private final Navigator nav;
   private final StatusSink sink;
+  private final LongFunction<dev.wowforever.app.db.NativeTeachingItemRepository.Snapshot> teachingLoad;
   private final JPanel content=new JPanel(new BorderLayout());
   private final JComboBox<Recipe> variants=new JComboBox<>();
   private final JPanel choices=new JPanel(new BorderLayout(0,6));
@@ -31,10 +35,19 @@ final class JournalRecipeGuide extends JPanel implements PageState {
   private JScrollPane recipeScroll;
   private String restoredVariant;
   private Integer restoredScroll;
-  private record State(String variant,int scroll) {}
+  private JournalTeachingItems teaching;
+  private String teachingVariant;
+  private final Map<String,Object> teachingStates=new LinkedHashMap<>();
+  private record State(String variant,int scroll,Map<String,Object> teaching) {
+    private State { teaching=Map.copyOf(teaching); }
+  }
 
   JournalRecipeGuide(Supplier<Snapshot> load,Executor worker,Navigator nav,StatusSink sink) {
-    super(new BorderLayout(0,8));this.load=load;this.worker=worker;this.nav=nav;this.sink=sink;
+    this(load,worker,nav,sink,null);
+  }
+  JournalRecipeGuide(Supplier<Snapshot> load,Executor worker,Navigator nav,StatusSink sink,
+      LongFunction<dev.wowforever.app.db.NativeTeachingItemRepository.Snapshot> teachingLoad) {
+    super(new BorderLayout(0,8));this.load=load;this.worker=worker;this.nav=nav;this.sink=sink;this.teachingLoad=teachingLoad;
     setBorder(BorderFactory.createEmptyBorder(12,12,0,12));choices.setOpaque(false);
     choices.add(new JLabel("Recipe variant"),BorderLayout.NORTH);choices.add(variants);choices.setVisible(false);add(choices,BorderLayout.NORTH);add(content);
     variants.getAccessibleContext().setAccessibleName("Native recipe variant");
@@ -50,7 +63,8 @@ final class JournalRecipeGuide extends JPanel implements PageState {
   /** The tab owner selects/deactivates this section, including Back/Forward restoration. */
   void setActive(boolean value) {
     if(active==value)return;active=value;
-    if(!value){generation++;loading=false;return;}
+    if(!value){generation++;loading=false;if(teaching!=null)teaching.deactivate();return;}
+    if(teaching!=null)teaching.resumeIfRequested();
     if(snapshot==null&&!loading)refresh();
   }
   @Override public void addNotify(){super.addNotify();SwingUtilities.invokeLater(()->{if(isShowing())setActive(true);});}
@@ -74,15 +88,21 @@ final class JournalRecipeGuide extends JPanel implements PageState {
     if(snapshot==null)return;
     Recipe selected=(Recipe)variants.getSelectedItem();
     Snapshot displayed=selected==null?snapshot:new Snapshot(snapshot.snapshotId(),snapshot.build(),List.of(selected));
-    var page=new RecipeFieldGuidePanel(displayed,nav);content.removeAll();content.add(page);recipeScroll=null;
+    rememberTeaching();if(teaching!=null)teaching.deactivate();teaching=null;teachingVariant=null;
+    if(selected!=null&&teachingLoad!=null){
+      teachingVariant=selected.variant();teaching=new JournalTeachingItems(()->teachingLoad.apply(selected.spellId()),worker,nav,sink,snapshot.snapshotId(),selected.spellId());
+      teaching.restoreState(teachingStates.get(teachingVariant));
+    }
+    var page=new RecipeFieldGuidePanel(displayed,nav,teaching);content.removeAll();content.add(page);recipeScroll=null;
     for(Component child:page.getComponents())if(child instanceof JScrollPane pane){recipeScroll=pane;break;}
     content.revalidate();content.repaint();
     if(restoredScroll!=null&&recipeScroll!=null){int position=restoredScroll;restoredScroll=null;JScrollPane target=recipeScroll;SwingUtilities.invokeLater(()->{if(recipeScroll==target)target.getVerticalScrollBar().setValue(position);});}
   }
   private void message(String value){content.removeAll();content.add(JournalSurface.copy(value),BorderLayout.NORTH);content.revalidate();content.repaint();}
-  @Override public Object saveState(){Recipe selected=(Recipe)variants.getSelectedItem();return new State(selected==null?restoredVariant:selected.variant(),recipeScroll==null?(restoredScroll==null?0:restoredScroll):recipeScroll.getVerticalScrollBar().getValue());}
+  private void rememberTeaching(){if(teaching!=null&&teachingVariant!=null)teachingStates.put(teachingVariant,teaching.saveState());}
+  @Override public Object saveState(){rememberTeaching();Recipe selected=(Recipe)variants.getSelectedItem();return new State(selected==null?restoredVariant:selected.variant(),recipeScroll==null?(restoredScroll==null?0:restoredScroll):recipeScroll.getVerticalScrollBar().getValue(),teachingStates);}
   @Override public void restoreState(Object value){
-    if(!(value instanceof State state))return;restoredVariant=state.variant();restoredScroll=state.scroll();
+    if(!(value instanceof State state))return;if(teaching!=null)teaching.deactivate();teaching=null;teachingVariant=null;teachingStates.clear();teachingStates.putAll(state.teaching());restoredVariant=state.variant();restoredScroll=state.scroll();
     if(snapshot!=null){updating=true;for(Recipe recipe:snapshot.recipes())if(recipe.variant().equals(restoredVariant)){variants.setSelectedItem(recipe);break;}updating=false;showRecipe();}
   }
 }

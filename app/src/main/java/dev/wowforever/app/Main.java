@@ -107,6 +107,8 @@ public final class Main {
     frame.addWindowListener(new WindowAdapter() {
       @Override
       public void windowClosed(WindowEvent e) {
+        dev.wowforever.app.sound.UiSoundService.shared().close();
+        dev.wowforever.app.music.CityMusicService.shared().close();
         Database db = open.get();
         if (db != null) {
           db.close();
@@ -121,6 +123,7 @@ public final class Main {
       IconCache.install(new IconCache(loaded.repos().assets()));
       AppController controller = new AppController(loaded.repos(), frame, Async.SWING_WORKER, loaded.meta());
       controller.configureCatalogSession(loaded.session());
+      controller.onNavigationSound(dev.wowforever.app.sound.UiSoundService.shared()::play);
       frame.configureCatalogSelection(loaded.editions(), loaded.session());
       frame.attach(controller);
       controller.start();
@@ -162,6 +165,9 @@ public final class Main {
         CatalogSession session = new CatalogSession(editions,
             java.util.prefs.Preferences.userNodeForPackage(Main.class).node("game-selection"));
         Repositories repos = Repositories.of(db, session.token().context());
+        // Validated gameplay identity; construction, preferences and asset prewarming stay off the EDT.
+        dev.wowforever.app.sound.UiSoundService.shared().configure(
+            meta.get("client_product"), session.token().context().clientBuild());
         return new Loaded(db, repos, meta, editions, session);
       } catch (RuntimeException e) {
         db.close();

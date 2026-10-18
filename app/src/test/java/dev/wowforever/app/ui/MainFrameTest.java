@@ -17,6 +17,22 @@ import org.junit.jupiter.api.Test;
 class MainFrameTest {
 
   @Test
+  void tabFeedbackIgnoresRestorationTypingAndEventsFromOtherControls() {
+    var tabs=new javax.swing.JTabbedPane();tabs.addTab("One",new JPanel());tabs.addTab("Two",new JPanel());
+    tabs.setSize(400,200);tabs.doLayout();tabs.setSelectedIndex(1);
+    java.awt.Rectangle bounds=tabs.getBoundsAt(1);
+    var click=new java.awt.event.MouseEvent(tabs,java.awt.event.MouseEvent.MOUSE_PRESSED,0,0,bounds.x+2,bounds.y+2,1,false);
+    assertThat(MainFrame.userTabSelection(tabs,click)).isTrue();
+    assertThat(MainFrame.userTabSelection(tabs,new java.awt.event.InvocationEvent(tabs,()->{}))).isFalse();
+    assertThat(MainFrame.userTabSelection(tabs,new java.awt.event.KeyEvent(tabs,java.awt.event.KeyEvent.KEY_PRESSED,0,0,java.awt.event.KeyEvent.VK_RIGHT,' '))).isTrue();
+    assertThat(MainFrame.userTabSelection(tabs,new java.awt.event.KeyEvent(tabs,java.awt.event.KeyEvent.KEY_PRESSED,0,0,java.awt.event.KeyEvent.VK_A,'a'))).isFalse();
+    assertThat(MainFrame.userTabSelection(tabs,new java.awt.event.MouseEvent(new JPanel(),java.awt.event.MouseEvent.MOUSE_PRESSED,0,0,bounds.x+2,bounds.y+2,1,false))).isFalse();
+    java.util.List<dev.wowforever.app.sound.UiSoundService.Cue> cues=new java.util.ArrayList<>();
+    MainFrame.installTabSounds(tabs,cues::add);MainFrame.installTabSounds(tabs,cues::add);
+    tabs.setSelectedIndex(0);assertThat(cues).isEmpty();
+  }
+
+  @Test
   void onlyJournalCanConstructTheProductionShell() {
     assertThat(MainFrame.supportedExperience(UiExperience.JOURNAL)).isEqualTo(UiExperience.JOURNAL);
     org.assertj.core.api.Assertions.assertThatThrownBy(() -> MainFrame.supportedExperience(UiExperience.CLASSIC))
