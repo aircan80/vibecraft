@@ -21,7 +21,7 @@ class RuntimeLibraryExporterTest {
       s.execute("CREATE TABLE source_archive_file(id INTEGER PRIMARY KEY,blob_sha256 TEXT REFERENCES source_archive_blob(sha256))");s.execute("INSERT INTO source_archive_file VALUES(1,'native-sha')");
       s.execute("CREATE TABLE field_knowledge_assertion(id INTEGER,edition TEXT,value TEXT,source TEXT)");s.execute("CREATE UNIQUE INDEX field_knowledge_assertion_identity ON field_knowledge_assertion(id,edition)");
       s.execute("INSERT INTO field_knowledge_assertion VALUES(1,'forever','conflictA','native'),(2,'forever','conflictB','collector'),(1,'era','comparison','era')");
-      s.execute("CREATE TABLE typed_values(i INTEGER,r REAL,t TEXT,b BLOB,n TEXT)");s.execute("INSERT INTO typed_values VALUES(1,1.25,'text',x'0001',NULL),(1,1.25,'text',x'0001',NULL)");
+      s.execute("CREATE TABLE typed_values(i INTEGER,r REAL,t TEXT,b BLOB,n TEXT)");s.execute("CREATE INDEX typed_values_index ON typed_values(i)");s.execute("INSERT INTO typed_values VALUES(1,1.25,'text',x'0001',NULL),(1,1.25,'text',x'0001',NULL)");
     }return source;
   }
   private SetupStorage storage()throws Exception{return new SetupStorage(root,List.of(root.resolve("game")),Optional.of(root.resolve("active.sqlite")));}
@@ -69,6 +69,51 @@ class RuntimeLibraryExporterTest {
   @Test void foreignKeyFailureNeverPublishes()throws Exception {
     Path source=source();try(var c=DriverManager.getConnection("jdbc:sqlite:"+source);var s=c.createStatement()){s.execute("INSERT INTO source_archive_file VALUES(2,'missing')");}
     assertThatThrownBy(()->export(source,root.resolve("runtime.sqlite"))).isInstanceOf(java.io.IOException.class).hasMessageContaining("foreign keys");assertNoTemporary();
+  }
+  @Test void readOnlyVerificationReDerivesActualSourceAndRuntime()throws Exception {
+    Path source=source(),runtime=root.resolve("runtime.sqlite");var receipt=export(source,runtime);
+    var verified=new RuntimeLibraryExporter().verifyExport(source,runtime,storage(),receipt,()->false);
+    assertThat(verified.fullSource()).isEqualTo(source.toRealPath());assertThat(verified.runtime()).isEqualTo(runtime.toRealPath());
+    assertThat(RuntimeLibraryExporter.hashFile(source,()->false)).isEqualTo(receipt.sourceSha256());
+    assertThat(RuntimeLibraryExporter.hashFile(runtime,()->false)).isEqualTo(receipt.outputSha256());assertNoTemporary();
+  }
+  @Test void forgedUpdatedOutputHashCannotHideChangedRuntimeRowsOrForgedDigests()throws Exception {
+    Path source=source(),runtime=root.resolve("runtime.sqlite");var receipt=export(source,runtime);
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+runtime);var s=c.createStatement()){s.execute("UPDATE field_knowledge_assertion SET value='forged' WHERE id=2");}
+    var forged=new HashMap<>(receipt.retainedTables());forged.put("field_knowledge_assertion",new RuntimeLibraryExporter.Digest(3,"0".repeat(64)));
+    var updated=updatedOutput(receipt,runtime,forged);
+    assertThatThrownBy(()->new RuntimeLibraryExporter().verifyExport(source,runtime,storage(),updated,()->false)).isInstanceOf(java.io.IOException.class).hasMessageContaining("Retained table");
+  }
+  @Test void forgedReceiptMissingTablesOrWrongOmissionCountsIsRejected()throws Exception {
+    Path source=source(),runtime=root.resolve("runtime.sqlite");var receipt=export(source,runtime);
+    var missing=new HashMap<>(receipt.retainedTables());missing.remove("typed_values");
+    assertThatThrownBy(()->new RuntimeLibraryExporter().verifyExport(source,runtime,storage(),updatedOutput(receipt,runtime,missing),()->false)).isInstanceOf(java.io.IOException.class).hasMessageContaining("table set");
+    var wrongCounts=new RuntimeLibraryExporter.Receipt(receipt.sourceBytes(),receipt.sourceSha256(),receipt.outputBytes(),receipt.outputSha256(),receipt.buildId(),receipt.omittedRawRecords()+1,receipt.omittedArchiveBytes(),receipt.retainedTables());
+    assertThatThrownBy(()->new RuntimeLibraryExporter().verifyExport(source,runtime,storage(),wrongCounts,()->false)).isInstanceOf(java.io.IOException.class).hasMessageContaining("counts");
+  }
+  @Test void forgedOutputHashCannotHideArchiveIdentityOrExtraMetadata()throws Exception {
+    Path source=source(),runtime=root.resolve("runtime.sqlite");var receipt=export(source,runtime);
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+runtime);var s=c.createStatement()){s.execute("UPDATE source_archive_blob SET original_size=original_size+1");}
+    assertThatThrownBy(()->new RuntimeLibraryExporter().verifyExport(source,runtime,storage(),updatedOutput(receipt,runtime,receipt.retainedTables()),()->false)).isInstanceOf(java.io.IOException.class).hasMessageContaining("Archive identities");
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+runtime);var s=c.createStatement()){s.execute("UPDATE source_archive_blob SET original_size=original_size-1");s.execute("INSERT INTO meta VALUES('unexpected','forged')");}
+    assertThatThrownBy(()->new RuntimeLibraryExporter().verifyExport(source,runtime,storage(),updatedOutput(receipt,runtime,receipt.retainedTables()),()->false)).isInstanceOf(java.io.IOException.class).hasMessageContaining("metadata keys");
+  }
+  @Test void verificationRejectsActiveInputsAndCancellationWithoutWrites()throws Exception {
+    Path source=source(),runtime=root.resolve("runtime.sqlite");var receipt=export(source,runtime);
+    var activeStorage=new SetupStorage(root,List.of(),Optional.of(runtime));
+    assertThatThrownBy(()->new RuntimeLibraryExporter().verifyExport(source,runtime,activeStorage,receipt,()->false)).isInstanceOf(java.io.IOException.class).hasMessageContaining("active database");
+    assertThatThrownBy(()->new RuntimeLibraryExporter().verifyExport(source,runtime,storage(),receipt,()->true)).isInstanceOf(CancellationException.class);
+    var polls=new AtomicInteger();
+    assertThatThrownBy(()->new RuntimeLibraryExporter().verifyExport(source,runtime,storage(),receipt,()->polls.incrementAndGet()>8)).isInstanceOf(CancellationException.class);
+    assertThat(RuntimeLibraryExporter.hashFile(runtime,()->false)).isEqualTo(receipt.outputSha256());assertNoTemporary();
+  }
+  @Test void forgedOutputHashCannotHideChangedRuntimeSchema()throws Exception {
+    Path source=source(),runtime=root.resolve("runtime.sqlite");var receipt=export(source,runtime);
+    try(var c=DriverManager.getConnection("jdbc:sqlite:"+runtime);var s=c.createStatement()){s.execute("DROP INDEX typed_values_index");}
+    assertThatThrownBy(()->new RuntimeLibraryExporter().verifyExport(source,runtime,storage(),updatedOutput(receipt,runtime,receipt.retainedTables()),()->false)).isInstanceOf(java.io.IOException.class).hasMessageContaining("schema differs");
+  }
+  private RuntimeLibraryExporter.Receipt updatedOutput(RuntimeLibraryExporter.Receipt receipt,Path runtime,Map<String,RuntimeLibraryExporter.Digest> tables)throws Exception {
+    return new RuntimeLibraryExporter.Receipt(receipt.sourceBytes(),receipt.sourceSha256(),Files.size(runtime),RuntimeLibraryExporter.hashFile(runtime,()->false),receipt.buildId(),receipt.omittedRawRecords(),receipt.omittedArchiveBytes(),tables);
   }
   private void assertNoTemporary()throws Exception {try(var files=Files.list(root)){assertThat(files.map(p->p.getFileName().toString()).filter(n->n.startsWith(".runtime-")).toList()).isEmpty();}}
 }

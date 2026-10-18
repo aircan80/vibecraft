@@ -18,6 +18,7 @@ public final class RuntimeLibraryExporter {
       String buildId,long omittedRawRecords,long omittedArchiveBytes,Map<String,Digest> retainedTables) {
     public Receipt { retainedTables=Map.copyOf(retainedTables); }
   }
+  public record VerifiedExport(Path fullSource,Path runtime,Receipt receipt) {}
   private static final Set<String> OMIT=Set.of("meta","source_record","source_archive_blob","sqlite_stat1","sqlite_stat4");
   public Receipt export(Path source,Path output,SetupStorage storage,long expectedBytes,String expectedSha256,
       BooleanSupplier cancelled)throws IOException,SQLException {
@@ -74,6 +75,62 @@ public final class RuntimeLibraryExporter {
       return new Receipt(expectedBytes,expectedSha256,size,hash,build,records,archives,retained);
     } catch(SQLException failure) {check(cancelled);throw failure;
     } finally {Files.deleteIfExists(temporary);for(String suffix:List.of("-wal","-shm","-journal"))Files.deleteIfExists(temporary.resolveSibling(temporary.getFileName()+suffix));}
+  }
+  /** Re-derives an export's relationship to its full staging database; never writes either file. */
+  public VerifiedExport verifyExport(Path fullSource,Path runtime,SetupStorage storage,Receipt receipt,
+      BooleanSupplier cancelled)throws IOException,SQLException {
+    Objects.requireNonNull(receipt);Objects.requireNonNull(cancelled);check(cancelled);
+    fullSource=storage.verifyDestination(fullSource.toRealPath());runtime=storage.verifyDestination(runtime.toRealPath());
+    if(Files.isSameFile(fullSource,runtime))throw new IOException("Full source and runtime must be separate files");
+    verifyIdentity(fullSource,receipt.sourceBytes(),receipt.sourceSha256(),cancelled);
+    verifyIdentity(runtime,receipt.outputBytes(),receipt.outputSha256(),cancelled);
+    try(Connection source=readOnly(fullSource);Connection target=readOnly(runtime)) {
+      cancellationHandler(source,cancelled);cancellationHandler(target,cancelled);
+      validate(source,"quick_check",cancelled);validate(target,"integrity_check",cancelled);
+      var sourceTables=tables(source);var targetTables=tables(target);
+      if(!sourceTables.containsAll(Set.of("meta","source_record","source_archive_blob","source_archive_file")))throw new IOException("Unsupported full source schema");
+      if(!targetTables.containsAll(Set.of("meta","source_record","source_archive_blob","source_archive_file")))throw new IOException("Unsupported runtime schema");
+      if(!runtimeSchema(source).equals(runtimeSchema(target)))throw new IOException("Runtime schema differs from full source");
+      var original=metadata(source);var compact=metadata(target);
+      if(original.containsKey("release_dataset_profile")||!"4".equals(original.get("schema_version"))
+          ||!Objects.equals(receipt.buildId(),original.get("build_id"))||receipt.buildId()==null||!receipt.buildId().matches("[a-f0-9]{64}"))throw new IOException("Full source build or schema does not match export receipt");
+      if(!"runtime-v1".equals(compact.get("release_dataset_profile"))||!"false".equals(compact.get("release_rebuild_supported")))throw new IOException("Runtime export profile is invalid");
+      try {Instant.parse(compact.get("release_dataset_created_at"));}catch(Exception invalid){throw new IOException("Runtime creation metadata is invalid",invalid);}
+      for(var entry:original.entrySet())if(!Objects.equals(compact.get(entry.getKey()),entry.getValue()))throw new IOException("Original metadata changed");
+      Set<String> expectedMeta=new HashSet<>(original.keySet());expectedMeta.addAll(Set.of("release_dataset_profile","release_dataset_created_at","release_raw_records_omitted","release_archive_bytes_omitted","release_rebuild_supported"));
+      if(!compact.keySet().equals(expectedMeta))throw new IOException("Runtime metadata keys changed");
+      long raw=scalar(source,"SELECT count(*) FROM source_record"),bytes=scalar(source,"SELECT coalesce(sum(length(bytes)),0) FROM source_archive_blob");
+      if(raw!=receipt.omittedRawRecords()||bytes!=receipt.omittedArchiveBytes()
+          ||!Long.toString(raw).equals(compact.get("release_raw_records_omitted"))||!Long.toString(bytes).equals(compact.get("release_archive_bytes_omitted")))throw new IOException("Omitted source counts do not match receipt");
+      if(scalar(target,"SELECT count(*) FROM source_record")!=0
+          ||scalar(target,"SELECT count(*) FROM source_archive_blob WHERE bytes IS NOT NULL OR storage_state IS NULL OR storage_state<>'omitted-release' OR original_size IS NULL OR original_size<0")!=0)throw new IOException("Runtime contains invalid omitted source data");
+      if(!digestRows(source,"SELECT sha256,length(bytes) FROM source_archive_blob",cancelled).equals(digestRows(target,"SELECT sha256,original_size FROM source_archive_blob",cancelled)))throw new IOException("Archive identities changed");
+      sourceTables.removeAll(OMIT);targetTables.removeAll(OMIT);
+      if(!sourceTables.equals(targetTables)||!sourceTables.equals(receipt.retainedTables().keySet()))throw new IOException("Retained table set does not match receipt");
+      for(String table:sourceTables) {
+        Digest originalRows=digest(source,table,cancelled),runtimeRows=digest(target,table,cancelled);
+        if(!originalRows.equals(runtimeRows)||!originalRows.equals(receipt.retainedTables().get(table)))throw new IOException("Retained table does not match full source and receipt: "+table);
+      }
+    }catch(SQLException failure){check(cancelled);throw failure;}
+    // Detect concurrent changes rather than validating a different file generation.
+    verifyIdentity(fullSource,receipt.sourceBytes(),receipt.sourceSha256(),cancelled);
+    verifyIdentity(runtime,receipt.outputBytes(),receipt.outputSha256(),cancelled);
+    check(cancelled);return new VerifiedExport(fullSource,runtime,receipt);
+  }
+  private static Map<String,String> runtimeSchema(Connection c)throws SQLException {
+    var result=new TreeMap<String,String>();
+    try(var statement=c.createStatement();var rows=statement.executeQuery("SELECT type,name,tbl_name,sql FROM sqlite_master WHERE sql IS NOT NULL")) {
+      while(rows.next()) {
+        String name=rows.getString(2),table=rows.getString(3);
+        if(name.equals("field_knowledge_assertion_identity")||Set.of("source_archive_blob","sqlite_stat1","sqlite_stat4").contains(table))continue;
+        result.put(rows.getString(1)+":"+name,rows.getString(4));
+      }
+    }return result;
+  }
+  private static void verifyIdentity(Path file,long bytes,String expected,BooleanSupplier cancelled)throws IOException {
+    rejectSidecars(file);
+    if(!Files.isRegularFile(file)||bytes<1||expected==null||!expected.matches("[a-f0-9]{64}")||Files.size(file)!=bytes||!hashFile(file,cancelled).equals(expected))throw new IOException("Export file identity does not match receipt");
+    rejectSidecars(file);
   }
   private static void cancellationHandler(Connection c,BooleanSupplier cancelled)throws SQLException {org.sqlite.ProgressHandler.setHandler(c,1000,new org.sqlite.ProgressHandler(){@Override protected int progress(){return cancelled.getAsBoolean()||Thread.currentThread().isInterrupted()?1:0;}});}
   private static void rejectSidecars(Path path)throws IOException {for(String suffix:List.of("-wal","-shm","-journal"))if(Files.exists(path.resolveSibling(path.getFileName()+suffix),LinkOption.NOFOLLOW_LINKS))throw new IOException("Staged database must be closed without SQLite sidecars");}
