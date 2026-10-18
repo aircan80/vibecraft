@@ -25,6 +25,19 @@ public record Repositories(
         new AssetRepository(db), new QuestLocator(db), new SourceArchiveRepository(db), new WorldMapRepository(db), db);
   }
 
+  /**
+   * Context-aware entry point for the legacy single-projection schema. Reject other editions/builds
+   * before constructing any repository; enabling another game requires scoped SQL and a validated pack.
+   */
+  public static Repositories of(Database db, dev.wowforever.app.catalog.CatalogContext context) {
+    var installed = dev.wowforever.app.catalog.EditionRegistry.fromLegacyMetadata(db.meta())
+        .installed(context.editionId());
+    if (installed.isEmpty() || !installed.get().equals(context)) {
+      throw new IllegalArgumentException("Catalog context does not match the installed database");
+    }
+    return of(db);
+  }
+
   /** Travel geography shares this repository set's read-only database. */
   public TravelMapRepository travel() { return new TravelMapRepository(database); }
 
