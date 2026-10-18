@@ -31,7 +31,15 @@ public final class WorldMapPage extends JPanel {
     setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
     setFocusable(true);
     JPanel header = new JPanel(new BorderLayout());
-    BreadcrumbTrail breadcrumb = new BreadcrumbTrail(catalog.breadcrumbs(target.uiMapId()), parent -> {
+    var path = catalog.breadcrumbs(target.uiMapId()).stream().map(step -> {
+      var peers = catalog.map(step.id()).filter(area -> area.parentUiMapId() > 0).map(area -> catalog.children(area.parentUiMapId())).orElse(List.of());
+      return new dev.wowforever.app.model.GeographyStep(step.name(), step.id(), step.kind(), peers.stream()
+          .map(peer -> new dev.wowforever.app.model.GeographyStep.Sibling(peer.name(), peer.uiMapId(),
+              dev.wowforever.app.model.GeographyStep.Kind.MAP,
+              peer.zoneId() != null || !catalog.children(peer.uiMapId()).isEmpty(),
+              !peer.placed() ? "Position unavailable" : "")).toList());
+    }).toList();
+    BreadcrumbTrail breadcrumb = new BreadcrumbTrail(path, parent -> {
       long id=((ViewTarget.WorldMap)parent).uiMapId();
       if(id==947)root.run(); else catalog.map(id).ifPresent(open);
     });

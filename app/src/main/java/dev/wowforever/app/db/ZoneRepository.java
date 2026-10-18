@@ -125,8 +125,52 @@ public final class ZoneRepository {
         }
       }
       for(var area:areas)result.add(new GeographyStep(area.name(),area.id(),GeographyStep.Kind.ZONE));
-      return List.copyOf(result);
+      var enriched = new ArrayList<GeographyStep>();
+      for (var step : result) enriched.add(new GeographyStep(step.name(), step.id(), step.kind(), siblings(c, step)));
+      return List.copyOf(enriched);
     });
+  }
+
+  /** Parent-scoped lookups on the existing worker read; never guesses missing area relationships. */
+  private static List<GeographyStep.Sibling> siblings(Connection c, GeographyStep step) throws SQLException {
+    if (step.kind() == GeographyStep.Kind.MAP && Sql.hasTable(c, "ui_map")) {
+      return completeSiblings(Sql.list(c, """
+          SELECT m.id,m.name,
+            EXISTS(SELECT 1 FROM ui_map child WHERE child.parent_id=m.id) AS has_children,
+            (SELECT z.id FROM zone z WHERE z.parent_id IS NULL AND z.ui_map_id=m.id ORDER BY z.id LIMIT 1) AS zone_id
+          FROM ui_map m
+          WHERE m.parent_id=(SELECT parent_id FROM ui_map WHERE id=?) AND m.parent_id>0
+          ORDER BY m.name COLLATE NOCASE,m.id LIMIT 1001
+          """, row -> {
+        Long zone = Sql.longValue(row, "zone_id");
+        boolean children = row.getBoolean("has_children");
+        return new GeographyStep.Sibling(row.getString("name"), children || zone == null ? row.getLong("id") : zone,
+            children || zone == null ? GeographyStep.Kind.MAP : GeographyStep.Kind.ZONE,
+            children || zone != null, children || zone != null ? "" : "Not in the database yet");
+      }, step.id()));
+    }
+    if (step.kind() != GeographyStep.Kind.ZONE) return List.of();
+    var parent = Sql.one(c, "SELECT parent_id,ui_map_id FROM zone WHERE id=?", row ->
+        new Long[]{Sql.longValue(row,"parent_id"),Sql.longValue(row,"ui_map_id")}, step.id());
+    if (parent.isEmpty()) return List.of();
+    if (parent.get()[0] != null && Sql.one(c, "SELECT id FROM zone WHERE id=?", row -> row.getLong(1), parent.get()[0]).isEmpty())
+      return List.of();
+    if (parent.get()[0] != null) return completeSiblings(Sql.list(c, """
+        SELECT id,name FROM zone WHERE parent_id=? ORDER BY name COLLATE NOCASE,id LIMIT 1001
+        """, row -> new GeographyStep.Sibling(new EntityRef(EntityKind.ZONE,row.getLong("id"))
+            .displayName(row.getString("name")), row.getLong("id"), GeographyStep.Kind.ZONE, true, ""), parent.get()[0]));
+    if (parent.get()[1] == null || !Sql.hasTable(c, "ui_map")) return List.of();
+    return completeSiblings(Sql.list(c, """
+        SELECT z.id,z.name FROM zone z JOIN ui_map m ON m.id=z.ui_map_id
+        WHERE z.parent_id IS NULL AND m.parent_id=(SELECT parent_id FROM ui_map WHERE id=?) AND m.parent_id>0
+        ORDER BY z.name COLLATE NOCASE,z.id LIMIT 1001
+        """, row -> new GeographyStep.Sibling(new EntityRef(EntityKind.ZONE,row.getLong("id"))
+            .displayName(row.getString("name")), row.getLong("id"), GeographyStep.Kind.ZONE, true, ""), parent.get()[1]));
+  }
+
+  private static List<GeographyStep.Sibling> completeSiblings(List<GeographyStep.Sibling> rows) {
+    // Never present a truncated collection as the complete hierarchy.
+    return rows.size() > 1000 ? List.of() : List.copyOf(rows);
   }
 
   /**

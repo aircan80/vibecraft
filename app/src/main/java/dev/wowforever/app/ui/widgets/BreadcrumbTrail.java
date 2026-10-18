@@ -9,7 +9,7 @@ import java.awt.*;
 import java.util.List;
 import javax.swing.*;
 
-/** A wrapping geographic path: parents are links and the current location is plain text. */
+/** Geographic parent links with separate, keyboard-accessible sibling menus from loaded metadata. */
 public final class BreadcrumbTrail extends JPanel {
   public BreadcrumbTrail(List<GeographyStep> path, Navigator nav) {
     setOpaque(false);
@@ -38,8 +38,64 @@ public final class BreadcrumbTrail extends JPanel {
       }
       name.setToolTipText(step.name());
       part.add(name,BorderLayout.CENTER);
+      if (step.siblings().size() > 1) part.add(siblingButton(step, nav), BorderLayout.EAST);
       add(part);
     }
+  }
+
+  private JButton siblingButton(GeographyStep step, Navigator nav) {
+    JButton arrow = new JButton("▾");
+    arrow.setMargin(new Insets(2, 5, 2, 5));
+    arrow.putClientProperty("JButton.buttonType", "borderless");
+    arrow.setToolTipText("Choose a sibling of " + step.name());
+    arrow.getAccessibleContext().setAccessibleName("Choose a sibling of " + step.name());
+    JPopupMenu menu = new JPopupMenu("Siblings of " + step.name());
+    ButtonGroup group = new ButtonGroup();
+    JRadioButtonMenuItem current = null;
+    for (var sibling : step.siblings()) {
+      boolean selected = sibling.id() == step.id() && sibling.kind() == step.kind();
+      JRadioButtonMenuItem item = new JRadioButtonMenuItem(sibling.name(), selected);
+      item.setEnabled(sibling.available());
+      item.setToolTipText(sibling.note().isBlank() ? sibling.name() : sibling.note());
+      item.getAccessibleContext().setAccessibleName(sibling.name() + (selected ? ", current location" : "")
+          + (sibling.available() ? "" : ", unavailable"));
+      item.addActionListener(e -> nav.open(target(sibling.kind(), sibling.id())));
+      group.add(item); menu.add(item);
+      if (selected) current = item;
+    }
+    JRadioButtonMenuItem selectedItem = current;
+    arrow.putClientProperty("breadcrumbMenu", menu);
+    menu.addPopupMenuListener(new javax.swing.event.PopupMenuListener() {
+      public void popupMenuWillBecomeVisible(javax.swing.event.PopupMenuEvent e) {}
+      public void popupMenuWillBecomeInvisible(javax.swing.event.PopupMenuEvent e) {}
+      public void popupMenuCanceled(javax.swing.event.PopupMenuEvent e) { arrow.requestFocusInWindow(); }
+    });
+    Runnable show = () -> {
+      if (!arrow.isShowing()) return;
+      menu.show(arrow, 0, arrow.getHeight());
+      if (selectedItem != null && selectedItem.isEnabled())
+        MenuSelectionManager.defaultManager().setSelectedPath(new MenuElement[]{menu, selectedItem});
+    };
+    arrow.addActionListener(e -> show.run());
+    for (String key : List.of("ENTER", "DOWN", "alt DOWN")) {
+      arrow.getInputMap(WHEN_FOCUSED).put(KeyStroke.getKeyStroke(key), "choose-sibling");
+    }
+    arrow.getActionMap().put("choose-sibling", new AbstractAction() {
+      @Override public void actionPerformed(java.awt.event.ActionEvent e) { show.run(); }
+    });
+    menu.getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke("ESCAPE"), "close-siblings");
+    menu.getActionMap().put("close-siblings", new AbstractAction() {
+      @Override public void actionPerformed(java.awt.event.ActionEvent e) {
+        MenuSelectionManager.defaultManager().clearSelectedPath();
+        menu.setVisible(false); arrow.requestFocusInWindow();
+      }
+    });
+    return arrow;
+  }
+
+  private static ViewTarget target(GeographyStep.Kind kind, long id) {
+    return kind == GeographyStep.Kind.MAP ? new ViewTarget.WorldMap(id)
+        : new ViewTarget.Entity(new EntityRef(kind == GeographyStep.Kind.INSTANCE ? EntityKind.INSTANCE : EntityKind.ZONE, id));
   }
 
   @Override public Dimension getMaximumSize() { return new Dimension(Integer.MAX_VALUE,getPreferredSize().height); }

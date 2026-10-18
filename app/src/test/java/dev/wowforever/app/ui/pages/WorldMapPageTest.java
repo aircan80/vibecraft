@@ -151,6 +151,26 @@ class WorldMapPageTest {
     });
   }
 
+  @Test void continentSiblingMenuIncludesUnplacedIslandFromTheActualCatalog() throws Exception {
+    SwingUtilities.invokeAndWait(() -> {
+      var root = new WorldMapRegion(0,947,"Azeroth",0,0,1,1,null,true,true,Optional.empty(),0,0);
+      var eastern = new WorldMapRegion(947,1415,"Eastern Kingdoms",.5,.1,.9,.9,null,true,true,Optional.empty(),0,0);
+      var island = new WorldMapRegion(947,2521,"Zephras Isle",0,0,0,0,2521L,false,false,Optional.empty(),0,0);
+      var westfall = region(1436,"Westfall",40L,true);
+      List<WorldMapRegion> opened = new ArrayList<>();
+      var page = new WorldMapPage(new ViewTarget.WorldMap(1415),new WorldMapCatalog(List.of(root,eastern,island,westfall)),
+          null,opened::add,ignored -> {},() -> {},() -> {},() -> {});
+      JButton arrow = buttons(page).stream().filter(b -> "Choose a sibling of Eastern Kingdoms".equals(b.getToolTipText()))
+          .findFirst().orElseThrow();
+      var menu = (javax.swing.JPopupMenu) arrow.getClientProperty("breadcrumbMenu");
+      assertThat(java.util.Arrays.stream(menu.getComponents()).map(c -> ((javax.swing.JMenuItem)c).getText()))
+          .containsExactly("Eastern Kingdoms","Zephras Isle");
+      var item = (javax.swing.JMenuItem) menu.getComponent(1);
+      assertThat(item.isEnabled()).isTrue(); assertThat(item.getToolTipText()).isEqualTo("Position unavailable");
+      item.doClick(); assertThat(opened).containsExactly(island);
+    });
+  }
+
   private static List<JButton> buttons(Container parent) {
     List<JButton> result = new ArrayList<>();
     for (Component child : parent.getComponents()) {

@@ -38,6 +38,37 @@ class BreadcrumbTrailTest {
       }
     });
   }
+  @Test void siblingArrowNavigatesIndependentlyAndPreservesCurrentUnavailableAndKeyboardStates() throws Exception {
+    SwingUtilities.invokeAndWait(() -> {
+      var opened = new ArrayList<ViewTarget>();
+      var choices = List.of(new GeographyStep.Sibling("Desolace", 405, GeographyStep.Kind.ZONE, true, ""),
+          new GeographyStep.Sibling("Mulgore", 215, GeographyStep.Kind.ZONE, true, ""),
+          new GeographyStep.Sibling("Unrecorded destination", 999, GeographyStep.Kind.ZONE, false, "Not in this database"));
+      var step = new GeographyStep("Desolace", 405, GeographyStep.Kind.ZONE, choices);
+      var trail = new BreadcrumbTrail(List.of(new GeographyStep("Kalimdor", 1414, GeographyStep.Kind.MAP), step), opened::add);
+      var buttons = links(trail);
+      assertThat(buttons).extracting(JButton::getText).containsExactly("Kalimdor", "▾");
+      JButton arrow = buttons.getLast();
+      assertThat(arrow.getAccessibleContext().getAccessibleName()).contains("Desolace");
+      var menu = (JPopupMenu) arrow.getClientProperty("breadcrumbMenu");
+      assertThat(((JRadioButtonMenuItem) menu.getComponent(0)).isSelected()).isTrue();
+      assertThat(menu.getComponent(2).isEnabled()).isFalse();
+      for (String key : List.of("ENTER", "DOWN", "alt DOWN"))
+        assertThat(arrow.getInputMap(JComponent.WHEN_FOCUSED).get(KeyStroke.getKeyStroke(key))).isEqualTo("choose-sibling");
+      assertThat(menu.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).get(KeyStroke.getKeyStroke("ESCAPE")))
+          .isEqualTo("close-siblings");
+      ((JMenuItem) menu.getComponent(1)).doClick(); buttons.getFirst().doClick();
+      assertThat(opened).containsExactly(new ViewTarget.Entity(new EntityRef(EntityKind.ZONE,215)), new ViewTarget.WorldMap(1414));
+      for (int width : new int[]{200, 420}) {
+        trail.setSize(width, trail.getPreferredSize().height); trail.doLayout();
+        for (Component part : trail.getComponents()) {
+          assertThat(part.getX() + part.getWidth()).isLessThanOrEqualTo(width);
+          assertThat(part.getY() + part.getHeight()).isLessThanOrEqualTo(trail.getPreferredSize().height);
+        }
+      }
+    });
+  }
+
   private List<JButton> links(Container c) {
     var result=new ArrayList<JButton>();
     for(Component child:c.getComponents()) {if(child instanceof JButton b)result.add(b);if(child instanceof Container p)result.addAll(links(p));}
