@@ -1,5 +1,6 @@
 package dev.wowforever.app.db;
 
+import dev.wowforever.app.assets.AssetDownloadPermissions;
 import dev.wowforever.importer.setup.LibraryBuildJob;
 import dev.wowforever.importer.setup.LibraryCandidateValidator;
 import dev.wowforever.importer.setup.RuntimeLibraryExporter;
@@ -47,7 +48,7 @@ public final class LibraryActivation {
   static LibraryRegistry.Selection activate(LibraryBuildJob.Candidate candidate,SetupPlan plan,
       BooleanSupplier cancelled,LibraryRegistry registry) throws IOException {
     var validated=validateCandidate(candidate,plan,cancelled);
-    return publishCopy(candidate.database(),candidate.sha256(),Files.size(candidate.database()),validated,target -> {
+    return publishCopy(candidate.database(),candidate.sha256(),Files.size(candidate.database()),validated,assetConsent(plan,registry),target -> {
       var copied=validateFull(target,plan,validated.ingestionId(),cancelled);
       if(!copied.equals(validated))throw new IOException("Managed copy differs from the reviewed validation receipt");
       DatabaseInstaller.validateExternal(target);
@@ -69,7 +70,7 @@ public final class LibraryActivation {
     catch(java.sql.SQLException failure) {throw new IOException("Runtime export failed independent verification",failure);}
     // The record is not an authority token: every call above rederives its hashes, rows and omissions.
     var checked=verified.receipt();
-    return publishCopy(verified.runtime(),checked.outputSha256(),checked.outputBytes(),validated,
+    return publishCopy(verified.runtime(),checked.outputSha256(),checked.outputBytes(),validated,assetConsent(plan,registry),
         target -> validateRuntimeIdentity(target,validated),cancelled,registry);
   }
 
@@ -105,10 +106,19 @@ public final class LibraryActivation {
     } catch(java.sql.SQLException failure) {throw new IOException("Cannot validate managed runtime identity",failure);}
   }
 
+  private static AssetDownloadPermissions.Consent assetConsent(SetupPlan plan,LibraryRegistry registry) throws IOException {
+    List<Path> roots=new ArrayList<>(registry.protectedGameRoots);
+    for(Path game:plan.localGameRoots())roots.add(AssetDownloadPermissions.canonicalProspective(game));
+    return new AssetDownloadPermissions.Consent(AssetDownloadPermissions.Mode.MANAGED,
+        plan.acquisitions().contains(SetupPlan.Acquisition.BLIZZARD_CDN),
+        plan.acquisitions().contains(SetupPlan.Acquisition.WAGO_EXPORT),roots);
+  }
+
   @FunctionalInterface private interface CopyValidator {void validate(Path file) throws IOException;}
 
   private static LibraryRegistry.Selection publishCopy(Path sourceFile,String expectedHash,long expectedBytes,
-      LibraryCandidateValidator.Validated validation,CopyValidator validator,BooleanSupplier cancelled,
+      LibraryCandidateValidator.Validated validation,AssetDownloadPermissions.Consent consent,
+      CopyValidator validator,BooleanSupplier cancelled,
       LibraryRegistry registry) throws IOException {
     Files.createDirectories(registry.checked(registry.root));
     Path lock=registry.checked(registry.root.resolve("selection.lock"));
@@ -138,7 +148,7 @@ public final class LibraryActivation {
         validator.validate(target);
         if(Files.size(target)!=expectedBytes || !expectedHash.equals(LibraryRegistry.hash(target,cancelled)))
           throw new IOException("Managed copy changed during final validation; activation aborted");
-        var selected=new LibraryRegistry.Selection(target,expectedHash,validation);
+        var selected=new LibraryRegistry.Selection(target,expectedHash,validation,consent);
         registry.publish(selected,previous,cancelled);published=true;
         return selected;
       } finally {

@@ -57,3 +57,26 @@ need a second full row pass. The compact copy is not sent to the full raw-proof 
 intentionally omits those raw blobs. Registry selection keeps the original full source's validated identity,
 counts and coverage warnings, alongside the compact database's exact content hash. Startup therefore needs
 no archived raw blobs. This backend does not enable a UI activation action or relax real-data readiness.
+
+## Active library asset permissions
+
+Pointer format 2 persists the reviewed plan's independent Blizzard CDN and Wago permissions, with bounded
+read-only game roots and the selected database's exact SHA-256. Both activation paths record those
+permissions without changing the current process's policy or database guard. Old format-1 selections and
+the compatible three-argument `Selection` constructor default to cache-only; database metadata does not
+grant provider access. Invalid permission/hash bindings reject that selection and can use the previous
+validated selection with its own permissions.
+
+`AssetDownloadPermissions` starts with an empty active-catalog context and cache-only policy. Only
+`ExternalDatabaseSetup` configures that context after choosing/opening a validated selection. A chooser
+that has just built a managed library is matched against the newly published registry before returning
+its database. Its managed path is not saved as a generic legacy path, which could otherwise bypass the
+recorded consent later. An unverified path inside managed storage stays cache-only through the existing
+file escape. Explicit overrides and existing external/embedded legacy catalogs retain the previous
+provider behavior through `LEGACY`; existing music mute/volume preferences are unchanged.
+
+`current()`, `activeDatabase()` and the atomic combined `snapshot()` are memory-only. Setup management can
+capture the active database and protected roots on the EDT without scanning or hashing a library. Shared
+native asset clients enforce the current provider flags and `checkCacheWrite(cacheRoot, destination)`;
+cache writes must remain inside app-owned cache storage, outside protected game folders and aliases.
+The explicit descriptor clients used by setup jobs retain their own reviewed transport policy.

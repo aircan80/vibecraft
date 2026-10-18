@@ -22,22 +22,23 @@ public final class AssetDownloadPermissions {
   }
   public static final Consent CACHE_ONLY=new Consent(Mode.CACHE_ONLY,false,false,List.of());
   public static final Consent LEGACY=new Consent(Mode.LEGACY,true,true,List.of());
-  private record Active(Optional<Path> database,Consent consent) {}
-  private static final AtomicReference<Active> ACTIVE=new AtomicReference<>(new Active(Optional.empty(),CACHE_ONLY));
+  public record Context(Optional<Path> activeDatabase,Consent consent) {}
+  private static final AtomicReference<Context> ACTIVE=new AtomicReference<>(new Context(Optional.empty(),CACHE_ONLY));
   private AssetDownloadPermissions() {}
 
+  public static Context snapshot() {return ACTIVE.get();}
   public static Consent current() {return ACTIVE.get().consent();}
   /** Memory-only: setup management can capture the open database guard without SQL or hashing on the EDT. */
-  public static Optional<Path> activeDatabase() {return ACTIVE.get().database();}
-  public static void resetForCatalogResolution() {ACTIVE.set(new Active(Optional.empty(),CACHE_ONLY));}
+  public static Optional<Path> activeDatabase() {return ACTIVE.get().activeDatabase();}
+  public static void resetForCatalogResolution() {ACTIVE.set(new Context(Optional.empty(),CACHE_ONLY));}
   public static void configureManaged(Path database,Consent consent) {
     Objects.requireNonNull(consent);
     if(consent.mode()==Mode.LEGACY)throw new IllegalArgumentException("Managed selections require explicit permissions or cache-only policy");
-    ACTIVE.set(new Active(Optional.of(database.toAbsolutePath().normalize()),consent));
+    ACTIVE.set(new Context(Optional.of(database.toAbsolutePath().normalize()),consent));
   }
   /** Used only after opening an explicit/saved existing database or embedded legacy catalog. */
   public static void configureLegacy(Path database) {
-    ACTIVE.set(new Active(Optional.of(database.toAbsolutePath().normalize()),LEGACY));
+    ACTIVE.set(new Context(Optional.of(database.toAbsolutePath().normalize()),LEGACY));
   }
 
   /** Returns the canonical app-owned cache destination, refusing game roots and aliases before any write. */

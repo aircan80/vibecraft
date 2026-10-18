@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class RuntimeLibraryActivationTest {
+  @org.junit.jupiter.api.AfterEach void resetAssetContext() {dev.wowforever.app.assets.AssetDownloadPermissions.resetForCatalogResolution();}
   @TempDir Path temporary;
   record Exported(ActivationFixture.Built full,Path runtime,RuntimeLibraryExporter.Receipt receipt,SetupStorage storage) {}
 

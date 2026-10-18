@@ -1,5 +1,6 @@
 package dev.wowforever.app.db;
 
+import dev.wowforever.app.assets.AssetDownloadPermissions;
 import dev.wowforever.importer.setup.LibraryCandidateValidator;
 import dev.wowforever.importer.setup.SetupPlan;
 import dev.wowforever.importer.setup.SetupStorage;
@@ -16,10 +17,17 @@ import javax.swing.SwingUtilities;
 public final class LibraryRegistry {
   private static final int MAX_POINTER_BYTES = 65536;
   private static final List<String> TABLES = List.of("item", "npc", "quest", "zone", "game_object", "instance");
-  public record Selection(Path database, String sha256, LibraryCandidateValidator.Validated validation) {}
+  public record Selection(Path database,String sha256,LibraryCandidateValidator.Validated validation,
+      AssetDownloadPermissions.Consent assetPermissions) {
+    public Selection {Objects.requireNonNull(assetPermissions);}
+    public Selection(Path database,String sha256,LibraryCandidateValidator.Validated validation) {
+      this(database,sha256,validation,AssetDownloadPermissions.CACHE_ONLY);
+    }
+  }
   @FunctionalInterface interface Publisher { void move(Path from, Path to) throws IOException; }
   final Path root;
   final SetupStorage storage;
+  final List<Path> protectedGameRoots;
   private final SetupStorage readStorage;
   private final Publisher publisher;
 
@@ -31,9 +39,12 @@ public final class LibraryRegistry {
   LibraryRegistry(Path dataDir, List<Path> gameRoots, Optional<Path> activeDatabase, Publisher publisher) throws IOException {
     Path requested = dataDir.toAbsolutePath().normalize().resolve("libraries");
     if (Files.isSymbolicLink(requested)) throw new IOException("Managed library root cannot be a symbolic link");
-    storage = new SetupStorage(requested, gameRoots, activeDatabase);
+    var protectedRoots=new ArrayList<Path>();
+    for(Path game:gameRoots)protectedRoots.add(AssetDownloadPermissions.canonicalProspective(game));
+    protectedGameRoots=List.copyOf(protectedRoots);
+    storage = new SetupStorage(requested, protectedGameRoots, activeDatabase);
     root = storage.verifyDestination(requested);
-    readStorage = new SetupStorage(root,gameRoots,Optional.empty());
+    readStorage = new SetupStorage(root,protectedGameRoots,Optional.empty());
     this.publisher = publisher;
   }
 
@@ -50,7 +61,7 @@ public final class LibraryRegistry {
       if (bytes.length > MAX_POINTER_BYTES) throw new IOException("Managed library selection is too large");
       properties.load(new ByteArrayInputStream(bytes));
     } catch (IllegalArgumentException failure) { throw new IOException("Managed library selection is malformed", failure); }
-    if (!"1".equals(properties.getProperty("format"))) throw new IOException("Unsupported managed library selection format");
+    if (!Set.of("1","2").contains(properties.getProperty("format",""))) throw new IOException("Unsupported managed library selection format");
     IOException rejected = null;
     for (String prefix : List.of("active.", "previous.")) {
       if (!properties.containsKey(prefix + "path")) continue;
@@ -70,6 +81,9 @@ public final class LibraryRegistry {
       throw new IOException("Managed selection is outside versioned library storage");
     Path file = checkedRead(root.resolve(relative));
     String expected = required(p,prefix+"sha256");
+    var consent=readPermissions(p,prefix,expected);
+    if(!new SetupStorage(root,consent.readOnlyGameRoots(),Optional.empty()).verifyDestination(file).equals(file))
+      throw new IOException("Managed library aliases a protected game folder");
     if (!expected.matches("[a-f0-9]{64}") || !expected.equals(hash(file,cancelled)))
       throw new IOException("Managed library content hash does not match its selection receipt");
     DatabaseInstaller.validateExternal(file);
@@ -94,12 +108,12 @@ public final class LibraryRegistry {
     List<String> warnings = new ArrayList<>();
     for (int i=0;i<count;i++) warnings.add(required(p,prefix+"warning."+i));
     check(cancelled);
-    return new Selection(file,expected,new LibraryCandidateValidator.Validated(build,identity,required(p,prefix+"ingestion"),counts,warnings));
+    return new Selection(file,expected,new LibraryCandidateValidator.Validated(build,identity,required(p,prefix+"ingestion"),counts,warnings),consent);
   }
 
   /** Caller holds the registry lock and has validated the immutable copy. No non-atomic fallback. */
   void publish(Selection active, Optional<Selection> previous, BooleanSupplier cancelled) throws IOException {
-    Properties p = new Properties(); p.setProperty("format","1");
+    Properties p = new Properties(); p.setProperty("format","2");
     write(p,"active.",active);
     if (previous.isPresent()) write(p,"previous.",previous.orElseThrow());
     ByteArrayOutputStream bytes = new ByteArrayOutputStream();
@@ -122,6 +136,7 @@ public final class LibraryRegistry {
     Path file = checkedRead(selection.database());
     String relative = root.relativize(file).toString().replace('\\','/');
     if (!relative.matches("versions/[a-f0-9]{64}-[a-f0-9-]{36}/wowforever\\.sqlite")) throw new IOException("Invalid managed version path");
+    writePermissions(p,prefix,selection);
     var value = selection.validation();
     p.setProperty(prefix+"path",relative); p.setProperty(prefix+"sha256",selection.sha256());
     p.setProperty(prefix+"build",value.buildId()); p.setProperty(prefix+"product",value.nativeIdentity().product());
@@ -135,6 +150,41 @@ public final class LibraryRegistry {
       if(warning.isBlank() || warning.length()>1024) throw new IOException("Invalid activation warning length");
       p.setProperty(prefix+"warning."+i,warning);
     }
+  }
+
+  private static AssetDownloadPermissions.Consent readPermissions(Properties p,String prefix,String databaseHash) throws IOException {
+    if("1".equals(p.getProperty("format")))return AssetDownloadPermissions.CACHE_ONLY;
+    if(!"1".equals(required(p,prefix+"assets.format"))
+        || !databaseHash.equals(required(p,prefix+"assets.database-sha256")))
+      throw new IOException("Asset permissions do not match the selected database");
+    var mode=switch(required(p,prefix+"assets.mode")) {
+      case "managed" -> AssetDownloadPermissions.Mode.MANAGED;
+      case "cache-only" -> AssetDownloadPermissions.Mode.CACHE_ONLY;
+      default -> throw new IOException("Invalid managed asset permission mode");
+    };
+    boolean cdn=permissionBoolean(p,prefix+"assets.blizzard-cdn"),wago=permissionBoolean(p,prefix+"assets.wago-export");
+    int count=Integer.parseInt(required(p,prefix+"assets.game-root-count"));
+    if(count<0 || count>16)throw new IOException("Invalid protected game-root count");
+    List<Path> roots=new ArrayList<>();
+    for(int i=0;i<count;i++) {
+      Path path=Path.of(required(p,prefix+"assets.game-root."+i));
+      if(!path.isAbsolute())throw new IOException("Protected game roots must be absolute");
+      roots.add(path.normalize());
+    }
+    return new AssetDownloadPermissions.Consent(mode,cdn,wago,roots);
+  }
+  private static boolean permissionBoolean(Properties p,String key) throws IOException {
+    return switch(required(p,key)) {case "true" -> true;case "false" -> false;default -> throw new IOException("Invalid asset permission flag");};
+  }
+  private static void writePermissions(Properties p,String prefix,Selection selection) throws IOException {
+    var consent=selection.assetPermissions();
+    if(consent.mode()==AssetDownloadPermissions.Mode.LEGACY)throw new IOException("Legacy asset access cannot be published as managed consent");
+    p.setProperty(prefix+"assets.format","1");p.setProperty(prefix+"assets.database-sha256",selection.sha256());
+    p.setProperty(prefix+"assets.mode",consent.mode()==AssetDownloadPermissions.Mode.MANAGED?"managed":"cache-only");
+    p.setProperty(prefix+"assets.blizzard-cdn",Boolean.toString(consent.allowBlizzardCdn()));
+    p.setProperty(prefix+"assets.wago-export",Boolean.toString(consent.allowWagoExport()));
+    p.setProperty(prefix+"assets.game-root-count",Integer.toString(consent.readOnlyGameRoots().size()));
+    for(int i=0;i<consent.readOnlyGameRoots().size();i++)p.setProperty(prefix+"assets.game-root."+i,consent.readOnlyGameRoots().get(i).toString());
   }
 
   private Path checkedRead(Path path) throws IOException {

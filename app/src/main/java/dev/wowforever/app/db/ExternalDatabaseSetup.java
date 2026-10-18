@@ -1,5 +1,7 @@
 package dev.wowforever.app.db;
 
+import dev.wowforever.app.assets.AssetDownloadPermissions;
+
 import java.awt.Component;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -18,8 +20,13 @@ public final class ExternalDatabaseSetup {
   /** Called off the EDT; only the setup workspace runs on the EDT. Cancel closes startup normally. */
   public static Path resolve(Component parent, Path dataDir) throws IOException {
     if (SwingUtilities.isEventDispatchThread()) throw new IllegalStateException("Database setup must run off the EDT");
+    AssetDownloadPermissions.resetForCatalogResolution();
     String override = System.getProperty(DatabaseInstaller.EXTERNAL_DATABASE_PROPERTY);
-    if (override != null && !override.isBlank()) return new DatabaseInstaller(dataDir).install();
+    if (override != null && !override.isBlank()) {
+      Path selected=new DatabaseInstaller(dataDir).install();
+      AssetDownloadPermissions.configureLegacy(selected);
+      return selected;
+    }
     return resolveWithManagedLibrary(dataDir,Preferences.userNodeForPackage(ExternalDatabaseSetup.class),
         error -> chooseOnEdt(parent, error), DatabaseInstaller::validateExternal,
         DatabaseInstaller.class.getResource("/data/wowforever.sqlite") != null);
@@ -29,16 +36,44 @@ public final class ExternalDatabaseSetup {
   static Path resolveWithManagedLibrary(Path dataDir,Preferences preferences,Prompt prompt,
       Validator validator,boolean embeddedAvailable) throws IOException {
     LibraryRegistry.offEdt();
+    AssetDownloadPermissions.resetForCatalogResolution();
     String managedFailure=null;
     try {
       var managed=new LibraryRegistry(dataDir,java.util.List.of(),java.util.Optional.empty()).resolve(()->false);
-      if(managed.isPresent())return managed.orElseThrow().database();
+      if(managed.isPresent())return openManaged(managed.orElseThrow());
     } catch(IOException failure) {
       managedFailure="The managed library could not be validated. Choose an existing database or rebuild the library.";
     }
-    if(embeddedAvailable)return new DatabaseInstaller(dataDir).install();
+    if(embeddedAvailable) {
+      Path selected=new DatabaseInstaller(dataDir).install();
+      AssetDownloadPermissions.configureLegacy(selected);
+      return selected;
+    }
     String message=managedFailure;
-    return resolve(preferences,error -> prompt.choose(error==null?message:error),validator);
+    String previousExternal=preferences.get(PATH_KEY,"");
+    Path selected=resolve(preferences,error -> prompt.choose(error==null?message:error),validator);
+    // The chooser may have built and activated a new managed library while it was open.
+    if(isManagedPath(dataDir,selected)) {
+      try {
+        var managed=new LibraryRegistry(dataDir,java.util.List.of(),java.util.Optional.empty()).resolve(()->false);
+        if(managed.isPresent() && java.nio.file.Files.isSameFile(selected,managed.orElseThrow().database())) {
+          if(previousExternal.isBlank())preferences.remove(PATH_KEY);else preferences.put(PATH_KEY,previousExternal);
+          return openManaged(managed.orElseThrow());
+        }
+      } catch(IOException invalidManagedSelection) { /* Existing-file escape stays available, with no inferred consent. */ }
+      AssetDownloadPermissions.configureManaged(selected,AssetDownloadPermissions.CACHE_ONLY);
+    } else AssetDownloadPermissions.configureLegacy(selected);
+    return selected;
+  }
+
+  private static Path openManaged(LibraryRegistry.Selection selection) {
+    AssetDownloadPermissions.configureManaged(selection.database(),selection.assetPermissions());
+    return selection.database();
+  }
+
+  private static boolean isManagedPath(Path dataDir,Path file) throws IOException {
+    return AssetDownloadPermissions.canonicalProspective(file)
+        .startsWith(AssetDownloadPermissions.canonicalProspective(dataDir.resolve("libraries")));
   }
 
   static Path resolve(Preferences preferences, Prompt prompt, Validator validator) throws IOException {

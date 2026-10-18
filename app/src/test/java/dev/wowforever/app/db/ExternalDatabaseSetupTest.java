@@ -10,6 +10,7 @@ import java.util.prefs.Preferences;
 import org.junit.jupiter.api.Test;
 
 class ExternalDatabaseSetupTest {
+  @org.junit.jupiter.api.AfterEach void resetAssetContext() {dev.wowforever.app.assets.AssetDownloadPermissions.resetForCatalogResolution();}
   @Test void firstSelectionPersistsOnlyAfterValidation() throws Exception {
     Preferences prefs = preferences();
     try {

@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class LibraryActivationTest {
+  @org.junit.jupiter.api.AfterEach void resetAssetContext() {dev.wowforever.app.assets.AssetDownloadPermissions.resetForCatalogResolution();}
   @TempDir Path temporary;
   @Test void activationCopiesImmutableVersionAndStartupConsumesItWithWarnings() throws Exception {
     var built=ActivationFixture.create(temporary.resolve("candidate"));
