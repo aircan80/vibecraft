@@ -29,10 +29,14 @@ public final class JournalNpcPreview extends JPanel implements PageState {
   private NpcPreviewService.Request current;
   private int generation,pendingFrame=JournalTurntable.DEFAULT_FRAME;
   private boolean disposed,pendingRotation;
-  private record State(Object npc,int variant,boolean rotating,int frame) {}
+  private final boolean unavailableMode;
+  private JToggleButton unavailable;
+  private record State(Object npc,int variant,boolean rotating,int frame,boolean unavailableExpanded) {}
 
   public JournalNpcPreview(NpcPage npc,NpcAppearance appearance,NpcPreviewService service) {
     super(new BorderLayout(0,8));this.delegate=npc;this.appearance=appearance;this.service=service;
+    unavailableMode=appearance.variants().stream().noneMatch(NpcAppearance.Variant::mapped);
+    if(unavailableMode){add(unavailableStrip(),BorderLayout.NORTH);add(npc,BorderLayout.CENTER);return;}
     card.setOpaque(false);card.setBorder(BorderFactory.createEmptyBorder(8,18,12,18));visual.setOpaque(false);visual.setVisible(false);card.add(visual);
     JPanel text=new JPanel(new JournalSurface.Stack());text.setOpaque(false);
     JLabel title=new JLabel("Model preview");title.setFont(Fonts.heading(UIScale.scale(23f)));text.add(title);text.add(Box.createVerticalStrut(6));
@@ -52,6 +56,41 @@ public final class JournalNpcPreview extends JPanel implements PageState {
     variants.addActionListener(e->select());generate.addActionListener(e->render());
     rotating.addActionListener(e->showPreview());select();
   }
+  /** Missing/unsupported appearance evidence should not displace the NPC's actual information. */
+  private JComponent unavailableStrip(){
+    JPanel strip=new JPanel(new BorderLayout());strip.setOpaque(false);
+    strip.setBorder(BorderFactory.createEmptyBorder(UIScale.scale(2),UIScale.scale(18),UIScale.scale(2),UIScale.scale(18)));
+    unavailable=new JToggleButton("Model preview unavailable ▸");unavailable.setHorizontalAlignment(SwingConstants.LEADING);
+    unavailable.setPreferredSize(new Dimension(0,UIScale.scale(36)));
+    unavailable.getAccessibleContext().setAccessibleName("Model preview unavailable");
+    unavailable.setToolTipText("Show why this build has no renderable model preview");strip.add(unavailable,BorderLayout.NORTH);
+    JournalSurface.Body explanation=new JournalSurface.Body();
+    explanation.setBorder(BorderFactory.createEmptyBorder(UIScale.scale(10),0,UIScale.scale(8),0));
+    JScrollPane details=new JScrollPane(explanation,JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,JScrollPane.HORIZONTAL_SCROLLBAR_NEVER){
+      @Override public Dimension getPreferredSize(){return new Dimension(0,Math.min(UIScale.scale(180),explanation.getPreferredSize().height));}
+    };
+    details.setBorder(BorderFactory.createEmptyBorder());details.getVerticalScrollBar().setUnitIncrement(UIScale.scale(20));details.setVisible(false);
+    details.getAccessibleContext().setAccessibleName("Why the model preview is unavailable");strip.add(details,BorderLayout.CENTER);
+    unavailable.addActionListener(e->{
+      if(unavailable.isSelected()&&explanation.getComponentCount()==0){
+        JournalSurface.add(explanation,new WrappingText(appearance.message(),"Appearance availability reason"));
+        JournalSurface.add(explanation,new WrappingText(appearance.product()+" · build "+appearance.build(),"Unavailable appearance build"));
+        for(var v:appearance.variants())JournalSurface.add(explanation,new WrappingText(
+            "Display "+v.displayId()+" · slot "+(v.displaySlot()+1)+": "+(v.reason().isBlank()?"No renderable appearance mapping is established.":v.reason()),"Display "+v.displayId()+" preview limitation"));
+        JToggleButton source=new JToggleButton("Appearance evidence");JournalSurface.add(explanation,source);
+        JTextArea raw=new JTextArea();raw.setEditable(false);raw.setLineWrap(true);raw.setWrapStyleWord(true);raw.setVisible(false);
+        raw.getAccessibleContext().setAccessibleName("Unavailable appearance source evidence");explanation.add(raw);
+        source.addActionListener(change->{
+          if(source.isSelected()&&raw.getText().isEmpty()){raw.setText(new GsonBuilder().setPrettyPrinting().create().toJson(appearance));raw.setCaretPosition(0);}
+          raw.setVisible(source.isSelected());explanation.revalidate();strip.revalidate();revalidate();repaint();
+        });
+      }
+      unavailable.setText(unavailable.isSelected()?"Model preview unavailable ▾":"Model preview unavailable ▸");
+      details.setVisible(unavailable.isSelected());strip.revalidate();revalidate();repaint();
+    });
+    return strip;
+  }
+
   private NpcAppearance.Variant selected(){int index=variants.getSelectedIndex()-(appearance.variants().size()>1?1:0);return index>=0&&index<appearance.variants().size()?appearance.variants().get(index):null;}
   private void select(){
     int token=++generation;current=null;visual.setVisible(false);rotating.setVisible(false);rotating.setSelected(false);
@@ -97,12 +136,14 @@ public final class JournalNpcPreview extends JPanel implements PageState {
   private void refresh(){card.revalidate();card.repaint();revalidate();repaint();}
   @Override public void addNotify(){
     boolean reattaching=disposed;disposed=false;super.addNotify();
-    if(reattaching&&turntable==null)select();
+    if(reattaching&&turntable==null&&!unavailableMode)select();
   }
   @Override public void removeNotify(){disposed=true;generation++;if(turntable!=null)turntable.pause();super.removeNotify();}
-  @Override public Object saveState(){return new State(delegate.saveState(),variants.getSelectedIndex(),rotating.isSelected(),turntable==null?pendingFrame:turntable.frameIndex());}
+  @Override public Object saveState(){return new State(delegate.saveState(),variants.getSelectedIndex(),rotating.isSelected(),turntable==null?pendingFrame:turntable.frameIndex(),unavailable!=null&&unavailable.isSelected());}
   @Override public void restoreState(Object value){
-    if(!(value instanceof State s)){delegate.restoreState(value);return;}delegate.restoreState(s.npc());pendingRotation=s.rotating();pendingFrame=s.frame();
+    if(!(value instanceof State s)){delegate.restoreState(value);return;}delegate.restoreState(s.npc());
+    if(unavailableMode){if(unavailable.isSelected()!=s.unavailableExpanded())unavailable.doClick();return;}
+    pendingRotation=s.rotating();pendingFrame=s.frame();
     if(s.variant()>=0&&s.variant()<variants.getItemCount()&&s.variant()!=variants.getSelectedIndex())variants.setSelectedIndex(s.variant());
     if(turntable!=null){turntable.setFrame(pendingFrame);rotating.setSelected(pendingRotation);showPreview();}
   }

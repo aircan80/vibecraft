@@ -121,8 +121,11 @@ public final class AppController implements Navigator {
     JComponent component=dev.wowforever.app.ui.journal.JournalDetails.render(detail,repos,this,worker,sink,
         view.sourceFilter(),this::changeSourceFilter,view.questPins(),view.routes());
     if (loaded!=null && loaded.detail()==detail) {
-      if (loaded.dungeons()!=null && detail instanceof DetailPanels.LoadedInstance instance)
-        return new dev.wowforever.app.ui.journal.JournalDungeonPage(loaded.dungeons(),this,instance.detail().summary().id(),component);
+      if (loaded.dungeons()!=null && detail instanceof DetailPanels.LoadedInstance instance) {
+        var workspace=new dev.wowforever.app.ui.journal.JournalDungeonPage(loaded.dungeons(),this,instance.detail().summary().id(),component);
+        if(loaded.destinationState()!=null)workspace.restoreState(loaded.destinationState());
+        return workspace;
+      }
       if (loaded.city()!=null && detail instanceof DetailPanels.LoadedZone zone)
         return new dev.wowforever.app.ui.journal.JournalCityPage(loaded.city(),component,this,zone.map(),
             new dev.wowforever.app.music.CityMusicPanel(dev.wowforever.app.music.CityMusicService.shared()));
@@ -133,7 +136,8 @@ public final class AppController implements Navigator {
   /** Loaded entity and optional worker-preloaded Journal context. */
   private record Loaded(EntityRef ref, Object detail,
       dev.wowforever.app.ui.journal.JournalCatalog.DungeonSnapshot dungeons,
-      dev.wowforever.app.ui.journal.JournalCities.GuideSnapshot city) {}
+      dev.wowforever.app.ui.journal.JournalCities.GuideSnapshot city,
+      dev.wowforever.app.ui.journal.JournalDungeonPage.State destinationState) {}
   private record EntitySnapshot(java.util.Optional<Object> detail,
       dev.wowforever.app.ui.journal.JournalCatalog.DungeonSnapshot dungeons,
       dev.wowforever.app.ui.journal.JournalCities.GuideSnapshot city) {}
@@ -518,6 +522,10 @@ public final class AppController implements Navigator {
    * "Quests" toggle as the view's setting says.
    */
   private void showEntity(EntityRef ref, boolean captureSearchEdit) {
+    boolean journalExperience=journal();
+    var destinationState=journalExperience && ref.kind()==EntityKind.INSTANCE
+        && page instanceof dev.wowforever.app.ui.journal.JournalDungeonPage workspace
+        ? workspace.destinationState() : null;
     if (captureSearchEdit) {
       pageSearchEditRevision = view.searchEditRevision();
     }
@@ -535,7 +543,6 @@ public final class AppController implements Navigator {
         setPage(null, LoadingPage.of(ref.kind(), title), null);
       }
     });
-    boolean journalExperience=journal();
     Async.runIf(worker, () -> generation == detailGeneration, () -> {
       var detail=DetailPanels.load(ref,repos);
       var dungeons=journalExperience && ref.kind()==EntityKind.INSTANCE && detail.isPresent()
@@ -548,7 +555,7 @@ public final class AppController implements Navigator {
       if (generation == detailGeneration) {
         loadingDelay.cancel();
         if (detail.isPresent()) {
-          loaded = new Loaded(ref, detail.get(),snapshot.dungeons(),snapshot.city());
+          loaded = new Loaded(ref, detail.get(),snapshot.dungeons(),snapshot.city(),destinationState);
           if (snapshot.city()!=null) dev.wowforever.app.music.CityMusicService.shared().enterCity(snapshot.city().city().id(),snapshot.city().build());
           setPage(new ViewTarget.Entity(ref), renderDetail(detail.get(), pageStatus(generation)));
           view.setTitleSuffix(DetailPanels.name(detail.get()));

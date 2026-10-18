@@ -60,6 +60,7 @@ class AppControllerJournalTest {
     controller.open(new ViewTarget.Entity(new EntityRef(EntityKind.INSTANCE, 2)));
     assertThat(view.detail).isInstanceOf(JournalDungeonPage.class);
     assertThat(guide(view.detail)).isNotNull();
+    assertThat(((JournalDungeonPage)view.detail).destinationState()).isEqualTo(expected);
     controller.back();
     assertThat(view.detail).isInstanceOf(JournalDungeonPage.class).isNotSameAs(page);
     assertThat(((JournalDungeonPage) view.detail).saveState()).isEqualTo(expected);
