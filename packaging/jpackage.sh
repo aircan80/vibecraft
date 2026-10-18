@@ -55,12 +55,15 @@ if [ -n "${RELEASE_DATA_DIR:-}" ] || [ -n "${RELEASE_DATA_MANIFEST:-}" ]; then
   fi
   RELEASE_DATA=1
 fi
-AUDIT_ARGS=()
 if [ "${ALLOW_PRIVATE_ASSETS:-0}" = 1 ]; then
-  AUDIT_ARGS+=(--private-qa)
   echo "PRIVATE QA ONLY: this output contains local assets and must not be published." >&2
 fi
-java "$SCRIPT_DIR/ArchiveAudit.java" "$JAR" "${AUDIT_ARGS[@]}"
+# macOS ships Bash 3.2, where expanding an empty array under nounset fails.
+if [ "${ALLOW_PRIVATE_ASSETS:-0}" = 1 ]; then
+  java "$SCRIPT_DIR/ArchiveAudit.java" "$JAR" --private-qa
+else
+  java "$SCRIPT_DIR/ArchiveAudit.java" "$JAR"
+fi
 
 # Stage only the shaded jar so test jars and class dirs are not bundled.
 rm -rf "$INPUT"
