@@ -91,7 +91,12 @@ public final class CompletedLibraryJobCleanup {
       return new RuntimeLibraryExporter.Receipt(Long.parseLong(p.getProperty("sourceBytes")),p.getProperty("sourceSha256"),Long.parseLong(p.getProperty("runtimeBytes")),p.getProperty("runtimeSha256"),p.getProperty("buildId"),Long.parseLong(p.getProperty("omittedRawRecords")),Long.parseLong(p.getProperty("omittedArchiveBytes")),tables);
     }catch(RuntimeException invalid){throw new IOException("Malformed completed preparation receipt",invalid);}
   }
-  private static Properties properties(Path file)throws IOException {if(Files.size(file)>1048576)throw new IOException("Cleanup proof exceeds bound");var p=new Properties();try(var input=Files.newInputStream(file)){p.load(input);}return p;}
+  private static Properties properties(Path file)throws IOException {
+    if(Files.size(file)>1048576)throw new IOException("Cleanup proof exceeds bound");
+    byte[] bytes;try(var input=Files.newInputStream(file)){bytes=input.readNBytes(1048577);}
+    if(bytes.length>1048576)throw new IOException("Cleanup proof exceeds bound");
+    var p=new Properties();try(var input=new ByteArrayInputStream(bytes)){p.load(input);}catch(IllegalArgumentException invalid){throw new IOException("Malformed cleanup proof",invalid);}return p;
+  }
   private static void requireIdentity(Path path,long bytes,String sha,BooleanSupplier cancelled)throws IOException {if(bytes<1||sha==null||!sha.matches("[a-f0-9]{64}")||Files.size(path)!=bytes||!RuntimeLibraryExporter.hashFile(path,cancelled).equals(sha))throw new IOException("Closed source archive identity changed");}
   private static void rejectSidecars(Path path)throws IOException {for(String suffix:List.of("-wal","-shm","-journal"))if(Files.exists(path.resolveSibling(path.getFileName()+suffix),LinkOption.NOFOLLOW_LINKS))throw new IOException("Staging database has live SQLite sidecars");}
   private static void check(BooleanSupplier cancelled){LibraryCandidateValidator.check(cancelled);}
