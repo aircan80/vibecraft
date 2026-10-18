@@ -22,10 +22,21 @@ final class LootFilterControls extends JPanel {
       new Choice("Main hand",21), new Choice("Off hand",22),
       new Choice("Held in off hand",23), new Choice("Ammo",24), new Choice("Thrown",25),
       new Choice("Quiver",27), new Choice("Relic",28)});
+  private final JComboBox<Choice> resistance = new JComboBox<>(new Choice[] {
+      new Choice("Any resistance",null), new Choice("Fire",51), new Choice("Frost",52),
+      new Choice("Holy",53), new Choice("Shadow",54), new Choice("Nature",55),
+      new Choice("Arcane",56), new Choice("All resistances (stat)",124)});
+  private final javax.swing.JSpinner minimum = new javax.swing.JSpinner(new javax.swing.SpinnerNumberModel(1,0,10000,1));
   private boolean restoring;
   LootFilterControls(Runnable changed) {
     super(new java.awt.GridLayout(0,2,8,4));
-    setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE,64));
+    setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE,128));
+    resistance.setName("loot-resistance-filter"); minimum.setName("loot-resistance-minimum");
+    resistance.getAccessibleContext().setAccessibleName("Loot recorded resistance school");
+    minimum.getAccessibleContext().setAccessibleName("Minimum recorded resistance");
+    resistance.setToolTipText("Explicit numeric Forever stats only. Missing values stay unknown. All-resistance stat is separate; not a derived total.");
+    minimum.setToolTipText("Minimum recorded value, inclusive. Explicit zero is known; missing is unknown.");
+    minimum.setEnabled(false);
     classes.setName("loot-class-filter"); slots.setName("loot-slot-filter");
     classes.getAccessibleContext().setAccessibleName("Loot class restriction");
     slots.getAccessibleContext().setAccessibleName("Loot equipment slot");
@@ -34,11 +45,22 @@ final class LootFilterControls extends JPanel {
     JLabel classLabel=new JLabel("Class restriction"); classLabel.setLabelFor(classes);
     JLabel slotLabel=new JLabel("Slot"); slotLabel.setLabelFor(slots);
     add(classLabel); add(classes); add(slotLabel); add(slots);
+    JLabel resistanceLabel=new JLabel("Recorded resistance"); resistanceLabel.setLabelFor(resistance);
+    JLabel minimumLabel=new JLabel("Minimum value"); minimumLabel.setLabelFor(minimum);
+    add(resistanceLabel); add(resistance); add(minimumLabel); add(minimum);
+    resistance.addActionListener(e -> {
+      minimum.setEnabled(((Choice) resistance.getSelectedItem()).id()!=null);
+      if (!restoring) changed.run();
+    });
+    minimum.addChangeListener(e -> { if (!restoring) changed.run(); });
     classes.addActionListener(e -> { if (!restoring) changed.run(); }); slots.addActionListener(e -> { if (!restoring) changed.run(); });
   }
   void restore(LootFilter filter) {
     restoring = true;
-    try { select(classes,filter.classId()); select(slots,filter.inventoryType()); }
+    try {
+      select(classes,filter.classId()); select(slots,filter.inventoryType());
+      select(resistance,filter.resistanceStat()); minimum.setValue(filter.minimumResistance());
+    }
     finally { restoring = false; }
   }
   private void select(JComboBox<Choice> box, Integer id) {
@@ -48,5 +70,5 @@ final class LootFilterControls extends JPanel {
     box.setSelectedIndex(0);
   }
   LootFilter filter() { return new LootFilter(((Choice) classes.getSelectedItem()).id(),
-      ((Choice) slots.getSelectedItem()).id()); }
+      ((Choice) slots.getSelectedItem()).id(), ((Choice) resistance.getSelectedItem()).id(), (Integer) minimum.getValue()); }
 }

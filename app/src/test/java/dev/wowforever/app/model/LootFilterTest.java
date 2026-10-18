@@ -39,4 +39,18 @@ class LootFilterTest {
         .extracting(r->r.item().id()).containsExactly(1L,2L);
   }
 
+  @Test void resistanceThresholdDistinguishesKnownZeroMissingAndDifferentSchools() {
+    var zero=row(1,256,6).withResistanceValues(java.util.Map.of(51,0));
+    var fire=row(2,256,6).withResistanceValues(java.util.Map.of(51,10));
+    var frost=row(3,256,6).withResistanceValues(java.util.Map.of(52,20));
+    var missing=row(4,null,null);
+    var result=new LootFilter(null,null,51,1).apply(List.of(zero,fire,frost,missing));
+    assertThat(result.rows()).containsExactly(fire);
+    assertThat(result.excluded()).isEqualTo(1);
+    assertThat(result.unknown()).isEqualTo(2);
+    assertThat(result.unknownResistance()).isEqualTo(2);
+    assertThat(new LootFilter(null,null,51,0).apply(List.of(zero,fire,frost)).rows()).containsExactly(zero,fire);
+    assertThat(fire.withObservation(true).withInventoryType(7).resistanceValues()).containsEntry(51,10);
+  }
+
 }

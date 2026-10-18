@@ -109,18 +109,18 @@ public final class InstanceRepository {
           rs -> bossLootRow(rs).withObservation(observedIds.contains(rs.getLong("item_id"))), bossId));
       var existing = rows.stream().map(l -> l.item().id()).collect(java.util.stream.Collectors.toSet());
       observed.stream().filter(l -> !existing.contains(l.item().id())).forEach(rows::add);
-      return List.copyOf(rows);
+      return LootResistances.attach(c, rows);
     });
   }
 
   /** The loot table of a boss in one {@code difficulty} (a {@link #difficulties} value), in slot order. */
   public List<LootRow> bossLoot(long bossId, String difficulty) {
-    if (OBSERVED_DIFFICULTY.equals(difficulty)) return db.read(c -> observedLoot(c, bossId));
-    return db.read(c -> Sql.list(c, bossLootSelect(c) + """
+    if (OBSERVED_DIFFICULTY.equals(difficulty)) return db.read(c -> LootResistances.attach(c, observedLoot(c, bossId)));
+    return db.read(c -> LootResistances.attach(c, Sql.list(c, bossLootSelect(c) + """
 
         WHERE bl.boss_id = ? AND bl.difficulty = ?
         ORDER BY bl.slot IS NULL, bl.slot, bl.item_id""",
-        InstanceRepository::bossLootRow, bossId, difficulty));
+        InstanceRepository::bossLootRow, bossId, difficulty)));
   }
 
   /**

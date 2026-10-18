@@ -513,7 +513,7 @@ public final class InstancePage extends JPanel implements PageState {
     JLabel filterSummary = new JLabel(displayedLoot.size() + " shown · " + filtered.excluded()
         + " excluded · " + filtered.unknown() + " unknown");
     filterSummary.setToolTipText("Forever metadata only. Unknown class: " + filtered.unknownClass()
-        + "; unknown slot: " + filtered.unknownSlot() + ". Counts overlap. Unknowns do not match active filters; no Era fallback.");
+        + "; unknown slot: " + filtered.unknownSlot() + "; unknown resistance: " + filtered.unknownResistance() + ". Counts overlap. Unknowns do not match active filters; no Era fallback.");
     filterLead.add(filterSummary);
     if (displayedLoot.isEmpty() && !loot.isEmpty()) {
       filterLead.add(new JLabel("No known Forever matches."));

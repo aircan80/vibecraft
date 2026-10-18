@@ -405,7 +405,7 @@ class InstancePageTest {
       var lookups = new java.util.concurrent.atomic.AtomicInteger();
       BossLoot source=(boss,difficulty)-> {
         lookups.incrementAndGet();
-        return List.of(new LootRow(new EntityRef(ITEM,1),"Waist",null,null,null,99).withInventoryType(6),
+        return List.of(new LootRow(new EntityRef(ITEM,1),"Waist",null,null,null,99).withInventoryType(6).withResistanceValues(java.util.Map.of(51,5)),
             new LootRow(new EntityRef(ITEM,2),"Legs",null,null,null,6).withInventoryType(7));
       };
       var page=new InstancePage(repos.instances().detail(2).orElseThrow(),source,t->{});
@@ -416,6 +416,13 @@ class InstancePageTest {
       assertThat(page.lootTable().model().getRowCount()).isEqualTo(2); // Other heading + true Waist
       assertThat(findLootSlot(page)).isSameAs(combo);
       Object saved=page.saveState();
+      for(var component:combo.getParent().getComponents()) {
+        if(component instanceof javax.swing.JComboBox<?> box && "loot-resistance-filter".equals(box.getName()))
+          box.setSelectedIndex(1);
+        if(component instanceof javax.swing.JSpinner spinner) spinner.setValue(6);
+      }
+      assertThat(page.lootTable().model().getRowCount()).isZero();
+      assertThat(lookups).hasValue(loaded);
       combo.setSelectedIndex(0);
       int beforeRestore=lookups.get();
       page.restoreState(saved);

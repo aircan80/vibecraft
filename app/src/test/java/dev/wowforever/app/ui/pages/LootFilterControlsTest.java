@@ -22,6 +22,9 @@ class LootFilterControlsTest {
       }
       assertThat(controls.filter()).isEqualTo(new LootFilter(null,6));
       assertThat(changes).hasValue(1);
+      controls.restore(new LootFilter(9,6,51,10));
+      assertThat(controls.filter()).isEqualTo(new LootFilter(9,6,51,10));
+      assertThat(changes).hasValue(1);
     });
   }
 }

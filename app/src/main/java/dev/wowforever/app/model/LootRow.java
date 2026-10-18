@@ -16,7 +16,23 @@ package dev.wowforever.app.model;
  */
 public record LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
     Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
-    Long iconId, String skillLine, Integer allowableClass, int dropperCount, String pctSource, boolean observedInGame, Integer inventoryType) {
+    Long iconId, String skillLine, Integer allowableClass, int dropperCount, String pctSource, boolean observedInGame, Integer inventoryType, java.util.Map<Integer,Integer> resistanceValues) {
+
+  public LootRow { resistanceValues = java.util.Map.copyOf(resistanceValues); }
+
+  public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
+      Integer classId, String className, Integer subclassId, boolean disagrees, int sourceCount, Integer quality,
+      Long iconId, String skillLine, Integer allowableClass, int dropperCount, String pctSource,
+      boolean observedInGame, Integer inventoryType) {
+    this(item,itemName,itemLevel,dropPct,origin,slot,classId,className,subclassId,disagrees,sourceCount,
+        quality,iconId,skillLine,allowableClass,dropperCount,pctSource,observedInGame,inventoryType,java.util.Map.of());
+  }
+
+  /** Only explicit numeric Forever resistance evidence; absent entries are unknown, never zero. */
+  public LootRow withResistanceValues(java.util.Map<Integer,Integer> values) {
+    return new LootRow(item,itemName,itemLevel,dropPct,origin,slot,classId,className,subclassId,disagrees,sourceCount,
+        quality,iconId,skillLine,allowableClass,dropperCount,pctSource,observedInGame,inventoryType,values);
+  }
 
   /** Compatibility constructor; equipment slot must never be inferred from AtlasLoot row order. */
   public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
@@ -28,7 +44,7 @@ public record LootRow(EntityRef item, String itemName, Integer itemLevel, Double
 
   public LootRow withInventoryType(Integer value) {
     return new LootRow(item, itemName, itemLevel, dropPct, origin, slot, classId, className, subclassId,
-        disagrees, sourceCount, quality, iconId, skillLine, allowableClass, dropperCount, pctSource, observedInGame, value);
+        disagrees, sourceCount, quality, iconId, skillLine, allowableClass, dropperCount, pctSource, observedInGame, value, resistanceValues);
   }
 
   public LootRow(EntityRef item, String itemName, Integer itemLevel, Double dropPct, String origin, Integer slot,
@@ -42,7 +58,7 @@ public record LootRow(EntityRef item, String itemName, Integer itemLevel, Double
 
   public LootRow withObservation(boolean observed) {
     return new LootRow(item, itemName, itemLevel, dropPct, origin, slot, classId, className, subclassId,
-        disagrees, sourceCount, quality, iconId, skillLine, allowableClass, dropperCount, pctSource, observed, inventoryType);
+        disagrees, sourceCount, quality, iconId, skillLine, allowableClass, dropperCount, pctSource, observed, inventoryType, resistanceValues);
   }
 
   /** A row without a headline rate source. */
