@@ -233,6 +233,27 @@ AtlasLoot support with 29 focused passing tests. Setup mockups and GUI work cont
 These backend slices do not close zero-data bootstrap, staging/activation or native
 extraction requirements.
 
+## Durable issue tracking
+
+Owner requirement: features, enhancements and bugs must have GitHub issues, updated
+while work proceeds so status survives sessions. The current verified source push
+remains `623f91e789e137e5188808dff8a6eccf34fc12b4`; later local commits are not implied
+pushed by this roadmap.
+
+- [#1 Zero-data setup](https://github.com/aircan80/vibecraft/issues/1)
+- [#2 Source-icon Java implementation](https://github.com/aircan80/vibecraft/issues/2)
+- [#3 Breadcrumb Java implementation](https://github.com/aircan80/vibecraft/issues/3)
+- [#4 Remove legacy search pane](https://github.com/aircan80/vibecraft/issues/4): source integrated, 79 focused checks passed; native acceptance pending.
+- [#5 Windows launch acceptance](https://github.com/aircan80/vibecraft/issues/5): not yet run.
+- [#6 Staged import jobs](https://github.com/aircan80/vibecraft/issues/6)
+- [#7 Native Vibemining](https://github.com/aircan80/vibecraft/issues/7)
+- [#8 Cross-platform CI](https://github.com/aircan80/vibecraft/issues/8): Linux passed; initial Windows/macOS fixture-path and symlink failures are being fixed.
+- [#9 Multiple game-version selection and switching](https://github.com/aircan80/vibecraft/issues/9)
+
+Setup must select **multiple game versions**, building shared edition-scoped catalogs
+with an active-game switcher. Only Forever is currently installed; this requirement
+is accepted scope, not completed multi-game import functionality.
+
 ## Accepted future exploration: map zoom and pan
 
 **Planned, owner-approved; not implemented.** Add city and zone map zoom/pan as a
