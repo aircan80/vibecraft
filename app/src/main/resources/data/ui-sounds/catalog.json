@@ -1,0 +1,181 @@
+{
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "semanticConstants": {
+    "url": "https://raw.githubusercontent.com/Gethe/wow-ui-source/live/Interface/AddOns/Blizzard_SharedXML/Mainline/SoundKitConstants.lua",
+    "sha256": "7b0f89a64f986aa8c334e6f990a6c3760ccef08f8b9d87ee1698c6afecf19759",
+    "note": "Semantic labels only; actual files are resolved from exact Forever SoundKitEntry export and authenticated native root."
+  },
+  "tables": {
+    "SoundKit": {
+      "url": "https://wago.tools/db2/SoundKit/csv?build=1.60.1.70450",
+      "sha256": "3fd364f294edb44ac1a833165da75b28e0b1c5377212e129404f7a73f86c355a"
+    },
+    "SoundKitEntry": {
+      "url": "https://wago.tools/db2/SoundKitEntry/csv?build=1.60.1.70450",
+      "sha256": "eaed971ced65e27ad175d18c24ef025478e2d2186c9ba716cd9d6b626bca2a92"
+    }
+  },
+  "cues": [
+    {
+      "cue": "OPEN",
+      "kit": {
+        "ID": "850",
+        "SoundType": "2",
+        "VolumeFloat": "0.79432821274",
+        "Flags": "4096",
+        "MinDistance": "8",
+        "DistanceCutoff": "45",
+        "EAXDef": "2",
+        "SoundKitAdvancedID": "305500",
+        "VolumeVariationPlus": "0",
+        "VolumeVariationMinus": "0",
+        "PitchVariationPlus": "0",
+        "PitchVariationMinus": "0",
+        "DialogType": "0",
+        "PitchAdjust": "0",
+        "BusOverwriteID": "0",
+        "MaxInstances": "0",
+        "SoundMixGroupID": "0"
+      },
+      "entries": [
+        {
+          "ID": "1521448",
+          "SoundKitID": "850",
+          "FileDataID": "567490",
+          "Frequency": "1",
+          "Volume": "1",
+          "PlayerConditionID": "0"
+        }
+      ]
+    },
+    {
+      "cue": "CLOSE",
+      "kit": {
+        "ID": "851",
+        "SoundType": "2",
+        "VolumeFloat": "0.50118720531",
+        "Flags": "4128",
+        "MinDistance": "8",
+        "DistanceCutoff": "45",
+        "EAXDef": "2",
+        "SoundKitAdvancedID": "314077",
+        "VolumeVariationPlus": "0",
+        "VolumeVariationMinus": "0",
+        "PitchVariationPlus": "0",
+        "PitchVariationMinus": "0",
+        "DialogType": "0",
+        "PitchAdjust": "0",
+        "BusOverwriteID": "0",
+        "MaxInstances": "0",
+        "SoundMixGroupID": "0"
+      },
+      "entries": [
+        {
+          "ID": "1611009",
+          "SoundKitID": "851",
+          "FileDataID": "567464",
+          "Frequency": "1",
+          "Volume": "1",
+          "PlayerConditionID": "0"
+        }
+      ]
+    },
+    {
+      "cue": "CONFIRM",
+      "kit": {
+        "ID": "852",
+        "SoundType": "2",
+        "VolumeFloat": "0.75",
+        "Flags": "4128",
+        "MinDistance": "8",
+        "DistanceCutoff": "45",
+        "EAXDef": "2",
+        "SoundKitAdvancedID": "0",
+        "VolumeVariationPlus": "0",
+        "VolumeVariationMinus": "0",
+        "PitchVariationPlus": "0",
+        "PitchVariationMinus": "0",
+        "DialogType": "0",
+        "PitchAdjust": "0",
+        "BusOverwriteID": "0",
+        "MaxInstances": "0",
+        "SoundMixGroupID": "0"
+      },
+      "entries": [
+        {
+          "ID": "1610996",
+          "SoundKitID": "852",
+          "FileDataID": "567481",
+          "Frequency": "1",
+          "Volume": "1",
+          "PlayerConditionID": "0"
+        }
+      ]
+    },
+    {
+      "cue": "TAB",
+      "kit": {
+        "ID": "841",
+        "SoundType": "2",
+        "VolumeFloat": "0.89125090837",
+        "Flags": "4128",
+        "MinDistance": "8",
+        "DistanceCutoff": "45",
+        "EAXDef": "2",
+        "SoundKitAdvancedID": "316696",
+        "VolumeVariationPlus": "0",
+        "VolumeVariationMinus": "0",
+        "PitchVariationPlus": "0",
+        "PitchVariationMinus": "0",
+        "DialogType": "0",
+        "PitchAdjust": "0",
+        "BusOverwriteID": "0",
+        "MaxInstances": "0",
+        "SoundMixGroupID": "0"
+      },
+      "entries": [
+        {
+          "ID": "1611007",
+          "SoundKitID": "841",
+          "FileDataID": "567422",
+          "Frequency": "1",
+          "Volume": "1",
+          "PlayerConditionID": "0"
+        }
+      ]
+    },
+    {
+      "cue": "TOGGLE",
+      "kit": {
+        "ID": "856",
+        "SoundType": "2",
+        "VolumeFloat": "0.5",
+        "Flags": "4128",
+        "MinDistance": "8",
+        "DistanceCutoff": "45",
+        "EAXDef": "2",
+        "SoundKitAdvancedID": "0",
+        "VolumeVariationPlus": "0",
+        "VolumeVariationMinus": "0",
+        "PitchVariationPlus": "0",
+        "PitchVariationMinus": "0",
+        "DialogType": "0",
+        "PitchAdjust": "0",
+        "BusOverwriteID": "0",
+        "MaxInstances": "0",
+        "SoundMixGroupID": "0"
+      },
+      "entries": [
+        {
+          "ID": "286922",
+          "SoundKitID": "856",
+          "FileDataID": "567407",
+          "Frequency": "1",
+          "Volume": "1",
+          "PlayerConditionID": "0"
+        }
+      ]
+    }
+  ]
+}

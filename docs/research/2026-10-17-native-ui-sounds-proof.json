@@ -1,0 +1,47 @@
+{
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "files": [
+    {
+      "fileDataId": 567490,
+      "contentMD5": "a3bbfecd2f7ac627be224a4c76fd5309",
+      "sha256": "c1266a5866182b8185537530705ed5e075288fa49de39f7a84da5515678c60e8",
+      "pcmFrames": 14208,
+      "sampleRate": 22050,
+      "channels": 1
+    },
+    {
+      "fileDataId": 567464,
+      "contentMD5": "d9630627a6f8c9e43fb45112f9b1d813",
+      "sha256": "4a779a63cc502fea754d456e71ba989984c75405bd801f76700e6e94ea0a3154",
+      "pcmFrames": 14720,
+      "sampleRate": 22050,
+      "channels": 1
+    },
+    {
+      "fileDataId": 567481,
+      "contentMD5": "a8885c43e3139025782e84b1a427b9f4",
+      "sha256": "cc842399b80c0f1476f1535c7bb00cafad013dedca0144027557a110204a8af1",
+      "pcmFrames": 4736,
+      "sampleRate": 22050,
+      "channels": 1
+    },
+    {
+      "fileDataId": 567422,
+      "contentMD5": "2d32b30d7ebd5354b68695cb4ac6f47c",
+      "sha256": "1752f34b3f0af011fcc87d48524b86af76bf6d38f888cdf68da972aaa6541e50",
+      "pcmFrames": 4480,
+      "sampleRate": 22050,
+      "channels": 1
+    },
+    {
+      "fileDataId": 567407,
+      "contentMD5": "2d8f5bc83a5683f687077cc439c2d1b8",
+      "sha256": "ca9394cc0258b809a4205dbf467f38b97ed806021d2c612ed20e547cce25e9a3",
+      "pcmFrames": 3200,
+      "sampleRate": 22050,
+      "channels": 1
+    }
+  ],
+  "note": "Exact authenticated native root assets; JOrbis packet decoding verified nonempty PCM. No human listening assertion."
+}
