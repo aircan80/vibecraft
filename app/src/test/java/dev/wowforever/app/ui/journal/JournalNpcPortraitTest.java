@@ -30,6 +30,8 @@ class JournalNpcPortraitTest {
       var page=new JournalNpcPortrait(npc(),portrait);page.setSize(420,700);layout(page);
       assertThat(hasImage(page)).isTrue();assertNoGenerationOrRotation(page);
       assertThat(text(page)).contains("Blizzard Entertainment");
+      var source=all(page).stream().filter(dev.wowforever.app.ui.widgets.SourceInfoButton.class::isInstance).map(dev.wowforever.app.ui.widgets.SourceInfoButton.class::cast).findFirst().orElseThrow();
+      assertThat(text(source.detailsContent())).contains("wow_classic_beta","1.60.1.70450","Static portrait for NPC #2671","Not recorded");
       assertThat(all(page).stream().filter(c->c instanceof JScrollPane pane && pane.getViewport().getView() instanceof JTextArea).noneMatch(Component::isVisible)).isTrue();
       page.restoreState(page.saveState());
       assertThatThrownBy(()->NpcPortraits.load(2671,"1.60.1.70450")).isInstanceOf(IllegalStateException.class);

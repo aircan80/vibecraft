@@ -79,10 +79,7 @@ public final class JournalMapInspector extends JPanel {
         node.flightMaster(), node.x(), node.y()));
     inspector.rebuildLocations();
     if (!data.sourceLabel().isBlank()) {
-      JToggleButton sources = new JToggleButton("Map & travel sources");
-      var evidence = JournalSurface.copy(data.sourceLabel()); evidence.setVisible(false);
-      sources.addActionListener(e -> { evidence.setVisible(sources.isSelected()); inspector.revalidate(); });
-      JournalSurface.add(inspector.contents, sources); JournalSurface.add(inspector.contents, evidence);
+      JournalSurface.add(inspector.contents,sourceDisclosure(name,data));
     }
     panel.mapView().addMouseListener(new MouseAdapter() {
       @Override public void mouseClicked(MouseEvent event) {
@@ -136,6 +133,22 @@ public final class JournalMapInspector extends JPanel {
     }
     inspector.rebuildLocations();
     return inspector;
+  }
+
+  static JPanel sourceDisclosure(String name,TravelMapData data){
+      JPanel sources=new JPanel(new BorderLayout(8,0));sources.setOpaque(false);
+      var button=new SourceInfoButton("map and travel overlays on "+name,data.sourceLabel(),()->new SourceEvidencePanel(List.of(
+          new SourceEvidencePanel.Fact("Source label",data.sourceLabel()),
+          new SourceEvidencePanel.Fact("Applies to","Loaded map and travel overlays on "+name),
+          new SourceEvidencePanel.Fact("Separate edition/build fields",null),
+          new SourceEvidencePanel.Fact("Refreshed",null)),
+          "The retained label is shown as recorded. It does not establish complete Forever entrance or flight coverage.",""));
+      button.setName("map-travel-source-info");
+      JPanel heading=new JPanel(new FlowLayout(FlowLayout.LEADING,6,0));heading.setOpaque(false);
+      JLabel title=new JLabel("Map & travel sources");title.setFont(title.getFont().deriveFont(18f));heading.add(title);heading.add(button);sources.add(heading,BorderLayout.NORTH);
+      // This legacy label mixes attribution and coverage qualifications. Keep it intact and visible.
+      sources.add(JournalSurface.copy(data.sourceLabel()),BorderLayout.CENTER);
+      return sources;
   }
 
   private void disclosure(String title, JComponent body) {

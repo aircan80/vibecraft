@@ -63,6 +63,8 @@ class JournalMapInspectorTest {
     SwingUtilities.invokeAndWait(() -> {
       List<Runnable> work = new ArrayList<>();
       var first = page(loaded, ignored -> {}, work, new ArrayList<>());
+      var source=descendants(first.inspector()).stream().filter(dev.wowforever.app.ui.widgets.SourceInfoButton.class::isInstance).map(dev.wowforever.app.ui.widgets.SourceInfoButton.class::cast).findFirst().orElseThrow();
+      assertThat(descendants(source.detailsContent()).stream().filter(JTextArea.class::isInstance).map(JTextArea.class::cast).map(JTextArea::getText)).anyMatch(text->text.equals("Fixture travel source"));
       button(first.inspector(), "The Deadmines").doClick();
       var entrance = descendants(first.inspector()).stream().filter(JToggleButton.class::isInstance)
           .map(JToggleButton.class::cast).filter(b -> b.getText().equals("Dungeon entrances")).findFirst().orElseThrow();

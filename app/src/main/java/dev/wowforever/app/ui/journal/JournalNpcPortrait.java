@@ -9,6 +9,9 @@ import dev.wowforever.app.ui.pages.PageState;
 import dev.wowforever.app.ui.theme.Fonts;
 import dev.wowforever.app.ui.theme.Theme;
 import dev.wowforever.app.ui.widgets.WrappingText;
+import dev.wowforever.app.ui.widgets.SourceInfoButton;
+import dev.wowforever.app.ui.widgets.SourceEvidencePanel;
+import java.util.List;
 import java.awt.*;
 import java.util.concurrent.Executor;
 import javax.swing.*;
@@ -71,13 +74,19 @@ public final class JournalNpcPortrait extends JPanel implements PageState {
     };
     image.setToolTipText("NPC portrait");image.setName("npc-portrait-image");card.add(image);
     JPanel text=new JPanel(new JournalSurface.Stack());text.setOpaque(false);
-    JLabel title=new JLabel("Portrait");title.setFont(Fonts.heading(UIScale.scale(23f)));text.add(title);text.add(Box.createVerticalStrut(8));
+    JPanel heading=new JPanel(new BorderLayout(8,0));heading.setOpaque(false);
+    JLabel title=new JLabel("Portrait");title.setFont(Fonts.heading(UIScale.scale(23f)));heading.add(title,BorderLayout.CENTER);
+    var sourceInfo=new SourceInfoButton("NPC portrait #"+portrait.key().npcId(),portrait.source()+" · "+portrait.key().product()+" · "+portrait.key().build(),()->new SourceEvidencePanel(List.of(
+        new SourceEvidencePanel.Fact("Source / credit",portrait.source()),
+        new SourceEvidencePanel.Fact("Game product",portrait.key().product()),
+        new SourceEvidencePanel.Fact("Build",portrait.key().build()),
+        new SourceEvidencePanel.Fact("Applies to","Static portrait for NPC #"+portrait.key().npcId()),
+        new SourceEvidencePanel.Fact("Refreshed",null)),
+        "This evidence qualifies the portrait image only; it does not establish this NPC's other fields.",portrait.evidence()));
+    sourceInfo.setName("npc-portrait-source-info");heading.add(sourceInfo,BorderLayout.EAST);text.add(heading);text.add(Box.createVerticalStrut(8));
     JLabel build=new JLabel("Client build "+portrait.key().build());build.setForeground(Theme.current().textMuted());text.add(build);text.add(Box.createVerticalStrut(6));
     text.add(new WrappingText(portrait.source(),"Portrait source"));text.add(Box.createVerticalStrut(8));
-    details=new JToggleButton("Source details");details.setSelected(pendingDetails);text.add(details);
-    JTextArea evidence=new JTextArea(portrait.evidence(),6,30);evidence.setEditable(false);evidence.setLineWrap(true);evidence.setWrapStyleWord(true);
-    JScrollPane source=new JScrollPane(evidence);source.setVisible(pendingDetails);text.add(source);
-    details.addActionListener(e->{pendingDetails=details.isSelected();source.setVisible(pendingDetails);refresh();});
+    details=null;pendingDetails=false;
     card.add(text);slot.add(card);refresh();
   }
   private void refresh(){slot.revalidate();slot.repaint();revalidate();repaint();}

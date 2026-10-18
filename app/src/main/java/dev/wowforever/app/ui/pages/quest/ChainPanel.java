@@ -5,6 +5,8 @@ import dev.wowforever.app.model.QuestChain;
 import dev.wowforever.app.model.QuestChain.Step;
 import dev.wowforever.app.model.QuestRelationEvidence;
 import dev.wowforever.app.ui.widgets.WrappingText;
+import dev.wowforever.app.ui.widgets.SourceInfoButton;
+import dev.wowforever.app.ui.widgets.SourceEvidencePanel;
 import java.net.URI;
 import java.util.function.Consumer;
 import dev.wowforever.app.nav.Navigator;
@@ -167,43 +169,42 @@ public final class ChainPanel extends JPanel {
       if (row.step() != null && row.step().parentQuestId() != null) {
         var evidence = chain.evidenceFor(row.step());
         if (!evidence.isEmpty()) {
-          JPanel sources = new JPanel();
-          sources.setOpaque(false);
-          sources.setLayout(new BoxLayout(sources, BoxLayout.Y_AXIS));
-          for (var source : evidence) {
-            JButton open = new JButton(source.sourceLabel() + " ↗");
-            open.setHorizontalAlignment(JButton.LEADING);
-            open.setBorderPainted(false);
-            open.setContentAreaFilled(false);
-            open.setBorder(BorderFactory.createEmptyBorder(2, 0, 0, 0));
-            open.setAlignmentX(Component.LEFT_ALIGNMENT);
-            open.getAccessibleContext().setAccessibleName("Source " + source.sourceLabel()
-                + " for quest relationship " + source.questId() + " " + source.kind() + " " + source.relatedId());
-            String detail = source.sourceLabel() + " · " + source.qualification() + " · " + source.kind()
-                + " · Snapshot " + source.snapshotId() + " · " + source.artifactPath();
-            open.setToolTipText(detail);
-            line.setToolTipText(detail);
-            open.setEnabled(source.uri().isPresent());
-            open.addActionListener(e -> source.uri().ifPresent(uri -> {
-              try { sourceOpener.accept(uri); }
-              catch (RuntimeException failure) { open.setToolTipText("Could not open source: " + failure.getMessage()); }
-            }));
-            sources.add(open);
-          }
-          line.add(sources, BorderLayout.SOUTH);
+          String providers=evidence.stream().map(QuestRelationEvidence::sourceLabel).distinct().collect(java.util.stream.Collectors.joining(", "));
+          boolean partial=evidence.stream().anyMatch(QuestRelationEvidence::partial);
+          String qualification=partial?"Conditional requirements may be incomplete; not in-game verified":"Authored relationship; not in-game verified";
+          var info=new SourceInfoButton("quest connection "+row.step().questId()+" / "+row.step().parentQuestId(),providers+" · "+qualification,()->relationshipDetails(evidence,sourceOpener));
+          info.setName("quest-relationship-source-info");line.add(info,BorderLayout.EAST);
+          var warning=new WrappingText(qualification,"Quest relationship qualification");warning.setFont(warning.getFont().deriveFont(18f));line.add(warning,BorderLayout.SOUTH);
         }
       }
       line.setMaximumSize(new java.awt.Dimension(Integer.MAX_VALUE, line.getPreferredSize().height));
       body.add(line);
     }
     if (!chain.evidence().isEmpty()) {
-      String names = chain.evidence().stream().map(QuestRelationEvidence::sourceLabel).distinct()
-          .collect(java.util.stream.Collectors.joining(", "));
-      body.add(new WrappingText("Relationship sources: " + names + ". Authored data; not in-game verified.",
+      body.add(new WrappingText("Relationship assertions are authored source data; not in-game verified.",
           "Quest relationship provenance"));
     }
     updateVisibility();
   }
+
+  static JPanel relationshipDetails(List<QuestRelationEvidence> evidence,Consumer<URI> sourceOpener){
+    var content=new SourceEvidencePanel(List.of(),"Evidence applies only to the recorded quest relationships below. It does not establish every quest field or a complete set of access requirements.","");
+    for(var source:List.copyOf(evidence)){
+      var facts=new SourceEvidencePanel(List.of(
+          new SourceEvidencePanel.Fact("Source",source.sourceLabel()),
+          new SourceEvidencePanel.Fact("Applies to","Quest #"+source.questId()+" · "+source.kind()+" · quest #"+source.relatedId()),
+          new SourceEvidencePanel.Fact("Separate build",null),
+          new SourceEvidencePanel.Fact("Refreshed",null)),source.qualification(),
+          "Snapshot: "+recorded(source.snapshotId())+"\nArtifact: "+recorded(source.artifactPath())+"\nSource URL: "+recorded(source.sourceUrl()));
+      var open=new JButton("Open original source ↗");open.setFont(open.getFont().deriveFont(18f));open.setAlignmentX(Component.LEFT_ALIGNMENT);open.setEnabled(source.uri().isPresent());open.setToolTipText(source.uri().isPresent()?"Open the recorded source in your browser":"No valid HTTP(S) source URL was recorded.");
+      open.getAccessibleContext().setAccessibleName("Open original "+source.sourceLabel()+" source for quest relationship "+source.questId()+" "+source.kind()+" "+source.relatedId());
+      var failure=new WrappingText("","Source link status");failure.setFont(failure.getFont().deriveFont(18f));failure.setVisible(false);
+      open.addActionListener(event->source.uri().ifPresent(uri->{try{sourceOpener.accept(uri);}catch(RuntimeException problem){failure.setText("The original source could not be opened.");failure.setVisible(true);content.revalidate();content.repaint();}}));
+      facts.add(open);facts.add(failure);content.add(facts);content.add(javax.swing.Box.createVerticalStrut(14));
+    }
+    return content;
+  }
+  private static String recorded(String value){return value==null||value.isBlank()?"Not recorded":value;}
 
   private static void browse(URI uri) {
     if (!java.awt.Desktop.isDesktopSupported()
