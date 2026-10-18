@@ -21,8 +21,10 @@ class JournalDetailsTest {
     var loaded=new DetailPanels.LoadedInstance(detail,List.of(),"fixture",(boss,mode)->List.of());
     SwingUtilities.invokeAndWait(() -> {
       var first=render(loaded);
-      assertThat(first.tabs().getTabCount()).isEqualTo(4);
+      assertThat(first.tabs().getTabCount()).isEqualTo(5);
       assertThat(first.tabs().getTitleAt(1)).isEqualTo("Bosses & loot");
+      assertThat(first.tabs().getTitleAt(2)).isEqualTo("Shared loot");
+      assertThat(first.tabs().getTitleAt(4)).isEqualTo("Preparation research");
       first.tabs().setSelectedIndex(1);
       ((InstancePage)first.tabs().getComponentAt(1)).selectBoss(1);
       Object saved=first.saveState();

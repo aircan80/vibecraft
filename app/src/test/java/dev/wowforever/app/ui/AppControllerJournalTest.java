@@ -72,17 +72,17 @@ class AppControllerJournalTest {
     var dungeon = new ViewTarget.Entity(new EntityRef(EntityKind.INSTANCE, 2));
     controller.open(dungeon);
     JournalPage first = guide(view.detail);
-    first.tabs().setSelectedIndex(2);
-    assertThat(first.tabs().getTitleAt(2)).isEqualTo("Maps");
+    first.tabs().setSelectedIndex(3);
+    assertThat(first.tabs().getTitleAt(3)).isEqualTo("Maps");
     controller.open(new ViewTarget.Home());
     controller.back();
     JournalPage restored = guide(view.detail);
     assertThat(restored).isNotSameAs(first);
-    assertThat(restored.tabs().getSelectedIndex()).isEqualTo(2);
+    assertThat(restored.tabs().getSelectedIndex()).isEqualTo(3);
     controller.forward();
     assertThat(view.detail).isInstanceOf(JournalHomePage.class);
     controller.back();
-    assertThat(guide(view.detail).tabs().getSelectedIndex()).isEqualTo(2);
+    assertThat(guide(view.detail).tabs().getSelectedIndex()).isEqualTo(3);
   }
 
   @Test

@@ -29,7 +29,7 @@ public final class JournalDetails {
   public static JComponent render(Object loaded, Repositories repos, Navigator nav, Executor worker,
       StatusSink sink, SourceFilter filter, Consumer<SourceFilter> onFilter, BooleanSetting questPins,
       BooleanSetting routes) {
-    if (loaded instanceof DetailPanels.LoadedInstance p) return instance(p,nav,worker,sink);
+    if (loaded instanceof DetailPanels.LoadedInstance p) return instance(p,repos,nav,worker,sink);
     if (loaded instanceof DetailPanels.LoadedItem p) return item(p,repos,nav,worker,sink,filter,onFilter);
     if (loaded instanceof DetailPanels.LoadedZone p)
       return new JournalZonePage(p,repos,nav,worker,sink,questPins,routes);
@@ -43,10 +43,11 @@ public final class JournalDetails {
     return DetailPanels.render(loaded,repos,nav,worker,sink,filter,onFilter,questPins,routes);
   }
 
-  private static JComponent instance(DetailPanels.LoadedInstance p, Navigator nav, Executor worker, StatusSink sink) {
+  private static JComponent instance(DetailPanels.LoadedInstance p, Repositories repos, Navigator nav, Executor worker, StatusSink sink) {
     // An absent preload must never turn this new page into a synchronous repository reader.
     BossLoot loot=p.clientLoot()==null ? (boss,mode) -> List.of() : p.clientLoot();
-    var encounters=new InstancePage(p.detail(),List.of(),loot,p.clientBuild(),nav);
+    var encounterDetail=new InstanceDetail(p.detail().summary(),p.detail().bosses().stream().filter(b -> !b.extraList()).toList(),p.detail().difficulties());
+    var encounters=new InstancePage(encounterDetail,List.of(),loot,p.clientBuild(),nav);
     Component heading=((BorderLayout)encounters.getLayout()).getLayoutComponent(BorderLayout.NORTH);
     encounters.remove(heading);
     var page=new JournalPage(encounters);
@@ -72,17 +73,19 @@ public final class JournalDetails {
     browse.addActionListener(e -> page.tabs.setSelectedIndex(1));overview.add(browse);
     page.tab("Overview",KeyEvent.VK_O,scroll(overview));
     page.tab("Bosses & loot",KeyEvent.VK_B,encounters);
+    var shared=new SharedLootPage(p.detail(),loot,p.clientBuild(),nav);
+    page.tab("Shared loot",KeyEvent.VK_S,shared);
+    JButton sharedAction=new JButton("Browse shared & extra loot lists →");
+    sharedAction.setAlignmentX(Component.LEFT_ALIGNMENT);
+    sharedAction.addActionListener(e -> page.tabs.setSelectedComponent(shared));overview.add(sharedAction);
     JPanel maps=column();maps.add(new InstanceEntrancePanel(p.access(),nav));
     if(!p.floorMaps().isEmpty())maps.add(new JournalAtlasMaps(p.floorMaps(),nav,worker,sink));
     else maps.add(new WrappingText("No floor map recorded for this instance.","Floor map coverage"));
     page.tab("Maps",KeyEvent.VK_M,scroll(maps));
-    JPanel quests=column();
-    quests.add(heading("Quests in this instance"));
-    if(p.quests().isEmpty())quests.add(new WrappingText("No quests recorded for this instance's zone.","Quest coverage"));
-    else {
-      var table=LinkTable.inline(Columns.quests(),nav);table.setRows(p.quests());quests.add(table);
-    }
-    page.tab("Quests",KeyEvent.VK_Q,scroll(quests));
+    var preparation=new JournalPreparationResearch(p.quests(),id -> new JournalPreparationResearch.Evidence(
+        repos.quests().chain(id),repos.quests().sourceItems(id)),worker,nav,sink);
+    page.tab("Preparation research",KeyEvent.VK_Q,preparation);
+    page.tabs.addChangeListener(e -> preparation.setActive(page.tabs.getSelectedComponent()==preparation));
     return page;
   }
 

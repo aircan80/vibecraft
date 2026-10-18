@@ -71,7 +71,7 @@ public final class InstanceRepository {
         return Optional.empty();
       }
       List<BossSummary> bosses = Sql.list(c, """
-          SELECT b.id, b.name, b.npc_id,
+          SELECT b.id, b.name, b.npc_id, b.object_id,
                  CASE WHEN (b.level IS NULL OR b.level >= %1$d)
                        AND COALESCE(n.max_level, n.min_level) BETWEEN 1 AND %1$d - 1
                       THEN COALESCE(n.max_level, n.min_level) ELSE b.level END AS level,
@@ -79,7 +79,8 @@ public final class InstanceRepository {
           FROM boss b LEFT JOIN npc n ON n.id = b.npc_id
           WHERE b.instance_id = ? ORDER BY b.is_extra_list, b.sort_order, b.id""".formatted(SKULL_LEVEL),
           rs -> new BossSummary(rs.getLong("id"), rs.getString("name"), Sql.longValue(rs, "npc_id"),
-              Sql.integer(rs, "level"), rs.getString("special_type"), rs.getInt("is_extra_list") != 0),
+              Sql.integer(rs, "level"), rs.getString("special_type"), rs.getInt("is_extra_list") != 0,
+              Sql.longValue(rs, "object_id")),
           id);
       return Optional.of(new InstanceDetail(instance.get(), bosses, difficulties(c, id)));
     });
