@@ -32,3 +32,14 @@ Fourteen focused tests passed with Java 21 both standalone and through the impor
 - Actual loopback HTTP success, redirect refusal and cancellation during streaming.
 
 Loopback/synthetic checks are not live GitHub acquisition acceptance. No real source archive, downloaded game asset or generated database is committed. Full main-app setup, native table coverage, candidate projection and activation remain separate integration work.
+
+## Actual selected Questie acceptance
+
+A separate Java-only production acquisition completed on **2026-10-18 at 04:32:12 UTC**, using a fresh protected external setup job and a persisted **Questie-only** plan. All **42 required raw GitHub files** at commit `e9a67d1a2753a0e64c4c96bf7864788fac7b765f` were downloaded: **14,352,135 bytes** in approximately **12.61 seconds**. AtlasLoot and ATT were not selected or requested.
+
+A second materialization used a new instance whose transport throws if any network request is attempted. It revalidated and reused the complete input set with **zero network attempts and zero downloaded bytes**. Existing complete inputs remained in place.
+
+- Selection/file-manifest ID: `9d577b99c1b8c158f08ab77b25d0ce942574ba588335fd004235eb71501906bf`
+- Captured acquisition receipt SHA-256: `e7a3fb61b92676519a34bcebb6c933f382a27eb7d838a72554f401b912bb5346`
+
+The original files, persisted plan and timestamped acceptance receipt remain in external development review storage. Per-file hashes remain recorded download integrity evidence, not independently reviewed expected hashes. The materialized Questie root is ready as an input for a later real setup job; this acceptance did not project, validate or activate a database.
