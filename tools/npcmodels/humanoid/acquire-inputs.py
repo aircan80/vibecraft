@@ -2,7 +2,7 @@
 """Acquire and decode exact Forever portrait composition inputs; missing data stays explicit."""
 import argparse,hashlib,importlib,json,subprocess,sys,urllib.request
 from pathlib import Path
-TABLES={'TextureFileData':982459,'NPCModelItemSlotDisplayInfo':1340661,'CreatureDisplayInfoOption':3692043,'ChrCustomizationChoice':3450554,'ChrCustomizationElement':3512765,'ChrCustomizationGeoset':3456171,'ChrCustomizationOption':3384247,'ItemDisplayInfo':1266429,'ChrModel':3384313,'ChrModelMaterial':3566562}
+TABLES={'TextureFileData':982459,'NPCModelItemSlotDisplayInfo':1340661,'CreatureDisplayInfoOption':3692043,'ChrCustomizationChoice':3450554,'ChrCustomizationElement':3512765,'ChrCustomizationGeoset':3456171,'ChrCustomizationOption':3384247,'ItemDisplayInfo':1266429,'ChrModel':3384313,'ChrModelMaterial':3566562,'ChrCustomizationMaterial':3459652,'ChrModelTextureLayer':3548976}
 DBD_COMMIT='b9a63096cdd99b26967f17f9515377ae62cadfd7'
 def main():
  p=argparse.ArgumentParser(description=__doc__)

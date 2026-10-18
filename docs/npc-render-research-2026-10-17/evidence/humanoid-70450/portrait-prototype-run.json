@@ -1,0 +1,96 @@
+{
+  "status": "LAB_PARTIAL_BODY_ONLY_NOT_AUTHORIZED",
+  "npc": 15698,
+  "display": 15660,
+  "extra": 10766,
+  "model": 900914,
+  "texture": 928687,
+  "hair": 917856,
+  "inputHashes": [
+    {
+      "fileDataId": 900914,
+      "sha256": "d4dd4a7d0ffa28426bc55e2483a9147992f931e3a15b497c3fe237d084f888f4"
+    },
+    {
+      "fileDataId": 900966,
+      "sha256": "fa7fde435c3e89a70ef425e75ef1a9917a0c98e658c1888d8a98efe4be8fd2c6"
+    },
+    {
+      "fileDataId": 928687,
+      "sha256": "8e60e0d55364a094b013c7358a43ba4915c6d7b0ee355bee066c7e3df75f6c9b"
+    },
+    {
+      "fileDataId": 917856,
+      "sha256": "4027a9b98f93ab155e58976ce37a6c0c5ed3af2d16680bfdfe63fb907ab503f2"
+    }
+  ],
+  "recipeSha256": "839fd1dd2de388f6cf2bbb466225cf5c6afdf1847c0adb26c2089c1fac5f6e13",
+  "omittedMaterialUnresolvedMeshes": [
+    {
+      "geoset": 3301,
+      "textureType": 19
+    },
+    {
+      "geoset": 5101,
+      "textureType": 0
+    }
+  ],
+  "missing": [
+    "equipment attachments",
+    "equipment visibility overrides",
+    "customization bone and material conditions beyond baked atlas"
+  ],
+  "unusedFixedTexturesNotAcquired": [
+    3550825,
+    4531003,
+    5210065
+  ],
+  "pose": "bind pose",
+  "render": {
+    "renderer": "4.5.3 LTS",
+    "engine": "Cycles CPU",
+    "samples": 24,
+    "resolution": [
+      768,
+      768
+    ],
+    "transparent": true,
+    "camera": "orthographic three-quarter",
+    "pose": "native bind pose; no animation",
+    "displayScale": 1.3,
+    "bounds": {
+      "min": [
+        -0.25461456179618835,
+        -0.6195977330207825,
+        -0.002645568223670125
+      ],
+      "max": [
+        0.25399696826934814,
+        0.6195991635322571,
+        1.5365194082260132
+      ]
+    },
+    "materials": [
+      "data-1",
+      "data-6",
+      "Material"
+    ],
+    "inputSha256": "84af6a229a8fa231130b2dc8744305d1bad240da77c272d9df35f754c6c36831",
+    "outputSha256": "97a95e034e341bc422baf72ae7ceb8a7d9cf4a5351933f21fe047532ff86dae9",
+    "durationSeconds": 5.292,
+    "headPortrait": {
+      "file": "partial-humanoid-head.png",
+      "camera": "head and shoulders; same unmodified geometry",
+      "sha256": "d4be4755e87d79645930cd8340f808f611a9c977590ab81c4528ef9cfb3e2ac0"
+    },
+    "totalDurationSeconds": 18.095,
+    "status": "LAB_PARTIAL_BODY_ONLY_NOT_AUTHORIZED",
+    "limitations": "Incomplete customization, no equipment attachments; review only, never app cache."
+  },
+  "artifactDirectory": ".local/humanoid-70450/portrait-prototype",
+  "sourceHashes": {
+    "portrait-prototype.cjs": "58e4db40bb37d5efd62df89ce4846e53ef2041e8de8096de48a0db43f02abc04",
+    "render_prototype.py": "3a9c75fa082074afa177f56d60dc5f36b486fe46ce17587129130414832f03fd",
+    "customization_recipe.py": "fc8046ff23fa4897dc31caac8b383c01b80f94ed064aaaa12d379de3ba5084c8"
+  }
+}

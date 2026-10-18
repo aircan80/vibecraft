@@ -19,3 +19,11 @@ python -m unittest discover -s tools/npcmodels/humanoid -v
 Next portrait slice: acquire verified CreatureDisplayInfoOption and NPCModelItemSlotDisplayInfo, then resolve their customization/geoset and equipment dependencies. Apply those selections and skin texture to a real mapped humanoid M2; validate a single portrait before enabling it in the app. Shared appearance cache identity must include the full new composition recipe.
 
 `acquire-inputs.py` reproduces native acquisition + pinned-definition offline decoding and records a manifest after every table. Pass `--native-tools` pointing to the existing `tools/npcmodels` directory, `--metadata` pointing to the verified attestation seed, and explicit cache/upstream/Node/output paths. It returns failure when a table is unavailable and preserves successful inputs for the archive transport follow-up. The decoder now records skipped encrypted sections so a partial table cannot be mistaken for complete customization coverage.
+
+## Known-data reconstruction prototype
+
+The isolated lab now renders a mapped humanoid from actual M2/SKIN, native baked clothing/face texture, selected customization geosets and independently resolved hair texture. Body and head/shoulders images are generated separately with transparent backgrounds. This is a development reconstruction, not an authorized complete NPC portrait: the eye shader, separate hat/gear geometry, bone customization and a small number of encrypted source records remain unresolved. Nothing enters the production app cache.
+
+`customization_recipe.py` preserves exact selected options/elements and generates a customization-only geoset mask from actual M2 geoset IDs. Its normal mode rejects incomplete inputs. Explicit `allow_incomplete_prototype=True` retains omitted-section evidence and still never returns portrait authorization. Texture dependencies filter selected related-choice conditions and fail closed on missing/ambiguous native resource relationships.
+
+The Father Winter's Helper control's exact selected hair chain is choice1220 → element44295 → material22946 → target10/layout115 → texture type6 → FileDataID917856. Native eyes resolve to FileDataID3484614, but their two-texture shader16403 needs separate support. The app's NPC246 remains unmapped; this laboratory control does not invent a Bernice appearance.

@@ -1,0 +1,391 @@
+{
+  "schema": "known-customization-texture-dependencies-v1",
+  "readyToRender": false,
+  "inputRecipeState": "INCOMPLETE_RECONSTRUCTION_PROTOTYPE",
+  "dependencies": [
+    {
+      "element": {
+        "ID": 7590,
+        "ChrCustomizationChoiceID": 1174,
+        "RelatedChrCustomizationChoiceID": 0,
+        "ChrCustomizationGeosetID": 0,
+        "ChrCustomizationSkinnedModelID": 0,
+        "ChrCustomizationMaterialID": 5514,
+        "ChrCustomizationBoneSetID": 0,
+        "ChrCustomizationCondModelID": 0,
+        "ChrCustomizationDisplayInfoID": 0,
+        "ChrCustItemGeoModifyID": 0,
+        "ChrCustomizationVoiceID": 0,
+        "AnimKitID": 0,
+        "ParticleColorID": 0,
+        "ChrCustGeoComponentLinkID": 0
+      },
+      "relatedChoiceSatisfied": true,
+      "material": {
+        "ID": 5514,
+        "ChrModelTextureTargetID": 1,
+        "MaterialResourcesID": 105540
+      },
+      "state": "UNIQUE_DEPENDENCY",
+      "layers": [
+        {
+          "ID": 161,
+          "TextureType": 1,
+          "Layer": 0,
+          "Flags": 0,
+          "BlendMode": 1,
+          "TextureSectionTypeBitMask": -1,
+          "TextureSectionTypeBitMask2": -1,
+          "Field_9_0_1_34365_006": [
+            0,
+            0,
+            0
+          ],
+          "ChrModelTextureTargetID": [
+            1,
+            0
+          ],
+          "CharComponentTextureLayoutsID": 115
+        }
+      ],
+      "textureFileDataIds": [
+        916486
+      ],
+      "textureType": 1,
+      "modelMaterials": [
+        {
+          "ID": 48,
+          "CharComponentTextureLayoutsID": 115,
+          "TextureType": 1,
+          "Width": 2048,
+          "Height": 1024,
+          "Flags": 0,
+          "Field_9_0_1_34615_006": -1
+        }
+      ]
+    },
+    {
+      "element": {
+        "ID": 7591,
+        "ChrCustomizationChoiceID": 1174,
+        "RelatedChrCustomizationChoiceID": 0,
+        "ChrCustomizationGeosetID": 0,
+        "ChrCustomizationSkinnedModelID": 0,
+        "ChrCustomizationMaterialID": 5515,
+        "ChrCustomizationBoneSetID": 0,
+        "ChrCustomizationCondModelID": 0,
+        "ChrCustomizationDisplayInfoID": 0,
+        "ChrCustItemGeoModifyID": 0,
+        "ChrCustomizationVoiceID": 0,
+        "AnimKitID": 0,
+        "ParticleColorID": 0,
+        "ChrCustGeoComponentLinkID": 0
+      },
+      "relatedChoiceSatisfied": true,
+      "material": {
+        "ID": 5515,
+        "ChrModelTextureTargetID": 13,
+        "MaterialResourcesID": 105532
+      },
+      "state": "UNIQUE_DEPENDENCY",
+      "layers": [
+        {
+          "ID": 163,
+          "TextureType": 1,
+          "Layer": 2,
+          "Flags": 0,
+          "BlendMode": 15,
+          "TextureSectionTypeBitMask": 32,
+          "TextureSectionTypeBitMask2": -1,
+          "Field_9_0_1_34365_006": [
+            0,
+            0,
+            0
+          ],
+          "ChrModelTextureTargetID": [
+            13,
+            0
+          ],
+          "CharComponentTextureLayoutsID": 115
+        }
+      ],
+      "textureFileDataIds": [
+        916478
+      ],
+      "textureType": 1,
+      "modelMaterials": [
+        {
+          "ID": 48,
+          "CharComponentTextureLayoutsID": 115,
+          "TextureType": 1,
+          "Width": 2048,
+          "Height": 1024,
+          "Flags": 0,
+          "Field_9_0_1_34615_006": -1
+        }
+      ]
+    },
+    {
+      "element": {
+        "ID": 7645,
+        "ChrCustomizationChoiceID": 1190,
+        "RelatedChrCustomizationChoiceID": 1174,
+        "ChrCustomizationGeosetID": 0,
+        "ChrCustomizationSkinnedModelID": 0,
+        "ChrCustomizationMaterialID": 5569,
+        "ChrCustomizationBoneSetID": 0,
+        "ChrCustomizationCondModelID": 0,
+        "ChrCustomizationDisplayInfoID": 0,
+        "ChrCustItemGeoModifyID": 0,
+        "ChrCustomizationVoiceID": 0,
+        "AnimKitID": 0,
+        "ParticleColorID": 0,
+        "ChrCustGeoComponentLinkID": 0
+      },
+      "relatedChoiceSatisfied": true,
+      "material": {
+        "ID": 5569,
+        "ChrModelTextureTargetID": 5,
+        "MaterialResourcesID": 105516
+      },
+      "state": "UNIQUE_DEPENDENCY",
+      "layers": [
+        {
+          "ID": 165,
+          "TextureType": 1,
+          "Layer": 4,
+          "Flags": 0,
+          "BlendMode": 15,
+          "TextureSectionTypeBitMask": 1024,
+          "TextureSectionTypeBitMask2": -1,
+          "Field_9_0_1_34365_006": [
+            0,
+            0,
+            0
+          ],
+          "ChrModelTextureTargetID": [
+            5,
+            0
+          ],
+          "CharComponentTextureLayoutsID": 115
+        }
+      ],
+      "textureFileDataIds": [
+        916462
+      ],
+      "textureType": 1,
+      "modelMaterials": [
+        {
+          "ID": 48,
+          "CharComponentTextureLayoutsID": 115,
+          "TextureType": 1,
+          "Width": 2048,
+          "Height": 1024,
+          "Flags": 0,
+          "Field_9_0_1_34615_006": -1
+        }
+      ]
+    },
+    {
+      "element": {
+        "ID": 26785,
+        "ChrCustomizationChoiceID": 5618,
+        "RelatedChrCustomizationChoiceID": 0,
+        "ChrCustomizationGeosetID": 0,
+        "ChrCustomizationSkinnedModelID": 0,
+        "ChrCustomizationMaterialID": 15566,
+        "ChrCustomizationBoneSetID": 0,
+        "ChrCustomizationCondModelID": 0,
+        "ChrCustomizationDisplayInfoID": 0,
+        "ChrCustItemGeoModifyID": 0,
+        "ChrCustomizationVoiceID": 0,
+        "AnimKitID": 0,
+        "ParticleColorID": 0,
+        "ChrCustGeoComponentLinkID": 0
+      },
+      "relatedChoiceSatisfied": true,
+      "material": {
+        "ID": 15566,
+        "ChrModelTextureTargetID": 25,
+        "MaterialResourcesID": 669487
+      },
+      "state": "UNIQUE_DEPENDENCY",
+      "layers": [
+        {
+          "ID": 170,
+          "TextureType": 19,
+          "Layer": 9,
+          "Flags": 0,
+          "BlendMode": 1,
+          "TextureSectionTypeBitMask": -1,
+          "TextureSectionTypeBitMask2": -1,
+          "Field_9_0_1_34365_006": [
+            0,
+            0,
+            0
+          ],
+          "ChrModelTextureTargetID": [
+            25,
+            0
+          ],
+          "CharComponentTextureLayoutsID": 115
+        }
+      ],
+      "textureFileDataIds": [
+        3484614
+      ],
+      "textureType": 19,
+      "modelMaterials": [
+        {
+          "ID": 50,
+          "CharComponentTextureLayoutsID": 115,
+          "TextureType": 19,
+          "Width": 256,
+          "Height": 128,
+          "Flags": 0,
+          "Field_9_0_1_34615_006": -1
+        }
+      ]
+    },
+    {
+      "element": {
+        "ID": 7729,
+        "ChrCustomizationChoiceID": 1201,
+        "RelatedChrCustomizationChoiceID": 1220,
+        "ChrCustomizationGeosetID": 0,
+        "ChrCustomizationSkinnedModelID": 0,
+        "ChrCustomizationMaterialID": 5653,
+        "ChrCustomizationBoneSetID": 0,
+        "ChrCustomizationCondModelID": 0,
+        "ChrCustomizationDisplayInfoID": 0,
+        "ChrCustItemGeoModifyID": 0,
+        "ChrCustomizationVoiceID": 0,
+        "AnimKitID": 0,
+        "ParticleColorID": 0,
+        "ChrCustGeoComponentLinkID": 0
+      },
+      "relatedChoiceSatisfied": true,
+      "material": {
+        "ID": 5653,
+        "ChrModelTextureTargetID": 11,
+        "MaterialResourcesID": 143201
+      },
+      "state": "UNIQUE_DEPENDENCY",
+      "layers": [
+        {
+          "ID": 166,
+          "TextureType": 1,
+          "Layer": 5,
+          "Flags": 0,
+          "BlendMode": 15,
+          "TextureSectionTypeBitMask": 1024,
+          "TextureSectionTypeBitMask2": -1,
+          "Field_9_0_1_34365_006": [
+            0,
+            0,
+            0
+          ],
+          "ChrModelTextureTargetID": [
+            11,
+            0
+          ],
+          "CharComponentTextureLayoutsID": 115
+        }
+      ],
+      "textureFileDataIds": [
+        1014343
+      ],
+      "textureType": 1,
+      "modelMaterials": [
+        {
+          "ID": 48,
+          "CharComponentTextureLayoutsID": 115,
+          "TextureType": 1,
+          "Width": 2048,
+          "Height": 1024,
+          "Flags": 0,
+          "Field_9_0_1_34615_006": -1
+        }
+      ]
+    },
+    {
+      "element": {
+        "ID": 44295,
+        "ChrCustomizationChoiceID": 1220,
+        "RelatedChrCustomizationChoiceID": 0,
+        "ChrCustomizationGeosetID": 0,
+        "ChrCustomizationSkinnedModelID": 0,
+        "ChrCustomizationMaterialID": 22946,
+        "ChrCustomizationBoneSetID": 0,
+        "ChrCustomizationCondModelID": 0,
+        "ChrCustomizationDisplayInfoID": 0,
+        "ChrCustItemGeoModifyID": 0,
+        "ChrCustomizationVoiceID": 0,
+        "AnimKitID": 0,
+        "ParticleColorID": 0,
+        "ChrCustGeoComponentLinkID": 0
+      },
+      "relatedChoiceSatisfied": true,
+      "material": {
+        "ID": 22946,
+        "ChrModelTextureTargetID": 10,
+        "MaterialResourcesID": 105697
+      },
+      "state": "UNIQUE_DEPENDENCY",
+      "layers": [
+        {
+          "ID": 162,
+          "TextureType": 6,
+          "Layer": 1,
+          "Flags": 0,
+          "BlendMode": 1,
+          "TextureSectionTypeBitMask": -1,
+          "TextureSectionTypeBitMask2": -1,
+          "Field_9_0_1_34365_006": [
+            0,
+            0,
+            0
+          ],
+          "ChrModelTextureTargetID": [
+            10,
+            0
+          ],
+          "CharComponentTextureLayoutsID": 115
+        }
+      ],
+      "textureFileDataIds": [
+        917856
+      ],
+      "textureType": 6,
+      "modelMaterials": [
+        {
+          "ID": 49,
+          "CharComponentTextureLayoutsID": 115,
+          "TextureType": 6,
+          "Width": 512,
+          "Height": 256,
+          "Flags": 0,
+          "Field_9_0_1_34615_006": -1
+        }
+      ]
+    }
+  ],
+  "provenance": {
+    "ChrCustomizationMaterial": {
+      "sourceSha256": "a2c0f78527706087c0901b5ecfc92c69e1e8ac09d953727056f68618c6f364b0",
+      "definitionSha256": "55bbad4064264743b3895b80185f56ac46bd08b5578d7262198876867657e275",
+      "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545"
+    },
+    "ChrModelTextureLayer": {
+      "sourceSha256": "da66d6bbf86adb74bef22d559a0c370659ff07557e16dd7d636cce89f7239363",
+      "definitionSha256": "ece832b405652d9ad0fccb2b81849c567c0b462d9c0fbe8362f99d4982dd4651",
+      "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545"
+    },
+    "TextureFileData": {
+      "sourceSha256": "597c53d5e238ed5aa69c16756db575af43788cda4952ab8c98448e92fa4cd1f2",
+      "definitionSha256": "d6bbccd02b59d45623842e0b910341d5f5f61ba85fa27fb2f8ed56c36ee182c2",
+      "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545"
+    }
+  },
+  "warning": "Known selected choices only; incomplete source rows and unresolved equipment still prevent complete appearance claims."
+}
