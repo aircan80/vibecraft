@@ -15,3 +15,10 @@ Keep agent worktrees, task folders, downloads, generated databases, private sour
 archives and release artifacts outside this repository. The shipped application
 is Java only. Game data stays outside Git; runtime catalogs must retain their
 edition/build provenance and must not silently substitute other game versions.
+
+Blizzard/WoW installation directories are strictly read-only sources. Never write
+updates, downloads, partial files, caches, extracted assets or generated databases
+there. All writes go to Vibecraft-owned storage; reject configured writable
+locations inside a selected game installation. Local-file reuse and explicit CDN
+permission are complementary. Missing content must not trigger an unselected
+CDN, export provider or game-edition fallback.
