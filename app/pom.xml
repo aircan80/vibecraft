@@ -56,7 +56,7 @@
       <groupId>dev.wowforever</groupId>
       <artifactId>importer</artifactId>
       <version>${project.version}</version>
-      <scope>test</scope>
+      <!-- The main application owns setup/import jobs; no separate end-user importer is required. -->
     </dependency>
     <dependency>
       <groupId>dev.wowforever</groupId>

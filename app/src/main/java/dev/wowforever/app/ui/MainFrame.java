@@ -528,6 +528,11 @@ public final class MainFrame extends JFrame implements MainView {
       gameCatalog.setEnabled(false);
       gameCatalog.addActionListener(event -> showGameCatalog());
       settings.add(gameCatalog);
+      JMenuItem sourceSetup = new JMenuItem("Sources & Updates…");
+      sourceSetup.setName("sources-updates-menu");
+      sourceSetup.addActionListener(event ->
+          dev.wowforever.app.ui.setup.LibrarySetupDialog.manageSources(this));
+      settings.add(sourceSetup);
       interfaceSounds.setName("interface-sounds-menu");
       interfaceSounds.setEnabled(false);
       interfaceSounds.addActionListener(event -> showInterfaceSounds());
