@@ -28,7 +28,7 @@ class NativeClientItemCompletionWorkflowTest {
     lock.put("tables",hashes);Files.writeString(input.resolve("build.lock"),ClientDataset.json(lock));
     List<SourceArchive.Artifact> context=new ArrayList<>();
     try(var files=Files.walk(input)) {
-      for(Path file:files.filter(Files::isRegularFile).toList())context.add(new SourceArchive.Artifact(input.relativize(file).toString(),"",Files.readAllBytes(file)));
+      for(Path file:files.filter(Files::isRegularFile).toList())context.add(new SourceArchive.Artifact(input.relativize(file).toString().replace('\\','/'),"",Files.readAllBytes(file)));
     }
     Path db=temp.resolve("candidate.sqlite");SqliteWriter.write(db,new ImportModel(Map.of(),new DropRates(),Map.of(),List.of(),Map.of("build_id","baseline")));
     try(var c=DriverManager.getConnection("jdbc:sqlite:"+db);var s=c.createStatement()) {
