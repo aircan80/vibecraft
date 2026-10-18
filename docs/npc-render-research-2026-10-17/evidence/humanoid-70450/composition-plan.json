@@ -1,0 +1,956 @@
+{
+  "schema": "humanoid-material-plan-v1",
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "catalogId": "f88360231c3415f897008459dee4b15faf21466b32a8f961b18257b4a8a12aef",
+  "textureSourceSha256": "597c53d5e238ed5aa69c16756db575af43788cda4952ab8c98448e92fa4cd1f2",
+  "appearances": [
+    {
+      "npcId": 15698,
+      "displayId": 15660,
+      "extraId": 10766,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 208212,
+          "fileDataIds": [
+            314746
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 208213,
+          "fileDataIds": [
+            928687
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 15705,
+      "displayId": 15663,
+      "extraId": 10769,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 181403,
+          "fileDataIds": [
+            314753
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 181404,
+          "fileDataIds": [
+            966555
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 167875,
+      "displayId": 2183,
+      "extraId": 754,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 130308,
+          "fileDataIds": [
+            570219
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 130309,
+          "fileDataIds": [
+            1006359
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272210,
+      "displayId": 146953,
+      "extraId": 165547,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1129834,
+          "fileDataIds": [
+            8218852
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127913,
+          "fileDataIds": [
+            8198478
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272213,
+      "displayId": 146957,
+      "extraId": 165548,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130234,
+          "fileDataIds": [
+            8219418
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127914,
+          "fileDataIds": [
+            8198572
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272214,
+      "displayId": 146958,
+      "extraId": 165549,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130543,
+          "fileDataIds": [
+            8229876
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127915,
+          "fileDataIds": [
+            8198890
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272215,
+      "displayId": 146959,
+      "extraId": 165550,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130431,
+          "fileDataIds": [
+            8219632
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127916,
+          "fileDataIds": [
+            8198891
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272219,
+      "displayId": 146960,
+      "extraId": 165551,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130651,
+          "fileDataIds": [
+            8230075
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127921,
+          "fileDataIds": [
+            8198923
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272226,
+      "displayId": 146962,
+      "extraId": 165553,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130570,
+          "fileDataIds": [
+            8229943
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127924,
+          "fileDataIds": [
+            8198950
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272227,
+      "displayId": 146961,
+      "extraId": 165552,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 0,
+          "fileDataIds": [],
+          "state": "MISSING"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127923,
+          "fileDataIds": [
+            8198949
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272229,
+      "displayId": 146963,
+      "extraId": 165554,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 0,
+          "fileDataIds": [],
+          "state": "MISSING"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127925,
+          "fileDataIds": [
+            8198951
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272231,
+      "displayId": 146964,
+      "extraId": 165555,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130480,
+          "fileDataIds": [
+            8219684
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127926,
+          "fileDataIds": [
+            8198952
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272235,
+      "displayId": 146965,
+      "extraId": 165556,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130318,
+          "fileDataIds": [
+            8219517
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127927,
+          "fileDataIds": [
+            8198977
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272238,
+      "displayId": 146966,
+      "extraId": 165557,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1129835,
+          "fileDataIds": [
+            8218853
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127928,
+          "fileDataIds": [
+            8198987
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272239,
+      "displayId": 146967,
+      "extraId": 165558,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130235,
+          "fileDataIds": [
+            8219419
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127929,
+          "fileDataIds": [
+            8199005
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272241,
+      "displayId": 146968,
+      "extraId": 165559,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130544,
+          "fileDataIds": [
+            8229877
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127930,
+          "fileDataIds": [
+            8199007
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272242,
+      "displayId": 146969,
+      "extraId": 165560,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130432,
+          "fileDataIds": [
+            8219633
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127931,
+          "fileDataIds": [
+            8199008
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272243,
+      "displayId": 146970,
+      "extraId": 165561,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130571,
+          "fileDataIds": [
+            8229944
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127932,
+          "fileDataIds": [
+            8199009
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272245,
+      "displayId": 146971,
+      "extraId": 165562,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130652,
+          "fileDataIds": [
+            8230076
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127933,
+          "fileDataIds": [
+            8199010
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272249,
+      "displayId": 146973,
+      "extraId": 165563,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 0,
+          "fileDataIds": [],
+          "state": "MISSING"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127937,
+          "fileDataIds": [
+            8199024
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272250,
+      "displayId": 146974,
+      "extraId": 165564,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 0,
+          "fileDataIds": [],
+          "state": "MISSING"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127939,
+          "fileDataIds": [
+            8199048
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272251,
+      "displayId": 146975,
+      "extraId": 165565,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130319,
+          "fileDataIds": [
+            8219518
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127940,
+          "fileDataIds": [
+            8199049
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 272252,
+      "displayId": 146976,
+      "extraId": 165566,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1130481,
+          "fileDataIds": [
+            8219685
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1127941,
+          "fileDataIds": [
+            8199052
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273916,
+      "displayId": 147589,
+      "extraId": 165812,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1132564,
+          "fileDataIds": [
+            8269789
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132565,
+          "fileDataIds": [
+            8269790
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273917,
+      "displayId": 147591,
+      "extraId": 165813,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1132566,
+          "fileDataIds": [
+            8269791
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132567,
+          "fileDataIds": [
+            8269792
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273918,
+      "displayId": 147592,
+      "extraId": 165814,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 0,
+          "fileDataIds": [],
+          "state": "MISSING"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132568,
+          "fileDataIds": [
+            8269799
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273919,
+      "displayId": 147593,
+      "extraId": 165815,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1132569,
+          "fileDataIds": [
+            8269807
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132570,
+          "fileDataIds": [
+            8269808
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273920,
+      "displayId": 147594,
+      "extraId": 165816,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1132571,
+          "fileDataIds": [
+            8269809
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132572,
+          "fileDataIds": [
+            8269810
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273921,
+      "displayId": 147595,
+      "extraId": 165817,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1132573,
+          "fileDataIds": [
+            8269812
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132574,
+          "fileDataIds": [
+            8269813
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273925,
+      "displayId": 147596,
+      "extraId": 165818,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1132575,
+          "fileDataIds": [
+            8269814
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132576,
+          "fileDataIds": [
+            8269815
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273926,
+      "displayId": 147597,
+      "extraId": 165819,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1132577,
+          "fileDataIds": [
+            8269820
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132578,
+          "fileDataIds": [
+            8269821
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273927,
+      "displayId": 147598,
+      "extraId": 165820,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1132579,
+          "fileDataIds": [
+            8269822
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132580,
+          "fileDataIds": [
+            8269823
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    },
+    {
+      "npcId": 273928,
+      "displayId": 147599,
+      "extraId": 165821,
+      "materials": [
+        {
+          "field": "BakeMaterialResourcesID",
+          "resourceId": 1132581,
+          "fileDataIds": [
+            8269860
+          ],
+          "state": "UNIQUE"
+        },
+        {
+          "field": "HDBakeMaterialResourcesID",
+          "resourceId": 1132582,
+          "fileDataIds": [
+            8269861
+          ],
+          "state": "UNIQUE"
+        }
+      ],
+      "state": "DEPENDENCY_PLAN_ONLY",
+      "blockers": [
+        "NPC customization options and geosets are not assembled.",
+        "Equipment textures and attachments are not assembled.",
+        "Baked skin atlas is not a portrait and must not be displayed as one."
+      ]
+    }
+  ]
+}

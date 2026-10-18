@@ -1,0 +1,21 @@
+{
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "requests": [
+    {
+      "table": "TextureFileData",
+      "url": "https://wago.tools/db2/TextureFileData/csv?build=1.60.1.70450",
+      "error": "HTTP Error 403: Forbidden"
+    },
+    {
+      "table": "NPCModelItemSlotDisplayInfo",
+      "url": "https://wago.tools/db2/NPCModelItemSlotDisplayInfo/csv?build=1.60.1.70450",
+      "error": "HTTP Error 403: Forbidden"
+    },
+    {
+      "table": "CreatureDisplayInfoOption",
+      "url": "https://wago.tools/db2/CreatureDisplayInfoOption/csv?build=1.60.1.70450",
+      "error": "HTTP Error 403: Forbidden"
+    }
+  ]
+}

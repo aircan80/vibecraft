@@ -1,0 +1,16 @@
+{
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "table": "TextureFileData",
+  "sourceSha256": "597c53d5e238ed5aa69c16756db575af43788cda4952ab8c98448e92fa4cd1f2",
+  "definitionSha256": "d6bbccd02b59d45623842e0b910341d5f5f61ba85fa27fb2f8ed56c36ee182c2",
+  "decoderCommit": "c2fd7bde36a712be78a5da896c995b84fbfa2545",
+  "rowCount": 58693,
+  "decodedOutputSha256": "b432c2ba3ca1fa093cd5563b1a7616077660858d7a11d01e105d96257f673e54",
+  "nativeInputBytes": 880737,
+  "humanoidVariants": 33,
+  "materialStates": {
+    "UNIQUE": 61,
+    "MISSING": 5
+  }
+}

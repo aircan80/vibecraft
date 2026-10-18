@@ -1,0 +1,27 @@
+{
+  "product": "wow_classic_beta",
+  "build": "1.60.1.70450",
+  "file_data_id": 982459,
+  "build_config_md5": "84bea4233331e390fda8724c6f91ffa5",
+  "root_content_md5": "8a0ca94be2f6ace93991c04ca6e19b57",
+  "content_md5": "f1f2e204738f8ad08cb1f546821af085",
+  "sha256": "597c53d5e238ed5aa69c16756db575af43788cda4952ab8c98448e92fa4cd1f2",
+  "bytes": 880737,
+  "transport": "https://wago.tools/api/casc/982459?download&version=1.60.1.70450&branch=wow_classic_beta",
+  "exact_root_membership_verified": true,
+  "root_selection": "first neutral/enUS non-LowViolence entry in native root order",
+  "selected_root_entry": {
+    "file_data_id": 982459,
+    "content_key": "f1f2e204738f8ad08cb1f546821af085",
+    "content_flags": 270532608,
+    "locale_flags": 514
+  },
+  "root_variants": [
+    {
+      "file_data_id": 982459,
+      "content_key": "f1f2e204738f8ad08cb1f546821af085",
+      "content_flags": 270532608,
+      "locale_flags": 514
+    }
+  ]
+}
