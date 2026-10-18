@@ -32,6 +32,7 @@ public final class LibrarySetupPanel extends JPanel {
       new Source("questie","QuestieDB","Edition-matched quest, NPC and location records.","Compatible snapshot; currently required by the core importer.","Its records are omitted. Core generation needs a supported alternative."),
       new Source("native","Blizzard native data","Native item/geography metadata and verified asset references.","Exact product, build and locale; supported extraction layouts.","Native fields and assets are omitted. Other editions never fill gaps."),
       new Source("wago","Wago.tools","An optional delivery provider for selected Blizzard-native table exports.","Blizzard native data selected and a verified exact build. Never automatic fallback.","No Wago export is requested; no replacement provider is selected automatically."),
+      new Source("raidbots-hotfix","Raidbots hotfix details","Same-build mirrored ItemSparse item stats and tooltip details from a third-party hotfix snapshot.","Blizzard native data and explicit Wago exports selected; current Forever build 1.60.1.70450 / enUS; pinned third-party snapshot and table definition. Setup integration pending.","Some named items may lack native stats/details. No Era data or replacement provider is used."),
       new Source("atlas","AtlasLoot","Addon-reported loot lists and explicitly authored rates.","An explicitly compatible edition-specific addon snapshot.","AtlasLoot lists are omitted; other providers' loot remains separate."),
       new Source("att","All The Things","Additional authored prerequisites and acquisition connections.","Compatible edition-specific snapshot and supported relationships.","Its additional connections are omitted; Questie records remain separate."),
       new Source("vmangos","vMaNGOS","Clearly labelled non-Forever comparison evidence only.","Explicitly reviewed revision and edition; adapter planned.","Comparison claims are omitted. Forever facts are unaffected."),
@@ -101,6 +102,9 @@ public final class LibrarySetupPanel extends JPanel {
       var sources=new HashMap<String,Boolean>();
       for(Source source:SOURCES)sources.put(source.id(),preferences.getBoolean(game.id()+".source."+source.id(),game.id().equals("forever")&&(source.id().equals("questie")||source.id().equals("native"))));
       if(!sources.get("native"))sources.put("wago",false);
+      if(sources.get("raidbots-hotfix")&&(!game.id().equals("forever")||!sources.get("native")||!sources.get("wago"))){
+        sources.put("raidbots-hotfix",false);status.setText("An incompatible Raidbots hotfix draft selection was cleared. Native data and explicit Wago exports are required; other editions are not supported.");
+      }
       selectedSources.put(game.id(),sources);folders.put(game.id(),preferences.get(game.id()+".folder",""));cdn.put(game.id(),preferences.getBoolean(game.id()+".cdn",false));
       var check=new JCheckBox(game.name()+(game.planned()?"":" · beta"),preferences.getBoolean("game."+game.id(),game.id().equals("forever")));
       style(check);check.setToolTipText(game.planned()?"Import adapter planned; selection saves preferences only.":"Forever-specific beta data.");check.setName("setup-game-"+game.id());gameChecks.put(game.id(),check);check.addActionListener(e->refreshGames());
@@ -168,8 +172,18 @@ public final class LibrarySetupPanel extends JPanel {
       var card=card(source.name());
       var check=new JCheckBox("Include this source",selectedSources.get(game().id()).get(source.id()));style(check);check.setName("setup-source-"+source.id());check.getAccessibleContext().setAccessibleName("Include "+source.name());
       if(source.id().equals("wago"))check.setEnabled(selectedSources.get(game().id()).get("native"));
-      check.addActionListener(e->{selectedSources.get(game().id()).put(source.id(),check.isSelected());if(source.id().equals("native")&&!check.isSelected()){selectedSources.get(game().id()).put("wago",false);status.setText("Wago exports were also deselected. No replacement source was chosen.");}render();});
-      card.add(check);card.add(copy("Adds: "+source.adds()));card.add(copy("Needs: "+source.needs()));card.add(copy("If not selected: "+source.omitted()));body.add(card);body.add(gap());
+      if(source.id().equals("raidbots-hotfix"))check.setEnabled(game().id().equals("forever")&&selectedSources.get(game().id()).get("native")&&selectedSources.get(game().id()).get("wago"));
+      check.addActionListener(e->{
+        var selection=selectedSources.get(game().id());selection.put(source.id(),check.isSelected());
+        var cleared=new ArrayList<String>();
+        if(!selection.get("native")&&selection.get("wago")){selection.put("wago",false);cleared.add("Wago exports");}
+        if(selection.get("raidbots-hotfix")&&(!game().id().equals("forever")||!selection.get("native")||!selection.get("wago"))){selection.put("raidbots-hotfix",false);cleared.add("Raidbots hotfix details");}
+        if(!cleared.isEmpty())status.setText(String.join(" and ",cleared)+" deselected because required sources are off. No provider was selected automatically.");
+        render();
+      });
+      card.add(check);
+      if(source.id().equals("raidbots-hotfix"))card.add(notice("Optional · experimental third-party source. Setup integration is pending. Selecting or saving this preference does not download anything."));
+      card.add(copy("Adds: "+source.adds()));card.add(copy("Needs: "+source.needs()));card.add(copy("If not selected: "+source.omitted()));body.add(card);body.add(gap());
     }
   }
   private void review(){
@@ -181,6 +195,7 @@ public final class LibrarySetupPanel extends JPanel {
       card.add(copy("Sources: "+(sources.isEmpty()?"None selected":String.join(" · ",sources))));
       card.add(copy("WoW folder: "+(folders.get(selected.id()).isBlank()?"None selected · optional":folders.get(selected.id())+" · read-only")));
       card.add(copy("Blizzard CDN: "+(cdn.get(selected.id())?"Explicitly allowed for missing exact-build content":"Off · missing files stay gaps")));
+      if(selectedSources.get(selected.id()).get("raidbots-hotfix"))card.add(copy("Raidbots is a separately selected third-party hotfix mirror. The snapshot and definition still need explicit pinning and validation; no download has started."));
       if(selected.planned())card.add(notice("Adapter planned · preferences only."));body.add(card);body.add(gap());
     }
     var storage=card("Where your data will live");storage.add(copy(UserDataDir.resolve().toString()));storage.add(copy("All downloads, cache and temporary files must stay outside your WoW installation. Portable storage selection is not connected yet."));body.add(storage);body.add(gap());

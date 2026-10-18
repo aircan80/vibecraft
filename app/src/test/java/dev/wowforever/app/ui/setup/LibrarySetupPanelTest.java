@@ -95,6 +95,58 @@ class LibrarySetupPanelTest {
       org.assertj.core.api.Assertions.assertThatThrownBy(()->find(panel,"setup-open-database",JButton.class)).isInstanceOf(AssertionError.class);
     });}finally{prefs.removeNode();}
   }
+  @Test void hotfixIsIndependentDefaultOffAndDoesNotEnableRequiredProviders()throws Exception{
+    var prefs=prefs();try{SwingUtilities.invokeAndWait(()->{
+      var panel=panel(prefs);advance(panel,2);
+      var hotfix=find(panel,"setup-source-raidbots-hotfix",JCheckBox.class);
+      assertThat(hotfix.isSelected()).isFalse();assertThat(hotfix.isEnabled()).isFalse();hotfix.doClick();
+      assertThat(find(panel,"setup-source-wago",JCheckBox.class).isSelected()).isFalse();
+      assertThat(find(panel,"setup-source-native",JCheckBox.class).isSelected()).isTrue();
+      find(panel,"setup-source-wago",JCheckBox.class).doClick();
+      assertThat(find(panel,"setup-source-raidbots-hotfix",JCheckBox.class).isEnabled()).isTrue();
+      assertThat(find(panel,"setup-source-raidbots-hotfix",JCheckBox.class).isSelected()).isFalse();
+      advance(panel,1);assertThat(find(panel,"setup-allow-cdn",JCheckBox.class).isSelected()).isFalse();
+    });}finally{prefs.removeNode();}
+  }
+  @Test void hotfixPreferencePersistsAndReviewNamesTheThirdPartyWithoutStartingWork()throws Exception{
+    var prefs=prefs();var calls=new AtomicInteger();try{SwingUtilities.invokeAndWait(()->{
+      var panel=new LibrarySetupPanel(prefs,path->{throw new AssertionError("No database activation");},null,
+          (product,cancelled)->{calls.incrementAndGet();return "";},(path,cancelled)->{calls.incrementAndGet();return new LibrarySetupPanel.Inspection("","");});
+      advance(panel,2);find(panel,"setup-source-wago",JCheckBox.class).doClick();find(panel,"setup-source-raidbots-hotfix",JCheckBox.class).doClick();panel.save();
+      assertThat(prefs.getBoolean("forever.source.raidbots-hotfix",false)).isTrue();
+      assertThat(prefs.getBoolean("forever.cdn",true)).isFalse();
+      advance(panel,2);assertThat(allText(panel)).contains("Raidbots hotfix details","third-party hotfix mirror","explicit pinning and validation");
+      assertThat(find(panel,"setup-build-library",JButton.class).isEnabled()).isFalse();
+      var restored=panel(prefs);advance(restored,2);assertThat(find(restored,"setup-source-raidbots-hotfix",JCheckBox.class).isSelected()).isTrue();
+    });assertThat(calls).hasValue(0);}finally{prefs.removeNode();}
+  }
+  @Test void turningOffWagoOrNativeClearsHotfixWithoutAutomaticFallback()throws Exception{
+    var prefs=prefs();try{SwingUtilities.invokeAndWait(()->{
+      var panel=panel(prefs);advance(panel,2);
+      find(panel,"setup-source-wago",JCheckBox.class).doClick();find(panel,"setup-source-raidbots-hotfix",JCheckBox.class).doClick();
+      find(panel,"setup-source-wago",JCheckBox.class).doClick();
+      assertThat(find(panel,"setup-source-raidbots-hotfix",JCheckBox.class).isSelected()).isFalse();
+      assertThat(find(panel,"setup-source-raidbots-hotfix",JCheckBox.class).isEnabled()).isFalse();
+      assertThat(allText(panel)).contains("Raidbots hotfix details deselected","No provider was selected automatically");
+      find(panel,"setup-source-wago",JCheckBox.class).doClick();find(panel,"setup-source-raidbots-hotfix",JCheckBox.class).doClick();
+      find(panel,"setup-source-native",JCheckBox.class).doClick();
+      assertThat(find(panel,"setup-source-wago",JCheckBox.class).isSelected()).isFalse();
+      assertThat(find(panel,"setup-source-raidbots-hotfix",JCheckBox.class).isSelected()).isFalse();panel.save();
+      assertThat(prefs.getBoolean("forever.source.raidbots-hotfix",true)).isFalse();
+    });}finally{prefs.removeNode();}
+  }
+  @Test void unsupportedEditionAndInvalidSavedDraftCannotSelectHotfix()throws Exception{
+    var prefs=prefs();try{
+      prefs.putBoolean("game.classic",true);prefs.put("active-game","classic");
+      prefs.putBoolean("classic.source.native",true);prefs.putBoolean("classic.source.wago",true);prefs.putBoolean("classic.source.raidbots-hotfix",true);
+      SwingUtilities.invokeAndWait(()->{
+        var panel=panel(prefs);advance(panel,2);var hotfix=find(panel,"setup-source-raidbots-hotfix",JCheckBox.class);
+        assertThat(hotfix.isEnabled()).isFalse();assertThat(hotfix.isSelected()).isFalse();panel.save();
+        assertThat(prefs.getBoolean("classic.source.raidbots-hotfix",true)).isFalse();
+        assertThat(prefs.getBoolean("forever.source.raidbots-hotfix",true)).isFalse();
+      });
+    }finally{prefs.removeNode();}
+  }
   private static void advance(Container panel,int steps){for(int i=0;i<steps;i++)find(panel,"setup-next",JButton.class).doClick();}
   private static LibrarySetupPanel panel(Preferences prefs){return new LibrarySetupPanel(prefs,path->{},null,(product,cancelled)->"",(path,cancelled)->new LibrarySetupPanel.Inspection("",""));}
   private static Preferences prefs(){Theme.current();Theme.setCurrent(JournalAppearance.palette(Tokens.DARK));return Preferences.userRoot().node("vibecraft-tests/setup-"+UUID.randomUUID());}
