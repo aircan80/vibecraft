@@ -13,21 +13,23 @@ import javax.swing.SwingUtilities;
 public final class LibrarySetupDialog {
   private LibrarySetupDialog() {}
   /** Called on the EDT. Closing setup cancels startup; a selected file is validated by the caller off the EDT. */
-  public static Path chooseDatabase(Component parent, String error) {
+  public static Path chooseDatabase(Component parent, String error) {return chooseDatabase(parent,error,null);}
+  public static Path chooseDatabase(Component parent,String error,LibrarySetupService service) {
     if(!SwingUtilities.isEventDispatchThread())throw new IllegalStateException("Setup dialog must run on the EDT");
     var selected=new AtomicReference<Path>();
     java.awt.Window owner=parent instanceof java.awt.Window window?window:parent==null?null:SwingUtilities.getWindowAncestor(parent);
     var window=new AtomicReference<JDialog>();
-    var panel=new LibrarySetupPanel(preferences(),file->{selected.set(file);window.get().dispose();},error);
+    var panel=new LibrarySetupPanel(preferences(),file->{selected.set(file);window.get().dispose();},error,service);
     var dialog=dialog(owner,parent,"Vibecraft · Build your library",panel);window.set(dialog);
     dialog.addWindowListener(new java.awt.event.WindowAdapter(){@Override public void windowClosed(java.awt.event.WindowEvent event){panel.close();}});
     dialog.setLocationRelativeTo(parent);dialog.setVisible(true);return selected.get();
   }
   /** Opens source preferences for the current browser. It cannot replace the active database. */
-  public static void manageSources(Component parent){
+  public static void manageSources(Component parent){manageSources(parent,null);}
+  public static void manageSources(Component parent,LibrarySetupService service){
     if(!SwingUtilities.isEventDispatchThread())throw new IllegalStateException("Source management must run on the EDT");
     java.awt.Window owner=parent instanceof java.awt.Window window?window:parent==null?null:SwingUtilities.getWindowAncestor(parent);
-    var panel=LibrarySetupPanel.sourceManager(preferences());
+    var panel=LibrarySetupPanel.sourceManager(preferences(),service);
     var dialog=dialog(owner,parent,"Vibecraft · Sources & updates",panel);
     dialog.addWindowListener(new java.awt.event.WindowAdapter(){@Override public void windowClosed(java.awt.event.WindowEvent event){panel.close();}});
     dialog.setLocationRelativeTo(parent);dialog.setVisible(true);

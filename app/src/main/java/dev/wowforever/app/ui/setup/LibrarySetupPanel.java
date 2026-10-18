@@ -32,7 +32,7 @@ public final class LibrarySetupPanel extends JPanel {
       new Source("questie","QuestieDB","Edition-matched quest, NPC and location records.","Compatible snapshot; currently required by the core importer.","Its records are omitted. Core generation needs a supported alternative."),
       new Source("native","Blizzard native data","Native item/geography metadata and verified asset references.","Exact product, build and locale; supported extraction layouts.","Native fields and assets are omitted. Other editions never fill gaps."),
       new Source("wago","Wago.tools","An optional delivery provider for selected Blizzard-native table exports.","Blizzard native data selected and a verified exact build. Never automatic fallback.","No Wago export is requested; no replacement provider is selected automatically."),
-      new Source("raidbots-hotfix","Raidbots hotfix details","Same-build mirrored ItemSparse item stats and tooltip details from a third-party hotfix snapshot.","Blizzard native data and explicit Wago exports selected; current Forever build 1.60.1.70450 / enUS; pinned third-party snapshot and table definition. Setup integration pending.","Some named items may lack native stats/details. No Era data or replacement provider is used."),
+      new Source("raidbots-hotfix","Raidbots hotfix details","Same-build mirrored ItemSparse item stats and tooltip details from a third-party hotfix snapshot.","Blizzard native data and explicit Wago exports selected; current Forever build 1.60.1.70450 / enUS; pinned third-party snapshot and table definition from GitHub/WoWDBDefs. Setup integration pending.","Some named items may lack native stats/details. No Era data or replacement provider is used."),
       new Source("atlas","AtlasLoot","Addon-reported loot lists and explicitly authored rates.","An explicitly compatible edition-specific addon snapshot.","AtlasLoot lists are omitted; other providers' loot remains separate."),
       new Source("att","All The Things","Additional authored prerequisites and acquisition connections.","Compatible edition-specific snapshot and supported relationships.","Its additional connections are omitted; Questie records remain separate."),
       new Source("vmangos","vMaNGOS","Clearly labelled non-Forever comparison evidence only.","Explicitly reviewed revision and edition; adapter planned.","Comparison claims are omitted. Forever facts are unaffected."),
@@ -60,17 +60,24 @@ public final class LibrarySetupPanel extends JPanel {
   private static final String[] STEPS={"Welcome","Games","Sources","Game files","Review"};
   private final String startupError;
   private final boolean management;
+  private LibrarySetupCoordinator coordinator;
+  private LibrarySetupCoordinator.Snapshot job;
+  private JTabbedPane navigation;
 
   public LibrarySetupPanel(Preferences preferences, Consumer<Path> openDatabase, String error) {
-    this(preferences,openDatabase,error,LibrarySetupPanel::discover,LibrarySetupPanel::inspect,false);
+    this(preferences,openDatabase,error,LibrarySetupPanel::discover,LibrarySetupPanel::inspect,false,null);
   }
-  public static LibrarySetupPanel sourceManager(Preferences preferences){
-    return new LibrarySetupPanel(preferences,path->{throw new IllegalStateException("Database switching is not available in source management");},null,LibrarySetupPanel::discover,LibrarySetupPanel::inspect,true);
+  public LibrarySetupPanel(Preferences preferences,Consumer<Path> openDatabase,String error,LibrarySetupService service){
+    this(preferences,openDatabase,error,LibrarySetupPanel::discover,LibrarySetupPanel::inspect,false,service);
+  }
+  public static LibrarySetupPanel sourceManager(Preferences preferences){return sourceManager(preferences,null);}
+  public static LibrarySetupPanel sourceManager(Preferences preferences,LibrarySetupService service){
+    return new LibrarySetupPanel(preferences,path->{throw new IllegalStateException("Database switching is not available in source management");},null,LibrarySetupPanel::discover,LibrarySetupPanel::inspect,true,service);
   }
   LibrarySetupPanel(Preferences preferences,Consumer<Path> openDatabase,String error,BuildLookup builds,LocalLookup local) {
-    this(preferences,openDatabase,error,builds,local,false);
+    this(preferences,openDatabase,error,builds,local,false,null);
   }
-  private LibrarySetupPanel(Preferences preferences,Consumer<Path> openDatabase,String error,BuildLookup builds,LocalLookup local,boolean management) {
+  private LibrarySetupPanel(Preferences preferences,Consumer<Path> openDatabase,String error,BuildLookup builds,LocalLookup local,boolean management,LibrarySetupService service) {
     this.preferences=Objects.requireNonNull(preferences);this.openDatabase=Objects.requireNonNull(openDatabase);
     startupError=error;buildLookup=builds;localLookup=local;this.management=management;
     setLayout(new BorderLayout(0,12));setBorder(new EmptyBorder(18,20,18,20));setBackground(Theme.current().bgBase());
@@ -80,7 +87,7 @@ public final class LibrarySetupPanel extends JPanel {
     add(heading,BorderLayout.NORTH);
     var center=new JPanel(new BorderLayout(0,12));center.setOpaque(false);
     var nav=new JTabbedPane(JTabbedPane.TOP,JTabbedPane.SCROLL_TAB_LAYOUT);
-    style(nav);
+    navigation=nav;style(nav);
     nav.setName("setup-navigation");
     for(String name:new String[]{"Build your library","Sources & updates"})nav.addTab(name,new JPanel());
     nav.addChangeListener(e->{cancel();page=new String[]{"setup","sources"}[nav.getSelectedIndex()];render();scrollTop();});
@@ -107,13 +114,14 @@ public final class LibrarySetupPanel extends JPanel {
       }
       selectedSources.put(game.id(),sources);folders.put(game.id(),preferences.get(game.id()+".folder",""));cdn.put(game.id(),preferences.getBoolean(game.id()+".cdn",false));
       var check=new JCheckBox(game.name()+(game.planned()?"":" · beta"),preferences.getBoolean("game."+game.id(),game.id().equals("forever")));
-      style(check);check.setToolTipText(game.planned()?"Import adapter planned; selection saves preferences only.":"Forever-specific beta data.");check.setName("setup-game-"+game.id());gameChecks.put(game.id(),check);check.addActionListener(e->refreshGames());
+      style(check);check.setToolTipText(game.planned()?"Import adapter planned; selection saves preferences only.":"Forever-specific beta data.");check.setName("setup-game-"+game.id());gameChecks.put(game.id(),check);check.addActionListener(e->{choicesChanged();refreshGames();});
     }
-    activeGame.setName("setup-active-game");style(activeGame);activeGame.addActionListener(e->{cancel();report.setText("");render();});
+    activeGame.setName("setup-active-game");style(activeGame);activeGame.addActionListener(e->{cancel();choicesChanged();report.setText("");render();});
     refreshGames();
     String rememberedGame=preferences.get("active-game","forever");
     for(int i=0;i<activeGame.getItemCount();i++)if(activeGame.getItemAt(i).id().equals(rememberedGame))activeGame.setSelectedIndex(i);
     if(management)nav.setSelectedIndex(1);
+    if(service!=null)coordinator=new LibrarySetupCoordinator(service,management?LibrarySetupService.Mode.MANAGEMENT:LibrarySetupService.Mode.FIRST_RUN,value->{job=value;status.setText(value.message());render();});
     render();
   }
   private void refreshGames(){
@@ -132,7 +140,12 @@ public final class LibrarySetupPanel extends JPanel {
     cancel();step=Math.max(0,Math.min(4,step+direction));status.setText("");render();scrollTop();
   }
   private void render(){
-    body.removeAll();wizardActions.setVisible(page.equals("setup"));back.setEnabled(step>0);
+    body.removeAll();
+    boolean activeJob=job!=null&&(job.state()==LibrarySetupCoordinator.State.BUILDING||job.state()==LibrarySetupCoordinator.State.CANCELLING);
+    navigation.setEnabled(!activeJob);
+    boolean outcome=job!=null&&(activeJob||job.state()==LibrarySetupCoordinator.State.CANCELLED||job.state()==LibrarySetupCoordinator.State.FAILED||job.state()==LibrarySetupCoordinator.State.READY);
+    wizardActions.setVisible(page.equals("setup")&&!outcome);back.setEnabled(step>0);
+    if(page.equals("setup")&&outcome){jobPage();finish();return;}
     next.setText(step==0?"Get started":step==4?"Save preferences":"Next");
     if(startupError!=null&&!startupError.isBlank())body.add(notice("Your previous database could not open: "+startupError));
     if(page.equals("setup")){
@@ -174,7 +187,7 @@ public final class LibrarySetupPanel extends JPanel {
       if(source.id().equals("wago"))check.setEnabled(selectedSources.get(game().id()).get("native"));
       if(source.id().equals("raidbots-hotfix"))check.setEnabled(game().id().equals("forever")&&selectedSources.get(game().id()).get("native")&&selectedSources.get(game().id()).get("wago"));
       check.addActionListener(e->{
-        var selection=selectedSources.get(game().id());selection.put(source.id(),check.isSelected());
+        choicesChanged();var selection=selectedSources.get(game().id());selection.put(source.id(),check.isSelected());
         var cleared=new ArrayList<String>();
         if(!selection.get("native")&&selection.get("wago")){selection.put("wago",false);cleared.add("Wago exports");}
         if(selection.get("raidbots-hotfix")&&(!game().id().equals("forever")||!selection.get("native")||!selection.get("wago"))){selection.put("raidbots-hotfix",false);cleared.add("Raidbots hotfix details");}
@@ -200,8 +213,41 @@ public final class LibrarySetupPanel extends JPanel {
     }
     var storage=card("Where your data will live");storage.add(copy(UserDataDir.resolve().toString()));storage.add(copy("All downloads, cache and temporary files must stay outside your WoW installation. Portable storage selection is not connected yet."));body.add(storage);body.add(gap());
     var ready=card("Before a library can be built");
-    ready.add(notice("Database generation is not ready yet. Exact source/build validation, import jobs and safe activation must be connected first. No download size or disk-space estimate has been established."));
-    var build=button("Build library · not available yet");build.setName("setup-build-library");build.setEnabled(false);build.setToolTipText("Import jobs and safe activation are still being connected.");ready.add(build);body.add(ready);
+    if(coordinator==null){
+      ready.add(notice("Database generation is not ready yet. Exact source/build validation, import jobs and safe activation must be connected first. No download size or disk-space estimate has been established."));
+    }else{
+      var check=button("Check requirements");check.setName("setup-review-requirements");check.setEnabled(job==null||job.state()!=LibrarySetupCoordinator.State.REVIEWING);
+      check.addActionListener(event->coordinator.review(draft()));ready.add(check);
+      if(job!=null&&job.review()!=null){ready.add(copy(job.review().summary()));for(String blocker:job.review().blockers())ready.add(notice(blocker));}
+    }
+    var build=button(coordinator==null?"Build library · not available yet":"Build library");build.setName("setup-build-library");
+    build.setEnabled(coordinator!=null&&job!=null&&job.state()==LibrarySetupCoordinator.State.REVIEWED&&job.review().ready()&&draft().equals(job.draft()));
+    build.setToolTipText(coordinator==null?"Import jobs and safe activation are still being connected.":"Every selected provider must pass the current requirements check.");
+    build.addActionListener(event->coordinator.build(draft()));ready.add(build);body.add(ready);
+  }
+  LibrarySetupDraft draft(){
+    var profiles=new LinkedHashMap<String,LibrarySetupDraft.Profile>();
+    for(Game selected:GAMES)if(gameChecks.get(selected.id()).isSelected()){
+      var sources=new HashSet<String>();selectedSources.get(selected.id()).forEach((source,included)->{if(included)sources.add(source);});
+      String folder=folders.get(selected.id());profiles.put(selected.id(),new LibrarySetupDraft.Profile(sources,folder.isBlank()?Optional.empty():Optional.of(Path.of(folder)),cdn.get(selected.id())));
+    }
+    return new LibrarySetupDraft(game()==null?"":game().id(),profiles);
+  }
+  private void choicesChanged(){if(coordinator!=null)coordinator.invalidate();}
+  private void jobPage(){
+    if(job.state()==LibrarySetupCoordinator.State.READY){
+      body.add(title(management?(job.result().nextStartupRegistered()?"Ready for next startup":"Library built"):"Your library is ready",32));body.add(copy(job.result().summary()));
+      if(management){body.add(notice("Your current session keeps its existing library."));if(!job.result().nextStartupRegistered())body.add(notice("Next-startup registration is not confirmed. The current library will remain selected."));}
+      else{var open=button("Open library");open.setName("setup-open-built-library");open.addActionListener(event->{if(coordinator.snapshot().state()==LibrarySetupCoordinator.State.READY){Path file=job.result().database();open.setEnabled(false);status.setText("Opening the checked library…");coordinator.close();openDatabase.accept(file);}});body.add(open);}
+      return;
+    }
+    body.add(title(job.state()==LibrarySetupCoordinator.State.FAILED?"The library needs attention":job.state()==LibrarySetupCoordinator.State.CANCELLED?"Stopped safely":"Building your library",32));
+    if(job.progress()!=null){body.add(copy(job.progress().detail()));if(job.progress().completed()>=0)body.add(copy(job.progress().completed()+(job.progress().total()>=0?" / "+job.progress().total():"")+" "+job.progress().unit()+" in this step"));}
+    for(var phase:LibrarySetupService.Phase.values())body.add(copy((job.progress()!=null&&phase==job.progress().phase()?"→ ":"· ")+(management&&phase==LibrarySetupService.Phase.OPEN?"Ready for next startup":phase.label())));
+    body.add(notice(job.message()));
+    boolean running=job.state()==LibrarySetupCoordinator.State.BUILDING||job.state()==LibrarySetupCoordinator.State.CANCELLING;
+    if(running){var bar=new JProgressBar();bar.setIndeterminate(true);bar.setStringPainted(false);body.add(bar);var stop=button("Stop after current step");stop.setName("setup-stop-build");stop.setEnabled(job.state()!=LibrarySetupCoordinator.State.CANCELLING);stop.addActionListener(event->coordinator.cancel());body.add(stop);}
+    else{var retry=button("Review sources");retry.setName("setup-review-after-job");retry.addActionListener(event->{coordinator.invalidate();step=2;render();scrollTop();});body.add(retry);}
   }
   private void addDataTools(){
     var nativeCard=card("Your WoW installation");
@@ -209,15 +255,18 @@ public final class LibrarySetupPanel extends JPanel {
     var find=button("Find my installation");find.setName("setup-detect-local");find.addActionListener(e->runLocal(null));nativeCard.add(find);
     var browse=button("Browse for WoW folder…");browse.setName("setup-browse-local");browse.addActionListener(e->{var chooser=new JFileChooser();chooser.setDialogTitle("Choose your read-only WoW installation");chooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);if(chooser.showOpenDialog(this)==JFileChooser.APPROVE_OPTION)runLocal(chooser.getSelectedFile().toPath());});nativeCard.add(browse);
     nativeCard.add(copy(folders.get(game().id()).isBlank()?"No installation selected.":"Remembered folder: "+folders.get(game().id())+". Recheck before any future import."));
+    if(!folders.get(game().id()).isBlank()){
+      var clear=button("Clear chosen folder");clear.setName("setup-clear-folder");clear.addActionListener(event->{choicesChanged();folders.put(game().id(),"");render();});nativeCard.add(clear);
+    }
     var allow=new JCheckBox("Allow missing-file CDN downloads",cdn.get(game().id()));style(allow);allow.setName("setup-allow-cdn");
-    allow.addActionListener(e->cdn.put(game().id(),allow.isSelected()));nativeCard.add(allow);
+    allow.addActionListener(e->{choicesChanged();cdn.put(game().id(),allow.isSelected());});nativeCard.add(allow);
     nativeCard.add(copy("Optional Blizzard CDN permission for a future supported exact-build job only. Missing files stay gaps when off. All downloads go to Vibecraft storage, never the WoW folder."));body.add(nativeCard);body.add(gap());
     var official=card("Blizzard download source");official.add(copy("Check whether Blizzard advertises the exact build supported by this library. Downloads remain subject to your source permission and a supported import job."));
     var check=button("Check supported download build");check.setEnabled(!game().planned());check.setName("setup-discover-builds");check.addActionListener(e->{String product=game().channel();run("Checking the supported library build…",cancelled->buildLookup.discover(product,cancelled));});official.add(check);
     official.add(copy("This checks compatibility only. No content is downloaded. Exact files and locale still require validation before import."));body.add(official);body.add(report);
   }
   @FunctionalInterface private interface Work { String perform(BooleanSupplier cancelled)throws Exception; }
-  private void runLocal(Path path){String gameId=game().id();run("Inspecting local installation metadata…",cancelled->{Inspection inspection=localLookup.inspect(path,cancelled);if(!cancelled.getAsBoolean()&&!inspection.selectedFolder().isBlank())SwingUtilities.invokeLater(()->{if(!cancelled.getAsBoolean())folders.put(gameId,inspection.selectedFolder());});return inspection.text();});}
+  private void runLocal(Path path){String gameId=game().id();run("Inspecting local installation metadata…",cancelled->{Inspection inspection=localLookup.inspect(path,cancelled);if(!cancelled.getAsBoolean()&&!inspection.selectedFolder().isBlank())SwingUtilities.invokeLater(()->{if(!cancelled.getAsBoolean()){choicesChanged();folders.put(gameId,inspection.selectedFolder());}});return inspection.text();});}
   private void run(String message,Work work){
     if(worker!=null){status.setText("A check is already running. Cancel it before starting another.");return;}
     long token=++generation;status.setText(message);cancelWork.setEnabled(true);cancelWork.setVisible(true);report.setText("");
@@ -236,7 +285,7 @@ public final class LibrarySetupPanel extends JPanel {
   private void chooseDatabase(){var chooser=new JFileChooser();chooser.setDialogTitle("Use an existing WoW Forever database");chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("SQLite database (*.sqlite, *.db)","sqlite","db"));if(chooser.showOpenDialog(this)==JFileChooser.APPROVE_OPTION){cancel();openDatabase.accept(chooser.getSelectedFile().toPath());}}
   private void scrollTop(){SwingUtilities.invokeLater(()->{if(scroll!=null){scroll.getViewport().setViewPosition(new Point(0,0));scroll.getVerticalScrollBar().setValue(0);}});}
   private void finish(){body.revalidate();body.repaint();}
-  public void close(){cancel();}
+  public void close(){cancel();if(coordinator!=null)coordinator.close();}
   @Override public void removeNotify(){close();super.removeNotify();}
   private static String discover(String product,BooleanSupplier cancelled)throws Exception{
     try(var client=new BlizzardBuildDiscovery()){
