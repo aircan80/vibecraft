@@ -74,7 +74,8 @@ requested asset 567490 was absent from the new cache. Both selected configuratio
 were obtained from official hosts. Loose URLs returned 403/404. The default lookup
 verified 64 fresh archive indexes / 5,753,312 bytes and stopped at its explicit network
 budget after 42 seconds. No Wago or whole archive was requested; asset availability
-remained unknown. A separately bounded expanded metadata lookup is ongoing; its
-result will be recorded separately, without claiming fresh asset success prematurely.
+remained unknown. The separately bounded expanded lookup subsequently succeeded; its exact interval,
+latency, metadata seed limits and zero-network cache proof are recorded in
+[the official archive acceptance](2026-10-18-official-archive-asset-proof.md).
 Raw DB2 decoding, local CASC extraction and full first-run ingestion are not completed
 by this change.
