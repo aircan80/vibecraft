@@ -42,6 +42,14 @@ public final class Main {
       EditionRegistry editions, CatalogSession session) {}
 
   public static void main(String[] args) {
+    if(args.length>0 && args[0].equals("--portable-self-test")) {
+      int code=2;
+      if(args.length!=2)System.err.println("Usage: --portable-self-test <absolute-report-path>");
+      else try {code=PortableSelfTest.run(Path.of(args[1]));}
+      catch(RuntimeException failure){System.err.println(PortableSelfTest.FAILURE_MARKER+": invalid report path");}
+      System.exit(code);
+      return;
+    }
     if (args.length == 1 && args[0].equals("--self-test")) {
       System.exit(runSelfTest());
     }
@@ -50,7 +58,7 @@ public final class Main {
       override = startupExperience(args);
     } catch (IllegalArgumentException e) {
       System.err.println(e.getMessage());
-      System.err.println("Usage: java -jar wow-forever-browser.jar [--self-test | --ui=journal]");
+      System.err.println("Usage: java -jar wow-forever-browser.jar [--self-test | --portable-self-test <absolute-report-path> | --ui=journal]");
       System.exit(2);
       return;
     }
